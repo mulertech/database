@@ -1,0 +1,464 @@
+<?php
+
+
+namespace mtphp\Database\Relational\Sql;
+
+use RuntimeException;
+
+/**
+ * Class SqlQuery is a SQL query.
+ * @package mtphp\Database\SQL
+ * @author Sébastien Muler
+ */
+class SqlQuery
+{
+
+    /**
+     * Sql INSERT.
+     */
+    public const INSERT = 'INSERT';
+
+    /**
+     * Sql INTO.
+     */
+    public const INTO = 'INTO';
+
+    /**
+     * Sql VALUES
+     */
+    public const VALUES = 'VALUES';
+
+    /**
+     * Sql SELECT.
+     */
+    public const SELECT = 'SELECT';
+
+    /**
+     * Sql AS.
+     */
+    public const AS = 'AS';
+    /**
+     * Sql UPDATE.
+     */
+    public const UPDATE = 'UPDATE';
+
+    /**
+     * Sql SET. (For update request)
+     */
+    public const SET = 'SET';
+    /**
+     * Sql DELETE.
+     */
+    public const DELETE = 'DELETE';
+
+    /**
+     * Sql DISTINCT.
+     */
+    public const DISTINCT = 'DISTINCT';
+
+    /**
+     * Sql FROM.
+     */
+    public const FROM = 'FROM';
+
+    /**
+     * Join types.
+     */
+    public const INNER_JOIN = 'INNER JOIN';
+    public const CROSS_JOIN = 'CROSS JOIN';
+    public const LEFT_JOIN = 'LEFT JOIN';
+    public const RIGHT_JOIN = 'RIGHT JOIN';
+    public const FULL_JOIN = 'FULL JOIN';
+    public const NATURAL_JOIN = 'NATURAL JOIN';
+    public const UNION_JOIN = 'UNION JOIN';
+
+    /**
+     * Sql WHERE.
+     */
+    public const WHERE = 'WHERE';
+
+    /**
+     * Sql GROUP BY.
+     */
+    public const GROUP_BY = 'GROUP BY';
+
+    /**
+     * Sql ROLLUP.
+     */
+    public const WITH_ROLLUP = 'WITH ROLLUP';
+
+    /**
+     * Sql HAVING.
+     */
+    public const HAVING = 'HAVING';
+
+    /**
+     * Sql ORDER BY.
+     */
+    public const ORDER_BY = 'ORDER BY';
+
+    /**
+     * Sql LIMIT.
+     */
+    public const LIMIT = 'LIMIT';
+
+    /**
+     * Sql OFFSET.
+     */
+    public const OFFSET = 'OFFSET';
+
+    /**
+     * Sql UNION.
+     */
+    public const UNION = 'UNION';
+
+    /**
+     * Sql UNION ALL.
+     */
+    public const UNION_ALL = 'UNION ALL';
+
+    /**
+     * @var QueryBuilder $queryBuilder
+     */
+    private $queryBuilder;
+    /**
+     * The joined tables like :
+     * [0 => ['t1', 't2'], 1 => ['table3', 'table4']]
+     * The default value is the alias of table, if not given it's the table.
+     * @var array $joinedTables
+     */
+    private $joinedTables;
+
+    /**
+     * SqlQuery constructor.
+     * @param QueryBuilder $queryBuilder
+     */
+    public function __construct(QueryBuilder $queryBuilder)
+    {
+        $this->queryBuilder = $queryBuilder;
+    }
+
+    /**
+     * @param string $string can be a simple string or two string with one contain point,
+     * example : 'table.column alias'
+     * @return string Example : '`table`.`column` `alias`'
+     */
+    public static function escape(string $string): string
+    {
+        $string = trim($string);
+        //No escape for subquery
+        if (strpos($string, '(') !== false) {
+            return $string;
+        }
+        if (strpos($string, ' = ') !== false) {
+            $parts = explode(' = ', $string);
+            return self::escape($parts[0]) . '=' . self::escape($parts[1]);
+        }
+        if (strpos($string, '=') !== false) {
+            $parts = explode('=', $string);
+            return self::escape($parts[0]) . '=' . self::escape($parts[1]);
+        }
+        if (strpos($string, ' as ') !== false) {
+            $parts = explode(' as ', $string);
+            return self::escape($parts[0]) . ' ' . self::escape($parts[1]);
+        }
+        if (strpos($string, ' AS ') !== false) {
+            $parts = explode(' AS ', $string);
+            return self::escape($parts[0]) . ' ' . self::escape($parts[1]);
+        }
+        if ($string === '*' || strpos($string, '(') !== false) {
+            return $string;
+        }
+        if (strpos($string, ' ') !== false) {
+            $parts = explode(' ', $string);
+            return self::escape($parts[0]) . ' ' . self::escape($parts[1]);
+        }
+        if (strpos($string, '.') !== false) {
+            $parts = explode('.', $string);
+            return self::escape($parts[0]) . '.' . self::escape($parts[1]);
+        }
+        return '`' . $string . '`';
+    }
+
+    /**
+     * @return string
+     */
+    public function generateQuery(): string
+    {
+        $type = $this->queryBuilder->getType();
+        switch ($type) {
+            case self::SELECT:
+                return $this->generateSelect();
+            case self::INSERT:
+                return $this->generateInsert();
+            case self::UPDATE:
+                return $this->generateUpdate();
+            case self::DELETE:
+                return $this->generateDelete();
+        }
+
+        throw new RuntimeException(
+            sprintf(
+                'Class SqlQuery, function generateFrom. The type (%s) of the query (for the "%s" table) into the QueryBuilder was not define or incorrect.',
+                ($type) ?? 'not define',
+                $this->queryBuilder->getFrom()[0]['name']
+            )
+        );
+    }
+
+    /**
+     * @return string
+     */
+    private function generateSelect(): string
+    {
+        $query = self::SELECT . ' ';
+        if ($this->queryBuilder->isDistinct()) {
+            $query .= self::DISTINCT . ' ';
+        }
+        $query .= implode(', ', $this->queryBuilder->getSelect());
+        $query .= $this->generateFrom();
+        $query .= $this->generateJoin(
+            $this->queryBuilder->getFrom()[0]['alias'] ?? $this->queryBuilder->getFrom()[0]['name']
+        );
+        $query .= $this->generateWhere();
+        $query .= $this->generateGroupBy();
+        $query .= $this->generateHaving();
+        $query .= $this->generateOrderBy();
+        $query .= $this->generateLimitOffset();
+        if (!empty($alias = $this->queryBuilder->getAlias())) {
+            return '(' . $query . ') ' . self::AS . ' ' . $alias;
+        }
+        return $query;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateInsert(): string
+    {
+        $query = self::INSERT;
+        $query .= $this->generateFrom();
+        $query .= $this->generateValues();
+        return $query;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateUpdate(): string
+    {
+        $query = self::UPDATE;
+        $query .= $this->generateFrom();
+        $query .= $this->generateValues();
+        $query .= $this->generateWhere();
+        return $query;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateDelete(): string
+    {
+        $query = self::DELETE . ' ';
+        $query .= $this->generateFrom();
+        $query .= $this->generateWhere();
+        return $query;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateFrom(): string
+    {
+        $type = $this->queryBuilder->getType();
+        if (empty($from = $this->queryBuilder->getFrom())) {
+            throw new RuntimeException(
+                sprintf(
+                    'Class SqlQuery, function generateFrom. The from variable was not found, for the "%s" request.',
+                    ($type) ?? 'not define'
+                )
+            );
+        }
+        $tableUse = ' ';
+        if ($type === self::INSERT) {
+            $tableUse .= self::INTO . ' ';
+        } elseif ($type === self::SELECT) {
+            return $tableUse . self::FROM . ' ' . $this->generateSelectFrom($from);
+        } elseif ($type === self::DELETE) {
+            $tableUse .= self::FROM . ' ';
+        }
+        return $tableUse . self::escape($from['name']) . ((!empty($from['alias'])) ? ' ' . self::escape(
+                    $from['alias']
+                ) : '');
+    }
+
+    /**
+     * @param array $from
+     * @return string
+     */
+    private function generateSelectFrom(array $from): string
+    {
+        if (!isset($from['name']) && count($from) > 1) {
+            $fromList = [];
+            foreach ($from as $item) {
+                $fromList[] = $this->generateSelectFrom($item);
+            }
+            $actualFrom = implode(', ', $fromList);
+        } else {
+            $actualFrom = '';
+            if (!isset($from['name'])) {
+                $from = $from[0];
+            }
+            if ($from['name'] instanceof QueryBuilder) {
+                $actualFrom .= $from['name']->getSubQuery();
+            } else {
+                $actualFrom .= self::escape($from['name']);
+            }
+            if (!is_null($from['alias'])) {
+                $actualFrom .= ' ' . self::escape($from['alias']);
+            }
+        }
+        return $actualFrom;
+    }
+
+    /**
+     * @param string|null $table
+     * @param int $level
+     * @return string
+     */
+    private function generateJoin(string $table = null, int $level = 0): string
+    {
+        $query = '';
+        if ($level === 0) {
+            $this->joinedTables[0][] = $table;
+        }
+
+        if (isset($this->joinedTables[$level])) {
+            $levelTables = $this->joinedTables[$level];
+            if (!empty($this->queryBuilder->getJoin())) {
+                foreach ($this->queryBuilder->getJoin() as $key => $value) {
+                    if (in_array($key, $levelTables, true)) {
+                        foreach ($value as $join) {
+                            $query .= ' ' . $join['type'] . ' ' . self::escape(
+                                    $join['to']
+                                ) . (($join['on']) ? ' ON ' . self::escape($join['on']) : '');
+                            $aliasOrName = $this->queryBuilder->extractAlias($join['to']);
+                            $this->joinedTables[$level + 1][] = $aliasOrName['alias'] ?? $aliasOrName['name'];
+                        }
+                        unset($this->queryBuilder->getJoin()[$key]);
+                    }
+                }
+                $query .= $this->generateJoin(null, ++$level);
+            }
+        }
+        return $query;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateWhere(): string
+    {
+        return (!empty($this->queryBuilder->getWhere())) ? ' ' . self::WHERE . $this->queryBuilder->getWhere() : '';
+    }
+
+    /**
+     * @return string
+     */
+    private function generateGroupBy(): string
+    {
+        $groupBy = '';
+        if (!empty($this->queryBuilder->getGroupBy())) {
+            $groupBy = ' ' . self::GROUP_BY . ' ' . implode(', ', $this->queryBuilder->getGroupBy());
+            if ($this->queryBuilder->getWithRollup()) {
+                $groupBy .= ' ' . self::WITH_ROLLUP;
+            }
+        }
+        return $groupBy;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateHaving(): string
+    {
+        return (!empty($this->queryBuilder->getHaving())) ? ' ' . self::HAVING . $this->queryBuilder->getHaving() : '';
+    }
+
+    /**
+     * @return string
+     */
+    private function generateOrderBy(): string
+    {
+        return (!empty($this->queryBuilder->getOrderBy())) ? ' ' . self::ORDER_BY . ' ' . implode(
+                ', ',
+                $this->queryBuilder->getOrderBy()
+            ) : '';
+    }
+
+    /**
+     * @return string
+     */
+    private function generateLimitOffset(): string
+    {
+        $limit = '';
+        if ($this->queryBuilder->getLimit() !== 0) {
+            $limit .= ' ' . self::LIMIT . ' ' . $this->queryBuilder->getLimit();
+        }
+        if ($this->queryBuilder->getOffset() !== 0) {
+            $limit .= ' ' . self::OFFSET . ' ' . $this->queryBuilder->getOffset();
+        }
+        return $limit;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateValues(): string
+    {
+        if (empty($values = $this->queryBuilder->getValues())) {
+            throw new RuntimeException(
+                sprintf(
+                    'Class SqlQuery, function generateValues. The values of the insert for the table "%s" was not set.',
+                    $this->queryBuilder->getFrom()[0]['name']
+                )
+            );
+        }
+        if (!empty($this->queryBuilder->getDynamicParameters()) && !empty($this->queryBuilder->getNamedParameters())) {
+            throw new RuntimeException(
+                'Class SqlQuery, function generateValues. Parameters are dynamically and named defined, there must be one or the other.'
+            );
+        }
+        $query = ' (`' . implode('`, `', array_keys($values)) . '`) ' . self::VALUES . ' (';
+        if (array_values($values)[0][0] === '?' && !empty($this->queryBuilder->getDynamicParameters())) {
+            $dynamicalValues = array_fill(0, count($values), '?');
+            $query .= implode(', ', $dynamicalValues) . ')';
+            return $query;
+        }
+        //make named parameters and set values
+        $names = array_keys($this->queryBuilder->getNamedParameters());
+        $query .= implode(', ', $names) . ')';
+        return $query;
+    }
+
+    /**
+     * Make the SQL variable setter for columns references.
+     * @param array $columns Format accepted :
+     * [0 => 'column1', 1 => 'column2',..]
+     * ['column1' => 'data column 1', 'column2' => 'data column 2',..]
+     * @return string like : 'column1 =:column1, column2 =:column2,..'
+     * @todo given this function and do the tests, or drop this function if used only prepare request.
+     */
+    private function setColumnsVariables(array $columns): string
+    {
+        $columnsVariables = [];
+        foreach ($columns as $key => $value) {
+            if (is_numeric($key)) {
+                $columnsVariables[] = self::escape($value) . ' = :' . $value;
+            } else {
+                $columnsVariables[] = self::escape($key) . ' = :' . $key;
+            }
+        }
+        return implode(', ', $columnsVariables);
+    }
+}
