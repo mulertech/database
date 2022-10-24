@@ -3,7 +3,6 @@
 namespace mtphp\Database\ORM;
 
 use _config\UpdateDatabaseMysql;
-use Exception;
 use mtphp\Database\Mapping\DbMappingInterface;
 use mtphp\Database\PhpInterface\PhpDatabaseInterface;
 use mtphp\Entity\Entity;

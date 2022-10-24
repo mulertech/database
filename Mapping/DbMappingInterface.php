@@ -1,10 +1,6 @@
 <?php
 
-
 namespace mtphp\Database\Mapping;
-
-
-use mtphp\Entity\Entity;
 
 /**
  * Interface DbMappingInterface

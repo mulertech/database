@@ -2,8 +2,6 @@
 
 namespace mtphp\Database\PhpInterface;
 
-use mtphp\Database\PhpInterface\ConnectorInterface;
-use mtphp\Database\PhpInterface\DriverInterface;
 use PDO;
 use PDOException;
 use RuntimeException;
