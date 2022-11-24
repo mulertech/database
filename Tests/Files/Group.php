@@ -2,7 +2,6 @@
 
 namespace mtphp\Database\Tests\Files;
 
-use mtphp\Entity\Entity;
 use mtphp\Database\Mapping\MtEntity;
 
 /**
@@ -11,7 +10,7 @@ use mtphp\Database\Mapping\MtEntity;
  * @author Sébastien Muler
  * @MtEntity (repository=GroupRepository::class)
  */
-class Group extends Entity
+class Group
 {
 
 }

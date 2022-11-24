@@ -2,7 +2,6 @@
 
 namespace mtphp\Database\Tests\Files;
 
-use mtphp\Entity\Entity;
 use mtphp\Database\Mapping\MtEntity;
 use mtphp\Database\Mapping\MtColumn;
 use mtphp\Database\Mapping\MtFk;
@@ -13,7 +12,7 @@ use mtphp\Database\Mapping\MtFk;
  * @author Sébastien Muler
  * @MtEntity (tableName="users", repository=UserRepository::class)
  */
-class User extends Entity
+class User
 {
 
     /**

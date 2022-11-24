@@ -5,8 +5,8 @@ namespace mtphp\Database\ORM;
 use _config\UpdateDatabaseMysql;
 use Exception;
 use App\Entity\Version;
-use mtphp\ArrayManipulation\ArrayManipulation;
-use mtphp\ClassManipulation\ClassManipulation;
+use MulerTech\ArrayManipulation\ArrayManipulation;
+use MulerTech\ClassManipulation\ClassManipulation;
 use mtphp\Database\Event\PostFlushEvent;
 use mtphp\Database\Event\PostPersistEvent;
 use mtphp\Database\Event\PostRemoveEvent;
@@ -552,7 +552,7 @@ class EmEngine
                         );
                     }
                     $request = 'UPDATE `' . strtolower(
-                            $entity->getName()
+                            $entity->getEntityName()
                         ) . '` SET ';
                     //column = :column
                     $columns = [];
