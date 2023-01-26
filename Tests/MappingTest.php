@@ -76,6 +76,20 @@ class MappingTest extends TestCase
      * @return void
      * @throws ReflectionException
      */
+    public function testGetPropertiesColumns(): void
+    {
+        $propertiesColumns = $this->getDbMapping()->getPropertiesColumns(User::class);
+        $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id'], $propertiesColumns);
+        //Find column name with property
+        $this->assertEquals('unit_id', $propertiesColumns['unit']);
+        //Find property with column name
+        $this->assertEquals('unit', array_keys($propertiesColumns, 'unit_id')[0]);
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
     public function testGetColumnNameOfUsername(): void
     {
         $this->assertEquals('username', $this->getDbMapping()->getColumnName(User::class, 'username'));

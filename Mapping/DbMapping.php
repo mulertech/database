@@ -91,6 +91,22 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param string $entity
+     * @return array
+     * @throws ReflectionException
+     */
+    public function getPropertiesColumns(string $entity): array
+    {
+        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
+        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
+        $propertiesColumns = [];
+        array_walk($mappingMtColumn, static function ($value, $key) use (&$propertiesColumns) {
+            $propertiesColumns[$key] = $value->getColumnName() ?? $key;
+        });
+        return $propertiesColumns;
+    }
+
+    /**
+     * @param string $entity
      * @param string $property
      * @return string|null
      * @throws ReflectionException
