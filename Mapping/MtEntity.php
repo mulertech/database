@@ -19,6 +19,10 @@ class MtEntity
      * @var string $tableName
      */
     public $tableName;
+    /**
+     * @var int $autoIncrement
+     */
+    public $autoIncrement;
 
     /**
      * @param string $tableName
@@ -50,6 +54,22 @@ class MtEntity
     public function getRepository(): ?string
     {
         return $this->repository;
+    }
+
+    /**
+     * @return int
+     */
+    public function getAutoIncrement(): ?int
+    {
+        return $this->autoIncrement;
+    }
+
+    /**
+     * @param int $autoIncrement
+     */
+    public function setAutoIncrement(int $autoIncrement): void
+    {
+        $this->autoIncrement = $autoIncrement;
     }
 
 }

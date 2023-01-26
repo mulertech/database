@@ -10,7 +10,7 @@ use mtphp\Database\Mapping\MtFk;
  * Class User
  * @package mtphp\Database\Tests\Files
  * @author Sébastien Muler
- * @MtEntity (tableName="users", repository=UserRepository::class)
+ * @MtEntity (tableName="users", repository=UserRepository::class, autoIncrement=100)
  */
 class User
 {

@@ -62,10 +62,10 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param string $entity
-     * @return string
+     * @return string|null
      * @throws ReflectionException
      */
-    public function getRepository(string $entity): string
+    public function getRepository(string $entity): ?string
     {
         $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
         $mappingMtEntity = $phpDocs->getClassMappingOf(MtEntity::class);
@@ -73,6 +73,21 @@ class DbMapping implements DbMappingInterface
             throw new RuntimeException(sprintf('The MtEntity mapping is not implemented into the %s class.', $entity));
         }
         return $mappingMtEntity->getRepository();
+    }
+
+    /**
+     * @param string $entity
+     * @return int
+     * @throws ReflectionException
+     */
+    public function getAutoIncrement(string $entity): ?int
+    {
+        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
+        $mappingMtEntity = $phpDocs->getClassMappingOf(MtEntity::class);
+        if (is_null($mappingMtEntity)) {
+            throw new RuntimeException(sprintf('The MtEntity mapping is not implemented into the %s class.', $entity));
+        }
+        return $mappingMtEntity->getAutoIncrement();
     }
 
     /**

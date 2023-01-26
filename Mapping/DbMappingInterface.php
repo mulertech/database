@@ -16,7 +16,7 @@ interface DbMappingInterface
      * 1 : The table name can be set manually into PhpDoc of this entity like this : @MtEntity (tableName="users", repository=UserRepository::class)
      * 2 : The name of this entity will be used if the MtEntity mapping is used like this : @MtEntity (repository=UserRepository::class)
      * 3 : If this entity doesn't use the MtEntity mapping it return null
-     * @param string|null $entity
+     * @param string $entity
      * @return string
      */
     public function getTableName(string $entity): ?string;
@@ -28,7 +28,14 @@ interface DbMappingInterface
 
     /**
      * @param string $entity
-     * @return string
+     * @return string|null
      */
-    public function getRepository(string $entity): string;
+    public function getRepository(string $entity): ?string;
+
+    /**
+     * Get the auto increment start number
+     * @param string $entity
+     * @return int|null
+     */
+    public function getAutoIncrement(string $entity): ?int;
 }

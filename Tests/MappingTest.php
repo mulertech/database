@@ -61,6 +61,11 @@ class MappingTest extends TestCase
         $this->assertEquals(UserRepository::class, $this->getDbMapping()->getRepository(User::class));
     }
 
+    public function testAutoIncrement(): void
+    {
+        $this->assertEquals(100, $this->getDbMapping()->getAutoIncrement(User::class));
+    }
+
     //MtColumn mapping
 
     /**
