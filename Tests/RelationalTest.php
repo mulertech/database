@@ -14,6 +14,7 @@ use mtphp\Database\Relational\Sql\SqlOperators;
 use mtphp\Database\Relational\Sql\SqlQuery;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class RelationalTest extends TestCase
 {
@@ -690,7 +691,7 @@ class RelationalTest extends TestCase
         );
     }
 
-    public function testQueryBuilderSelectSubqueryIntoFromWithUnion(): void
+    public function testQueryBuilderSelectSubQueryIntoFromWithUnion(): void
     {
         $kitrepairs = new QueryBuilder();
         $kitrepairs->select(
@@ -758,7 +759,6 @@ class RelationalTest extends TestCase
 
     public function testPhpDatabaseManagerPopulateEnvParameters(): void
     {
-        $parameters = [];
         putenv('DATABASE_SCHEME=mysql');
         putenv('DATABASE_HOST=127.0.0.1');
         putenv('DATABASE_PORT=3306');
@@ -777,7 +777,7 @@ class RelationalTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, PhpDatabaseManager::populateParameters($parameters));
+        self::assertEquals($expected, PhpDatabaseManager::populateParameters());
     }
 
     public function testPhpDatabaseManagerPopulateParametersWithUrlDecode(): void
@@ -800,10 +800,10 @@ class RelationalTest extends TestCase
         self::assertEquals($expected, PhpDatabaseManager::populateParameters($parameters));
     }
 
-    public function testPhpDatabaseManagerGetConnection(): void
+    public function testPhpDatabaseManagerGetConnectionWithBadUrl(): void
     {
-        //If a database exists but the username db_user doesn't exists, this message is catch by a RuntimeException :
-        $this->expectException(Exception::class);
+        //If a database exists but the username db_user doesn't exist, this message is catch by a RuntimeException :
+        $this->expectException(RuntimeException::class);
         $parameters = [];
         $parameters['connector'] = new PdoConnector(new Driver());
         $parameters[PhpDatabaseManager::DATABASE_URL] = 'mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7';
