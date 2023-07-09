@@ -46,7 +46,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     public function getConnection(): PDO
     {
-        if (!$this->connection) {
+        if ($this->connection === null) {
             $parameters = self::populateParameters($this->parameters);
             $this->connection = $this->connector->connect($parameters, $parameters['user'], $parameters['pass']);
         }
