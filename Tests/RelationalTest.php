@@ -690,7 +690,7 @@ class RelationalTest extends TestCase
         );
     }
 
-    public function testQueryBuilderSelectSubqueryIntoFromWithUnion(): void
+    public function testQueryBuilderSelectSubQueryIntoFromWithUnion(): void
     {
         $kitrepairs = new QueryBuilder();
         $kitrepairs->select(
