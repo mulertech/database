@@ -1,12 +1,12 @@
 <?php
 
-namespace mtphp\Database\Tests\Files;
+namespace MulerTech\Database\Tests\Files;
 
-use mtphp\Database\Mapping\MtEntity;
+use MulerTech\Database\Mapping\MtEntity;
 
 /**
  * Class Group
- * @package mtphp\Database\Tests\Files
+ * @package MulerTech\Database\Tests\Files
  * @author Sébastien Muler
  * @MtEntity (repository=GroupRepository::class)
  */

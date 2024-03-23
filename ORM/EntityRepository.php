@@ -1,13 +1,13 @@
 <?php
 
-namespace mtphp\Database\ORM;
+namespace MulerTech\Database\ORM;
 
-use mtphp\Database\Relational\Sql\QueryBuilder;
-use mtphp\Entity\Entity;
+use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Entity\Entity;
 
 /**
  * Class EntityRepository
- * @package mtphp\Database\ORM
+ * @package MulerTech\Database\ORM
  * @author Sébastien Muler
  */
 class EntityRepository

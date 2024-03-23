@@ -1,8 +1,8 @@
 <?php
 
-namespace mtphp\Database\Relational\Sql;
+namespace MulerTech\Database\Relational\Sql;
 
-use mtphp\Database\ORM\EmEngine;
+use MulerTech\Database\ORM\EmEngine;
 
 class InformationSchema extends QueryBuilder
 {

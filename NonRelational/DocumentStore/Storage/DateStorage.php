@@ -1,10 +1,8 @@
 <?php
 
+namespace MulerTech\Database\NonRelational\DocumentStore\Storage;
 
-namespace mtphp\Database\NonRelational\DocumentStore\Storage;
-
-
-use mtphp\Database\NonRelational\DocumentStore\FileManipulation;
+use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 
 class DateStorage
 {

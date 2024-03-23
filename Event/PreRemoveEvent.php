@@ -1,14 +1,14 @@
 <?php
 
-namespace mtphp\Database\Event;
+namespace MulerTech\Database\Event;
 
-use mtphp\Database\ORM\EntityManagerInterface;
-use mtphp\Entity\Entity;
-use mtphp\EventManager\Event;
+use MulerTech\Database\ORM\EntityManagerInterface;
+use MulerTech\Entity\Entity;
+use MulerTech\EventManager\Event;
 
 /**
  * Class PreRemoveEvent
- * @package mtphp\Database\Event
+ * @package MulerTech\Database\Event
  * @author Sébastien Muler
  */
 class PreRemoveEvent extends Event

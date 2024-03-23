@@ -1,11 +1,10 @@
 <?php
 
-
-namespace mtphp\Database\PhpInterface;
+namespace MulerTech\Database\PhpInterface;
 
 /**
  * Interface DriverInterface
- * @package mtphp\Database\PhpInterface
+ * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
 interface DriverInterface

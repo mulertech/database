@@ -1,16 +1,14 @@
 <?php
 
+namespace MulerTech\Database\Tests;
 
-namespace mtphp\Database\Tests;
-
-
-use mtphp\Database\PhpInterface\PdoConnector;
-use mtphp\Database\PhpInterface\PdoMysql\Driver;
-use mtphp\Database\PhpInterface\PhpDatabaseManager;
-use mtphp\Database\Relational\Sql\QueryBuilder;
-use mtphp\Database\Relational\Sql\SqlOperations;
-use mtphp\Database\Relational\Sql\SqlOperators;
-use mtphp\Database\Relational\Sql\SqlQuery;
+use MulerTech\Database\PhpInterface\PdoConnector;
+use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\PhpInterface\PdoMysql\Driver;
+use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Relational\Sql\SqlOperations;
+use MulerTech\Database\Relational\Sql\SqlOperators;
+use MulerTech\Database\Relational\Sql\SqlQuery;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;

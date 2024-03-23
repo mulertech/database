@@ -1,7 +1,6 @@
 <?php
 
-
-namespace mtphp\Database\PhpInterface;
+namespace MulerTech\Database\PhpInterface;
 
 use PDO;
 use PDOException;
@@ -9,7 +8,7 @@ use RuntimeException;
 
 /**
  * Class PhpDatabaseManager represent PDO connection.
- * @package mtphp\Database\PhpInterface
+ * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
 class PhpDatabaseManager implements PhpDatabaseInterface

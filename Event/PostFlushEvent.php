@@ -1,13 +1,13 @@
 <?php
 
-namespace mtphp\Database\Event;
+namespace MulerTech\Database\Event;
 
-use mtphp\Database\ORM\EntityManager;
-use mtphp\EventManager\Event;
+use MulerTech\Database\ORM\EntityManager;
+use MulerTech\EventManager\Event;
 
 /**
  * Class PostFlushEvent
- * @package mtphp\Database\Event
+ * @package MulerTech\Database\Event
  * @author Sébastien Muler
  */
 class PostFlushEvent extends Event

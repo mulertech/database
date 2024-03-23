@@ -1,8 +1,8 @@
 <?php
 
-namespace mtphp\Database\Tests\Files;
+namespace MulerTech\Database\Tests\Files;
 
-use mtphp\Database\ORM\EntityRepository;
+use MulerTech\Database\ORM\EntityRepository;
 
 class GroupRepository extends EntityRepository
 {

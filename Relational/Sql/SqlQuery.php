@@ -1,13 +1,12 @@
 <?php
 
-
-namespace mtphp\Database\Relational\Sql;
+namespace MulerTech\Database\Relational\Sql;
 
 use RuntimeException;
 
 /**
  * Class SqlQuery is a SQL query.
- * @package mtphp\Database\SQL
+ * @package MulerTech\Database\SQL
  * @author Sébastien Muler
  */
 class SqlQuery

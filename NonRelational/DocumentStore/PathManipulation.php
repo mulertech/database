@@ -1,7 +1,6 @@
 <?php
 
-
-namespace mtphp\Database\NonRelational\DocumentStore;
+namespace MulerTech\Database\NonRelational\DocumentStore;
 
 use DirectoryIterator;
 use RecursiveDirectoryIterator;
@@ -9,7 +8,7 @@ use RecursiveIteratorIterator;
 
 /**
  * Class PathManipulation
- * @package mtphp\Database\NonRelational\DocumentStore
+ * @package MulerTech\Database\NonRelational\DocumentStore
  * @author Sébastien Muler
  */
 class PathManipulation

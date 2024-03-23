@@ -1,11 +1,9 @@
 <?php
 
+namespace MulerTech\Database\NonRelational\DocumentStore\FileType;
 
-namespace mtphp\Database\NonRelational\DocumentStore\FileType;
-
-
-use mtphp\Database\NonRelational\DocumentStore\FileInterface;
-use mtphp\Database\NonRelational\DocumentStore\FileManipulation;
+use MulerTech\Database\NonRelational\DocumentStore\FileInterface;
+use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use SplFileObject;
 
 class Env implements FileInterface

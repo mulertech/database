@@ -1,6 +1,6 @@
 <?php
 
-namespace mtphp\Database\PhpInterface;
+namespace MulerTech\Database\PhpInterface;
 
 use PDO;
 use PDOException;
@@ -8,7 +8,7 @@ use RuntimeException;
 
 /**
  * Class PdoConnector
- * @package mtphp\Database\PhpInterface
+ * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
 class PdoConnector implements ConnectorInterface

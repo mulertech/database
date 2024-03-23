@@ -1,15 +1,14 @@
 <?php
 
+namespace MulerTech\Database\Relational\Sql;
 
-namespace mtphp\Database\Relational\Sql;
-
-use mtphp\Database\ORM\EmEngine;
+use MulerTech\Database\ORM\EmEngine;
 use PDO;
 use RuntimeException;
 
 /**
  * Class QueryBuilder
- * @package mtphp\Database\Relational\Sql
+ * @package MulerTech\Database\Relational\Sql
  * @author Sébastien Muler
  */
 class QueryBuilder

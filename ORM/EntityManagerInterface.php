@@ -1,11 +1,11 @@
 <?php
 
-namespace mtphp\Database\ORM;
+namespace MulerTech\Database\ORM;
 
-use mtphp\Database\Mapping\DbMappingInterface;
-use mtphp\Database\PhpInterface\PhpDatabaseInterface;
-use mtphp\Entity\Entity;
-use mtphp\EventManager\EventManagerInterface;
+use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
+use MulerTech\Entity\Entity;
+use MulerTech\EventManager\EventManagerInterface;
 use PDOStatement;
 
 interface EntityManagerInterface

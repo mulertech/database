@@ -1,12 +1,12 @@
 <?php
 
 
-namespace mtphp\Database\Relational\Sql;
+namespace MulerTech\Database\Relational\Sql;
 
 /**
  * Class SqlOperations is one or multiple operations, for example :
  * age > 25 AND size > 180cm
- * @package mtphp\Database\SQL
+ * @package MulerTech\Database\SQL
  * @author Sébastien Muler
  */
 class SqlOperations

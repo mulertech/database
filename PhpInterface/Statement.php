@@ -1,6 +1,6 @@
 <?php
 
-namespace mtphp\Database\PhpInterface;
+namespace MulerTech\Database\PhpInterface;
 
 use PDO;
 use PDOException;
