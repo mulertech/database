@@ -1,11 +1,10 @@
 <?php
 
-
-namespace mtphp\Database\NonRelational\DocumentStore;
+namespace MulerTech\Database\NonRelational\DocumentStore;
 
 /**
  * Interface FileInterface
- * @package mtphp\Database\NonRelational\DocumentStore
+ * @package MulerTech\Database\NonRelational\DocumentStore
  * @author Sébastien Muler
  */
 interface FileInterface

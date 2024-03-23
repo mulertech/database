@@ -1,10 +1,10 @@
 <?php
 
-namespace mtphp\Database\Mapping;
+namespace MulerTech\Database\Mapping;
 
 /**
  * Interface DbMappingInterface
- * @package mtphp\Database\Mapping
+ * @package MulerTech\Database\Mapping
  * @author Sébastien Muler
  */
 interface DbMappingInterface

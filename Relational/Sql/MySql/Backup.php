@@ -1,14 +1,13 @@
 <?php
 
+namespace MulerTech\Database\Relational\Sql\MySql;
 
-namespace mtphp\Database\Relational\Sql\MySql;
-
-use mtphp\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use RuntimeException;
 
 /**
  * Class Backup
- * @package mtphp\Database\MySql
+ * @package MulerTech\Database\MySql
  * @author Sébastien Muler
  */
 class Backup

@@ -1,16 +1,16 @@
 <?php
 
-namespace mtphp\Database\Tests;
+namespace MulerTech\Database\Tests;
 
 use Doctrine\Common\Annotations\AnnotationReader;
-use mtphp\Database\Mapping\DbMapping;
-use mtphp\Database\Tests\Files\Group;
-use mtphp\Database\Tests\Files\Groups;
-use mtphp\Database\Tests\Files\User;
-use mtphp\PhpDocExtractor\PhpDocExtractor;
+use MulerTech\Database\Mapping\DbMapping;
+use MulerTech\Database\Tests\Files\Group;
+use MulerTech\Database\Tests\Files\Groups;
+use MulerTech\Database\Tests\Files\User;
+use MulerTech\Database\Tests\Files\UserRepository;
+use MulerTech\PhpDocExtractor\PhpDocExtractor;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
-use mtphp\Database\Tests\Files\UserRepository;
 
 class MappingTest extends TestCase
 {

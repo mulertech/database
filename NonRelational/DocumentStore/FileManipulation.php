@@ -1,13 +1,13 @@
 <?php
 
-namespace mtphp\Database\NonRelational\DocumentStore;
+namespace MulerTech\Database\NonRelational\DocumentStore;
 
 use RuntimeException;
 use SplFileInfo;
 
 /**
  * Class FileManipulation
- * @package mtphp\Database\NonRelational\DocumentStore
+ * @package MulerTech\Database\NonRelational\DocumentStore
  * @author Sébastien Muler
  */
 class FileManipulation implements FileInterface
@@ -144,7 +144,7 @@ class FileManipulation implements FileInterface
     {
         //create new tmp file
         $path = dirname(($filename)) . DIRECTORY_SEPARATOR;
-        $tmp_handle = fopen($path . 'tmp.mtphp', 'w+b');
+        $tmp_handle = fopen($path . 'tmp.MulerTech', 'w+b');
         //copy the lines before $line
         $handle = fopen($filename, 'rb');
         for ($i = 1; $i < $line; $i++) {
@@ -186,7 +186,7 @@ class FileManipulation implements FileInterface
         fclose($handle);
         fclose($tmp_handle);
         //delete the tmp file if success
-        unlink($path . 'tmp.mtphp');
+        unlink($path . 'tmp.MulerTech');
     }
 
     /**

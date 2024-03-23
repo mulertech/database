@@ -1,14 +1,14 @@
 <?php
 
-namespace mtphp\Database\Tests\Files;
+namespace MulerTech\Database\Tests\Files;
 
-use mtphp\Database\Mapping\MtEntity;
-use mtphp\Database\Mapping\MtColumn;
-use mtphp\Database\Mapping\MtFk;
+use MulerTech\Database\Mapping\MtEntity;
+use MulerTech\Database\Mapping\MtColumn;
+use MulerTech\Database\Mapping\MtFk;
 
 /**
  * Class User
- * @package mtphp\Database\Tests\Files
+ * @package MulerTech\Database\Tests\Files
  * @author Sébastien Muler
  * @MtEntity (tableName="users", repository=UserRepository::class, autoIncrement=100)
  */

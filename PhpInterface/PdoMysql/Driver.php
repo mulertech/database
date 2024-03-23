@@ -1,12 +1,12 @@
 <?php
 
-namespace mtphp\Database\PhpInterface\PdoMysql;
+namespace MulerTech\Database\PhpInterface\PdoMysql;
 
-use mtphp\Database\PhpInterface\DriverInterface;
+use MulerTech\Database\PhpInterface\DriverInterface;
 
 /**
  * Class Driver
- * @package mtphp\Database\PhpInterface\PdoMysql
+ * @package MulerTech\Database\PhpInterface\PdoMysql
  * @author Sébastien Muler
  */
 class Driver implements DriverInterface

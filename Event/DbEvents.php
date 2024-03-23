@@ -1,15 +1,13 @@
 <?php
 
 
-namespace mtphp\Database\Event;
+namespace MulerTech\Database\Event;
 
 
 final class DbEvents
 {
 
-    private function __construct() {
-
-    }
+    private function __construct() {}
 
     public const preRemove = 'preRemove';
     public const postRemove = 'postRemove';

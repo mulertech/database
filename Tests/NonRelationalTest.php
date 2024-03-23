@@ -1,16 +1,14 @@
 <?php
 
+namespace MulerTech\Database\Tests;
 
-namespace mtphp\Database\Tests;
-
-
-use mtphp\Database\NonRelational\DocumentStore\FileExtension\Json;
-use mtphp\Database\NonRelational\DocumentStore\FileExtension\Yaml;
-use mtphp\Database\NonRelational\DocumentStore\FileManipulation;
-use mtphp\Database\NonRelational\DocumentStore\FileType\Env;
-use mtphp\Database\NonRelational\DocumentStore\PathManipulation;
+use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Json;
+use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Yaml;
+use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
+use MulerTech\Database\NonRelational\DocumentStore\FileType\Env;
+use MulerTech\Database\NonRelational\DocumentStore\PathManipulation;
+use MulerTech\Database\Tests\Files\FakeClass;
 use PHPUnit\Framework\TestCase;
-use mtphp\Database\Tests\Files\FakeClass;
 
 class NonRelationalTest extends TestCase
 {

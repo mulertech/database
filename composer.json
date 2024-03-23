@@ -1,0 +1,28 @@
+{
+  "name": "mulertech/database",
+  "description": "This package manage database and is composed by orm and dbal components",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Sébastien Muler",
+      "email": "sebastien.muler@mulertech.net"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "doctrine/annotations": "^2",
+    "psr/container": "^2",
+    "mulertech/date-time-format": "^0",
+    "mulertech/entity": "^0",
+    "mulertech/event-manager": "^0",
+    "mulertech/http-request": "^0",
+    "mulertech/php-doc-extractor": "^0",
+    "symfony/yaml": "^6"
+  },
+  "autoload": {
+    "psr-4": {
+      "MulerTech\\Database\\": "./"
+    }
+  }
+}

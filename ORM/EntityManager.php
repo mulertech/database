@@ -1,13 +1,13 @@
 <?php
 
-namespace mtphp\Database\ORM;
+namespace MulerTech\Database\ORM;
 
 use _config\UpdateDatabaseMysql;
-use mtphp\Database\Mapping\DbMappingInterface;
-use mtphp\Database\PhpInterface\PhpDatabaseInterface;
-use mtphp\Entity\Entity;
-use mtphp\EventManager\EventManagerInterface;
-use mtphp\HttpRequest\Session\Session;
+use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
+use MulerTech\Entity\Entity;
+use MulerTech\EventManager\EventManagerInterface;
+use MulerTech\HttpRequest\Session\Session;
 use PDOStatement;
 
 class EntityManager implements EntityManagerInterface

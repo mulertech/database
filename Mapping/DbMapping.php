@@ -1,12 +1,12 @@
 <?php
 
-namespace mtphp\Database\Mapping;
+namespace MulerTech\Database\Mapping;
 
-use mtphp\Database\NonRelational\DocumentStore\FileManipulation;
-use mtphp\Database\NonRelational\DocumentStore\PathManipulation;
-use RuntimeException;
-use mtphp\PhpDocExtractor\PhpDocExtractorInterface;
+use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
+use MulerTech\Database\NonRelational\DocumentStore\PathManipulation;
+use MulerTech\PhpDocExtractor\PhpDocExtractorInterface;
 use ReflectionException;
+use RuntimeException;
 
 class DbMapping implements DbMappingInterface
 {

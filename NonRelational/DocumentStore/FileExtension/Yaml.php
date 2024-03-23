@@ -1,16 +1,15 @@
 <?php
 
+namespace MulerTech\Database\NonRelational\DocumentStore\FileExtension;
 
-namespace mtphp\Database\NonRelational\DocumentStore\FileExtension;
-
-use mtphp\Database\NonRelational\DocumentStore\FileInterface;
-use mtphp\Database\NonRelational\DocumentStore\FileManipulation;
+use MulerTech\Database\NonRelational\DocumentStore\FileInterface;
+use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use RuntimeException;
 use Symfony\Component\Yaml\Yaml as SymfonyYaml;
 
 /**
  * Class Yaml
- * @package mtphp\Database\NonRelational\DocumentStore\FileExtension
+ * @package MulerTech\Database\NonRelational\DocumentStore\FileExtension
  * @author Sébastien Muler
  */
 class Yaml implements FileInterface

@@ -1,9 +1,9 @@
 <?php
 
-namespace mtphp\Database\Tests\Files;
+namespace MulerTech\Database\Tests\Files;
 
-use mtphp\Database\ORM\EntityManagerInterface;
-use mtphp\Database\ORM\EntityRepository;
+use MulerTech\Database\ORM\EntityManagerInterface;
+use MulerTech\Database\ORM\EntityRepository;
 
 class UserRepository extends EntityRepository
 {

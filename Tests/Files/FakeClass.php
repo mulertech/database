@@ -1,8 +1,6 @@
 <?php
 
-
-namespace mtphp\Database\Tests\Files;
-
+namespace MulerTech\Database\Tests\Files;
 
 class FakeClass
 {

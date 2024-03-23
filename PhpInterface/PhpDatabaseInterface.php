@@ -1,13 +1,12 @@
 <?php
 
-
-namespace mtphp\Database\PhpInterface;
+namespace MulerTech\Database\PhpInterface;
 
 use PDO;
 
 /**
  * Interface PhpDatabaseInterface
- * @package mtphp\Database\PhpInterface
+ * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
 interface PhpDatabaseInterface

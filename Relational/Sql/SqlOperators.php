@@ -1,11 +1,10 @@
 <?php
 
-
-namespace mtphp\Database\Relational\Sql;
+namespace MulerTech\Database\Relational\Sql;
 
 /**
  * Class SqlOperators for SQL database.
- * @package mtphp\Database\SQL
+ * @package MulerTech\Database\SQL
  * @author Sébastien Muler
  */
 final class SqlOperators
