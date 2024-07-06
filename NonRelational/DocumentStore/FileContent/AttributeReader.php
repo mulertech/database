@@ -1,0 +1,63 @@
+<?php
+
+namespace MulerTech\Database\NonRelational\DocumentStore\FileContent;
+
+use ReflectionAttribute;
+use ReflectionClass;
+use ReflectionException;
+
+class AttributeReader
+{
+    /**
+     * @throws ReflectionException
+     */
+    public function getClassAttributes(string $class): array
+    {
+        return (new ReflectionClass($class))->getAttributes();
+    }
+
+    /**
+     * @param string $class
+     * @param class-string $attributeClassName
+     * @return ReflectionAttribute|null
+     * @throws ReflectionException
+     */
+    public function getClassAttributeNamed(string $class, string $attributeClassName): ?ReflectionAttribute
+    {
+        return (new ReflectionClass($class))->getAttributes($attributeClassName)[0];
+    }
+
+    /**
+     * @param string $class
+     * @param class-string $attributeClassName
+     * @return object|null
+     * @throws ReflectionException
+     */
+    public function getInstanceOfClassAttributeNamed(string $class, string $attributeClassName): ?object
+    {
+        return $this->getClassAttributeNamed($class, $attributeClassName)?->newInstance();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function getPropertiesAttributes(string $class, string $property): array
+    {
+        return (new ReflectionClass($class))->getProperties();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function getInstanceOfPropertiesAttributesNamed(string $class, string $attributeClassName): array
+    {
+        $properties = $this->getPropertiesAttributes($class, $attributeClassName);
+
+        $result = [];
+        foreach ($properties as $property) {
+            $result[$property->getName()] = $property->getAttributes($attributeClassName)[0]?->newInstance();
+        }
+
+        return $result;
+    }
+}

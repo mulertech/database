@@ -344,7 +344,6 @@ class QueryBuilder
                 'Class QueryBuilder, function getBindParameters. The named or dynamic parameters are not set.'
             );
         }
-//        return $parameters;
         $bindParams = [];
         foreach ($parameters as $key => $value) {
             $bindParams[] = [$key, $value[0], $value[1]];

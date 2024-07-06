@@ -2,28 +2,24 @@
 
 namespace MulerTech\Database\Mapping;
 
+use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
 use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use MulerTech\Database\NonRelational\DocumentStore\PathManipulation;
-use MulerTech\PhpDocExtractor\PhpDocExtractorInterface;
 use ReflectionException;
 use RuntimeException;
 
 class DbMapping implements DbMappingInterface
 {
-
     /**
-     * @var PhpDocExtractorInterface
+     * @var FileManipulation $fileManipulation
      */
-    private $phpDocExtractor;
-    /**
-     * @var string $entityPath
-     */
-    private $entityPath;
+    private FileManipulation $fileManipulation;
 
-    public function __construct(PhpDocExtractorInterface $phpDocExtractor, string $entityPath)
-    {
-        $this->phpDocExtractor = $phpDocExtractor;
-        $this->entityPath = $entityPath;
+    public function __construct(
+        private readonly AttributeReader $attributeReader,
+        private readonly string $entitiesPath
+    ) {
+        $this->fileManipulation = new FileManipulation();
     }
 
     /**
@@ -33,29 +29,50 @@ class DbMapping implements DbMappingInterface
      */
     public function getTableName(string $entity): ?string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtEntity = $phpDocs->getClassMappingOf(MtEntity::class);
-        if (is_null($mappingMtEntity)) {
-            return null;
+        $mtEntity = $this->attributeReader->getInstanceOfClassAttributeNamed($entity, MtEntity::class);
+
+        if (!is_null($mtEntity) && !is_null($mtEntity->tableName)) {
+            return $mtEntity->tableName;
         }
-        if (is_null($mappingMtEntity->getTableName())) {
-            return ($pos = strrpos($entity, '\\')) ? strtolower(substr($entity, $pos + 1)) : strtolower($entity);
-        }
-        return $mappingMtEntity->getTableName();
+
+        return ($pos = strrpos($entity, '\\')) ? strtolower(substr($entity, $pos + 1)) : strtolower($entity);
     }
 
     /**
      * @return array
      * @throws ReflectionException
      */
-    public function getTableList(): array
+    public function getTables(): array
     {
-        $fileList = PathManipulation::fileList($this->entityPath);
-        $fileManipulation = new FileManipulation();
-        $tableList = array_map(function ($entity) use ($fileManipulation) {
-            return $this->getTableName($fileManipulation->fileClassName($entity));
-        }, $fileList);
+        $fileList = PathManipulation::fileList($this->entitiesPath);
+
+        $tableList = array_map(
+            function ($entity) {
+                return $this->getTableName($this->fileManipulation->fileClassName($entity));
+            },
+            $fileList
+        );
+
         return array_values(array_filter($tableList, static function ($value) {
+            return !is_null($value);
+        }));
+    }
+
+    /**
+     * @return array
+     */
+    public function getEntities(): array
+    {
+        $fileList = PathManipulation::fileList($this->entitiesPath);
+
+        $entityList = array_map(
+            function ($entity) {
+                return $this->fileManipulation->fileClassName($entity);
+            },
+            $fileList
+        );
+
+        return array_values(array_filter($entityList, static function ($value) {
             return !is_null($value);
         }));
     }
@@ -67,57 +84,77 @@ class DbMapping implements DbMappingInterface
      */
     public function getRepository(string $entity): ?string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtEntity = $phpDocs->getClassMappingOf(MtEntity::class);
-        if (is_null($mappingMtEntity)) {
-            throw new RuntimeException(sprintf('The MtEntity mapping is not implemented into the %s class.', $entity));
+        $mtEntity = $this->attributeReader->getInstanceOfClassAttributeNamed($entity, MtEntity::class);
+
+        if (is_null($mtEntity)) {
+            throw new RuntimeException(
+                sprintf('The MtEntity mapping is not implemented into the %s class.', $entity)
+            );
         }
-        return $mappingMtEntity->getRepository();
+
+        return $mtEntity->repository;
     }
 
     /**
      * @param string $entity
-     * @return int
+     * @return int|null
      * @throws ReflectionException
      */
     public function getAutoIncrement(string $entity): ?int
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtEntity = $phpDocs->getClassMappingOf(MtEntity::class);
-        if (is_null($mappingMtEntity)) {
+        $mtEntity = $this->attributeReader->getInstanceOfClassAttributeNamed($entity, MtEntity::class);
+
+        if (is_null($mtEntity)) {
             throw new RuntimeException(sprintf('The MtEntity mapping is not implemented into the %s class.', $entity));
         }
-        return $mappingMtEntity->getAutoIncrement();
-    }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function getColumnList(string $entity): array
-    {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        $columnList = [];
-        array_walk($mappingMtColumn, static function ($value, $key) use (&$columnList) {
-            $columnList[] = $value->getColumnName() ?? $key;
-        });
-        return $columnList;
+        return $mtEntity->autoIncrement;
     }
 
     /**
      * @param string $entity
-     * @return array
+     * @return array<string>
+     * @throws ReflectionException
+     */
+    public function getColumns(string $entity): array
+    {
+        $mtColumns = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+
+        $result = [];
+        foreach ($mtColumns as $property => $mtColumn) {
+            if (!$mtColumn instanceof MtColumn) {
+                continue;
+            }
+
+            $result[] = $mtColumn->columnName ?? $property;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param string $entity
+     * @return array<string, string>
      * @throws ReflectionException
      */
     public function getPropertiesColumns(string $entity): array
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        $propertiesColumns = [];
-        array_walk($mappingMtColumn, static function ($value, $key) use (&$propertiesColumns) {
-            $propertiesColumns[$key] = $value->getColumnName() ?? $key;
-        });
-        return $propertiesColumns;
+        $mtColumns = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+
+        $result = [];
+        foreach ($mtColumns as $property => $mtColumn) {
+            if (!$mtColumn instanceof MtColumn) {
+                continue;
+            }
+
+            $result[$property] = $mtColumn->columnName ?? $property;
+        }
+
+        return $result;
     }
 
     /**
@@ -128,9 +165,7 @@ class DbMapping implements DbMappingInterface
      */
     public function getColumnName(string $entity, string $property): ?string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        return $mappingMtColumn[$property]->getColumnName() ?? $property;
+        return $this->getPropertiesColumns($entity)[$property] ?? $property;
     }
 
     /**
@@ -139,11 +174,13 @@ class DbMapping implements DbMappingInterface
      * @return string|null
      * @throws ReflectionException
      */
-    public function getType(string $entity, string $property): ?string
+    public function getColumnType(string $entity, string $property): ?string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        return $mappingMtColumn[$property]->getColumnType();
+        $mtColumns = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+
+        return $mtColumns[$property]?->columnType ?? null;
     }
 
     /**
@@ -154,9 +191,11 @@ class DbMapping implements DbMappingInterface
      */
     public function isNullable(string $entity, string $property): bool
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        return $mappingMtColumn[$property]->isNullable();
+        $mtColumns = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+
+        return $mtColumns[$property]?->isNullable ?? true;
     }
 
     /**
@@ -167,9 +206,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getExtra(string $entity, string $property): ?string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        return $mappingMtColumn[$property]->getExtra();
+        $mtColumns = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+
+        return $mtColumns[$property]?->extra ?? null;
     }
 
     /**
@@ -180,19 +221,44 @@ class DbMapping implements DbMappingInterface
      */
     public function getColumnKey(string $entity, string $property): ?string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtColumn::class);
-        return $mappingMtColumn[$property]->getColumnKey();
+        $mtColumns = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+
+        return $mtColumns[$property]?->columnKey ?? null;
     }
 
     /**
+     * @param string $entity
+     * @param string $property
+     * @return MtFk|null
      * @throws ReflectionException
      */
-    public function getConstraintName(string $entity, string $property): string
+    public function getForeignKey(string $entity, string $property): ?MtFk
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtFk::class);
-        return $mappingMtColumn[$property]->getConstraintName($this->getTableName($entity), $this->getColumnName($entity, $property));
+        $mtFk = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+
+        return $mtFk[$property] ?? null;
+    }
+
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     * @throws ReflectionException
+     */
+    public function getConstraintName(string $entity, string $property): ?string
+    {
+        $mtFk = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+
+        return $mtFk[$property]?->getConstraintName(
+            $this->getTableName($entity),
+            $this->getColumnName($entity, $property)
+        );
     }
 
     /**
@@ -203,9 +269,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getReferencedTable(string $entity, string $property): string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtFk::class);
-        return $mappingMtColumn[$property]->getReferencedTable();
+        $mtFk = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+
+        return $mtFk[$property]?->referencedTable;
     }
 
     /**
@@ -216,9 +284,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getReferencedColumn(string $entity, string $property): string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtFk::class);
-        return $mappingMtColumn[$property]->getReferencedColumn();
+        $mtFk = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+
+        return $mtFk[$property]?->referencedColumn;
     }
 
     /**
@@ -229,9 +299,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getDeleteRule(string $entity, string $property): string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtFk::class);
-        return $mappingMtColumn[$property]->getDeleteRule();
+        $mtFk = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+
+        return $mtFk[$property]?->deleteRule;
     }
 
     /**
@@ -242,9 +314,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getUpdateRule(string $entity, string $property): string
     {
-        $phpDocs = $this->phpDocExtractor->getClassMetadata($entity);
-        $mappingMtColumn = $phpDocs->getPropertiesMappingOf(MtFk::class);
-        return $mappingMtColumn[$property]->getUpdateRule();
+        $mtFk = $this
+            ->attributeReader
+            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+
+        return $mtFk[$property]?->updateRule;
     }
 
 }

@@ -13,6 +13,8 @@ use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PrePersistEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
+use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Json;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\DateTimeFormat\DateFormat;
@@ -146,13 +148,7 @@ class EmEngine
         }
         //return request
         $return = null;
-//        if (strtolower($output) === "lastid") {
-//            $return = (!empty($lastId = $this->em->getPdm()->lastInsertId())) ? $lastId : null;
-//        } else
-//            if (strtolower($output) === "req" && $pdoStatement->rowCount() !== 0) {
-//            $return = $pdoStatement;
-//        } else
-            if (strtolower($output) === "array" && $pdoStatement->rowCount() !== 0) {
+        if (strtolower($output) === "array" && $pdoStatement->rowCount() !== 0) {
             $return = $pdoStatement->fetch(PDO::FETCH_ASSOC);
         } elseif (!empty($field) && strtolower($output) === "field" && $pdoStatement->rowCount() !== 0) {
             $return = $pdoStatement->fetch(PDO::FETCH_ASSOC)[$field];
@@ -283,9 +279,7 @@ class EmEngine
             $table = strtolower(end($entity));
         }
         //test if the table exist
-//        debx($this->getEntityManager()->getDbMapping()->getTableList());
-        if (!in_array($table, $this->getEntityManager()->getDbMapping()->getTableList(), true)) {
-//        if (!array_key_exists($table, $this->openDbStructure()['structure'])) {
+        if (!in_array($table, $this->getEntityManager()->getDbMapping()->getTables(), true)) {
             throw new RuntimeException(
                 sprintf('Class : EmEngine, Function : read. The table "%s" does not exist.', $table)
             );
@@ -499,10 +493,10 @@ class EmEngine
         unset($this->entityChanges[spl_object_hash($entity)]);
     }
     /** Find MySql join from the path with the constraints schema
-     * @param array $path
+     * @param array<string> $path (origin table, ...intermediate table if needed, destination table)
      * @param array $constraints
-     * @param string $table_as
-     * @param string $column_origin
+     * @param string $table_as (alias of the destination table)
+     * @param string $column_origin (if the table_as is an alias, the column of the origin table)
      * @param string $joinType
      */
     private function findJoins(
@@ -514,17 +508,39 @@ class EmEngine
     ): void {
         $originTable = array_shift($path);
         $destinationTable = $path[0];
+
+
+
+
+
+
         foreach ($constraints as $value) {
-            if (!in_array($destinationTable, $this->tableslinked, true) || (!empty($table_as) && !in_array(
-                        $table_as,
-                        $this->tableslinked,
-                        true
-                    ))) {
+            if (
+                !in_array($destinationTable, $this->tableslinked, true) ||
+                (!empty($table_as) && !in_array($table_as, $this->tableslinked, true))
+            ) {
                 $table_as_req = (empty($table_as) || count($path) > 1) ? '' : ' AS ' . $table_as;
                 $ref_table = (empty($table_as) || count($path) > 1) ? $value['REFERENCED_TABLE_NAME'] : $table_as;
                 $origin_column = (empty($column_origin) || count($path) > 1) ? $value['COLUMN_NAME'] : $column_origin;
-                if (($value['TABLE_NAME'] === $destinationTable && $value['REFERENCED_TABLE_NAME'] === $originTable) || ($value['TABLE_NAME'] === $originTable && $value['REFERENCED_TABLE_NAME'] === $destinationTable)) {
-                    $this->join .= ' ' . $joinType . ' `' . $destinationTable . '`' . $table_as_req . ' ON ' . $value['TABLE_NAME'] . '.' . $origin_column . ' = ' . $ref_table . '.' . $value['REFERENCED_COLUMN_NAME'];
+                if (
+                    ($value['TABLE_NAME'] === $destinationTable && $value['REFERENCED_TABLE_NAME'] === $originTable) ||
+                    ($value['TABLE_NAME'] === $originTable && $value['REFERENCED_TABLE_NAME'] === $destinationTable)
+                ) {
+                    $this->join .=
+                        ' ' .
+                        $joinType .
+                        ' `' .
+                        $destinationTable .
+                        '`' .
+                        $table_as_req .
+                        ' ON ' .
+                        $value['TABLE_NAME'] .
+                        '.' .
+                        $origin_column .
+                        ' = ' .
+                        $ref_table .
+                        '.' .
+                        $value['REFERENCED_COLUMN_NAME'];
                     $this->tableslinked[] = $destinationTable;
                     if (!empty($table_as)) {
                         $this->tableslinked[] = $table_as;
@@ -536,6 +552,53 @@ class EmEngine
             $this->findJoins($path, $constraints);
         }
     }
+//    private function findJoins(
+//        array $path,
+//        array $constraints,
+//        string $table_as = '',
+//        string $column_origin = '',
+//        string $joinType = 'LEFT JOIN'
+//    ): void {
+//        $originTable = array_shift($path);
+//        $destinationTable = $path[0];
+//        foreach ($constraints as $value) {
+//            if (
+//                !in_array($destinationTable, $this->tableslinked, true) ||
+//                (!empty($table_as) && !in_array($table_as, $this->tableslinked, true))
+//            ) {
+//                $table_as_req = (empty($table_as) || count($path) > 1) ? '' : ' AS ' . $table_as;
+//                $ref_table = (empty($table_as) || count($path) > 1) ? $value['REFERENCED_TABLE_NAME'] : $table_as;
+//                $origin_column = (empty($column_origin) || count($path) > 1) ? $value['COLUMN_NAME'] : $column_origin;
+//                if (
+//                    ($value['TABLE_NAME'] === $destinationTable && $value['REFERENCED_TABLE_NAME'] === $originTable) ||
+//                    ($value['TABLE_NAME'] === $originTable && $value['REFERENCED_TABLE_NAME'] === $destinationTable)
+//                ) {
+//                    $this->join .=
+//                        ' ' .
+//                        $joinType .
+//                        ' `' .
+//                        $destinationTable .
+//                        '`' .
+//                        $table_as_req .
+//                        ' ON ' .
+//                        $value['TABLE_NAME'] .
+//                        '.' .
+//                        $origin_column .
+//                        ' = ' .
+//                        $ref_table .
+//                        '.' .
+//                        $value['REFERENCED_COLUMN_NAME'];
+//                    $this->tableslinked[] = $destinationTable;
+//                    if (!empty($table_as)) {
+//                        $this->tableslinked[] = $table_as;
+//                    }
+//                }
+//            }
+//        }
+//        if (count($path) !== 1) {
+//            $this->findJoins($path, $constraints);
+//        }
+//    }
 
     /**
      */
@@ -682,7 +745,7 @@ class EmEngine
      */
     public function tablesList(): array
     {
-        $dbParameters = PhpDatabaseManager::populateParameters(['DATABASE_URL' => getenv('DATABASE_URL')]);
+        $dbParameters = PhpDatabaseManager::populateParameters();
         $dbName = $dbParameters['dbname'];
         //prepare and execute request
         $success = $this->em->getPdm()->query('SHOW TABLES');
@@ -721,7 +784,7 @@ class EmEngine
      */
     private function onlineDatabaseStructure(): array
     {
-        $dbParameters = PhpDatabaseManager::populateParameters(['DATABASE_URL' => getenv('DATABASE_URL')]);
+        $dbParameters = PhpDatabaseManager::populateParameters();
         $dbName = $dbParameters['dbname'];
         //Array db
         $arraydb = ['structure' => []];
@@ -779,7 +842,7 @@ class EmEngine
                 } else {
                     ${'line' . $table_name} = 0;
                 }
-                $arraydb['structure'][$table_name]['foreign_keys'][${'line' . $table_name}] = $constraint;
+                $arraydb['structure'][$table_name]['foreign_keys'][$constraint['CONSTRAINT_NAME']] = $constraint;
                 unset($table_name);
             }
         }
@@ -787,7 +850,9 @@ class EmEngine
     }
 
     /**
-     * List of constraints of this database
+     * List of constraints of this database [
+     *     ['TABLE_NAME' => 'table_name', 'COLUMN_NAME' => 'column_name', 'REFERENCED_TABLE_NAME' => 'referenced_table_name', 'REFERENCED_COLUMN_NAME' => 'referenced_column_name']
+     * ]
      * @return array|null
      */
     private function constraintsList(): ?array
@@ -941,17 +1006,66 @@ class EmEngine
 
     /** Alter Mysql table, add foreign key
      * @param string $table
-     * @param array $foreign_key
+     * @param string $column
+     * @param MtFk $fk
      */
-    private function alterTableForeignKey(string $table, array $foreign_key): void
+    private function alterTableForeignKey(string $table, string $column, MtFk $fk): void
     {
-        if (!empty($foreign_key['CONSTRAINT_NAME']) && !empty($foreign_key['COLUMN_NAME']) && !empty($foreign_key['REFERENCED_TABLE_NAME']) && !empty($foreign_key['REFERENCED_COLUMN_NAME']) && !empty($foreign_key['DELETE_RULE']) && !empty($foreign_key['UPDATE_RULE'])) {
-            $req = "ALTER TABLE `" . $table . "` ADD CONSTRAINT `" . $foreign_key['CONSTRAINT_NAME'] . "` FOREIGN KEY (`" . $foreign_key['COLUMN_NAME'] . "`) REFERENCES `" . $foreign_key['REFERENCED_TABLE_NAME'] . "` (`" . $foreign_key['REFERENCED_COLUMN_NAME'] . "`) ON DELETE " . $foreign_key['DELETE_RULE'] . " ON UPDATE " . $foreign_key['UPDATE_RULE'];
+        if (
+            !is_null($fk->getConstraintName()) &&
+            !is_null($fk->getReferencedTable()) &&
+            !is_null($fk->getReferencedColumn()) &&
+            !is_null($fk->getDeleteRule()) &&
+            !is_null($fk->getUpdateRule())
+        ) {
+            $req = "ALTER TABLE `" .
+                $table .
+                "` ADD CONSTRAINT `" .
+                $fk->getConstraintName() .
+                "` FOREIGN KEY (`" .
+                $column .
+                "`) REFERENCES `" .
+                $fk->getReferencedTable() .
+                "` (`" .
+                $fk->getReferencedColumn() .
+                "`) ON DELETE " .
+                $fk->getDeleteRule() .
+                " ON UPDATE " .
+                $fk->getUpdateRule();
             //request
             $success = $this->em->getPdm()->query($req);
             $success->closeCursor();
         }
     }
+//    private function alterTableForeignKey(string $table, array $foreign_key): void
+//    {
+//        if (
+//            !empty($foreign_key['CONSTRAINT_NAME']) &&
+//            !empty($foreign_key['COLUMN_NAME']) &&
+//            !empty($foreign_key['REFERENCED_TABLE_NAME']) &&
+//            !empty($foreign_key['REFERENCED_COLUMN_NAME']) &&
+//            !empty($foreign_key['DELETE_RULE']) &&
+//            !empty($foreign_key['UPDATE_RULE'])
+//        ) {
+//            $req = "ALTER TABLE `" .
+//                $table .
+//                "` ADD CONSTRAINT `" .
+//                $foreign_key['CONSTRAINT_NAME'] .
+//                "` FOREIGN KEY (`" .
+//                $foreign_key['COLUMN_NAME'] .
+//                "`) REFERENCES `" .
+//                $foreign_key['REFERENCED_TABLE_NAME'] .
+//                "` (`" .
+//                $foreign_key['REFERENCED_COLUMN_NAME'] .
+//                "`) ON DELETE " .
+//                $foreign_key['DELETE_RULE'] .
+//                " ON UPDATE " .
+//                $foreign_key['UPDATE_RULE'];
+//            //request
+//            $success = $this->em->getPdm()->query($req);
+//            $success->closeCursor();
+//        }
+//    }
 
     /** Insert values
      * @param array $values
@@ -1039,10 +1153,6 @@ class EmEngine
                                         ) === 0) {
                                         unset($differentcolumns['COLUMN_TYPE']);
                                     }
-//                                        if (!empty($differentcolumns['COLUMN_TYPE']) && substr($differentcolumns['COLUMN_TYPE'][0], 0, 4) === 'int(' && substr(
-//                                                $differentcolumns['COLUMN_TYPE'][1], 0, 4) === 'int ') {
-//                                            unset($differentcolumns['COLUMN_TYPE']);
-//                                        }
                                     //if key not exists create it (after this step)
                                     if (!empty($differentcolumns['COLUMN_KEY']) && empty($online_structure[$checktablekey][$checkcolumnkey]['COLUMN_KEY'])) {
                                         $keys[$checktablekey][$checkcolumnkey] = $differentcolumns['COLUMN_KEY'];
@@ -1069,6 +1179,7 @@ class EmEngine
                                     $this->alterTableAddColumn($checktablekey, $checkcolumnkey, $checkcolumnval);
                                 }
                             } elseif ($checkcolumnkey === 'foreign_keys') {
+                                // store foreign keys of db structure
                                 $fk[$checktablekey] = $checkcolumnval;
                             }
                         }
@@ -1097,28 +1208,12 @@ class EmEngine
             }
             //create constraints if needed
             $online_structure = $this->onlineDatabaseStructure()['structure'];
-            foreach ($site_structure as $fktablekey => $fktableval) {
-                //check if the foreigns keys exists ($fk : foreign key on site structure)
-                if (!empty($fk[$fktablekey]) && is_array($fk[$fktablekey])) {
-                    foreach ($fk[$fktablekey] as $fklist) {
-                        $fkexists = false;
-                        //foreach site structure fk check if it exists online
-                        if (!empty($online_structure[$fktablekey]['foreign_keys']) && is_array(
-                                $online_structure[$fktablekey]['foreign_keys']
-                            )) {
-                            foreach ($online_structure[$fktablekey]['foreign_keys'] as $foreign_key) {
-                                if (array_search($fklist['CONSTRAINT_NAME'], $foreign_key)) {
-                                    $fkexists = true;
-                                }
-                            }
-                        } else {
-                            $fkexists = false;
-                        }
-                        //If the fk don't exists create it
-                        if ($fkexists === false) {
-                            //create fk
-                            $this->alterTableForeignKey($fktablekey, $fklist);
-                        }
+            foreach ($this->getEntityManager()->getDbMapping()->getEntities() as $entity) {
+                foreach ($this->getEntityManager()->getDbMapping()->getPropertiesColumns($entity) as $property => $column) {
+                    $fk = $this->getEntityManager()->getDbMapping()->getForeignKey($entity, $property);
+
+                    if (($fk !== null) && !empty($online_structure[$entity][$property]['foreign_keys'][$fk['CONSTRAINT_NAME']])) {
+                        $this->alterTableForeignKey($entity, $column, $fk);
                     }
                 }
             }

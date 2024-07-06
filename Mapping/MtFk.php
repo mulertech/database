@@ -2,36 +2,24 @@
 
 namespace MulerTech\Database\Mapping;
 
+use Attribute;
+
 /**
  * Class MtFk
  * @package MulerTech\Database\Mapping
  * @author Sébastien Muler
- * @Annotation
  */
+#[Attribute(Attribute::TARGET_PROPERTY)]
 class MtFk
 {
-
-    /**
-     * @var string $constraintName
-     */
-    public $constraintName;
-    /**
-     * @var string $referencedTable
-     */
-    public $referencedTable;
-    /**
-     * @var string $referencedColumn
-     */
-    public $referencedColumn;
-    /**
-     * @var string $deleteRule
-     */
-    public $deleteRule;
-    /**
-     * @var string $updateRule
-     */
-    public $updateRule;
-
+    public function __construct(
+        public string|null $constraintName = null,
+        public string|null $referencedTable = null,
+        public string|null $referencedColumn = null,
+        public string|null $deleteRule = null,
+        public string|null $updateRule = null
+    )
+    {}
     /**
      * @param string|null $table
      * @param string|null $column
@@ -40,78 +28,6 @@ class MtFk
     public function getConstraintName(string $table = null, string $column = null): ?string
     {
         return $this->constraintName ?? $this->generateConstraintName($table, $column);
-    }
-
-    /**
-     * @param mixed $constraintName
-     */
-    public function setConstraintName($constraintName): void
-    {
-        $this->constraintName = $constraintName;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getReferencedTable(): ?string
-    {
-        return $this->referencedTable;
-    }
-
-    /**
-     * @param mixed $referencedTable
-     */
-    public function setReferencedTable($referencedTable): void
-    {
-        $this->referencedTable = $referencedTable;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getReferencedColumn(): ?string
-    {
-        return $this->referencedColumn;
-    }
-
-    /**
-     * @param mixed $referencedColumn
-     */
-    public function setReferencedColumn($referencedColumn): void
-    {
-        $this->referencedColumn = $referencedColumn;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getDeleteRule(): ?string
-    {
-        return $this->deleteRule;
-    }
-
-    /**
-     * @param mixed $deleteRule
-     */
-    public function setDeleteRule($deleteRule): void
-    {
-        $this->deleteRule = $deleteRule;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getUpdateRule(): ?string
-    {
-        return $this->updateRule;
-    }
-
-    /**
-     * @param mixed $updateRule
-     */
-    public function setUpdateRule($updateRule): void
-    {
-        $this->updateRule = $updateRule;
     }
 
     /**

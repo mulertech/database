@@ -24,7 +24,12 @@ interface DbMappingInterface
     /**
      * @return array
      */
-    public function getTableList(): array;
+    public function getTables(): array;
+
+    /**
+     * @return array
+     */
+    public function getEntities(): array;
 
     /**
      * @param string $entity
@@ -38,4 +43,93 @@ interface DbMappingInterface
      * @return int|null
      */
     public function getAutoIncrement(string $entity): ?int;
+    
+    /**
+     * @param string $entity
+     * @return array
+     */
+    public function getColumns(string $entity): array;
+    
+    /**
+     * @param string $entity
+     * @return array
+     */
+    public function getPropertiesColumns(string $entity): array;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     */
+    public function getColumnName(string $entity, string $property): ?string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     */
+    public function getColumnType(string $entity, string $property): ?string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return bool
+     */
+    public function isNullable(string $entity, string $property): bool;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     */
+    public function getExtra(string $entity, string $property): ?string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     */
+    public function getColumnKey(string $entity, string $property): ?string;
+
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return MtFk|null
+     */
+    public function getForeignKey(string $entity, string $property): ?MtFk;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     */
+    public function getConstraintName(string $entity, string $property): ?string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string
+     */
+    public function getReferencedTable(string $entity, string $property): string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string
+     */
+    public function getReferencedColumn(string $entity, string $property): string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string
+     */
+    public function getDeleteRule(string $entity, string $property): string;
+    
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string
+     */
+    public function getUpdateRule(string $entity, string $property): string;
 }
