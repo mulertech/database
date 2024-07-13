@@ -17,23 +17,23 @@ class User
 {
 
     #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: "PRI")]
-    private $id;
+    private int $id;
 
     #[MtColumn(columnType: "varchar(255)", isNullable: false)]
-    private $username;
+    private string $username;
 
     /**
      * @var int $unit
      */
     #[MtColumn(columnName: "unit_id", columnType: "int unsigned", isNullable: false, columnKey: "MUL")]
     #[MtFk(referencedTable: "units", referencedColumn: "id", deleteRule: "RESTRICT", updateRule: "CASCADE")]
-    private $unit;
+    private int $unit;
 
     /**
      * Test of a variable which is not a column in the database
      * @var int $group
      */
-    private $group;
+    private int $group;
 
 
 }

@@ -14,20 +14,23 @@ use RuntimeException;
 class PhpDatabaseManager implements PhpDatabaseInterface
 {
 
-    public const DATABASE_URL = 'DATABASE_URL';
+    public const string DATABASE_URL = 'DATABASE_URL';
     /**
-     * @var ConnectorInterface
+     * @var ConnectorInterface $connector
      */
-    private $connector;
-    private $parameters;
+    private ConnectorInterface $connector;
+    /**
+     * @var array $parameters
+     */
+    private array $parameters;
     /**
      * @var PDO PDO connection.
      */
-    private $connection;
+    private PDO $connection;
     /**
      * @var int $transactionLevel The transaction level is for prevent a beginTransaction when a transaction is up.
      */
-    private $transactionLevel = 0;
+    private int $transactionLevel = 0;
 
     /**
      * PhpDatabaseManager constructor.
@@ -42,13 +45,15 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
     /**
      * @return PDO Connection to database (PDO)
+     * @throws RuntimeException
      */
     public function getConnection(): PDO
     {
-        if ($this->connection === null) {
+        if (!isset($this->connection)) {
             $parameters = self::populateParameters($this->parameters);
             $this->connection = $this->connector->connect($parameters, $parameters['user'], $parameters['pass']);
         }
+
         return $this->connection;
     }
 
@@ -60,10 +65,10 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     public function prepare(string $query, array $options = []): Statement
     {
         try {
-            $this->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
             if (false === $statement = $this->getConnection()->prepare(...func_get_args())) {
                 throw new RuntimeException($this->getConnection()->errorInfo()[2]);
             }
+
             return new Statement($statement);
         } catch (PDOException $exception) {
             throw new PDOException($exception);
@@ -100,7 +105,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 throw new PDOException($exception);
             }
         }
-        //If the transaction level is upper than 1 it is decrease but not commit yet.
+        //If the transaction level is greater than 1, there is a decrease but no commit yet.
         if ($this->transactionLevel !== 0) {
             --$this->transactionLevel;
         }
@@ -158,7 +163,13 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         $pdo = $this->getConnection();
         $result = $pdo->query(...func_get_args());
         if (false === $result) {
-            throw new RuntimeException(sprintf('Class : PhpDatabaseManager, function : query. The query was failed. Message : %s. Statement : %s.', $this->getConnection()->errorInfo()[2], $statement));
+            throw new RuntimeException(
+                sprintf(
+                    'Class : PhpDatabaseManager, function : query. The query was failed. Message : %s. Statement : %s.',
+                    $this->getConnection()->errorInfo()[2],
+                    $statement
+                )
+            );
         }
         return new Statement($result);
     }
@@ -175,7 +186,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     /**
      * @return mixed
      */
-    public function errorCode()
+    public function errorCode(): mixed
     {
         return $this->getConnection()->errorCode();
     }
@@ -192,7 +203,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      * @param int $attribute
      * @return mixed
      */
-    public function getAttribute(int $attribute)
+    public function getAttribute(int $attribute): mixed
     {
         return $this->getConnection()->getAttribute($attribute);
     }

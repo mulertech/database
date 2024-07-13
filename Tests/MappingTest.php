@@ -2,7 +2,6 @@
 
 namespace MulerTech\Database\Tests;
 
-use Doctrine\Common\Annotations\AnnotationReader;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
@@ -10,7 +9,6 @@ use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Groups;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\UserRepository;
-use MulerTech\PhpDocExtractor\PhpDocExtractor;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
@@ -22,7 +20,7 @@ class MappingTest extends TestCase
      */
     private function getDbMapping(): DbMapping
     {
-        return new DbMapping(new AttributeReader(), new PhpDocExtractor(new AnnotationReader()), __DIR__ . '/Files/Entity');
+        return new DbMapping(new AttributeReader(), __DIR__ . '/Files/Entity');
     }
 
     /**

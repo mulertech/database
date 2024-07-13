@@ -41,17 +41,20 @@ class AttributeReader
     /**
      * @throws ReflectionException
      */
-    public function getPropertiesAttributes(string $class, string $property): array
+    public function getPropertiesAttributes(string $class): array
     {
         return (new ReflectionClass($class))->getProperties();
     }
 
     /**
+     * @param string $class
+     * @param string $attributeClassName
+     * @return array
      * @throws ReflectionException
      */
     public function getInstanceOfPropertiesAttributesNamed(string $class, string $attributeClassName): array
     {
-        $properties = $this->getPropertiesAttributes($class, $attributeClassName);
+        $properties = $this->getPropertiesAttributes($class);
 
         $result = [];
         foreach ($properties as $property) {
