@@ -33,18 +33,18 @@ class PhpDatabaseInterfaceTest extends TestCase
 
     public function testGetConnection(): void
     {
-        $this->expectNotToPerformAssertions();
-        (new PhpDatabaseManager(new PdoConnector(new Driver()), []))->getConnection();
+        $this->assertInstanceOf(
+            PDO::class,
+            (new PhpDatabaseManager(new PdoConnector(new Driver()), []))->getConnection()
+        );
     }
 
     public function testGetConnectionWithBadUrl(): void
     {
         $this->expectException(RuntimeException::class);
-        $parameters = [];
-        $parameters['connector'] = new PdoConnector(new Driver());
-        $parameters[
-        PhpDatabaseManager::DATABASE_URL
-        ] = 'mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7';
+        $parameters = [
+            PhpDatabaseManager::DATABASE_URL => 'mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7'
+        ];
         (new PhpDatabaseManager(new PdoConnector(new Driver()), $parameters))->getConnection();
     }
 
@@ -368,7 +368,6 @@ class PhpDatabaseInterfaceTest extends TestCase
         $this->createTestTable();
         $statement = $pdo->prepare('SELECT id, firstname, lastname FROM test_table');
         $statement->execute();
-        var_dump($statement->getColumnMeta(1));
         self::assertEquals(
             [
                 'native_type' => 'LONG',
@@ -437,5 +436,15 @@ class PhpDatabaseInterfaceTest extends TestCase
         );
         $statement->closeCursor();
         self::assertEquals([], $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function testGetQueryString(): void
+    {
+        $pdo = $this->getPhpDatabaseManager();
+        $statement = $pdo->prepare('SELECT id, firstname FROM test_table WHERE firstname=:firstname');
+        self::assertEquals(
+            'SELECT id, firstname FROM test_table WHERE firstname=:firstname',
+            $statement->getQueryString()
+        );
     }
 }

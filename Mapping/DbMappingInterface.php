@@ -15,11 +15,11 @@ interface DbMappingInterface
      * Return the table name of this entity :
      * 1 : The table name can be set manually into PhpDoc of this entity like this : @MtEntity (tableName="users", repository=UserRepository::class)
      * 2 : The name of this entity will be used if the MtEntity mapping is used like this : @MtEntity (repository=UserRepository::class)
-     * 3 : If this entity doesn't use the MtEntity mapping it return null
+     * 3 : If this entity doesn't use the MtEntity mapping it return strtolower($entity)
      * @param string $entity
      * @return string
      */
-    public function getTableName(string $entity): ?string;
+    public function getTableName(string $entity): string;
 
     /**
      * @return array
@@ -69,13 +69,13 @@ interface DbMappingInterface
      * @return string|null
      */
     public function getColumnType(string $entity, string $property): ?string;
-    
+
     /**
      * @param string $entity
      * @param string $property
-     * @return bool
+     * @return bool|null
      */
-    public function isNullable(string $entity, string $property): bool;
+    public function isNullable(string $entity, string $property): ?bool;
     
     /**
      * @param string $entity
@@ -104,32 +104,32 @@ interface DbMappingInterface
      * @return string|null
      */
     public function getConstraintName(string $entity, string $property): ?string;
-    
+
     /**
      * @param string $entity
      * @param string $property
-     * @return string
+     * @return string|null
      */
-    public function getReferencedTable(string $entity, string $property): string;
-    
+    public function getReferencedTable(string $entity, string $property): ?string;
+
     /**
      * @param string $entity
      * @param string $property
-     * @return string
+     * @return string|null
      */
-    public function getReferencedColumn(string $entity, string $property): string;
-    
+    public function getReferencedColumn(string $entity, string $property): ?string;
+
     /**
      * @param string $entity
      * @param string $property
-     * @return string
+     * @return string|null
      */
-    public function getDeleteRule(string $entity, string $property): string;
-    
+    public function getDeleteRule(string $entity, string $property): ?string;
+
     /**
      * @param string $entity
      * @param string $property
-     * @return string
+     * @return string|null
      */
-    public function getUpdateRule(string $entity, string $property): string;
+    public function getUpdateRule(string $entity, string $property): ?string;
 }

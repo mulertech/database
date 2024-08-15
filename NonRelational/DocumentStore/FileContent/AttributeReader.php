@@ -24,7 +24,7 @@ class AttributeReader
      */
     public function getClassAttributeNamed(string $class, string $attributeClassName): ?ReflectionAttribute
     {
-        return (new ReflectionClass($class))->getAttributes($attributeClassName)[0];
+        return (new ReflectionClass($class))->getAttributes($attributeClassName)[0] ?? null;
     }
 
     /**
@@ -58,8 +58,17 @@ class AttributeReader
 
         $result = [];
         foreach ($properties as $property) {
-            $result[$property->getName()] = $property->getAttributes($attributeClassName)[0]?->newInstance();
+            $attributes = $property->getAttributes($attributeClassName);
+
+
+            if (!isset($attributes[0])) {
+//                $result[$property->getName()] = null;
+                continue;
+            }
+
+            $result[$property->getName()] = $attributes[0]->newInstance();
         }
+//        var_dump($result);
 
         return $result;
     }
