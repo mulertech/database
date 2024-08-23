@@ -280,6 +280,30 @@ class MappingTest extends TestCase
      * @return void
      * @throws ReflectionException
      */
+    public function testGetColumnDefault(): void
+    {
+        $this->assertEquals(
+            'John',
+            $this->getDbMapping()->getColumnDefault(User::class, 'username')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullColumnDefault(): void
+    {
+        $this->assertEquals(
+            null,
+            $this->getDbMapping()->getColumnDefault(User::class, 'id')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
     public function testGetColumnKeyId(): void
     {
         $this->assertEquals('PRI', $this->getDbMapping()->getColumnKey(User::class, 'id'));

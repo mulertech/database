@@ -213,6 +213,21 @@ class DbMapping implements DbMappingInterface
      * @return string|null
      * @throws ReflectionException
      */
+    public function getColumnDefault(string $entity, string $property): ?string
+    {
+        if (!isset($this->getMtColumn($entity)[$property])) {
+            return null;
+        }
+
+        return $this->getMtColumn($entity)[$property]?->columnDefault;
+    }
+
+    /**
+     * @param string $entity
+     * @param string $property
+     * @return string|null
+     * @throws ReflectionException
+     */
     public function getColumnKey(string $entity, string $property): ?string
     {
         if (!isset($this->getMtColumn($entity)[$property])) {

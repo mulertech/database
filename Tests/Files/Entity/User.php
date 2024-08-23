@@ -19,7 +19,7 @@ class User
     #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: "PRI")]
     private int $id;
 
-    #[MtColumn(columnType: "varchar(255)", isNullable: false)]
+    #[MtColumn(columnType: "varchar(255)", isNullable: false, columnDefault: "John")]
     private string $username;
 
     /**

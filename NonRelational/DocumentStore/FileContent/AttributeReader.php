@@ -62,13 +62,11 @@ class AttributeReader
 
 
             if (!isset($attributes[0])) {
-//                $result[$property->getName()] = null;
                 continue;
             }
 
             $result[$property->getName()] = $attributes[0]->newInstance();
         }
-//        var_dump($result);
 
         return $result;
     }
