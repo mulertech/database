@@ -12,6 +12,20 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class MtFk
 {
+    public const CASCADE = 'CASCADE';
+    public const SET_NULL = 'SET NULL';
+    public const NO_ACTION = 'NO ACTION';
+    public const RESTRICT = 'RESTRICT';
+    public const SET_DEFAULT = 'SET DEFAULT';
+
+    /**
+     * MtFk constructor.
+     * @param string|null $constraintName
+     * @param string|null $referencedTable
+     * @param string|null $referencedColumn
+     * @param string|null $deleteRule
+     * @param string|null $updateRule
+     */
     public function __construct(
         public string|null $constraintName = null,
         public string|null $referencedTable = null,
@@ -20,24 +34,4 @@ class MtFk
         public string|null $updateRule = null
     )
     {}
-    /**
-     * @param string|null $table
-     * @param string|null $column
-     * @return string|null
-     */
-    public function getConstraintName(string $table = null, string $column = null): ?string
-    {
-        return $this->constraintName ?? $this->generateConstraintName($table, $column);
-    }
-
-    /**
-     * @param string $table
-     * @param string $column
-     * @return string
-     */
-    private function generateConstraintName(string $table, string $column): string
-    {
-        return 'fk_' . $table . '_' . $column . '_' . $this->referencedTable;
-    }
-
 }

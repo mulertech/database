@@ -14,7 +14,7 @@ class PhpDatabaseInterfaceTest extends TestCase
 {
     private function getPhpDatabaseManager(): PhpDatabaseManager
     {
-        return (new PhpDatabaseManager(new PdoConnector(new Driver()), []));
+        return new PhpDatabaseManager(new PdoConnector(new Driver()), []);
     }
 
     private function getDbName(): string

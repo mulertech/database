@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Relational\Sql;
 
 use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\PhpInterface\Statement;
 use PDO;
 use RuntimeException;
 
@@ -13,9 +14,9 @@ use RuntimeException;
  */
 class QueryBuilder
 {
-    protected const RESULT_TYPE_OBJECT = 'object';
-    protected const RESULT_TYPE_ARRAY = 'array';
-    protected const RESULT_TYPE_ONE = 'one';
+    public const RESULT_TYPE_OBJECT = 'object';
+    public const RESULT_TYPE_ARRAY = 'array';
+    public const RESULT_TYPE_ONE = 'one';
 
     /**
      * @var EmEngine $emEngine
@@ -339,11 +340,13 @@ class QueryBuilder
      */
     public function getBindParameters(): array
     {
-        if (empty($parameters = (!empty($namedParam = $this->getNamedParameters())) ? $namedParam : $this->getDynamicParameters())) {
+        $parameters = (!empty($namedParam = $this->getNamedParameters())) ? $namedParam : $this->getDynamicParameters();
+        if (empty($parameters)) {
             throw new RuntimeException(
                 'Class QueryBuilder, function getBindParameters. The named or dynamic parameters are not set.'
             );
         }
+
         $bindParams = [];
         foreach ($parameters as $key => $value) {
             $bindParams[] = [$key, $value[0], $value[1]];
@@ -892,6 +895,7 @@ class QueryBuilder
                 'Class QueryBuilder, function addNamedParameter. A named parameter can\'t be define because one or more dynamic parameter is already defined.'
             );
         }
+
         $number = (empty($this->namedParameters)) ? 1 : count($this->namedParameters) + 1;
         $this->namedParameters[':' . self::NAMED_PARAMETERS_PREFIX . $number] = [$value, $type];
         return ':' . self::NAMED_PARAMETERS_PREFIX . $number;
@@ -986,19 +990,27 @@ class QueryBuilder
     /**
      * Get the result of this request with the EmEngine.
      * @param string $type
-     * @return mixed
+     * @return Statement
      * @todo link this function with the EmEngine, return format........
      */
-    public function getResult(string $type = self::RESULT_TYPE_OBJECT)
+    public function getResult(string $type = self::RESULT_TYPE_OBJECT): Statement
     {
+        if ($this->emEngine === null) {
+            throw new RuntimeException(
+                'Class QueryBuilder, function getResult. The EmEngine is not define.'
+            );
+        }
+
         $pdo = $this->emEngine->getEntityManager()->getPdm();
         $pdoStatement = $pdo->prepare($this->getQuery());
-        foreach ($this->getBindParameters() as $key => $value) {
-            $pdoStatement->bindParam($key, $value[0], $value[1]);
-        }
-        $pdoStatement->execute();
 
-        return $this->emEngine->prepareRequest($this->getQuery(), $this->getValues());
+        if (!empty($bindParams = $this->getBindParameters())) {
+            foreach ($bindParams as $params) {
+                $pdoStatement->bindParam($params[0], $params[1], $params[2]);
+            }
+        }
+
+        return $pdoStatement;
     }
 
     /**
@@ -1007,6 +1019,12 @@ class QueryBuilder
      */
     public function execute(): void
     {
+        if ($this->emEngine === null) {
+            throw new RuntimeException(
+                'Class QueryBuilder, function getResult. The EmEngine is not define.'
+            );
+        }
+
         $pdo = $this->emEngine->getEntityManager()->getPdm();
         $pdo->prepare($this->getQuery());
     }

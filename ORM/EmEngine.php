@@ -13,12 +13,11 @@ use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PrePersistEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Json;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\DateTimeFormat\DateFormat;
-use MulerTech\Entity\Entity;
 use MulerTech\EventManager\EventManagerInterface;
 use PDO;
 use PDOStatement;
@@ -36,32 +35,47 @@ class EmEngine
     private const DB_STRUCTURE_NAME = 'dbstructure.json';
 
     /**
-     * @var EntityManager Entity manager
+     * @var EntityManagerInterface $em
      */
-    private $em;
-    private $entityInsertions = [];
-    private $entityUpdates = [];
-    private $entityDeletions = [];
+    private EntityManagerInterface $em;
+    /**
+     * @var array
+     */
+    private array $entityInsertions = [];
+    /**
+     * @var array
+     */
+    private array $entityUpdates = [];
+    /**
+     * @var array
+     */
+    private array $entityDeletions = [];
     /**
      * @var array Save all the entity changes example :
      * [$objectId => [$field => [$oldValue, $newValue]]]
      */
-    private $entityChanges = [];
-    private $tableslinked = [];
-    private $join = '';
+    private array $entityChanges = [];
     /**
-     * @var EventManagerInterface $eventManager
+     * @var array
      */
-    private $eventManager;
+    private array $tablesLinked = [];
     /**
-     * @var UpdateDatabaseMysql $updateDatabase
+     * @var string
      */
-    private $updateDatabase;
+    private string $join = '';
     /**
-     * @var string $entity
+     * @var EventManagerInterface|null $eventManager
+     */
+    private ?EventManagerInterface $eventManager;
+    /**
+     * @var UpdateDatabaseMysql|null $updateDatabase
+     */
+    private ?UpdateDatabaseMysql $updateDatabase;
+    /**
+     * @var class-string $entity
      * @todo Replace this entity by EntityMapping
      */
-    private $entity;
+    private string $entityName;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -85,14 +99,15 @@ class EmEngine
     }
 
     /**
-     * @param string|object $entity
+     * todo : remplacer get_class($entity) par $entity::class
+     * @param object|class-string $entity
      */
-    protected function setEntity($entity): void
+    protected function setEntity(object|string $entity): void
     {
         if (is_object($entity)) {
-            $this->entity = get_class($entity);
+            $this->entityName = get_class($entity);
         } else {
-            $this->entity = $entity;
+            $this->entityName = $entity;
         }
 
     }
@@ -102,7 +117,7 @@ class EmEngine
      */
     protected function getEntity(): string
     {
-        return $this->entity;
+        return $this->entityName;
     }
 
     /**
@@ -110,10 +125,10 @@ class EmEngine
      */
     protected function getEntityTable(): string
     {
-        if (!isset($this->entity)) {
+        if (!isset($this->entityName)) {
             throw new RuntimeException('Class : EmEngine, Function : getEntityTable. The entity variable of the EmEngine was not set.');
         }
-        $entityParts = explode('\\', $this->entity);
+        $entityParts = explode('\\', $this->entityName);
         return strtolower(end($entityParts));
     }
 
@@ -160,7 +175,7 @@ class EmEngine
             $return = $pdoStatement->fetchAll(PDO::FETCH_COLUMN);
         } elseif (strtolower($output) === "count") {
             $return = $pdoStatement->rowCount();
-        } elseif (strtolower($output) === "class") {
+        } elseif (strtolower($output) === "class" || strtolower($output) === "object") {
             $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $this->getEntity());
             $class = $pdoStatement->fetch();
             $return = (empty($class)) ? null : $class;
@@ -185,20 +200,10 @@ class EmEngine
         if (!empty($this->entityInsertions)) {
             $eventEntities = [];
             foreach ($this->entityInsertions as $uio => $entity) {
-                $table = ClassManipulation::getClassNameLower(get_class($entity));
-                $values = $entity->properties($entity);
-                unset($values['id']);
-                $request = 'INSERT INTO `' . $table . '` (' . implode(
-                        ', ',
-                        array_keys($values)
-                    ) . ') VALUES (:' . implode(', :', array_keys($values)) . ')';
+                $queryBuilder = $this->generateQueryBuilder($entity);
                 //prepare request
-                $pdoStatement = $this->em->getPdm()->prepare($request);
-                if (!empty($values)) {
-                    $pdoStatement->execute($values);
-                } else {
-                    $pdoStatement->execute();
-                }
+                $pdoStatement = $queryBuilder->getResult();
+                $pdoStatement->execute();
                 //set id
                 if (!empty($lastId = $this->em->getPdm()->lastInsertId())) {
                     $this->setIdEntity($uio, $lastId);
@@ -218,6 +223,45 @@ class EmEngine
         }
     }
 
+    private function bindParams(PDOStatement $pdoStatement, array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $pdoStatement->bindParam($key, $value);
+        }
+    }
+
+    private function generateQueryBuilder(Object $entity): QueryBuilder
+    {
+        $queryBuilder = new QueryBuilder($this);
+        $queryBuilder->insert($this->em->getDbMapping()->getTableName($entity::class));
+
+        foreach ($this->getPropertiesColumns($entity::class, false) as $properties => $column) {
+            $getter = 'get' . ucfirst($properties);
+            $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($entity->$getter()));
+        }
+
+        return $queryBuilder;
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return array
+     */
+    private function getPropertiesColumns(string $entityName, bool $keepId = true): array
+    {
+        $propertiesColumns = $this->em->getDbMapping()->getPropertiesColumns($entityName);
+
+        if ($keepId) {
+            return $propertiesColumns;
+        }
+
+        if (isset($propertiesColumns['id'])) {
+            unset($propertiesColumns['id']);
+        }
+
+        return $propertiesColumns;
+    }
+
     /**
      * @param $hash
      * @param $id
@@ -231,9 +275,9 @@ class EmEngine
      * read Mysql table and push it in object
      * @param object|string $entity
      * @param string|int|null $idorwhere Id of object or mysql where condition.
-     * @return Entity|null Entity filled or null
+     * @return Object|null Entity filled or null
      */
-    public function find($entity, ?string $idorwhere = null): ?Entity
+    public function find($entity, string|int $idorwhere = null): ?Object
     {
         $this->setEntity($entity);
         if (!is_null($idorwhere)) {
@@ -271,7 +315,7 @@ class EmEngine
         ?string $join = null
     ) {
         $this->join = '';
-        $this->tableslinked = [];
+        $this->tablesLinked = [];
         //If the model class was given.
         if (strpos($table, '\\')) {
             $this->setEntity($table);
@@ -377,7 +421,7 @@ class EmEngine
                 foreach ($cells as $jvalue) {
                     $jcell = explode(".", $jvalue['name']);
                     $jtable = $jcell[0];
-                    if ($jtable !== $table && (!in_array($jtable, $this->tableslinked, true) || in_array(
+                    if ($jtable !== $table && (!in_array($jtable, $this->tablesLinked, true) || in_array(
                                 $jvalue['name'],
                                 $jcells,
                                 true
@@ -390,7 +434,7 @@ class EmEngine
                             (!empty($jvalue['table_linked_as'])) ? $jvalue['table_linked_as'] : '',
                             (!empty($jvalue['table_linked_as'])) ? explode('.', $jvalue['origin'])[1] : ''
                         );
-                        if (!in_array($jtable, $this->tableslinked, true)) {
+                        if (!in_array($jtable, $this->tablesLinked, true)) {
                             if (!empty($jvalue['path']) && is_array($jvalue['path'])) {
                                 $this->findJoins($jvalue['path'], $constraints);
                             } elseif (!empty($jvalue['origin'])) {
@@ -438,12 +482,12 @@ class EmEngine
     }
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      * @return void
      */
-    public function persist(Entity $entity): void
+    public function persist(Object $entity): void
     {
-        if ($entity->isNew()) {
+        if ($entity->getId() === null) {
             //Event Pre persist
             if ($this->eventManager) {
                 $this->eventManager->dispatch(new PrePersistEvent($entity, $this->em));
@@ -481,10 +525,10 @@ class EmEngine
     }
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      * @return void
      */
-    private function setEntityUpdates(Entity $entity): void
+    private function setEntityUpdates(Object $entity): void
     {
         $this->entityUpdates[spl_object_hash($entity)] = $entity;
         /**
@@ -516,8 +560,8 @@ class EmEngine
 
         foreach ($constraints as $value) {
             if (
-                !in_array($destinationTable, $this->tableslinked, true) ||
-                (!empty($table_as) && !in_array($table_as, $this->tableslinked, true))
+                !in_array($destinationTable, $this->tablesLinked, true) ||
+                (!empty($table_as) && !in_array($table_as, $this->tablesLinked, true))
             ) {
                 $table_as_req = (empty($table_as) || count($path) > 1) ? '' : ' AS ' . $table_as;
                 $ref_table = (empty($table_as) || count($path) > 1) ? $value['REFERENCED_TABLE_NAME'] : $table_as;
@@ -541,9 +585,9 @@ class EmEngine
                         $ref_table .
                         '.' .
                         $value['REFERENCED_COLUMN_NAME'];
-                    $this->tableslinked[] = $destinationTable;
+                    $this->tablesLinked[] = $destinationTable;
                     if (!empty($table_as)) {
-                        $this->tableslinked[] = $table_as;
+                        $this->tablesLinked[] = $table_as;
                     }
                 }
             }
@@ -663,6 +707,8 @@ class EmEngine
         $old_properties = $old_entity->properties($old_entity);
         $oldDiffProperties = array_diff_assoc($old_properties, $new_properties);
         $differences = [];
+        // todo : fabriquer ce tableau avec chaque colonne y compris si le old_entity est null (pour l'insert)
+        // todo : pour ça créer une méthode
         foreach ($oldDiffProperties as $key => $value) {
             if ($value !== $new_properties[$key]) {
                 $differences[$key] = [$value, $new_properties[$key]];
@@ -675,9 +721,9 @@ class EmEngine
     }
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      */
-    public function remove(Entity $entity): void
+    public function remove(Object $entity): void
     {
         if (isset($this->entityUpdates[spl_object_hash($entity)])) {
             unset($this->entityUpdates[spl_object_hash($entity)]);
@@ -776,6 +822,11 @@ class EmEngine
         //close cursor
         $success->closeCursor();
         return $count;
+    }
+
+    private function computeChanges(Object $entity): void
+    {
+        $name = $entity::class;
     }
 
     /**
@@ -1013,10 +1064,10 @@ class EmEngine
     {
         if (
             !is_null($fk->getConstraintName()) &&
-            !is_null($fk->getReferencedTable()) &&
-            !is_null($fk->getReferencedColumn()) &&
-            !is_null($fk->getDeleteRule()) &&
-            !is_null($fk->getUpdateRule())
+            !is_null($fk->referencedTable) &&
+            !is_null($fk->referencedColumn) &&
+            !is_null($fk->deleteRule) &&
+            !is_null($fk->updateRule)
         ) {
             $req = "ALTER TABLE `" .
                 $table .
@@ -1025,13 +1076,13 @@ class EmEngine
                 "` FOREIGN KEY (`" .
                 $column .
                 "`) REFERENCES `" .
-                $fk->getReferencedTable() .
+                $fk->referencedTable .
                 "` (`" .
-                $fk->getReferencedColumn() .
+                $fk->referencedColumn .
                 "`) ON DELETE " .
-                $fk->getDeleteRule() .
+                $fk->deleteRule .
                 " ON UPDATE " .
-                $fk->getUpdateRule();
+                $fk->updateRule;
             //request
             $success = $this->em->getPdm()->query($req);
             $success->closeCursor();
@@ -1107,7 +1158,7 @@ class EmEngine
         }
         //second step automatic update with Database Structure
         /**
-         * @var Entity $version
+         * @var Object $version
          */
         $online_version = (!is_null($version = $this->find(Version::class, 1))) ? $version->version() : null;
         if ($installationMode || (!empty($online_version) && (float)$online_version < (float)$this->openDbStructure(
@@ -1260,11 +1311,11 @@ class EmEngine
 //    }
 
     /**
-     * @param Entity $old_item
-     * @param Entity $new_item
+     * @param Object $old_item
+     * @param Object $new_item
      * @return array|null
      */
-    protected function compareUpdateItem(Entity $old_item, Entity $new_item): ?array
+    protected function compareUpdateItem(Object $old_item, Object $new_item): ?array
     {
         $new_properties = $new_item->properties($new_item);
         $old_properties = $old_item->properties($old_item);

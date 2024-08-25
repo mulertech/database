@@ -15,6 +15,10 @@ class DbMapping implements DbMappingInterface
      */
     private FileManipulation $fileManipulation;
 
+    /**
+     * @param AttributeReader $attributeReader
+     * @param string $entitiesPath
+     */
     public function __construct(
         private readonly AttributeReader $attributeReader,
         private readonly string $entitiesPath
@@ -23,23 +27,23 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return string
      * @throws ReflectionException
      */
-    public function getTableName(string $entity): string
+    public function getTableName(string $entityName): string
     {
-        $mtEntity = $this->getMtEntity($entity);
+        $mtEntity = $this->getMtEntity($entityName);
 
         if (!is_null($mtEntity) && !is_null($mtEntity->tableName)) {
             return $mtEntity->tableName;
         }
 
-        if ($pos = strrpos($entity, '\\')) {
-            return strtolower(substr($entity, $pos + 1));
+        if ($pos = strrpos($entityName, '\\')) {
+            return strtolower(substr($entityName, $pos + 1));
         }
 
-        return strtolower($entity);
+        return strtolower($entityName);
     }
 
     /**
@@ -51,15 +55,19 @@ class DbMapping implements DbMappingInterface
         $fileList = PathManipulation::fileList($this->entitiesPath);
 
         $tableList = array_map(
-            function ($entity) {
-                return $this->getTableName($this->fileManipulation->fileClassName($entity));
+            function ($entityFileName) {
+                return $this->getTableName($this->fileManipulation->fileClassName($entityFileName));
             },
             $fileList
         );
 
-        return array_values(array_filter($tableList, static function ($value) {
+        $tables = array_values(array_filter($tableList, static function ($value) {
             return !is_null($value);
         }));
+
+        sort($tables);
+
+        return $tables;
     }
 
     /**
@@ -70,29 +78,33 @@ class DbMapping implements DbMappingInterface
         $fileList = PathManipulation::fileList($this->entitiesPath);
 
         $entityList = array_map(
-            function ($entity) {
-                return $this->fileManipulation->fileClassName($entity);
+            function ($entityFileName) {
+                return $this->fileManipulation->fileClassName($entityFileName);
             },
             $fileList
         );
 
-        return array_values(array_filter($entityList, static function ($value) {
+        $entities = array_values(array_filter($entityList, static function ($value) {
             return !is_null($value);
         }));
+
+        sort($entities);
+
+        return $entities;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return string|null
      * @throws ReflectionException
      */
-    public function getRepository(string $entity): ?string
+    public function getRepository(string $entityName): ?string
     {
-        $mtEntity = $this->getMtEntity($entity);
+        $mtEntity = $this->getMtEntity($entityName);
 
         if (is_null($mtEntity)) {
             throw new RuntimeException(
-                sprintf('The MtEntity mapping is not implemented into the %s class.', $entity)
+                sprintf('The MtEntity mapping is not implemented into the %s class.', $entityName)
             );
         }
 
@@ -100,24 +112,25 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return int|null
      * @throws ReflectionException
      */
-    public function getAutoIncrement(string $entity): ?int
+    public function getAutoIncrement(string $entityName): ?int
     {
-        return $this->getMtEntity($entity)?->autoIncrement;
+        return $this->getMtEntity($entityName)?->autoIncrement;
     }
 
     /**
-     * @param string $entity
+     * todo : voir la méthode getMtColumn à renommer en getMtColumns ???
+     * @param class-string $entityName
      * @return array<string>
      * @throws ReflectionException
      */
-    public function getColumns(string $entity): array
+    public function getColumns(string $entityName): array
     {
         $result = [];
-        foreach ($this->getMtColumn($entity) as $property => $mtColumn) {
+        foreach ($this->getMtColumns($entityName) as $property => $mtColumn) {
             if (!$mtColumn instanceof MtColumn) {
                 continue;
             }
@@ -129,14 +142,14 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return array<string, string>
      * @throws ReflectionException
      */
-    public function getPropertiesColumns(string $entity): array
+    public function getPropertiesColumns(string $entityName): array
     {
         $result = [];
-        foreach ($this->getMtColumn($entity) as $property => $mtColumn) {
+        foreach ($this->getMtColumns($entityName) as $property => $mtColumn) {
             if (!$mtColumn instanceof MtColumn) {
                 continue;
             }
@@ -148,219 +161,223 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getColumnName(string $entity, string $property): ?string
+    public function getColumnName(string $entityName, string $property): ?string
     {
-        if (!isset($this->getPropertiesColumns($entity)[$property])) {
+        if (!isset($this->getPropertiesColumns($entityName)[$property])) {
             return null;
         }
 
-        return $this->getPropertiesColumns($entity)[$property] ?? $property;
+        return $this->getPropertiesColumns($entityName)[$property] ?? $property;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getColumnType(string $entity, string $property): ?string
+    public function getColumnType(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtColumn($entity)[$property])) {
+        if (!isset($this->getMtColumns($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtColumn($entity)[$property]?->columnType;
+        return $this->getMtColumns($entityName)[$property]?->columnType;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return bool|null
      * @throws ReflectionException
      */
-    public function isNullable(string $entity, string $property): ?bool
+    public function isNullable(string $entityName, string $property): ?bool
     {
-        if (!isset($this->getMtColumn($entity)[$property])) {
+        if (!isset($this->getMtColumns($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtColumn($entity)[$property]?->isNullable;
+        return $this->getMtColumns($entityName)[$property]?->isNullable;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getExtra(string $entity, string $property): ?string
+    public function getExtra(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtColumn($entity)[$property])) {
+        if (!isset($this->getMtColumns($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtColumn($entity)[$property]?->extra;
+        return $this->getMtColumns($entityName)[$property]?->extra;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getColumnDefault(string $entity, string $property): ?string
+    public function getColumnDefault(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtColumn($entity)[$property])) {
+        if (!isset($this->getMtColumns($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtColumn($entity)[$property]?->columnDefault;
+        return $this->getMtColumns($entityName)[$property]?->columnDefault;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getColumnKey(string $entity, string $property): ?string
+    public function getColumnKey(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtColumn($entity)[$property])) {
+        if (!isset($this->getMtColumns($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtColumn($entity)[$property]?->columnKey;
+        return $this->getMtColumns($entityName)[$property]?->columnKey;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return MtFk|null
      * @throws ReflectionException
      */
-    public function getForeignKey(string $entity, string $property): ?MtFk
+    public function getForeignKey(string $entityName, string $property): ?MtFk
     {
-        if (!isset($this->getMtFk($entity)[$property])) {
+        if (!isset($this->getMtFk($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtFk($entity)[$property] ?? null;
+        return $this->getMtFk($entityName)[$property] ?? null;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getConstraintName(string $entity, string $property): ?string
+    public function getConstraintName(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtFk($entity)[$property])) {
+        if (!isset($this->getMtFk($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtFk($entity)[$property]?->getConstraintName(
-            $this->getTableName($entity),
-            $this->getColumnName($entity, $property)
-        );
+        $mtFk = $this->getMtFk($entityName)[$property];
+
+        return 'fk_' .
+            $this->getTableName($entityName) .
+            '_' .
+            $this->getColumnName($entityName, $property) .
+            '_' .
+            $this->getTableName($mtFk->referencedTable);
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getReferencedTable(string $entity, string $property): ?string
+    public function getReferencedTable(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtFk($entity)[$property])) {
+        if (!isset($this->getMtFk($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtFk($entity)[$property]?->referencedTable;
+        return $this->getTableName($this->getMtFk($entityName)[$property]?->referencedTable);
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getReferencedColumn(string $entity, string $property): ?string
+    public function getReferencedColumn(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtFk($entity)[$property])) {
+        if (!isset($this->getMtFk($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtFk($entity)[$property]?->referencedColumn;
+        return $this->getMtFk($entityName)[$property]?->referencedColumn;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getDeleteRule(string $entity, string $property): ?string
+    public function getDeleteRule(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtFk($entity)[$property])) {
+        if (!isset($this->getMtFk($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtFk($entity)[$property]?->deleteRule;
+        return $this->getMtFk($entityName)[$property]?->deleteRule;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getUpdateRule(string $entity, string $property): ?string
+    public function getUpdateRule(string $entityName, string $property): ?string
     {
-        if (!isset($this->getMtFk($entity)[$property])) {
+        if (!isset($this->getMtFk($entityName)[$property])) {
             return null;
         }
 
-        return $this->getMtFk($entity)[$property]?->updateRule;
+        return $this->getMtFk($entityName)[$property]?->updateRule;
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return object|null
      * @throws ReflectionException
      */
-    private function getMtEntity(string $entity): ?object
+    private function getMtEntity(string $entityName): ?object
     {
-        return $this->attributeReader->getInstanceOfClassAttributeNamed($entity, MtEntity::class);
+        return $this->attributeReader->getInstanceOfClassAttributeNamed($entityName, MtEntity::class);
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return array
      * @throws ReflectionException
      */
-    private function getMtColumn(string $entity): array
+    private function getMtColumns(string $entityName): array
     {
         return $this
             ->attributeReader
-            ->getInstanceOfPropertiesAttributesNamed($entity, MtColumn::class);
+            ->getInstanceOfPropertiesAttributesNamed($entityName, MtColumn::class);
     }
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return array
      * @throws ReflectionException
      */
-    private function getMtFk(string $entity): array
+    private function getMtFk(string $entityName): array
     {
         return $this
             ->attributeReader
-            ->getInstanceOfPropertiesAttributesNamed($entity, MtFk::class);
+            ->getInstanceOfPropertiesAttributesNamed($entityName, MtFk::class);
     }
 }

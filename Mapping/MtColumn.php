@@ -12,6 +12,19 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class MtColumn
 {
+    public const PRIMARY_KEY = 'PRI';
+    public const UNIQUE_KEY = 'UNI';
+    public const MULTIPLE_KEY = 'MUL';
+
+    /**
+     * MtColumn constructor.
+     * @param string|null $columnName
+     * @param string|null $columnType
+     * @param bool $isNullable
+     * @param string|null $extra
+     * @param string|null $columnDefault
+     * @param string|null $columnKey
+     */
     public function __construct(
         public string|null $columnName = null,
         public string|null $columnType = null,

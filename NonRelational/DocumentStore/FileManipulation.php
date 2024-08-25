@@ -293,15 +293,17 @@ class FileManipulation implements FileInterface
      */
     public function fileClassName(string $filename): string
     {
-        //Namespace
         if (is_null($namespaceLine = $this->firstOccurrence($filename, 'namespace'))) {
             throw new RuntimeException(sprintf('Class FileManipulation, function fileClassName. The file "%s" does not contain namespace.', $filename));
         }
+
         $namespaceLineContent = $this->getLine($namespaceLine, $filename);
         $namespaceParts = explode(' ', trim($namespaceLineContent));
         $namespace = $namespaceParts[1];
+
         //Class name
         $className = $this->findClassName($filename);
+
         return $namespace . '\\' . $className;
     }
 

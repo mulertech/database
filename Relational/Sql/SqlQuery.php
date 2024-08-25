@@ -419,7 +419,7 @@ class SqlQuery
             throw new RuntimeException(
                 sprintf(
                     'Class SqlQuery, function generateValues. The values of the insert for the table "%s" was not set.',
-                    $this->queryBuilder->getFrom()[0]['name']
+                    $this->queryBuilder->getFrom()['name']
                 )
             );
         }

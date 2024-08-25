@@ -16,10 +16,10 @@ interface DbMappingInterface
      * 1 : The table name can be set manually into PhpDoc of this entity like this : @MtEntity (tableName="users", repository=UserRepository::class)
      * 2 : The name of this entity will be used if the MtEntity mapping is used like this : @MtEntity (repository=UserRepository::class)
      * 3 : If this entity doesn't use the MtEntity mapping it return strtolower($entity)
-     * @param string $entity
+     * @param class-string $entityName
      * @return string
      */
-    public function getTableName(string $entity): string;
+    public function getTableName(string $entityName): string;
 
     /**
      * @return array
@@ -32,104 +32,104 @@ interface DbMappingInterface
     public function getEntities(): array;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return string|null
      */
-    public function getRepository(string $entity): ?string;
+    public function getRepository(string $entityName): ?string;
 
     /**
      * Get the auto increment start number
-     * @param string $entity
+     * @param class-string $entityName
      * @return int|null
      */
-    public function getAutoIncrement(string $entity): ?int;
+    public function getAutoIncrement(string $entityName): ?int;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return array
      */
-    public function getColumns(string $entity): array;
+    public function getColumns(string $entityName): array;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @return array
      */
-    public function getPropertiesColumns(string $entity): array;
+    public function getPropertiesColumns(string $entityName): array;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getColumnName(string $entity, string $property): ?string;
+    public function getColumnName(string $entityName, string $property): ?string;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getColumnType(string $entity, string $property): ?string;
+    public function getColumnType(string $entityName, string $property): ?string;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return bool|null
      */
-    public function isNullable(string $entity, string $property): ?bool;
+    public function isNullable(string $entityName, string $property): ?bool;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getExtra(string $entity, string $property): ?string;
+    public function getExtra(string $entityName, string $property): ?string;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getColumnKey(string $entity, string $property): ?string;
+    public function getColumnKey(string $entityName, string $property): ?string;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return MtFk|null
      */
-    public function getForeignKey(string $entity, string $property): ?MtFk;
+    public function getForeignKey(string $entityName, string $property): ?MtFk;
     
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getConstraintName(string $entity, string $property): ?string;
+    public function getConstraintName(string $entityName, string $property): ?string;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getReferencedTable(string $entity, string $property): ?string;
+    public function getReferencedTable(string $entityName, string $property): ?string;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getReferencedColumn(string $entity, string $property): ?string;
+    public function getReferencedColumn(string $entityName, string $property): ?string;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getDeleteRule(string $entity, string $property): ?string;
+    public function getDeleteRule(string $entityName, string $property): ?string;
 
     /**
-     * @param string $entity
+     * @param class-string $entityName
      * @param string $property
      * @return string|null
      */
-    public function getUpdateRule(string $entity, string $property): ?string;
+    public function getUpdateRule(string $entityName, string $property): ?string;
 }

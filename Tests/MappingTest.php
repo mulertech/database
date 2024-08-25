@@ -7,9 +7,10 @@ use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Groups;
+use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\WithoutMapping;
-use MulerTech\Database\Tests\Files\UserRepository;
+use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
@@ -48,7 +49,7 @@ class MappingTest extends TestCase
      */
     public function testTableNameUpdated(): void
     {
-        $this->assertEquals('users', $this->getDbMapping()->getTableName(User::class));
+        $this->assertEquals('users_test', $this->getDbMapping()->getTableName(User::class));
     }
 
     /**
@@ -57,7 +58,10 @@ class MappingTest extends TestCase
      */
     public function testTables(): void
     {
-        $this->assertEquals(['withoutmapping', 'users', 'groups', 'group'], $this->getDbMapping()->getTables());
+        $this->assertEquals(
+            ['group', 'groups', 'units_test', 'users_test', 'withoutmapping'],
+            $this->getDbMapping()->getTables()
+        );
     }
 
     /**
@@ -76,7 +80,7 @@ class MappingTest extends TestCase
     public function testGetEntities(): void
     {
         $this->assertEquals(
-            [WithoutMapping::class, User::class, Groups::class, Group::class],
+            [Group::class, Groups::class, Unit::class, User::class, WithoutMapping::class],
             $this->getDbMapping()->getEntities()
         );
     }
@@ -96,7 +100,10 @@ class MappingTest extends TestCase
      */
     public function testRepository(): void
     {
-        $this->assertEquals(UserRepository::class, $this->getDbMapping()->getRepository(User::class));
+        $this->assertEquals(
+            UserRepository::class,
+            $this->getDbMapping()->getRepository(User::class)
+        );
     }
 
     /**
@@ -333,7 +340,7 @@ class MappingTest extends TestCase
     public function testGetForeignKey(): void
     {
         $mtFk = new MtFk(
-            referencedTable: 'units',
+            referencedTable: Unit::class,
             referencedColumn: 'id',
             deleteRule: 'RESTRICT',
             updateRule: 'CASCADE'
@@ -361,7 +368,7 @@ class MappingTest extends TestCase
     public function testGetConstraintName(): void
     {
         $this->assertEquals(
-            'fk_users_unit_id_units',
+            'fk_users_test_unit_id_units_test',
             $this->getDbMapping()->getConstraintName(User::class, 'unit')
         );
     }
@@ -382,7 +389,7 @@ class MappingTest extends TestCase
     public function testGetReferencedTable(): void
     {
         $this->assertEquals(
-            'units',
+            'units_test',
             $this->getDbMapping()->getReferencedTable(User::class, 'unit')
         );
     }
