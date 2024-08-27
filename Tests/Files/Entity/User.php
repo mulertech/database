@@ -40,9 +40,11 @@ class User extends Entity
         return $this->id;
     }
 
-    public function setId(int $id): void
+    public function setId(int $id): self
     {
         $this->id = $id;
+
+        return $this;
     }
 
     public function getUsername(): ?string
@@ -50,9 +52,11 @@ class User extends Entity
         return $this->username;
     }
 
-    public function setUsername(string $username): void
+    public function setUsername(string $username): self
     {
         $this->username = $username;
+
+        return $this;
     }
 
     public function getUnit(): ?int
@@ -60,9 +64,11 @@ class User extends Entity
         return $this->unit;
     }
 
-    public function setUnit(int $unit): void
+    public function setUnit(int $unit): self
     {
         $this->unit = $unit;
+
+        return $this;
     }
 
 

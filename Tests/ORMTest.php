@@ -2,6 +2,8 @@
 
 namespace MulerTech\Database\Tests;
 
+use MulerTech\Database\Event\DbEvents;
+use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
 use MulerTech\Database\ORM\EntityManager;
@@ -56,10 +58,14 @@ class ORMTest extends TestCase
         self::assertInstanceOf(UserRepository::class, $repository);
     }
 
-    public function testExecuteInsertions(): void
+    public function testExecuteInsertionsAndPostPersistEvent(): void
     {
         $this->createTestTable();
         $em = $this->getEntityManager();
+        $this->eventManager->addListener(DbEvents::postPersist, static function (PostPersistEvent $event) {
+            $user = $event->getEntity();
+            $user->setUsername($user->getUsername() . 'UpdatedByEvent')->setUnit(33806);
+        });
         $user = new User();
         $user->setUsername('John');
         $em->persist($user);
@@ -69,13 +75,7 @@ class ORMTest extends TestCase
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
         self::assertEquals(['id' => 1, 'username' => 'John', 'unit_id' => null], $statement->fetch());
-    }
-
-    public function testEvent(): void
-    {
-        //todo: test event
-//        $this->eventManager->addListener('person.event', static function (PersonEvent $event) {
-//            $event->getTarget()->setTest('hello ' . $event->getTarget()->getName());
-//        });
+        self::assertEquals('JohnUpdatedByEvent', $user->getUsername());
+        self::assertEquals(33806, $user->getUnit());
     }
 }
