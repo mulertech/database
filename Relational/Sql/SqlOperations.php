@@ -3,6 +3,8 @@
 
 namespace MulerTech\Database\Relational\Sql;
 
+use ScopeComparison;
+
 /**
  * Class SqlOperations is one or multiple operations, for example :
  * age > 25 AND size > 180cm
@@ -34,9 +36,9 @@ class SqlOperations
 
     /**
      * SqlOperations constructor.
-     * @param string|self $operation
+     * @param string|self|null $operation
      */
-    public function __construct($operation = null)
+    public function __construct(SqlOperations|string $operation = null)
     {
         if (!is_null($operation)) {
             $this->addOperation($operation);
@@ -53,98 +55,118 @@ class SqlOperations
 
     /**
      * @param string|self $operation
-     * @param string $link
+     * @param LinkOperator $link
      * @return SqlOperations
      */
-    public function addOperation($operation, string $link = SqlOperators::AND_OPERATOR): SqlOperations
+    public function addOperation(SqlOperations|string $operation, LinkOperator $link = LinkOperator::AND): SqlOperations
     {
         $this->operations[] = [self::OPERATION_INDEX => $operation, self::LINK_INDEX => $link];
+
         return $this;
     }
 
     /**
-     * @param string|self ...$operation
+     * @param string|self ...$operations
      * @return SqlOperations
      */
-    public function and(...$operation): SqlOperations
+    public function and(string|SqlOperations ...$operations): SqlOperations
     {
-        foreach ($operation as $op) {
-            $this->addOperation($op);
+        foreach ($operations as $operation) {
+            $this->addOperation($operation);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string|self ...$operations
+     * @return SqlOperations
+     */
+    public function andNot(string|SqlOperations ...$operations): SqlOperations
+    {
+        foreach ($operations as $operation) {
+            $this->addOperation($operation, LinkOperator::AND_NOT);
         }
         return $this;
     }
 
     /**
-     * @param string|self ...$operation
+     * @param string|self ...$operations
      * @return SqlOperations
      */
-    public function andNot(...$operation): SqlOperations
+    public function or(string|SqlOperations ...$operations): SqlOperations
     {
-        foreach ($operation as $op) {
-            $this->addOperation($op, SqlOperators::AND_OPERATOR . ' ' . SqlOperators::NOT_OPERATOR);
+        foreach ($operations as $operation) {
+            $this->addOperation($operation, LinkOperator::OR);
         }
         return $this;
     }
 
     /**
-     * @param string|self ...$operation
+     * @param string|self ...$operations
      * @return SqlOperations
      */
-    public function or(...$operation): SqlOperations
+    public function orNot(string|SqlOperations ...$operations): SqlOperations
     {
-        foreach ($operation as $op) {
-            $this->addOperation($op, SqlOperators::OR_OPERATOR);
-        }
-        return $this;
-    }
-
-    /**
-     * @param string|self ...$operation
-     * @return SqlOperations
-     */
-    public function orNot(...$operation): SqlOperations
-    {
-        foreach ($operation as $op) {
-            $this->addOperation($op, SqlOperators::OR_OPERATOR . ' ' . SqlOperators::NOT_OPERATOR);
+        foreach ($operations as $operation) {
+            $this->addOperation($operation, LinkOperator::OR_NOT);
         }
         return $this;
     }
 
     /**
      * @param string $column
-     * @param array|QueryBuilder|string $list
-     * @param string $link
+     * @param array|string|QueryBuilder $list
+     * @param LinkOperator $link
      * @return SqlOperations
      */
-    public function in(string $column, $list, string $link = SqlOperators::AND_OPERATOR): SqlOperations
-    {
+    public function in(
+        string $column,
+        array|string|QueryBuilder $list,
+        LinkOperator $link = LinkOperator::AND
+    ): SqlOperations {
         if (is_array($list)) {
             $stringList = implode('\', \'', $list);
             $stringList = '\'' . $stringList . '\'';
         }
+
         $this->addOperation(
-            $column . ' ' . SqlOperators::IN_OPERATOR . ' (' . ((!empty($stringList)) ? $stringList : $list) . ')',
+            $column .
+            ' ' .
+            SqlOperator::IN->value .
+            ' (' . ((!empty($stringList)) ? $stringList : $list) .
+            ')',
             $link
         );
+
         return $this;
     }
 
     /**
      * @param string $column
-     * @param array|QueryBuilder|string $list
-     * @param string $link
+     * @param array|string|QueryBuilder $list
+     * @param LinkOperator $link
      * @return SqlOperations
      */
-    public function notIn(string $column, $list, string $link = SqlOperators::AND_OPERATOR): SqlOperations
-    {
+    public function notIn(
+        string $column,
+        array|string|QueryBuilder $list,
+        LinkOperator $link = LinkOperator::AND
+    ): SqlOperations {
         if (is_array($list)) {
             $stringList = implode('\', \'', $list);
             $stringList = '\'' . $stringList . '\'';
         }
+
         $this->addOperation(
-            $column . ' ' . SqlOperators::NOT_OPERATOR . ' ' . SqlOperators::IN_OPERATOR . ' (' . ((!empty($stringList)) ? $stringList : $list) . ')',
+            $column .
+            ' ' .
+            SqlOperator::IN->not()->value .
+            ' (' . ((!empty($stringList)) ? $stringList : $list) .
+            ')',
             $link
         );
+
         return $this;
     }
 
@@ -161,8 +183,8 @@ class SqlOperations
             }
             //For the first operation just leave the NOT operator (not AND NOT).
             if (empty($this->operation)) {
-                if (stripos($firstOperation[self::LINK_INDEX], 'not') !== false) {
-                    $firstOperation[self::LINK_INDEX] = SqlOperators::NOT_OPERATOR;
+                if (stripos($firstOperation[self::LINK_INDEX]->value, 'not') !== false) {
+                    $firstOperation[self::LINK_INDEX] = SqlOperator::NOT->value;
                 } else {
                     $firstOperation[self::LINK_INDEX] = '';
                 }
@@ -173,7 +195,7 @@ class SqlOperations
                     if ($operation[self::OPERATION_INDEX] instanceof $this) {
                         $operation[self::OPERATION_INDEX] = '(' . $operation[self::OPERATION_INDEX] . ')';
                     }
-                    $this->operation .= ' ' . $operation[self::LINK_INDEX] . ' ' . $operation[self::OPERATION_INDEX];
+                    $this->operation .= ' ' . $operation[self::LINK_INDEX]->value . ' ' . $operation[self::OPERATION_INDEX];
                 }
             }
         }
@@ -187,13 +209,33 @@ class SqlOperations
     /**
      * @param string|self $first
      * @param string|self $second
-     * @param bool $any
+     * @param ScopeComparison|null $allAnySome
      * @return string
      */
-    public static function equal($first, $second, bool $any = false): string
+    public static function equal(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
     {
-        $anyString = ($any) ? ' ' . SqlOperators::ANY_OPERATOR . ' ' : '';
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $anyString . $second;
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::EQUAL,
+            $allAnySome
+        );
+    }
+
+    /**
+     * @param string|self $first
+     * @param string|self $second
+     * @param ScopeComparison|null $allAnySome
+     * @return string
+     */
+    public static function notEqual(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
+    {
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::NOT_EQUAL,
+            $allAnySome
+        );
     }
 
     /**
@@ -202,10 +244,29 @@ class SqlOperations
      * @param bool $any
      * @return string
      */
-    public static function notEqual($first, $second, bool $any = false): string
+    public static function greater(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
     {
-        $anyString = ($any) ? ' ' . SqlOperators::ANY_OPERATOR . ' ' : '';
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__][0] . $anyString . $second;
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::GREATER_THAN,
+            $allAnySome
+        );
+    }
+
+    /**
+     * @param string|self $first
+     * @param string|self $second
+     * @return string
+     */
+    public static function notGreater(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
+    {
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::NOT_GREATER_THAN,
+            $allAnySome
+        );
     }
 
     /**
@@ -214,10 +275,14 @@ class SqlOperations
      * @param bool $any
      * @return string
      */
-    public static function greater($first, $second, bool $any = false): string
+    public static function less(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
     {
-        $anyString = ($any) ? ' ' . SqlOperators::ANY_OPERATOR . ' ' : '';
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $anyString . $second;
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::LESS_THAN,
+            $allAnySome
+        );
     }
 
     /**
@@ -225,31 +290,14 @@ class SqlOperations
      * @param string|self $second
      * @return string
      */
-    public static function notGreater($first, $second): string
+    public static function notLess(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
     {
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @param bool $any
-     * @return string
-     */
-    public static function less($first, $second, bool $any = false): string
-    {
-        $anyString = ($any) ? ' ' . SqlOperators::ANY_OPERATOR . ' ' : '';
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $anyString . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function notLess($first, $second): string
-    {
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $second;
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::NOT_LESS_THAN,
+            $allAnySome
+        );
     }
 
     /**
@@ -258,10 +306,14 @@ class SqlOperations
      * @param bool $any
      * @return string
      */
-    public static function greaterEqual($first, $second, bool $any = false): string
+    public static function greaterEqual(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
     {
-        $anyString = ($any) ? ' ' . SqlOperators::ANY_OPERATOR . ' ' : '';
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $anyString . $second;
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::GREATER_THAN_OR_EQUAL,
+            $allAnySome
+        );
     }
 
     /**
@@ -270,10 +322,14 @@ class SqlOperations
      * @param bool $any
      * @return string
      */
-    public static function lessEqual($first, $second, bool $any = false): string
+    public static function lessEqual(SqlOperations|string $first, SqlOperations|string $second, ScopeComparison $allAnySome = null): string
     {
-        $anyString = ($any) ? ' ' . SqlOperators::ANY_OPERATOR . ' ' : '';
-        return $first . SqlOperators::COMPARISON_OPERATORS[__FUNCTION__] . $anyString . $second;
+        return self::generateComparisonOperation(
+            $first,
+            $second,
+            ComparisonOperator::LESS_THAN_OR_EQUAL,
+            $allAnySome
+        );
     }
 
     /**
@@ -283,17 +339,7 @@ class SqlOperations
      */
     public static function add($first, $second): string
     {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function addAssignment($first, $second): string
-    {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
+        return $first . ArithmeticOperator::ADD->value . $second;
     }
 
     /**
@@ -303,17 +349,7 @@ class SqlOperations
      */
     public static function subtract($first, $second): string
     {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function subtractAssignment($first, $second): string
-    {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
+        return $first . ArithmeticOperator::SUBTRACT->value . $second;
     }
 
     /**
@@ -323,17 +359,7 @@ class SqlOperations
      */
     public static function multiply($first, $second): string
     {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function multiplyAssignment($first, $second): string
-    {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
+        return $first . ArithmeticOperator::MULTIPLY->value . $second;
     }
 
     /**
@@ -343,17 +369,7 @@ class SqlOperations
      */
     public static function divide($first, $second): string
     {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function divideAssignment($first, $second): string
-    {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
+        return $first . ArithmeticOperator::DIVIDE->value . $second;
     }
 
     /**
@@ -363,17 +379,7 @@ class SqlOperations
      */
     public static function modulo($first, $second): string
     {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function moduloAssignment($first, $second): string
-    {
-        return $first . SqlOperators::ARITHMETIC_OPERATORS[__FUNCTION__] . $second;
+        return $first . ArithmeticOperator::MODULO->value . $second;
     }
 
     /**
@@ -383,17 +389,7 @@ class SqlOperations
      */
     public static function bitAnd($first, $second): string
     {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function bitAndAssignment($first, $second): string
-    {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
+        return $first . BitwiseOperator::BITWISE_AND->value . $second;
     }
 
     /**
@@ -403,17 +399,7 @@ class SqlOperations
      */
     public static function bitOr($first, $second): string
     {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function bitOrAssignment($first, $second): string
-    {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
+        return $first . BitwiseOperator::BITWISE_OR->value . $second;
     }
 
     /**
@@ -423,17 +409,7 @@ class SqlOperations
      */
     public static function bitExclusiveOr($first, $second): string
     {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
-    }
-
-    /**
-     * @param string|self $first
-     * @param string|self $second
-     * @return string
-     */
-    public static function bitExclusiveOrAssignment($first, $second): string
-    {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
+        return $first . BitwiseOperator::BITWISE_XOR->value . $second;
     }
 
     /**
@@ -443,7 +419,7 @@ class SqlOperations
      */
     public static function bitNot($first, $second): string
     {
-        return $first . SqlOperators::BITWISE_OPERATORS[__FUNCTION__] . $second;
+        return $first . BitwiseOperator::BITWISE_NOT->value . $second;
     }
 
     /**
@@ -452,5 +428,23 @@ class SqlOperations
     public function __toString(): string
     {
         return $this->generateOperation();
+    }
+
+    /**
+     * @param string $first
+     * @param string $second
+     * @param ComparisonOperator $sqlComparisonOperator
+     * @param ScopeComparison|null $allAnySome
+     * @return string
+     */
+    private static function generateComparisonOperation(
+        string $first,
+        string $second,
+        ComparisonOperator $sqlComparisonOperator,
+        ScopeComparison $allAnySome = null
+    ): string {
+        $allAnySomeString = ($allAnySome !== null) ? ' ' . $allAnySome->value . ' ' : '';
+
+        return $first . $sqlComparisonOperator->value . $allAnySomeString . $second;
     }
 }

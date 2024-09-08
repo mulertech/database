@@ -58,6 +58,21 @@ class ORMTest extends TestCase
         self::assertInstanceOf(UserRepository::class, $repository);
     }
 
+    public function testFind(): void
+    {
+        $this->createTestTable();
+        $em = $this->getEntityManager();
+        $pdo = $this->getPhpDatabaseManager();
+        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
+        $statement->execute(['username' => 'John']);
+        $user = $em->find(User::class, 1);
+        self::assertInstanceOf(User::class, $user);
+        self::assertEquals(1, $user->getId());
+        self::assertEquals('John', $user->getUsername());
+        $badUser = $em->find(User::class, 2);
+        self::assertNull($badUser);
+    }
+
     public function testExecuteInsertionsAndPostPersistEvent(): void
     {
         $this->createTestTable();

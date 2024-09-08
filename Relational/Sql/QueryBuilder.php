@@ -537,16 +537,14 @@ class QueryBuilder
     private function tableKnown(array $nameAlias): bool
     {
         //Priority 1 : alias
-        if (isset($this->from) && !is_null(
-                $this->from[0]['alias']
-            ) && ($nameAlias['alias'] === $this->from[0]['alias'])) {
+        if (isset($this->from[0]['alias']) && ($nameAlias['alias'] === $this->from[0]['alias'])) {
             return true;
         }
         if (in_array($nameAlias['alias'], $this->tablesJoined, true)) {
             return true;
         }
         //Priority 2 : name
-        if (isset($this->from) && ($nameAlias['name'] === $this->from[0]['name'])) {
+        if (isset($this->from[0]['name']) && ($nameAlias['name'] === $this->from[0]['name'])) {
             return true;
         }
         if (array_key_exists($nameAlias['name'], $this->tablesJoined)) {
@@ -679,7 +677,7 @@ class QueryBuilder
      */
     public function orWhere($where): QueryBuilder
     {
-        $this->where->addOperation($where, SqlOperators::OR_OPERATOR);
+        $this->where->addOperation($where, LinkOperator::OR);
         return $this;
     }
 
@@ -763,7 +761,7 @@ class QueryBuilder
      */
     public function orHaving($having): QueryBuilder
     {
-        $this->having->addOperation($having, SqlOperators::OR_OPERATOR);
+        $this->having->addOperation($having, LinkOperator::OR);
         return $this;
     }
 

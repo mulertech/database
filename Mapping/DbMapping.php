@@ -268,7 +268,7 @@ class DbMapping implements DbMappingInterface
     /**
      * @param class-string $entityName
      * @param string $property
-     * @return string|null
+     * @return string|null Returns null if there is not enough information to build the constraint name
      * @throws ReflectionException
      */
     public function getConstraintName(string $entityName, string $property): ?string
@@ -278,6 +278,14 @@ class DbMapping implements DbMappingInterface
         }
 
         $mtFk = $this->getMtFk($entityName)[$property];
+
+        if (
+            is_null($mtFk->referencedTable) ||
+            is_null($this->getColumnName($entityName, $property)) ||
+            is_null($this->getTableName($entityName))
+        ) {
+            return null;
+        }
 
         return 'fk_' .
             $this->getTableName($entityName) .

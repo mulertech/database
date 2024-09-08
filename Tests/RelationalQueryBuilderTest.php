@@ -180,7 +180,7 @@ class RelationalQueryBuilderTest extends TestCase
         $queryBuilder->getQuery();
     }
 
-    public function testQueryBuilderWithNoFrom(): void
+    public function testQueryBuilderWithoutFrom(): void
     {
         $this->expectExceptionMessage(
             'Class SqlQuery, function generateFrom. The from variable was not found, for the "SELECT" request.'
