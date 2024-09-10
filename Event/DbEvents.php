@@ -3,24 +3,19 @@
 
 namespace MulerTech\Database\Event;
 
-
-final class DbEvents
+enum DbEvents: string
 {
-
-    private function __construct() {}
-
-    public const preRemove = 'preRemove';
-    public const postRemove = 'postRemove';
-    public const prePersist = 'prePersist';
-    public const postPersist = 'postPersist';
-    public const preUpdate = 'preUpdate';
-    public const postUpdate = 'postUpdate';
-    public const postLoad = 'postLoad';
-    public const loadClassMetadata = 'loadClassMetadata';
-    public const onClassMetadataNotFound = 'onClassMetadataNotFound';
-    public const preFlush = 'preFlush';
-    public const onFlush = 'onFlush';
-    public const postFlush = 'postFlush';
-    public const onClear = 'onClear';
-
+    case preRemove = 'preRemove';
+    case postRemove = 'postRemove';
+    case prePersist = 'prePersist';
+    case postPersist = 'postPersist';
+    case preUpdate = 'preUpdate';
+    case postUpdate = 'postUpdate';
+    case postLoad = 'postLoad';
+    case loadClassMetadata = 'loadClassMetadata';
+    case onClassMetadataNotFound = 'onClassMetadataNotFound';
+    case preFlush = 'preFlush';
+    case onFlush = 'onFlush';
+    case postFlush = 'postFlush';
+    case onClear = 'onClear';
 }

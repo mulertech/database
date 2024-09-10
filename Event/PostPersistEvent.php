@@ -16,7 +16,7 @@ class PostPersistEvent extends EntityEvent
      * @param EntityManagerInterface $entityManager
      */
     public function __construct(Object $entity, EntityManagerInterface $entityManager) {
-        $this->setName(DbEvents::postPersist);
+        $this->setName(DbEvents::postPersist->value);
         parent::__construct($entity, $entityManager);
     }
 }

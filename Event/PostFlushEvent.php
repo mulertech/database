@@ -22,7 +22,7 @@ class PostFlushEvent extends Event
      * @param EntityManagerInterface $entityManager
      */
     public function __construct(EntityManagerInterface $entityManager) {
-        $this->setName(DbEvents::postFlush);
+        $this->setName(DbEvents::postFlush->value);
         $this->entityManager = $entityManager;
     }
 

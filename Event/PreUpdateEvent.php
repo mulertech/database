@@ -22,7 +22,7 @@ class PreUpdateEvent extends EntityEvent
      * @param array $entityChanges
      */
     public function __construct(Object $entity, EntityManager $entityManager, array $entityChanges) {
-        $this->setName(DbEvents::preUpdate);
+        $this->setName(DbEvents::preUpdate->value);
         $this->entityChanges = $entityChanges;
         parent::__construct($entity, $entityManager);
     }

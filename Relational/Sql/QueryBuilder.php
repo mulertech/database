@@ -864,7 +864,7 @@ class QueryBuilder
      * @param mixed $value
      * @return $this
      */
-    public function set(string $column, $value): QueryBuilder
+    public function set(string $column, mixed $value): QueryBuilder
     {
         $this->setValue($column, $this->addDynamicParameter($value));
         return $this;

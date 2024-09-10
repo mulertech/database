@@ -16,7 +16,7 @@ class PostRemoveEvent extends EntityEvent
      * @param EntityManagerInterface $entityManager
      */
     public function __construct(Object $entity, EntityManagerInterface $entityManager) {
-        $this->setName(DbEvents::postRemove);
+        $this->setName(DbEvents::postRemove->value);
         parent::__construct($entity, $entityManager);
     }
 }

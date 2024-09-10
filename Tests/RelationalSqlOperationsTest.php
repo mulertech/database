@@ -132,6 +132,31 @@ class RelationalSqlOperationsTest extends TestCase
         );
     }
 
+    public function testSqlOperationsEqual(): void
+    {
+        self::assertEquals('total=1000', SqlOperations::equal('total', 1000));
+    }
+
+    public function testSqlOperationsNotEqual(): void
+    {
+        self::assertEquals('total<>1000', SqlOperations::notEqual('total', 1000));
+    }
+
+    public function testSqlOperationsGreater(): void
+    {
+        self::assertEquals('total>1000', SqlOperations::greater('total', 1000));
+    }
+
+    public function testSqlOperationsNotGreater(): void
+    {
+        self::assertEquals('total!>1000', SqlOperations::notGreater('total', 1000));
+    }
+
+    public function testSqlOperationsLess(): void
+    {
+        self::assertEquals('total<1000', SqlOperations::less('total', 1000));
+    }
+
     public function testSqlOperationsNotLess(): void
     {
         self::assertEquals('total!<1000', SqlOperations::notLess('total', 1000));

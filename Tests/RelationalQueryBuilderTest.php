@@ -726,9 +726,9 @@ class RelationalQueryBuilderTest extends TestCase
     public function testQueryBuilderUpdate(): void
     {
         $queryBuilder = new QueryBuilder();
-        $queryBuilder->update('employees')->set('lastname', 'Hill');
+        $queryBuilder->update('employees')->set('lastname', 'Hill')->set('firstname', 'John');
         self::assertEquals(
-            'UPDATE `employees` (`lastname`) VALUES (?)',
+            'UPDATE `employees` SET `lastname` = ?, `firstname` = ?',
             $queryBuilder->getQuery()
         );
     }
@@ -738,7 +738,27 @@ class RelationalQueryBuilderTest extends TestCase
         $queryBuilder = new QueryBuilder();
         $queryBuilder->update('employees', 'emp')->set('lastname', 'Hill');
         self::assertEquals(
-            'UPDATE `employees` `emp` (`lastname`) VALUES (?)',
+            'UPDATE `employees` `emp` SET `lastname` = ?',
+            $queryBuilder->getQuery()
+        );
+    }
+
+    public function testQueryBuilderUpdateWithWhereAndDynamicParameters(): void
+    {
+        $queryBuilder = new QueryBuilder();
+        $queryBuilder->update('employees')->set('lastname', 'Hill')->where(SqlOperations::equal('id', $queryBuilder->addDynamicParameter(1)));
+        self::assertEquals(
+            'UPDATE `employees` SET `lastname` = ? WHERE id=?',
+            $queryBuilder->getQuery()
+        );
+    }
+
+    public function testQueryBuilderUpdateWithWhereAndNamedParameters(): void
+    {
+        $queryBuilder = new QueryBuilder();
+        $queryBuilder->update('employees')->setValue('lastname', $queryBuilder->addNamedParameter('Hill'))->where(SqlOperations::equal('id', $queryBuilder->addNamedParameter(1)));
+        self::assertEquals(
+            'UPDATE `employees` SET `lastname` = :namedParam1 WHERE id=:namedParam2',
             $queryBuilder->getQuery()
         );
     }

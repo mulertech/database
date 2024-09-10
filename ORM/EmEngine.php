@@ -7,6 +7,7 @@ use App\Entity\Version;
 use Exception;
 use MulerTech\ArrayManipulation\ArrayManipulation;
 use MulerTech\ClassManipulation\ClassManipulation;
+use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostRemoveEvent;
@@ -50,7 +51,7 @@ class EmEngine
     private EntityManagerInterface $em;
     /**
      * @var array<int, object> The list of managed entities for example :
-     * [class-string => $entity]
+     * [$objectId => $entity]
      */
     private array $managedEntities = [];
     /**
@@ -78,6 +79,11 @@ class EmEngine
      * [$objectId => [$property => $value]]
      */
     private array $originalEntityData = [];
+    /**
+     * @var array<class-string, array<int, string>> Save the entity and this event when updated example :
+     * [$entityName => $eventCalled]
+     */
+    private array $eventCalled = [];
     /**
      * @var array
      */
@@ -229,16 +235,20 @@ class EmEngine
             $entities = [];
             foreach ($this->entityInsertions as $uio => $entity) {
                 $queryBuilder = $this->generateInsertQueryBuilder($entity);
+
                 //prepare request
                 $pdoStatement = $queryBuilder->getResult();
                 $pdoStatement->execute();
+
                 //set id
                 if (!empty($lastId = $this->em->getPdm()->lastInsertId())) {
                     $this->setIdEntity($uio, $lastId);
                 }
+
                 //close cursor
                 $pdoStatement->closeCursor();
                 unset($this->entityInsertions[$uio]);
+
                 //For event
                 $entities[] = $entity;
             }
@@ -251,24 +261,35 @@ class EmEngine
         }
     }
 
-    private function bindParams(PDOStatement $pdoStatement, array $values): void
-    {
-        foreach ($values as $key => $value) {
-            $pdoStatement->bindParam($key, $value);
-        }
-    }
-
+    /**
+     * @param Object $entity
+     * @return QueryBuilder
+     */
     private function generateInsertQueryBuilder(Object $entity): QueryBuilder
     {
         $queryBuilder = new QueryBuilder($this);
         $queryBuilder->insert($this->em->getDbMapping()->getTableName($entity::class));
 
-        foreach ($this->getPropertiesColumns($entity::class, false) as $properties => $column) {
-            $getter = 'get' . ucfirst($properties);
-            $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($entity->$getter()));
+        $entityChanges = $this->getEntityChanges($entity);
+
+        foreach ($this->getPropertiesColumns($entity::class, false) as $property => $column) {
+            if (!isset($entityChanges[$property][1])) {
+                continue;
+            }
+
+            $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($entityChanges[$property][1]));
         }
 
         return $queryBuilder;
+    }
+
+    /**
+     * @param Object $entity
+     * @return array<int, array<string, array<int, string>>>
+     */
+    private function getEntityChanges(Object $entity): array
+    {
+        return $this->entityChanges[spl_object_id($entity)] ?? [];
     }
 
     /**
@@ -550,13 +571,13 @@ class EmEngine
      */
     public function flush(): void
     {
-        if (!($this->entityInsertions || $this->entityUpdates || $this->entityDeletions)) {
-            return;
-        }
-
         // Before begin transaction, prepare entity changes
         $this->removeDeleteEntitiesFromUpdates();
         $this->computeEntitiesChanges();
+
+        if (!($this->entityInsertions || $this->entityUpdates || $this->entityDeletions)) {
+            return;
+        }
 
         // process flush entities
         $this->em->getPdm()->beginTransaction();
@@ -809,74 +830,73 @@ class EmEngine
     {
         if (!empty($this->entityUpdates)) {
             foreach ($this->entityUpdates as $uio => $entity) {
-                //Set the entity changes
-                if (!is_null($this->generateEntityChanges($uio))) {
-                    //Pre update Event
-                    if ($this->eventManager) {
-                        $this->eventManager->dispatch(
-                            new PreUpdateEvent($entity, $this->em, $this->entityChanges[$uio])
-                        );
-                    }
-                    $request = 'UPDATE `' . strtolower(
-                            $entity->getEntityName()
-                        ) . '` SET ';
-                    //column = :column
-                    $columns = [];
-                    foreach ($this->entityChanges[$uio] as $key => $value) {
-                        $columns[] = $key . ' =:' . $key;
-                    }
-                    $request .= implode(', ', $columns);
-                    //Where
-                    $request .= ' WHERE id=' . $entity->id();
-                    //prepare request
-                    $pdoStatement = $this->em->getPdm()->prepare($request);
-                    foreach ($this->entityChanges[$uio] as $column => $change) {
-                        $pdoStatement->bindParam(':' . $column, $change[1]);
-                    }
-                    $pdoStatement->execute();
+                $entityChanges = $this->getEntityChanges($entity);
+
+                //Pre update Event
+                if ($this->eventManager && !$this->isEventCalled($entity::class, DbEvents::preUpdate->value)) {
+                    $this->eventCalled($entity::class, DbEvents::preUpdate->value);
+                    $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->em, $entityChanges));
                 }
+
+                $queryBuilder = $this->generateUpdateQueryBuilder($entity);
+
+                // prepare request
+                $pdoStatement = $queryBuilder->getResult();
+                $pdoStatement->execute();
+
+                // close cursor
+                $pdoStatement->closeCursor();
                 unset($this->entityUpdates[$uio]);
+
                 //Post update Event
-                if ($this->eventManager) {
+                if ($this->eventManager && !$this->isEventCalled($entity::class, DbEvents::postUpdate->value)) {
+                    $this->eventCalled($entity::class, DbEvents::postUpdate->value);
                     $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->em));
                 }
             }
         }
     }
 
-    /**
-     * @param string $uio
-     * @return array|null
-     */
-    public function generateEntityChanges(string $uio): ?array
+    private function eventCalled(string $entityName, string $event): void
     {
-        if (!empty($this->entityChanges[$uio])) {
-            return $this->entityChanges[$uio];
+        if (isset($this->eventCalled[$entityName])) {
+            $this->eventCalled[$entityName][] = $event;
+            return;
         }
 
-        if (empty($this->entityUpdates[$uio])) {
-            return null;
+        $this->eventCalled[$entityName] = [$event];
+    }
+
+    private function isEventCalled(string $entityName, string $event): bool
+    {
+        if (!isset($this->eventCalled[$entityName])) {
+            return false;
         }
 
-        $entity = $this->entityUpdates[$uio];
-        if (is_null($old_entity = $this->find($entity, $entity->id()))) {
-            return null;
-        }
-        $new_properties = $entity->properties($entity);
-        $old_properties = $old_entity->properties($old_entity);
-        $oldDiffProperties = array_diff_assoc($old_properties, $new_properties);
-        $differences = [];
-        // todo : fabriquer ce tableau avec chaque colonne y compris si le old_entity est null (pour l'insert)
-        // todo : pour ça créer une méthode
-        foreach ($oldDiffProperties as $key => $value) {
-            if ($value !== $new_properties[$key]) {
-                $differences[$key] = [$value, $new_properties[$key]];
+        return in_array($event, $this->eventCalled[$entityName], true);
+    }
+
+    /**
+     * @param Object $entity
+     * @return QueryBuilder
+     */
+    private function generateUpdateQueryBuilder(Object $entity): QueryBuilder
+    {
+        $queryBuilder = new QueryBuilder($this);
+        $queryBuilder->update($this->em->getDbMapping()->getTableName($entity::class));
+
+        $entityChanges = $this->getEntityChanges($entity);
+
+        foreach ($this->getPropertiesColumns($entity::class, false) as $property => $column) {
+            if (!isset($entityChanges[$property][1])) {
+                continue;
             }
+
+            $queryBuilder->setValue($column, $queryBuilder->addDynamicParameter($entityChanges[$property][1]));
         }
-        $this->entityChanges[$uio] = $differences;
-        return (!empty($differences)) ? $differences : null;
+        $queryBuilder->where(SqlOperations::equal('id', $queryBuilder->addDynamicParameter($entity->getId())));
 
-
+        return $queryBuilder;
     }
 
     /**
@@ -1464,15 +1484,6 @@ class EmEngine
         }
         return Json::openFile($path . $file_name);
     }
-
-    /**
-     * @param string $uio Unique Id of the Object.
-     * @return array|null
-     */
-//    public function getEntityChanges(string $uio): ?array
-//    {
-//        return $this->entityChanges[$uio] ?? null;
-//    }
 
     /**
      * @param Object $old_item

@@ -16,7 +16,7 @@ class PrePersistEvent extends EntityEvent
      * @param EntityManager $entityManager
      */
     public function __construct(Object $entity, EntityManager $entityManager) {
-        $this->setName(DbEvents::prePersist);
+        $this->setName(DbEvents::prePersist->value);
         parent::__construct($entity, $entityManager);
     }
 }

@@ -4,6 +4,8 @@ namespace MulerTech\Database\Tests;
 
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostPersistEvent;
+use MulerTech\Database\Event\PostUpdateEvent;
+use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
 use MulerTech\Database\ORM\EntityManager;
@@ -77,7 +79,7 @@ class ORMTest extends TestCase
     {
         $this->createTestTable();
         $em = $this->getEntityManager();
-        $this->eventManager->addListener(DbEvents::postPersist, static function (PostPersistEvent $event) {
+        $this->eventManager->addListener(DbEvents::postPersist->value, static function (PostPersistEvent $event) {
             $user = $event->getEntity();
             $user->setUsername($user->getUsername() . 'UpdatedByEvent')->setUnit(33806);
         });
@@ -92,5 +94,31 @@ class ORMTest extends TestCase
         self::assertEquals(['id' => 1, 'username' => 'John', 'unit_id' => null], $statement->fetch());
         self::assertEquals('JohnUpdatedByEvent', $user->getUsername());
         self::assertEquals(33806, $user->getUnit());
+    }
+
+    public function testExecuteUpdatesAndPostUpdateEvent(): void
+    {
+        $this->createTestTable();
+        $em = $this->getEntityManager();
+        $pdo = $this->getPhpDatabaseManager();
+        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
+        $statement->execute(['username' => 'John']);
+        $user = $em->find(User::class, 1);
+        $this->eventManager->addListener(DbEvents::preUpdate->value, static function (PreUpdateEvent $event) {
+            $user = $event->getEntity();
+            $user->setUsername('BeforeUpdate' . $user->getUsername());
+            $event->getEntityManager()->flush();
+        });
+        $this->eventManager->addListener(DbEvents::postUpdate->value, static function (PostUpdateEvent $event) {
+            $user = $event->getEntity();
+            $user->setUsername($user->getUsername() . 'AfterUpdate')->setUnit(33806);
+            $event->getEntityManager()->flush();
+        });
+        $user->setUsername('JohnUpdated');
+        $em->flush();
+        $statement = $pdo->prepare('SELECT * FROM users_test');
+        $statement->execute();
+        $statement->setFetchMode(PDO::FETCH_ASSOC);
+        self::assertEquals(['id' => 1, 'username' => 'BeforeUpdateJohnUpdatedAfterUpdate', 'unit_id' => 33806], $statement->fetch());
     }
 }

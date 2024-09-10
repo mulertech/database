@@ -16,7 +16,7 @@ class PostUpdateEvent extends EntityEvent
      * @param EntityManagerInterface $entityManager
      */
     public function __construct(Object $entity, EntityManagerInterface $entityManager) {
-        $this->setName(DbEvents::postUpdate);
+        $this->setName(DbEvents::postUpdate->value);
         parent::__construct($entity, $entityManager);
     }
 }

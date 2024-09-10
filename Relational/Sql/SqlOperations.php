@@ -175,34 +175,39 @@ class SqlOperations
      */
     public function generateOperation(): string
     {
-        if (!empty($operations = $this->operations)) {
-            $firstOperation = array_shift($operations);
-            if ($firstOperation[self::OPERATION_INDEX] instanceof $this) {
-                $firstOperation[self::OPERATION_INDEX] = '(' . $firstOperation[self::OPERATION_INDEX]->generateOperation(
-                    ) . ')';
-            }
-            //For the first operation just leave the NOT operator (not AND NOT).
-            if (empty($this->operation)) {
-                if (stripos($firstOperation[self::LINK_INDEX]->value, 'not') !== false) {
-                    $firstOperation[self::LINK_INDEX] = SqlOperator::NOT->value;
-                } else {
-                    $firstOperation[self::LINK_INDEX] = '';
+        if (!empty($this->operation)) {
+            return ' ' . $this->operation;
+        }
+
+        $operations = $this->operations;
+        if (empty($operations)) {
+            return '';
+        }
+
+        $firstOperation = array_shift($operations);
+        if ($firstOperation[self::OPERATION_INDEX] instanceof $this) {
+            $firstOperation[self::OPERATION_INDEX] = '(' . $firstOperation[self::OPERATION_INDEX]->generateOperation(
+                ) . ')';
+        }
+
+        //For the first operation just leave the NOT operator (not AND NOT).
+        $firstLink = $firstOperation[self::LINK_INDEX]->value;
+        if (stripos($firstLink, 'not') !== false) {
+            $firstLink = ' ' . SqlOperator::NOT->value . ' ';
+        } else {
+            $firstLink = ' ';
+        }
+
+        $this->operation .= $firstLink . $firstOperation[self::OPERATION_INDEX];
+        if (!empty($operations)) {
+            foreach ($operations as $operation) {
+                if ($operation[self::OPERATION_INDEX] instanceof $this) {
+                    $operation[self::OPERATION_INDEX] = '(' . $operation[self::OPERATION_INDEX] . ')';
                 }
-            }
-            $this->operation .= $firstOperation[self::LINK_INDEX] . ' ' . $firstOperation[self::OPERATION_INDEX];
-            if (!empty($operations)) {
-                foreach ($operations as $operation) {
-                    if ($operation[self::OPERATION_INDEX] instanceof $this) {
-                        $operation[self::OPERATION_INDEX] = '(' . $operation[self::OPERATION_INDEX] . ')';
-                    }
-                    $this->operation .= ' ' . $operation[self::LINK_INDEX]->value . ' ' . $operation[self::OPERATION_INDEX];
-                }
+                $this->operation .= ' ' . $operation[self::LINK_INDEX]->value . ' ' . $operation[self::OPERATION_INDEX];
             }
         }
 
-        if ($this->operation[0] !== ' ') {
-            $this->operation = ' ' . $this->operation;
-        }
         return $this->operation;
     }
 
@@ -427,6 +432,10 @@ class SqlOperations
      */
     public function __toString(): string
     {
+        if (!empty($this->operation)) {
+            return $this->operation[0] === ' ' ? $this->operation : ' ' . $this->operation;
+        }
+
         return $this->generateOperation();
     }
 
