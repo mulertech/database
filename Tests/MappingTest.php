@@ -58,9 +58,10 @@ class MappingTest extends TestCase
      */
     public function testTables(): void
     {
+        $dbMapping = $this->getDbMapping();
         $this->assertEquals(
-            ['group', 'groups', 'units_test', 'users_test', 'withoutmapping'],
-            $this->getDbMapping()->getTables()
+            ['group', 'groups', 'units_test', 'users_test'],
+            $dbMapping->getTables()
         );
     }
 
@@ -80,7 +81,7 @@ class MappingTest extends TestCase
     public function testGetEntities(): void
     {
         $this->assertEquals(
-            [Group::class, Groups::class, Unit::class, User::class, WithoutMapping::class],
+            [Group::class, Groups::class, Unit::class, User::class],
             $this->getDbMapping()->getEntities()
         );
     }

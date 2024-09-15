@@ -39,9 +39,9 @@ interface EntityManagerInterface
     /**
      * @param $entity
      * @param string|null $idorwhere
-     * @return Entity|null
+     * @return Object|null
      */
-    public function find($entity, ?string $idorwhere = null): ?Entity;
+    public function find($entity, ?string $idorwhere = null): ?Object;
 
     /**
      * @param string $table

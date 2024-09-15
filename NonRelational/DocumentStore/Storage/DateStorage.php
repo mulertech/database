@@ -6,17 +6,6 @@ use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 
 class DateStorage
 {
-
-    /**
-     * @var FileManipulation
-     */
-    private $fileManipulation;
-
-    public function __construct()
-    {
-        $this->fileManipulation = new FileManipulation();
-    }
-
     /**
      * @param string $path
      * @return bool
@@ -32,7 +21,7 @@ class DateStorage
      */
     protected function yearCreate(string $path): bool
     {
-        return $this->fileManipulation->folderCreate($path . DIRECTORY_SEPARATOR . date("Y"));
+        return FileManipulation::folderCreate($path . DIRECTORY_SEPARATOR . date("Y"));
     }
 
     /**
@@ -50,7 +39,7 @@ class DateStorage
      */
     protected function monthCreate(string $path): bool
     {
-        return $this->fileManipulation->folderCreate($path . DIRECTORY_SEPARATOR . date("Y") . DIRECTORY_SEPARATOR . date("m"));
+        return FileManipulation::folderCreate($path . DIRECTORY_SEPARATOR . date("Y") . DIRECTORY_SEPARATOR . date("m"));
     }
 
     /**
@@ -62,11 +51,11 @@ class DateStorage
     public function datePath(string $path): string
     {
         //archive directory
-        ($this->fileManipulation->folderExists($path)) ?: $this->fileManipulation->folderCreate($path);
+        FileManipulation::folderExists($path) || FileManipulation::folderCreate($path);
         //year directory
-        ($this->yearExists($path)) ?: $this->yearCreate($path);
+        $this->yearExists($path) || $this->yearCreate($path);
         //month directory
-        ($this->monthExists($path)) ?: $this->monthCreate($path);
+        $this->monthExists($path) || $this->monthCreate($path);
         //complete filename path
         return $path . DIRECTORY_SEPARATOR . date("Y") . DIRECTORY_SEPARATOR . date("m");
     }

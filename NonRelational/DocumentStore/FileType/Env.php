@@ -2,27 +2,17 @@
 
 namespace MulerTech\Database\NonRelational\DocumentStore\FileType;
 
-use MulerTech\Database\NonRelational\DocumentStore\FileInterface;
 use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use SplFileObject;
 
-class Env implements FileInterface
+class Env extends FileManipulation
 {
-
     /**
-     * @inheritDoc
+     * @param string $filename
      */
-    public static function getExtension(string $filename = null): string
+    public function __construct(string $filename)
     {
-        return '';
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public static function openFile(string $filename): string
-    {
-        return FileManipulation::openFile($filename);
+        parent::__construct($filename);
     }
 
     /**
@@ -68,14 +58,6 @@ class Env implements FileInterface
         }
 
         return $content;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public static function saveFile(string $filename, $content): bool
-    {
-        return FileManipulation::saveFile($filename, $content);
     }
 
     /**

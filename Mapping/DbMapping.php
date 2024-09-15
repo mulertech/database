@@ -3,17 +3,20 @@
 namespace MulerTech\Database\Mapping;
 
 use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
+use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Php;
 use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use MulerTech\Database\NonRelational\DocumentStore\PathManipulation;
+use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
 class DbMapping implements DbMappingInterface
 {
     /**
-     * @var FileManipulation $fileManipulation
+     * List of entityNames => tables.
+     * @var array<class-string, string> $tables
      */
-    private FileManipulation $fileManipulation;
+    private array $tables = [];
 
     /**
      * @param AttributeReader $attributeReader
@@ -22,20 +25,36 @@ class DbMapping implements DbMappingInterface
     public function __construct(
         private readonly AttributeReader $attributeReader,
         private readonly string $entitiesPath
-    ) {
-        $this->fileManipulation = new FileManipulation();
-    }
+    ) {}
 
     /**
      * @param class-string $entityName
-     * @return string
+     * @return string|null
      * @throws ReflectionException
      */
-    public function getTableName(string $entityName): string
+    public function getTableName(string $entityName): ?string
+    {
+        if (empty($this->tables)) {
+            $this->generateTables();
+        }
+
+        return $this->tables[$entityName] ?? null;
+    }
+
+    /**
+     * @param string $entityName
+     * @return string|null
+     * @throws ReflectionException
+     */
+    public function generateTableName(string $entityName): ?string
     {
         $mtEntity = $this->getMtEntity($entityName);
 
-        if (!is_null($mtEntity) && !is_null($mtEntity->tableName)) {
+        if (is_null($mtEntity)){
+            return null;
+        }
+
+        if (!is_null($mtEntity->tableName)) {
             return $mtEntity->tableName;
         }
 
@@ -52,45 +71,43 @@ class DbMapping implements DbMappingInterface
      */
     public function getTables(): array
     {
-        $fileList = PathManipulation::fileList($this->entitiesPath);
+        if (empty($this->tables)) {
+            $this->generateTables();
+        }
 
-        $tableList = array_map(
-            function ($entityFileName) {
-                return $this->getTableName($this->fileManipulation->fileClassName($entityFileName));
-            },
-            $fileList
-        );
+        return array_values($this->tables);
+    }
 
-        $tables = array_values(array_filter($tableList, static function ($value) {
-            return !is_null($value);
-        }));
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function generateTables(): void
+    {
+        $classNames = Php::getClassNames($this->entitiesPath);
 
-        sort($tables);
+        $tables = [];
+        foreach ($classNames as $className) {
+            $table = $this->generateTableName($className);
+            if (!is_null($table)) {
+                $tables[$className] = $table;
+            }
+        }
 
-        return $tables;
+        $this->tables = $tables;
     }
 
     /**
      * @return array
+     * @throws ReflectionException
      */
     public function getEntities(): array
     {
-        $fileList = PathManipulation::fileList($this->entitiesPath);
+        if (empty($this->tables)) {
+            $this->generateTables();
+        }
 
-        $entityList = array_map(
-            function ($entityFileName) {
-                return $this->fileManipulation->fileClassName($entityFileName);
-            },
-            $fileList
-        );
-
-        $entities = array_values(array_filter($entityList, static function ($value) {
-            return !is_null($value);
-        }));
-
-        sort($entities);
-
-        return $entities;
+        return array_keys($this->tables);
     }
 
     /**

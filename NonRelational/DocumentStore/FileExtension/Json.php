@@ -1,9 +1,8 @@
 <?php
 
-
 namespace MulerTech\Database\NonRelational\DocumentStore\FileExtension;
 
-use MulerTech\Database\NonRelational\DocumentStore\FileInterface;
+use JsonException;
 use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use RuntimeException;
 
@@ -12,44 +11,35 @@ use RuntimeException;
  * @package MulerTech\Database\NonRelational\DocumentStore\FileExtension
  * @author Sébastien Muler
  */
-class Json implements FileInterface
+class Json extends FileManipulation
 {
-
-    private const EXTENSION = 'json';
+    private const string EXTENSION = 'json';
 
     /**
-     * @param string|null $filename
-     * @return string
+     * @param string $filename
      */
-    public static function getExtension(string $filename = null): string
+    public function __construct(string $filename)
     {
-        if (!is_null($filename) && strpos($filename, self::EXTENSION) === false) {
-            throw new RuntimeException(
-                'Class Json, function getExtension. The filename given haven\'t the json extension.'
-            );
-        }
-        return self::EXTENSION;
+        parent::__construct($filename, self::EXTENSION);
     }
 
     /**
-     * Open the file $filename
-     * @param string $filename
-     * @return mixed
+     * @inheritDoc
      */
-    public static function openFile(string $filename)
+    public function openFile(): mixed
     {
-        $file_content = FileManipulation::openFile($filename);
-        if (function_exists('json_decode')) {
-            $content = json_decode($file_content, true);
-        } else {
+        $fileContent = $this->getFileContent();
+
+        if (!function_exists('json_decode')) {
             throw new RuntimeException(
                 'Class Json, function openFile. The json_decode function don\'t exists, this is a PHP extension to activate.'
             );
         }
 
+        $content = json_decode($fileContent, true, 512, JSON_THROW_ON_ERROR);
         if (is_null($content) || json_last_error() !== JSON_ERROR_NONE) {
             throw new RuntimeException(
-                sprintf('The JSON file "%s" can\'t be decode, it contain an error.', $filename)
+                sprintf('The JSON file "%s" can\'t be decode, it contain an error.', $this->getFilename())
             );
         }
 
@@ -57,21 +47,17 @@ class Json implements FileInterface
     }
 
     /**
-     * Save the file
-     * @param string $filename
-     * @param mixed $content
-     * @return bool
+     * @inheritDoc
+     * @throws JsonException
      */
-    public static function saveFile(string $filename, $content): bool
+    public function saveFile(mixed $content, bool $recursive = false): bool
     {
-        if (function_exists('json_encode')) {
-            $file_content = json_encode($content);
-        } else {
+        if (!function_exists('json_encode')) {
             throw new RuntimeException(
                 'Class Json, function openFile. The json_encode function don\'t exists, this is a PHP extension to activate.'
             );
         }
-        return FileManipulation::saveFile($filename, $file_content);
-    }
 
+        return $this->filePutContents(json_encode($content, JSON_THROW_ON_ERROR), $recursive);
+    }
 }

@@ -825,6 +825,7 @@ class EmEngine
 //    }
 
     /**
+     *
      */
     private function executeUpdates(): void
     {
@@ -857,6 +858,11 @@ class EmEngine
         }
     }
 
+    /**
+     * @param class-string $entityName
+     * @param string $event
+     * @return void
+     */
     private function eventCalled(string $entityName, string $event): void
     {
         if (isset($this->eventCalled[$entityName])) {
@@ -867,6 +873,11 @@ class EmEngine
         $this->eventCalled[$entityName] = [$event];
     }
 
+    /**
+     * @param string $entityName
+     * @param string $event
+     * @return bool
+     */
     private function isEventCalled(string $entityName, string $event): bool
     {
         if (!isset($this->eventCalled[$entityName])) {
@@ -907,54 +918,38 @@ class EmEngine
         if (isset($this->entityUpdates[spl_object_id($entity)])) {
             unset($this->entityUpdates[spl_object_id($entity)]);
         }
+
         if (isset($this->entityInsertions[spl_object_id($entity)])) {
-            //It's useless to insert an entity and remove them after.
+            // It is not necessary to insert an entity and then remove it.
             unset($this->entityInsertions[spl_object_id($entity)]);
             return;
         }
+
         $this->entityDeletions[spl_object_id($entity)] = $entity;
     }
 
     /**
-     * Execute all deletions from entityDeletions variable.
-     * @todo Replace class_name_lower by the table name of the entity (with metadata if exists) or leave class_name_lower if not.
+     * @return void
      */
     private function executeDeletions(): void
     {
         if (!empty($this->entityDeletions)) {
             $entitiesEvent = [];
             foreach ($this->entityDeletions as $uio => $entity) {
-                $req = "DELETE FROM `" . ClassManipulation::getClassNameLower(
-                        get_class($entity)
-                    ) . "` WHERE id = :object_id ";
-                //prepare and execute request
-                $pdoStatement = $this->em->getPdm()->prepare($req);
-                $object_id = $entity->id();
-                $pdoStatement->bindParam(':object_id', $object_id, PDO::PARAM_INT);
-                try {
-                    $pdoStatement->execute();
-                } catch (\PDOException $exception) {
-                    //Errors
-                    if ($pdoStatement->errorCode() !== '00000') {
-                        if ($pdoStatement->errorCode() === '23000') {
-                            throw new RuntimeException(
-                                sprintf(
-                                    'Class : EmEngine, Function : deleteObj. Impossible to delete this entity "%s", this entity is linked with another one.',
-                                    $entity
-                                )
-                            );
-                        }
-                        throw new RuntimeException(
-                            sprintf(
-                                'Class : EmEngine, Function : deleteObj. Error where delete this entity "%s"',
-                                $entity
-                            )
-                        );
-                    }
-                }
+                $queryBuilder = new QueryBuilder($this);
+                $queryBuilder->delete($this->em->getDbMapping()->getTableName($entity::class));
+                $queryBuilder->where(SqlOperations::equal('id', $queryBuilder->addNamedParameter($entity->getId())));
+
+                // prepare request
+                $pdoStatement = $queryBuilder->getResult();
+                $pdoStatement->execute();
+
+                // close cursor
+                $pdoStatement->closeCursor();
                 unset($this->entityDeletions[$uio]);
                 $entitiesEvent[] = $entity;
             }
+
             //Event Post remove
             if ($this->eventManager) {
                 foreach ($entitiesEvent as $entity) {
@@ -1482,7 +1477,7 @@ class EmEngine
         if (empty($file_name)) {
             $file_name = self::DB_STRUCTURE_NAME;
         }
-        return Json::openFile($path . $file_name);
+        return Json::getFileContent($path . $file_name);
     }
 
     /**

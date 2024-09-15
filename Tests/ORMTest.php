@@ -121,4 +121,19 @@ class ORMTest extends TestCase
         $statement->setFetchMode(PDO::FETCH_ASSOC);
         self::assertEquals(['id' => 1, 'username' => 'BeforeUpdateJohnUpdatedAfterUpdate', 'unit_id' => 33806], $statement->fetch());
     }
+
+    public function testExecuteDeletions(): void
+    {
+        $this->createTestTable();
+        $em = $this->getEntityManager();
+        $pdo = $this->getPhpDatabaseManager();
+        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
+        $statement->execute(['username' => 'John']);
+        $user = $em->find(User::class, 1);
+        $em->remove($user);
+        $em->flush();
+        $statement = $pdo->prepare('SELECT * FROM users_test');
+        $statement->execute();
+        self::assertFalse($statement->fetch());
+    }
 }

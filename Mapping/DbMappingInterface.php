@@ -15,11 +15,11 @@ interface DbMappingInterface
      * Return the table name of this entity :
      * 1 : The table name can be set manually into PhpDoc of this entity like this : @MtEntity (tableName="users", repository=UserRepository::class)
      * 2 : The name of this entity will be used if the MtEntity mapping is used like this : @MtEntity (repository=UserRepository::class)
-     * 3 : If this entity doesn't use the MtEntity mapping it return strtolower($entity)
+     * 3 : If this entity doesn't use the MtEntity mapping it return null
      * @param class-string $entityName
-     * @return string
+     * @return string|null
      */
-    public function getTableName(string $entityName): string;
+    public function getTableName(string $entityName): ?string;
 
     /**
      * @return array

@@ -9,24 +9,20 @@ namespace MulerTech\Database\NonRelational\DocumentStore;
  */
 interface FileInterface
 {
-
     /**
-     * @param string|null $filename
      * @return string
      */
-    public static function getExtension(string $filename = null): string;
+    public function getExtension(): string;
 
     /**
-     * @param string $filename
      * @return mixed
      */
-    public static function openFile(string $filename);
+    public function openFile(): mixed;
 
     /**
-     * @param string $filename
-     * @param $content
+     * @param mixed $content
      * @return bool True if success.
      */
-    public static function saveFile(string $filename, $content): bool;
+    public function saveFile(mixed $content): bool;
 
 }

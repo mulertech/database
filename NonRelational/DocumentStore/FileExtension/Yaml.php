@@ -2,7 +2,6 @@
 
 namespace MulerTech\Database\NonRelational\DocumentStore\FileExtension;
 
-use MulerTech\Database\NonRelational\DocumentStore\FileInterface;
 use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
 use RuntimeException;
 use Symfony\Component\Yaml\Yaml as SymfonyYaml;
@@ -12,56 +11,45 @@ use Symfony\Component\Yaml\Yaml as SymfonyYaml;
  * @package MulerTech\Database\NonRelational\DocumentStore\FileExtension
  * @author Sébastien Muler
  */
-class Yaml implements FileInterface
+class Yaml extends FileManipulation
 {
-
-    private const EXTENSION = 'yaml';
+    private const string EXTENSION = 'yaml';
 
     /**
-     * @param string|null $filename
-     * @return string
+     * @param string $filename
      */
-    public static function getExtension(string $filename = null): string
+    public function __construct(string $filename)
     {
-        if (!is_null($filename) && strpos($filename, self::EXTENSION) === false) {
-            throw new RuntimeException(
-                'Class Yaml, function getExtension. The filename given haven\'t the yaml extension.'
-            );
-        }
-        return self::EXTENSION;
+        parent::__construct($filename, self::EXTENSION);
     }
 
     /**
-     * Open the file $filename
-     * @param string $filename
-     * @return mixed
+     * @inheritDoc
      */
-    public static function openFile(string $filename)
+    public function openFile(): mixed
     {
-        $file_content = FileManipulation::openFile($filename);
-        if (function_exists('yaml_parse')) {
-            $content = yaml_parse($file_content);
-        } else {
-            $content = SymfonyYaml::parse($file_content);
+        $fileContent = $this->getFileContent();
+
+        if (function_exists('yaml_parse')){
+            $content = yaml_parse($fileContent);
+
+            //Error for yaml_parse
+            if ($content === false) {
+                throw new RuntimeException(
+                    sprintf('The Yaml file "%s" can\'t be decode, it contain an error.', $this->getFilename())
+                );
+            }
+
+            return $content;
         }
 
-        //Error for yaml_parse
-        if ($content === false) {
-            throw new RuntimeException(
-                sprintf('The Yaml file "%s" can\'t be decode, it contain an error.', $filename)
-            );
-        }
-
-        return $content;
+        return SymfonyYaml::parse($fileContent);
     }
 
     /**
-     * Save the file
-     * @param string $filename
-     * @param mixed $content
-     * @return bool
+     * @inheritDoc
      */
-    public static function saveFile(string $filename, $content): bool
+    public function saveFile(mixed $content, bool $recursive = false): bool
     {
         if (function_exists('yaml_emit')) {
             $file_content = yaml_emit($content);
@@ -69,7 +57,6 @@ class Yaml implements FileInterface
             $file_content = SymfonyYaml::dump($content);
         }
 
-        return FileManipulation::saveFile($filename, $file_content);
+        return $this->filePutContents($file_content, $recursive);
     }
-
 }

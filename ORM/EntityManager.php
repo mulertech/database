@@ -91,9 +91,9 @@ class EntityManager implements EntityManagerInterface
     /**
      * @param $entity
      * @param string|null $idorwhere
-     * @return Entity|null
+     * @return Object|null
      */
-    public function find($entity, ?string $idorwhere = null): ?Entity
+    public function find($entity, ?string $idorwhere = null): ?Object
     {
         return $this->emEngine->find($entity, $idorwhere);
     }

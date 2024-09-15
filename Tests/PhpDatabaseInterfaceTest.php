@@ -352,11 +352,11 @@ class PhpDatabaseInterfaceTest extends TestCase
     {
         $pdo = $this->getPhpDatabaseManager();
         $this->createTestTable();
-        $statement = $pdo->prepare('SELECT firstname FROM test_table2');
+        $statement = $pdo->prepare('SELECT firstname FROM test_table WHERE firstname="test"');
         self::assertEquals(0, $statement->columnCount());
         $statement->execute();
         self::assertEquals(1, $statement->columnCount());
-        $statement = $pdo->prepare('SELECT firstname, lastname FROM test_table2');
+        $statement = $pdo->prepare('SELECT firstname, lastname FROM test_table WHERE firstname="test"');
         self::assertEquals(0, $statement->columnCount());
         $statement->execute();
         self::assertEquals(2, $statement->columnCount());

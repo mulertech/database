@@ -11,10 +11,10 @@ class AttributeReader
     /**
      * @throws ReflectionException
      */
-    public function getClassAttributes(string $class): array
-    {
-        return (new ReflectionClass($class))->getAttributes();
-    }
+//    public function getClassAttributes(string $class): array
+//    {
+//        return (new ReflectionClass($class))->getAttributes();
+//    }
 
     /**
      * @param string $class
