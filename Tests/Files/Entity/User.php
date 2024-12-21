@@ -13,7 +13,7 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
  * @author Sébastien Muler
  */
 #[MtEntity(repository: UserRepository::class, tableName: "users_test", autoIncrement: 100)]
-class User
+class User extends ParentUser
 {
     #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: MtColumn::PRIMARY_KEY)]
     private ?int $id = null;
@@ -32,7 +32,7 @@ class User
      * Test of a variable which is not a column in the database
      * @var int $group
      */
-//    private int $group;
+    private int $group;
 
     public function getId(): ?int
     {

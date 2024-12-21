@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Database\Mapping\MtEntity;
-use MulerTech\Database\Tests\Files\GroupRepository;
+use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 
 /**
  * Class Group

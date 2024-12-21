@@ -12,11 +12,11 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class MtFk
 {
-    public const CASCADE = 'CASCADE';
-    public const SET_NULL = 'SET NULL';
-    public const NO_ACTION = 'NO ACTION';
-    public const RESTRICT = 'RESTRICT';
-    public const SET_DEFAULT = 'SET DEFAULT';
+    public const string CASCADE = 'CASCADE';
+    public const string SET_NULL = 'SET NULL';
+    public const string NO_ACTION = 'NO ACTION';
+    public const string RESTRICT = 'RESTRICT';
+    public const string SET_DEFAULT = 'SET DEFAULT';
 
     /**
      * MtFk constructor.

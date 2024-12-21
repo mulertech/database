@@ -129,6 +129,13 @@ class RelationalQueryBuilderTest extends TestCase
         self::assertEquals([[1, 'data column 1', 2], [2, 'data column 2', 1]], $queryBuilder->getBindParameters());
     }
 
+    public function testQueryBuilderNullGetBindParameters(): void
+    {
+        $queryBuilder = new QueryBuilder();
+        $queryBuilder->insert('atable');
+        self::assertEquals(null, $queryBuilder->getBindParameters());
+    }
+
     public function testQueryBuilderInsertDynamicAndNamedParameter(): void
     {
         $this->expectExceptionMessage(

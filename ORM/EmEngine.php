@@ -6,7 +6,6 @@ use _config\UpdateDatabaseMysql;
 use App\Entity\Version;
 use Exception;
 use MulerTech\ArrayManipulation\ArrayManipulation;
-use MulerTech\ClassManipulation\ClassManipulation;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
@@ -15,12 +14,12 @@ use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PrePersistEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\MtFk;
-use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Json;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\DateTimeFormat\DateFormat;
 use MulerTech\EventManager\EventManagerInterface;
+use MulerTech\FileManipulation\FileType\Json;
 use PDO;
 use PDOStatement;
 use ReflectionClass;
@@ -38,12 +37,12 @@ class EmEngine
      * @deprecated use DbMapping
      * @var string
      */
-    private const DB_STRUCTURE_PATH = ".." . DIRECTORY_SEPARATOR . "_config" . DIRECTORY_SEPARATOR;
+    private const string DB_STRUCTURE_PATH = ".." . DIRECTORY_SEPARATOR . "_config" . DIRECTORY_SEPARATOR;
     /**
      * @deprecated use DbMapping
      * @var string
      */
-    private const DB_STRUCTURE_NAME = 'dbstructure.json';
+    private const string DB_STRUCTURE_NAME = 'dbstructure.json';
 
     /**
      * @var EntityManagerInterface $em
@@ -85,10 +84,12 @@ class EmEngine
      */
     private array $eventCalled = [];
     /**
+     * @deprecated
      * @var array
      */
     private array $tablesLinked = [];
     /**
+     * @deprecated
      * @var string
      */
     private string $join = '';
@@ -317,7 +318,7 @@ class EmEngine
      */
     private function setIdEntity($hash, $id): void
     {
-        $this->entityInsertions[$hash]->setId($id);
+        $this->entityInsertions[$hash]?->setId($id);
     }
 
     /**
@@ -326,7 +327,7 @@ class EmEngine
      * @param int|string|SqlOperations|null $idOrWhere
      * @return Object|null Entity filled or null
      */
-    public function find($entityName, int|string|SqlOperations $idOrWhere = null): ?Object
+    public function find(string $entityName, int|string|SqlOperations $idOrWhere = null): ?Object
     {
         $queryBuilder = new QueryBuilder($this);
         $queryBuilder->select('*')->from($this->em->getDbMapping()->getTableName($entityName));
@@ -596,9 +597,7 @@ class EmEngine
         $this->em->getPdm()->commit();
 
         //Event Post flush
-        if ($this->eventManager) {
-            $this->eventManager->dispatch(new PostFlushEvent($this->em));
-        }
+        $this->eventManager?->dispatch(new PostFlushEvent($this->em));
     }
 
     /**
@@ -672,7 +671,7 @@ class EmEngine
      */
     private function computeEntityChanges(Object $entity): void
     {
-        $originalEntityData = $this->originalEntityData[spl_object_id($entity)];
+        $originalEntityData = $this->originalEntityData[spl_object_id($entity)] ?? null;
 
         // properties = keys
         $properties = $this->getPropertiesColumns($entity::class);
@@ -938,7 +937,9 @@ class EmEngine
             foreach ($this->entityDeletions as $uio => $entity) {
                 $queryBuilder = new QueryBuilder($this);
                 $queryBuilder->delete($this->em->getDbMapping()->getTableName($entity::class));
-                $queryBuilder->where(SqlOperations::equal('id', $queryBuilder->addNamedParameter($entity->getId())));
+                $queryBuilder->where(
+                    SqlOperations::equal('id', $queryBuilder->addNamedParameter($entity->getId()))
+                );
 
                 // prepare request
                 $pdoStatement = $queryBuilder->getResult();
@@ -1338,7 +1339,7 @@ class EmEngine
         /**
          * @var Object $version
          */
-        $online_version = (!is_null($version = $this->find(Version::class, 1))) ? $version->version() : null;
+        $online_version = (!is_null($version = $this->find(Version::class, 1))) ? $version->getVersion() : null;
         if ($installationMode || (!empty($online_version) && (float)$online_version < (float)$this->openDbStructure(
                 )['dbversion'])) {
             //structure array
@@ -1464,10 +1465,11 @@ class EmEngine
     }
 
     /**
-     * @deprecated use DbMapping
      * @param string|null $path
      * @param string|null $file_name
      * @return array
+     * @throws \JsonException
+     * @deprecated use DbMapping
      */
     private function openDbStructure(?string $path = null, string $file_name = null): array
     {
@@ -1477,7 +1479,7 @@ class EmEngine
         if (empty($file_name)) {
             $file_name = self::DB_STRUCTURE_NAME;
         }
-        return Json::getFileContent($path . $file_name);
+        return (new Json($path . $file_name))->openFile();
     }
 
     /**

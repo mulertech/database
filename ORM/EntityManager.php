@@ -5,7 +5,6 @@ namespace MulerTech\Database\ORM;
 use _config\UpdateDatabaseMysql;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
-use MulerTech\Entity\Entity;
 use MulerTech\EventManager\EventManagerInterface;
 use MulerTech\HttpRequest\Session\Session;
 use PDOStatement;
@@ -89,11 +88,11 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @param $entity
-     * @param string|null $idorwhere
+     * @param class-string $entity
+     * @param string|int|null $idorwhere
      * @return Object|null
      */
-    public function find($entity, ?string $idorwhere = null): ?Object
+    public function find(string $entity, string|int|null $idorwhere = null): ?Object
     {
         return $this->emEngine->find($entity, $idorwhere);
     }
@@ -179,7 +178,7 @@ class EntityManager implements EntityManagerInterface
         }
 
         //ID can be an integer OR a UUID
-        return $item->id() == $id;
+        return $item->getId() == $id;
     }
 
     /**
@@ -199,7 +198,7 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     *
+     * @throws \ReflectionException
      */
     public function flush(): void
     {

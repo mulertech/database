@@ -2,10 +2,7 @@
 
 namespace MulerTech\Database\Mapping;
 
-use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
-use MulerTech\Database\NonRelational\DocumentStore\FileExtension\Php;
-use MulerTech\Database\NonRelational\DocumentStore\FileManipulation;
-use MulerTech\Database\NonRelational\DocumentStore\PathManipulation;
+use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
@@ -13,18 +10,23 @@ use RuntimeException;
 class DbMapping implements DbMappingInterface
 {
     /**
-     * List of entityNames => tables.
+     * List of [entityNames => tables].
      * @var array<class-string, string> $tables
      */
     private array $tables = [];
+    /**
+     * List of [entityNames => [property => column]]
+     * @var array<class-string, array<string, string>> $columns
+     */
+    private array $columns = [];
 
     /**
-     * @param AttributeReader $attributeReader
      * @param string $entitiesPath
+     * @param bool $recursive
      */
     public function __construct(
-        private readonly AttributeReader $attributeReader,
-        private readonly string $entitiesPath
+        private readonly string $entitiesPath,
+        private readonly bool $recursive = true
     ) {}
 
     /**
@@ -42,30 +44,6 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * @param string $entityName
-     * @return string|null
-     * @throws ReflectionException
-     */
-    public function generateTableName(string $entityName): ?string
-    {
-        $mtEntity = $this->getMtEntity($entityName);
-
-        if (is_null($mtEntity)){
-            return null;
-        }
-
-        if (!is_null($mtEntity->tableName)) {
-            return $mtEntity->tableName;
-        }
-
-        if ($pos = strrpos($entityName, '\\')) {
-            return strtolower(substr($entityName, $pos + 1));
-        }
-
-        return strtolower($entityName);
-    }
-
-    /**
      * @return array
      * @throws ReflectionException
      */
@@ -75,26 +53,10 @@ class DbMapping implements DbMappingInterface
             $this->generateTables();
         }
 
-        return array_values($this->tables);
-    }
+        $tables = $this->tables;
+        sort($tables);
 
-    /**
-     * @return void
-     * @throws ReflectionException
-     */
-    public function generateTables(): void
-    {
-        $classNames = Php::getClassNames($this->entitiesPath);
-
-        $tables = [];
-        foreach ($classNames as $className) {
-            $table = $this->generateTableName($className);
-            if (!is_null($table)) {
-                $tables[$className] = $table;
-            }
-        }
-
-        $this->tables = $tables;
+        return $tables;
     }
 
     /**
@@ -107,7 +69,10 @@ class DbMapping implements DbMappingInterface
             $this->generateTables();
         }
 
-        return array_keys($this->tables);
+        $entities = array_keys($this->tables);
+        sort($entities);
+
+        return $entities;
     }
 
     /**
@@ -139,23 +104,17 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * todo : voir la méthode getMtColumn à renommer en getMtColumns ???
      * @param class-string $entityName
      * @return array<string>
      * @throws ReflectionException
      */
     public function getColumns(string $entityName): array
     {
-        $result = [];
-        foreach ($this->getMtColumns($entityName) as $property => $mtColumn) {
-            if (!$mtColumn instanceof MtColumn) {
-                continue;
-            }
-
-            $result[] = $mtColumn->columnName ?? $property;
+        if (!isset($this->columns[$entityName])) {
+            $this->generatePropertiesColumns($entityName);
         }
 
-        return $result;
+        return array_values($this->columns[$entityName]);
     }
 
     /**
@@ -165,16 +124,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getPropertiesColumns(string $entityName): array
     {
-        $result = [];
-        foreach ($this->getMtColumns($entityName) as $property => $mtColumn) {
-            if (!$mtColumn instanceof MtColumn) {
-                continue;
-            }
-
-            $result[$property] = $mtColumn->columnName ?? $property;
+        if (!isset($this->columns[$entityName])) {
+            $this->generatePropertiesColumns($entityName);
         }
 
-        return $result;
+        return $this->columns[$entityName];
     }
 
     /**
@@ -297,19 +251,15 @@ class DbMapping implements DbMappingInterface
         $mtFk = $this->getMtFk($entityName)[$property];
 
         if (
-            is_null($mtFk->referencedTable) ||
-            is_null($this->getColumnName($entityName, $property)) ||
-            is_null($this->getTableName($entityName))
+            is_null($referencedEntityTable = $mtFk->referencedTable) ||
+            is_null($referencedTable = $this->getTableName($referencedEntityTable)) ||
+            is_null($column = $this->getColumnName($entityName, $property)) ||
+            is_null($table = $this->getTableName($entityName))
         ) {
             return null;
         }
 
-        return 'fk_' .
-            $this->getTableName($entityName) .
-            '_' .
-            $this->getColumnName($entityName, $property) .
-            '_' .
-            $this->getTableName($mtFk->referencedTable);
+        return sprintf('fk_%s_%s_%s', $table, $column, $referencedTable);
     }
 
     /**
@@ -373,13 +323,71 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
+     * @return void
+     * @throws ReflectionException
+     */
+    private function generateTables(): void
+    {
+        $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
+
+        $tables = [];
+        foreach ($classNames as $className) {
+            $table = $this->generateTableName($className);
+            if (!is_null($table)) {
+                $tables[$className] = $table;
+            }
+        }
+
+        $this->tables = $tables;
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return string|null
+     * @throws ReflectionException
+     */
+    private function generateTableName(string $entityName): ?string
+    {
+        $mtEntity = $this->getMtEntity($entityName);
+
+        if (is_null($mtEntity)){
+            return null;
+        }
+
+        if (!is_null($mtEntity->tableName)) {
+            return $mtEntity->tableName;
+        }
+
+        return strtolower((new ReflectionClass($entityName))->getShortName());
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return void
+     * @throws ReflectionException
+     */
+    public function generatePropertiesColumns(string $entityName): void
+    {
+        $result = [];
+        foreach ($this->getMtColumns($entityName) as $property => $mtColumn) {
+            if (!$mtColumn instanceof MtColumn) {
+                continue;
+            }
+
+            $result[$property] = $mtColumn->columnName ?? $property;
+        }
+
+        $this->columns[$entityName] = $result;
+    }
+
+    /**
      * @param class-string $entityName
      * @return object|null
      * @throws ReflectionException
      */
     private function getMtEntity(string $entityName): ?object
     {
-        return $this->attributeReader->getInstanceOfClassAttributeNamed($entityName, MtEntity::class);
+        return Php::getInstanceOfClassAttributeNamed($entityName, MtEntity::class);
     }
 
     /**
@@ -389,9 +397,7 @@ class DbMapping implements DbMappingInterface
      */
     private function getMtColumns(string $entityName): array
     {
-        return $this
-            ->attributeReader
-            ->getInstanceOfPropertiesAttributesNamed($entityName, MtColumn::class);
+        return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtColumn::class);
     }
 
     /**
@@ -401,8 +407,6 @@ class DbMapping implements DbMappingInterface
      */
     private function getMtFk(string $entityName): array
     {
-        return $this
-            ->attributeReader
-            ->getInstanceOfPropertiesAttributesNamed($entityName, MtFk::class);
+        return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtFk::class);
     }
 }

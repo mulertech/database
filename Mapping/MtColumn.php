@@ -12,9 +12,9 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class MtColumn
 {
-    public const PRIMARY_KEY = 'PRI';
-    public const UNIQUE_KEY = 'UNI';
-    public const MULTIPLE_KEY = 'MUL';
+    public const string PRIMARY_KEY = 'PRI';
+    public const string UNIQUE_KEY = 'UNI';
+    public const string MULTIPLE_KEY = 'MUL';
 
     /**
      * MtColumn constructor.

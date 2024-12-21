@@ -4,9 +4,10 @@ namespace MulerTech\Database\Tests;
 
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\MtFk;
-use MulerTech\Database\NonRelational\DocumentStore\FileContent\AttributeReader;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Groups;
+use MulerTech\Database\Tests\Files\Entity\ParentUser;
+use MulerTech\Database\Tests\Files\Entity\SubDirectory\GroupSub;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\WithoutMapping;
@@ -16,13 +17,17 @@ use ReflectionException;
 
 class MappingTest extends TestCase
 {
+    /**
+     * @var DbMapping
+     */
+    private DbMapping $dbMapping;
 
     /**
      * @return DbMapping
      */
     private function getDbMapping(): DbMapping
     {
-        return new DbMapping(new AttributeReader(), __DIR__ . '/Files/Entity');
+        return $this->dbMapping ?? ($this->dbMapping = new DbMapping(__DIR__ . '/Files/Entity'));
     }
 
     /**
@@ -60,7 +65,20 @@ class MappingTest extends TestCase
     {
         $dbMapping = $this->getDbMapping();
         $this->assertEquals(
-            ['group', 'groups', 'units_test', 'users_test'],
+            ['group', 'groups', 'groupsub', 'parent_users_test', 'units_test', 'users_test'],
+            $dbMapping->getTables()
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testTablesWithoutRecursiveDirectory(): void
+    {
+        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity', false);
+        $this->assertEquals(
+            ['group', 'groups', 'parent_users_test', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }
@@ -71,27 +89,29 @@ class MappingTest extends TestCase
      */
     public function testTablesWithEmptyDirectory(): void
     {
-        $dbMapping = new DbMapping(new AttributeReader(), __DIR__ . '/Files/Entity/EmptyEntity');
+        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
         $this->assertEquals([], $dbMapping->getTables());
     }
 
     /**
      * @return void
+     * @throws ReflectionException
      */
     public function testGetEntities(): void
     {
         $this->assertEquals(
-            [Group::class, Groups::class, Unit::class, User::class],
+            [Group::class, Groups::class, ParentUser::class, GroupSub::class, Unit::class, User::class],
             $this->getDbMapping()->getEntities()
         );
     }
 
     /**
      * @return void
+     * @throws ReflectionException
      */
     public function testGetEntitiesWithEmptyDirectory(): void
     {
-        $dbMapping = new DbMapping(new AttributeReader(), __DIR__ . '/Files/Entity/EmptyEntity');
+        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
         $this->assertEquals([], $dbMapping->getEntities());
     }
 

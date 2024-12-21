@@ -3,7 +3,6 @@
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\Entity\Entity;
 
 /**
  * Class EntityRepository
@@ -12,7 +11,6 @@ use MulerTech\Entity\Entity;
  */
 class EntityRepository
 {
-
     /**
      * @var EntityManagerInterface $entityManager
      */
@@ -50,9 +48,9 @@ class EntityRepository
 
     /**
      * @param string $id
-     * @return Entity|null
+     * @return Object|null
      */
-    public function find(string $id): ?Entity
+    public function find(string $id): ?Object
     {
         return $this->entityManager->find($this->entityName, $id);
     }

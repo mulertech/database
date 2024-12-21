@@ -338,13 +338,12 @@ class QueryBuilder
     /**
      * @return array
      */
-    public function getBindParameters(): array
+    public function getBindParameters(): ?array
     {
         $parameters = (!empty($namedParam = $this->getNamedParameters())) ? $namedParam : $this->getDynamicParameters();
+
         if (empty($parameters)) {
-            throw new RuntimeException(
-                'Class QueryBuilder, function getBindParameters. The named or dynamic parameters are not set.'
-            );
+            return null;
         }
 
         $bindParams = [];

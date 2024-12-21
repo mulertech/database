@@ -37,11 +37,11 @@ interface EntityManagerInterface
     public function getDbMapping(): DbMappingInterface;
 
     /**
-     * @param $entity
-     * @param string|null $idorwhere
+     * @param class-string $entity
+     * @param string|int|null $idorwhere
      * @return Object|null
      */
-    public function find($entity, ?string $idorwhere = null): ?Object;
+    public function find(string $entity, string|int|null $idorwhere = null): ?Object;
 
     /**
      * @param string $table
