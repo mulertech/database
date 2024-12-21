@@ -21,10 +21,10 @@ interface EntityManagerInterface
     public function getPdm(): PhpDatabaseInterface;
 
     /**
-     * @param Entity $entity
+     * @param class-string $entity
      * @return EntityRepository
      */
-    public function getRepository(Entity $entity): EntityRepository;
+    public function getRepository(string $entity): EntityRepository;
 
     /**
      * @return EventManagerInterface|null
@@ -37,11 +37,11 @@ interface EntityManagerInterface
     public function getDbMapping(): DbMappingInterface;
 
     /**
-     * @param $entity
-     * @param string|null $idorwhere
-     * @return Entity|null
+     * @param class-string $entity
+     * @param string|int|null $idorwhere
+     * @return Object|null
      */
-    public function find($entity, ?string $idorwhere = null): ?Entity;
+    public function find(string $entity, string|int|null $idorwhere = null): ?Object;
 
     /**
      * @param string $table
@@ -70,14 +70,14 @@ interface EntityManagerInterface
     );
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      */
-    public function persist(Entity $entity): void;
+    public function persist(Object $entity): void;
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      */
-    public function remove(Entity $entity): void;
+    public function remove(Object $entity): void;
 
     /**
      *

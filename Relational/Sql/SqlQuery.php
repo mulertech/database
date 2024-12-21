@@ -237,7 +237,7 @@ class SqlQuery
     {
         $query = self::INSERT;
         $query .= $this->generateFrom();
-        $query .= $this->generateValues();
+        $query .= $this->generateInsertValues();
         return $query;
     }
 
@@ -248,7 +248,7 @@ class SqlQuery
     {
         $query = self::UPDATE;
         $query .= $this->generateFrom();
-        $query .= $this->generateValues();
+        $query .= $this->generateUpdateValues();
         $query .= $this->generateWhere();
         return $query;
     }
@@ -413,13 +413,13 @@ class SqlQuery
     /**
      * @return string
      */
-    private function generateValues(): string
+    private function generateInsertValues(): string
     {
         if (empty($values = $this->queryBuilder->getValues())) {
             throw new RuntimeException(
                 sprintf(
                     'Class SqlQuery, function generateValues. The values of the insert for the table "%s" was not set.',
-                    $this->queryBuilder->getFrom()[0]['name']
+                    $this->queryBuilder->getFrom()['name']
                 )
             );
         }
@@ -436,28 +436,38 @@ class SqlQuery
         }
         //make named parameters and set values
         $names = array_keys($this->queryBuilder->getNamedParameters());
-        $query .= implode(', ', $names) . ')';
+        $query .= implode(', ', array_slice($names, 0, count($values))) . ')';
         return $query;
     }
 
     /**
-     * Make the SQL variable setter for columns references.
-     * @param array $columns Format accepted :
-     * [0 => 'column1', 1 => 'column2',..]
-     * ['column1' => 'data column 1', 'column2' => 'data column 2',..]
-     * @return string like : 'column1 =:column1, column2 =:column2,..'
-     * @todo given this function and do the tests, or drop this function if used only prepare request.
+     * @return string
      */
-    private function setColumnsVariables(array $columns): string
+    private function generateUpdateValues(): string
     {
-        $columnsVariables = [];
-        foreach ($columns as $key => $value) {
-            if (is_numeric($key)) {
-                $columnsVariables[] = self::escape($value) . ' = :' . $value;
-            } else {
-                $columnsVariables[] = self::escape($key) . ' = :' . $key;
-            }
+        if (empty($values = $this->queryBuilder->getValues())) {
+            throw new RuntimeException(
+                sprintf(
+                    'Class SqlQuery, function generateValues. The values of the update for the table "%s" was not set.',
+                    $this->queryBuilder->getFrom()['name']
+                )
+            );
         }
-        return implode(', ', $columnsVariables);
+
+        if (!empty($this->queryBuilder->getDynamicParameters())) {
+            if (!empty($this->queryBuilder->getNamedParameters())) {
+                throw new RuntimeException(
+                    'Class SqlQuery, function generateValues. Parameters are dynamically and named defined, there must be one or the other.'
+                );
+            }
+
+            return ' SET ' . implode(', ', array_map(fn($value) => self::escape($value) . ' = ?', array_keys($values)));
+        }
+
+        return ' SET ' . implode(', ', array_map(
+                fn ($key, $value) => self::escape($key) . ' = ' . $value[0],
+                array_keys($values),
+                array_values($values)
+            ));
     }
 }

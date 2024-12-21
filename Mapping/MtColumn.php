@@ -2,113 +2,36 @@
 
 namespace MulerTech\Database\Mapping;
 
+use Attribute;
+
 /**
  * Class MtColumn
  * @package MulerTech\Database\Mapping
  * @author Sébastien Muler
- * @Annotation
  */
+#[Attribute(Attribute::TARGET_PROPERTY)]
 class MtColumn
 {
+    public const string PRIMARY_KEY = 'PRI';
+    public const string UNIQUE_KEY = 'UNI';
+    public const string MULTIPLE_KEY = 'MUL';
 
     /**
-     * @var string $columnName
-     */
-    public $columnName;
-    /**
-     * @var string $columnType
-     */
-    public $columnType;
-    /**
-     * @var bool $isNullable
-     */
-    public $isNullable = true;
-    /**
-     * @var string $extra
-     */
-    public $extra;
-    /**
-     * @var string $columnKey
-     */
-    public $columnKey;
-
-    /**
-     * @return string
-     */
-    public function getColumnName(): ?string
-    {
-        return $this->columnName;
-    }
-
-    /**
-     * @param string $columnName
-     */
-    public function setColumnName(string $columnName): void
-    {
-        $this->columnName = $columnName;
-    }
-
-    /**
-     * @return string
-     */
-    public function getColumnType(): ?string
-    {
-        return $this->columnType;
-    }
-
-    /**
-     * @param string $columnType
-     */
-    public function setColumnType(string $columnType): void
-    {
-        $this->columnType = $columnType;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isNullable(): bool
-    {
-        return $this->isNullable;
-    }
-
-    /**
+     * MtColumn constructor.
+     * @param string|null $columnName
+     * @param string|null $columnType
      * @param bool $isNullable
+     * @param string|null $extra
+     * @param string|null $columnDefault
+     * @param string|null $columnKey
      */
-    public function setIsNullable(bool $isNullable): void
-    {
-        $this->isNullable = $isNullable;
-    }
-
-    /**
-     * @return string
-     */
-    public function getExtra(): ?string
-    {
-        return $this->extra;
-    }
-
-    /**
-     * @param string $extra
-     */
-    public function setExtra(string $extra): void
-    {
-        $this->extra = $extra;
-    }
-
-    /**
-     * @return string
-     */
-    public function getColumnKey(): ?string
-    {
-        return $this->columnKey;
-    }
-
-    /**
-     * @param string $columnKey
-     */
-    public function setColumnKey(string $columnKey): void
-    {
-        $this->columnKey = $columnKey;
-    }
+    public function __construct(
+        public string|null $columnName = null,
+        public string|null $columnType = null,
+        public bool $isNullable = true,
+        public string|null $extra = null,
+        public string|null $columnDefault = null,
+        public string|null $columnKey = null
+    )
+    {}
 }

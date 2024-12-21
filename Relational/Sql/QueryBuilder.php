@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Relational\Sql;
 
 use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\PhpInterface\Statement;
 use PDO;
 use RuntimeException;
 
@@ -13,9 +14,9 @@ use RuntimeException;
  */
 class QueryBuilder
 {
-    protected const RESULT_TYPE_OBJECT = 'object';
-    protected const RESULT_TYPE_ARRAY = 'array';
-    protected const RESULT_TYPE_ONE = 'one';
+    public const RESULT_TYPE_OBJECT = 'object';
+    public const RESULT_TYPE_ARRAY = 'array';
+    public const RESULT_TYPE_ONE = 'one';
 
     /**
      * @var EmEngine $emEngine
@@ -337,14 +338,14 @@ class QueryBuilder
     /**
      * @return array
      */
-    public function getBindParameters(): array
+    public function getBindParameters(): ?array
     {
-        if (empty($parameters = (!empty($namedParam = $this->getNamedParameters())) ? $namedParam : $this->getDynamicParameters())) {
-            throw new RuntimeException(
-                'Class QueryBuilder, function getBindParameters. The named or dynamic parameters are not set.'
-            );
+        $parameters = (!empty($namedParam = $this->getNamedParameters())) ? $namedParam : $this->getDynamicParameters();
+
+        if (empty($parameters)) {
+            return null;
         }
-//        return $parameters;
+
         $bindParams = [];
         foreach ($parameters as $key => $value) {
             $bindParams[] = [$key, $value[0], $value[1]];
@@ -535,16 +536,14 @@ class QueryBuilder
     private function tableKnown(array $nameAlias): bool
     {
         //Priority 1 : alias
-        if (isset($this->from) && !is_null(
-                $this->from[0]['alias']
-            ) && ($nameAlias['alias'] === $this->from[0]['alias'])) {
+        if (isset($this->from[0]['alias']) && ($nameAlias['alias'] === $this->from[0]['alias'])) {
             return true;
         }
         if (in_array($nameAlias['alias'], $this->tablesJoined, true)) {
             return true;
         }
         //Priority 2 : name
-        if (isset($this->from) && ($nameAlias['name'] === $this->from[0]['name'])) {
+        if (isset($this->from[0]['name']) && ($nameAlias['name'] === $this->from[0]['name'])) {
             return true;
         }
         if (array_key_exists($nameAlias['name'], $this->tablesJoined)) {
@@ -677,7 +676,7 @@ class QueryBuilder
      */
     public function orWhere($where): QueryBuilder
     {
-        $this->where->addOperation($where, SqlOperators::OR_OPERATOR);
+        $this->where->addOperation($where, LinkOperator::OR);
         return $this;
     }
 
@@ -761,7 +760,7 @@ class QueryBuilder
      */
     public function orHaving($having): QueryBuilder
     {
-        $this->having->addOperation($having, SqlOperators::OR_OPERATOR);
+        $this->having->addOperation($having, LinkOperator::OR);
         return $this;
     }
 
@@ -864,7 +863,7 @@ class QueryBuilder
      * @param mixed $value
      * @return $this
      */
-    public function set(string $column, $value): QueryBuilder
+    public function set(string $column, mixed $value): QueryBuilder
     {
         $this->setValue($column, $this->addDynamicParameter($value));
         return $this;
@@ -893,6 +892,7 @@ class QueryBuilder
                 'Class QueryBuilder, function addNamedParameter. A named parameter can\'t be define because one or more dynamic parameter is already defined.'
             );
         }
+
         $number = (empty($this->namedParameters)) ? 1 : count($this->namedParameters) + 1;
         $this->namedParameters[':' . self::NAMED_PARAMETERS_PREFIX . $number] = [$value, $type];
         return ':' . self::NAMED_PARAMETERS_PREFIX . $number;
@@ -987,19 +987,27 @@ class QueryBuilder
     /**
      * Get the result of this request with the EmEngine.
      * @param string $type
-     * @return mixed
+     * @return Statement
      * @todo link this function with the EmEngine, return format........
      */
-    public function getResult(string $type = self::RESULT_TYPE_OBJECT)
+    public function getResult(string $type = self::RESULT_TYPE_OBJECT): Statement
     {
+        if ($this->emEngine === null) {
+            throw new RuntimeException(
+                'Class QueryBuilder, function getResult. The EmEngine is not define.'
+            );
+        }
+
         $pdo = $this->emEngine->getEntityManager()->getPdm();
         $pdoStatement = $pdo->prepare($this->getQuery());
-        foreach ($this->getBindParameters() as $key => $value) {
-            $pdoStatement->bindParam($key, $value[0], $value[1]);
-        }
-        $pdoStatement->execute();
 
-        return $this->emEngine->prepareRequest($this->getQuery(), $this->getValues());
+        if (!empty($bindParams = $this->getBindParameters())) {
+            foreach ($bindParams as $params) {
+                $pdoStatement->bindParam($params[0], $params[1], $params[2]);
+            }
+        }
+
+        return $pdoStatement;
     }
 
     /**
@@ -1008,6 +1016,12 @@ class QueryBuilder
      */
     public function execute(): void
     {
+        if ($this->emEngine === null) {
+            throw new RuntimeException(
+                'Class QueryBuilder, function getResult. The EmEngine is not define.'
+            );
+        }
+
         $pdo = $this->emEngine->getEntityManager()->getPdm();
         $pdo->prepare($this->getQuery());
     }

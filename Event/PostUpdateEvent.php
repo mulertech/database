@@ -3,50 +3,20 @@
 namespace MulerTech\Database\Event;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Entity\Entity;
-use MulerTech\EventManager\Event;
 
 /**
  * Class PostUpdateEvent
  * @package MulerTech\Database\Event
  * @author Sébastien Muler
  */
-class PostUpdateEvent extends Event
+class PostUpdateEvent extends EntityEvent
 {
-
     /**
-     * @var Entity
-     */
-    private $entity;
-    /**
-     * @var EntityManagerInterface
-     */
-    private $entityManager;
-
-    /**
-     * @param Entity $entity
+     * @param Object $entity
      * @param EntityManagerInterface $entityManager
      */
-    public function __construct(Entity $entity, EntityManagerInterface $entityManager) {
-        $this->setName(DbEvents::postUpdate);
-        $this->entity = $entity;
-        $this->entityManager = $entityManager;
+    public function __construct(Object $entity, EntityManagerInterface $entityManager) {
+        $this->setName(DbEvents::postUpdate->value);
+        parent::__construct($entity, $entityManager);
     }
-
-    /**
-     * @return Entity
-     */
-    public function getEntity(): Entity
-    {
-        return $this->entity;
-    }
-
-    /**
-     * @return EntityManagerInterface
-     */
-    public function getEntityManager(): EntityManagerInterface
-    {
-        return $this->entityManager;
-    }
-
 }

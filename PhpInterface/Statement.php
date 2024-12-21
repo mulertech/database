@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\PhpInterface;
 
+use Iterator;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -10,7 +11,7 @@ use RuntimeException;
 class Statement
 {
 
-    private $statement;
+    private PDOStatement $statement;
 
     /**
      * @param PDOStatement $statement
@@ -24,7 +25,7 @@ class Statement
      * @param array|null $params
      * @return bool
      */
-    public function execute(array $params = null): bool
+    public function execute(?array $params = null): bool
     {
         try {
             if (false === $result = $this->statement->execute($params)) {
@@ -42,50 +43,66 @@ class Statement
      * @param int $cursorOffset
      * @return mixed
      */
-    public function fetch(int $mode = PDO::FETCH_BOTH, int $cursorOrientation = PDO::FETCH_ORI_NEXT, int $cursorOffset = 0)
-    {
+    public function fetch(
+        int $mode = PDO::FETCH_DEFAULT,
+        int $cursorOrientation = PDO::FETCH_ORI_NEXT,
+        int $cursorOffset = 0
+    ): mixed {
         return $this->statement->fetch(...func_get_args());
     }
 
     /**
-     * @param mixed $param
+     * @param string|int $param
      * @param mixed $var
      * @param int $type
-     * @param int|null $maxLength
+     * @param int $maxLength
      * @param mixed|null $driverOptions
      * @return bool
      */
-    public function bindParam($param, &$var, int $type = PDO::PARAM_STR, ?int $maxLength = null, $driverOptions = null): bool
-    {
-        if (false === $result = $this->statement->bindParam(...func_get_args())) {
-            throw new RuntimeException('Class : Statement, function : bindParam. The bindParam action was failed');
+    public function bindParam(
+        string|int $param,
+        mixed &$var,
+        int $type = PDO::PARAM_STR,
+        int $maxLength = 0,
+        mixed $driverOptions = null
+    ): bool {
+        if (false === $result = $this->statement->bindParam($param, $var, $type, $maxLength, $driverOptions)) {
+            throw new RuntimeException(
+                'Class : Statement, function : bindParam. The bindParam action was failed'
+            );
         }
+
         return $result;
     }
 
     /**
-     * @param mixed $column
+     * @param string|int $column
      * @param mixed $var
      * @param int $type
-     * @param int|null $maxLength
+     * @param int $maxLength
      * @param mixed|null $driverOptions
      * @return bool
      */
-    public function bindColumn($column, &$var, int $type = 2, ?int $maxLength = null, $driverOptions = null): bool
-    {
-        if (false === $result = $this->statement->bindColumn(...func_get_args())) {
+    public function bindColumn(
+        string|int $column,
+        mixed &$var,
+        int $type = PDO::PARAM_STR,
+        int $maxLength = 0,
+        mixed $driverOptions = null
+    ): bool {
+        if (false === $result = $this->statement->bindColumn($column, $var, $type, $maxLength, $driverOptions)) {
             throw new RuntimeException('Class : Statement, function : bindColumn. The bindColumn action was failed');
         }
         return $result;
     }
 
     /**
-     * @param mixed $param
+     * @param int|string $param
      * @param mixed $value
      * @param int $type
      * @return bool
      */
-    public function bindValue($param, $value, int $type = PDO::PARAM_STR): bool
+    public function bindValue(int|string $param, mixed $value, int $type = PDO::PARAM_STR): bool
     {
         if (false === $result = $this->statement->bindValue(...func_get_args())) {
             throw new RuntimeException('Class : Statement, function : bindValue. The bindValue action was failed');
@@ -105,7 +122,7 @@ class Statement
      * @param int $column
      * @return mixed|false False if no more rows.
      */
-    public function fetchColumn(int $column = 0)
+    public function fetchColumn(int $column = 0): mixed
     {
         return $this->statement->fetchColumn($column);
     }
@@ -115,7 +132,7 @@ class Statement
      * @param mixed ...$args
      * @return array
      */
-    public function fetchAll(int $mode = PDO::FETCH_BOTH, ...$args): array
+    public function fetchAll(int $mode = PDO::FETCH_DEFAULT, ...$args): array
     {
         if (false === $result = $this->statement->fetchAll(...func_get_args())) {
             throw new RuntimeException('Class : Statement, function : fetchAll. The fetchAll action was failed');
@@ -124,22 +141,22 @@ class Statement
     }
 
     /**
-     * @param string $class
+     * @param string|null $class
      * @param array $constructorArgs
-     * @return mixed
+     * @return object|false
      */
-    public function fetchObject(string $class = "stdClass", array $constructorArgs = [])
+    public function fetchObject(?string $class = "stdClass", array $constructorArgs = []): object|false
     {
-        if (false === $result = $this->statement->fetchObject(...func_get_args())) {
+        if (false === $result = $this->statement->fetchObject($class, $constructorArgs)) {
             throw new RuntimeException('Class : Statement, function : fetchObject. The fetchObject action was failed');
         }
         return $result;
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function errorCode(): string
+    public function errorCode(): string|null
     {
         return $this->statement->errorCode();
     }
@@ -157,11 +174,14 @@ class Statement
      * @param mixed $value
      * @return bool
      */
-    public function setAttribute(int $attribute, $value): bool
+    public function setAttribute(int $attribute, mixed $value): bool
     {
-        if (false === $result = $this->statement->setAttribute(...func_get_args())) {
-            throw new RuntimeException('Class : Statement, function : setAttribute. The setAttribute action was failed');
+        if (false === $result = $this->statement->setAttribute($attribute, $value)) {
+            throw new RuntimeException(
+                'Class : Statement, function : setAttribute. The setAttribute action was failed'
+            );
         }
+
         return $result;
     }
 
@@ -169,7 +189,7 @@ class Statement
      * @param int $name
      * @return mixed
      */
-    public function getAttribute(int $name)
+    public function getAttribute(int $name): mixed
     {
         return $this->statement->getAttribute($name);
     }
@@ -186,21 +206,30 @@ class Statement
      * @param int $column
      * @return array|false
      */
-    public function getColumnMeta(int $column)
+    public function getColumnMeta(int $column): false|array
     {
         return $this->statement->getColumnMeta($column);
     }
 
     /**
+     * @return Iterator
+     */
+    public function getIterator(): Iterator
+    {
+        return $this->statement->getIterator();
+    }
+
+    /**
      * @param int $mode
-     * @param null|string|object $className
-     * @param array $params
+     * @param mixed ...$params
      * @return bool
      */
-    public function setFetchMode(int $mode, $className = null, array $params = []): bool
+    public function setFetchMode(int $mode = PDO::FETCH_DEFAULT, mixed ...$params): bool
     {
         if (false === $result = $this->statement->setFetchMode(...func_get_args())) {
-            throw new RuntimeException('Class : Statement, function : setFetchMode. The setFetchMode action was failed');
+            throw new RuntimeException(
+                'Class : Statement, function : setFetchMode. The setFetchMode action was failed'
+            );
         }
         return $result;
     }
@@ -222,10 +251,18 @@ class Statement
     }
 
     /**
-     * @return bool
+     * @return bool|null
      */
-    public function debugDumpParams(): bool
+    public function debugDumpParams(): ?bool
     {
         return $this->statement->debugDumpParams();
+    }
+
+    /**
+     * @return string
+     */
+    public function getQueryString(): string
+    {
+        return $this->statement->queryString;
     }
 }

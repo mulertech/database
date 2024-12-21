@@ -5,7 +5,6 @@ namespace MulerTech\Database\ORM;
 use _config\UpdateDatabaseMysql;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
-use MulerTech\Entity\Entity;
 use MulerTech\EventManager\EventManagerInterface;
 use MulerTech\HttpRequest\Session\Session;
 use PDOStatement;
@@ -16,19 +15,19 @@ class EntityManager implements EntityManagerInterface
     /**
      * @var PhpDatabaseInterface PhpDatabaseManager
      */
-    private $pdm;
+    private PhpDatabaseInterface $pdm;
     /**
      * @var DbMappingInterface DB Mapping
      */
-    private $dbMapping;
+    private DbMappingInterface $dbMapping;
     /**
      * @var EventManagerInterface|null Event Manager
      */
-    private $eventManager;
+    private ?EventManagerInterface $eventManager;
     /**
      * @var EmEngine Entity manager Engine
      */
-    private $emEngine;
+    private EmEngine $emEngine;
 
     /**
      * @param PhpDatabaseInterface $pdm
@@ -71,10 +70,10 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @param Entity $entity
+     * @param class-string $entity
      * @return EntityRepository
      */
-    public function getRepository(Entity $entity): EntityRepository
+    public function getRepository(string $entity): EntityRepository
     {
         $repository = $this->dbMapping->getRepository($entity);
         return new $repository($this);
@@ -89,11 +88,11 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @param $entity
-     * @param string|null $idorwhere
-     * @return Entity|null
+     * @param class-string $entity
+     * @param string|int|null $idorwhere
+     * @return Object|null
      */
-    public function find($entity, ?string $idorwhere = null): ?Entity
+    public function find(string $entity, string|int|null $idorwhere = null): ?Object
     {
         return $this->emEngine->find($entity, $idorwhere);
     }
@@ -151,7 +150,7 @@ class EntityManager implements EntityManagerInterface
     /**
      * Check if this item exists, with this $entity, $column and WHERE $search.
      * The search must exclude itself with its $id (if given).
-     * @param string $entity
+     * @param class-string $entity
      * @param string $column
      * @param string|int $search
      * @param int|string|null $id
@@ -179,27 +178,27 @@ class EntityManager implements EntityManagerInterface
         }
 
         //ID can be an integer OR a UUID
-        return $item->id() == $id;
+        return $item->getId() == $id;
     }
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      */
-    public function persist(Entity $entity): void
+    public function persist(Object $entity): void
     {
         $this->emEngine->persist($entity);
     }
 
     /**
-     * @param Entity $entity
+     * @param Object $entity
      */
-    public function remove(Entity $entity): void
+    public function remove(Object $entity): void
     {
         $this->emEngine->remove($entity);
     }
 
     /**
-     *
+     * @throws \ReflectionException
      */
     public function flush(): void
     {

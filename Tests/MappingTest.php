@@ -2,28 +2,33 @@
 
 namespace MulerTech\Database\Tests;
 
-use Doctrine\Common\Annotations\AnnotationReader;
 use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Tests\Files\Group;
-use MulerTech\Database\Tests\Files\Groups;
-use MulerTech\Database\Tests\Files\User;
-use MulerTech\Database\Tests\Files\UserRepository;
-use MulerTech\PhpDocExtractor\PhpDocExtractor;
+use MulerTech\Database\Mapping\MtFk;
+use MulerTech\Database\Tests\Files\Entity\Group;
+use MulerTech\Database\Tests\Files\Entity\Groups;
+use MulerTech\Database\Tests\Files\Entity\ParentUser;
+use MulerTech\Database\Tests\Files\Entity\SubDirectory\GroupSub;
+use MulerTech\Database\Tests\Files\Entity\Unit;
+use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\Entity\WithoutMapping;
+use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
 class MappingTest extends TestCase
 {
+    /**
+     * @var DbMapping
+     */
+    private DbMapping $dbMapping;
 
     /**
      * @return DbMapping
      */
     private function getDbMapping(): DbMapping
     {
-        return new DbMapping(new PhpDocExtractor(new AnnotationReader()), __DIR__ . '/Files/');
+        return $this->dbMapping ?? ($this->dbMapping = new DbMapping(__DIR__ . '/Files/Entity'));
     }
-
-    //MtEntity mapping
 
     /**
      * @return void
@@ -47,9 +52,67 @@ class MappingTest extends TestCase
      * @return void
      * @throws ReflectionException
      */
-    public function testTableNameUpdate(): void
+    public function testTableNameUpdated(): void
     {
-        $this->assertEquals('users', $this->getDbMapping()->getTableName(User::class));
+        $this->assertEquals('users_test', $this->getDbMapping()->getTableName(User::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testTables(): void
+    {
+        $dbMapping = $this->getDbMapping();
+        $this->assertEquals(
+            ['group', 'groups', 'groupsub', 'parent_users_test', 'units_test', 'users_test'],
+            $dbMapping->getTables()
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testTablesWithoutRecursiveDirectory(): void
+    {
+        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity', false);
+        $this->assertEquals(
+            ['group', 'groups', 'parent_users_test', 'units_test', 'users_test'],
+            $dbMapping->getTables()
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testTablesWithEmptyDirectory(): void
+    {
+        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
+        $this->assertEquals([], $dbMapping->getTables());
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetEntities(): void
+    {
+        $this->assertEquals(
+            [Group::class, Groups::class, ParentUser::class, GroupSub::class, Unit::class, User::class],
+            $this->getDbMapping()->getEntities()
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetEntitiesWithEmptyDirectory(): void
+    {
+        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
+        $this->assertEquals([], $dbMapping->getEntities());
     }
 
     /**
@@ -58,23 +121,66 @@ class MappingTest extends TestCase
      */
     public function testRepository(): void
     {
-        $this->assertEquals(UserRepository::class, $this->getDbMapping()->getRepository(User::class));
+        $this->assertEquals(
+            UserRepository::class,
+            $this->getDbMapping()->getRepository(User::class)
+        );
     }
-
-    public function testAutoIncrement(): void
-    {
-        $this->assertEquals(100, $this->getDbMapping()->getAutoIncrement(User::class));
-    }
-
-    //MtColumn mapping
 
     /**
      * @return void
      * @throws ReflectionException
      */
-    public function testGetColumnList(): void
+    public function testRepositoryWithoutRepositoryIntoMtEntityMapping(): void
     {
-        $this->assertEquals(['id', 'username', 'unit_id'], $this->getDbMapping()->getColumnList(User::class));
+        $this->assertEquals(null, $this->getDbMapping()->getRepository(Groups::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testRepositoryWithoutMtEntityMapping(): void
+    {
+        $this->expectExceptionMessage(
+            'The MtEntity mapping is not implemented into the MulerTech\Database\Tests\Files\Entity\WithoutMapping class.'
+        );
+        $this->getDbMapping()->getRepository(WithoutMapping::class);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testAutoIncrement(): void
+    {
+        $this->assertEquals(100, $this->getDbMapping()->getAutoIncrement(User::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testNullAutoIncrement(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getAutoIncrement(Groups::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetColumns(): void
+    {
+        $this->assertEquals(['id', 'username', 'unit_id'], $this->getDbMapping()->getColumns(User::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetColumnsWithoutMtColumnMapping(): void
+    {
+        $this->assertEquals([], $this->getDbMapping()->getColumns(WithoutMapping::class));
     }
 
     /**
@@ -85,10 +191,15 @@ class MappingTest extends TestCase
     {
         $propertiesColumns = $this->getDbMapping()->getPropertiesColumns(User::class);
         $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id'], $propertiesColumns);
-        //Find column name with property
-        $this->assertEquals('unit_id', $propertiesColumns['unit']);
-        //Find property with column name
-        $this->assertEquals('unit', array_keys($propertiesColumns, 'unit_id')[0]);
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetPropertiesColumnsWithoutMtColumnMapping(): void
+    {
+        $this->assertEquals([], $this->getDbMapping()->getPropertiesColumns(WithoutMapping::class));
     }
 
     /**
@@ -97,7 +208,10 @@ class MappingTest extends TestCase
      */
     public function testGetColumnNameOfUsername(): void
     {
-        $this->assertEquals('username', $this->getDbMapping()->getColumnName(User::class, 'username'));
+        $this->assertEquals(
+            'username',
+            $this->getDbMapping()->getColumnName(User::class, 'username')
+        );
     }
 
     /**
@@ -106,7 +220,22 @@ class MappingTest extends TestCase
      */
     public function testGetColumnNameOfUnit(): void
     {
-        $this->assertEquals('unit_id', $this->getDbMapping()->getColumnName(User::class, 'unit'));
+        $this->assertEquals(
+            'unit_id',
+            $this->getDbMapping()->getColumnName(User::class, 'unit')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullColumnName(): void
+    {
+        $this->assertEquals(
+            null,
+            $this->getDbMapping()->getColumnName(User::class, 'group')
+        );
     }
 
     /**
@@ -115,7 +244,22 @@ class MappingTest extends TestCase
      */
     public function testGetTypeOfId(): void
     {
-        $this->assertEquals('int unsigned', $this->getDbMapping()->getType(User::class, 'id'));
+        $this->assertEquals(
+            'int unsigned',
+            $this->getDbMapping()->getColumnType(User::class, 'id')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullColumnType(): void
+    {
+        $this->assertEquals(
+            null,
+            $this->getDbMapping()->getColumnType(User::class, 'group')
+        );
     }
 
     /**
@@ -131,9 +275,57 @@ class MappingTest extends TestCase
      * @return void
      * @throws ReflectionException
      */
+    public function testNullIsNullable(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->isNullable(User::class, 'group'));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
     public function testGetExtra(): void
     {
-        $this->assertEquals('auto_increment', $this->getDbMapping()->getExtra(User::class, 'id'));
+        $this->assertEquals(
+            'auto_increment',
+            $this->getDbMapping()->getExtra(User::class, 'id')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testNullGetExtra(): void
+    {
+        $this->assertEquals(
+            null,
+            $this->getDbMapping()->getExtra(User::class, 'group')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetColumnDefault(): void
+    {
+        $this->assertEquals(
+            'John',
+            $this->getDbMapping()->getColumnDefault(User::class, 'username')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullColumnDefault(): void
+    {
+        $this->assertEquals(
+            null,
+            $this->getDbMapping()->getColumnDefault(User::class, 'id')
+        );
     }
 
     /**
@@ -154,7 +346,41 @@ class MappingTest extends TestCase
         $this->assertEquals('MUL', $this->getDbMapping()->getColumnKey(User::class, 'unit'));
     }
 
-    //MtFk mapping
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullColumnKey(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getColumnKey(User::class, 'group'));
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetForeignKey(): void
+    {
+        $mtFk = new MtFk(
+            referencedTable: Unit::class,
+            referencedColumn: 'id',
+            deleteRule: 'RESTRICT',
+            updateRule: 'CASCADE'
+        );
+
+        $this->assertEquals(
+            $mtFk,
+            $this->getDbMapping()->getForeignKey(User::class, 'unit')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullForeignKey(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getForeignKey(User::class, 'id'));
+    }
 
     /**
      * @return void
@@ -162,7 +388,19 @@ class MappingTest extends TestCase
      */
     public function testGetConstraintName(): void
     {
-        $this->assertEquals('fk_users_unit_id_units', $this->getDbMapping()->getConstraintName(User::class, 'unit'));
+        $this->assertEquals(
+            'fk_users_test_unit_id_units_test',
+            $this->getDbMapping()->getConstraintName(User::class, 'unit')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullConstraintName(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getConstraintName(User::class, 'id'));
     }
 
     /**
@@ -171,7 +409,19 @@ class MappingTest extends TestCase
      */
     public function testGetReferencedTable(): void
     {
-        $this->assertEquals('units', $this->getDbMapping()->getReferencedTable(User::class, 'unit'));
+        $this->assertEquals(
+            'units_test',
+            $this->getDbMapping()->getReferencedTable(User::class, 'unit')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullReferencedTable(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getReferencedTable(User::class, 'id'));
     }
 
     /**
@@ -180,7 +430,19 @@ class MappingTest extends TestCase
      */
     public function testGetReferencedColumn(): void
     {
-        $this->assertEquals('id', $this->getDbMapping()->getReferencedColumn(User::class, 'unit'));
+        $this->assertEquals(
+            'id',
+            $this->getDbMapping()->getReferencedColumn(User::class, 'unit')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullReferencedColumn(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getReferencedColumn(User::class, 'id'));
     }
 
     /**
@@ -189,7 +451,19 @@ class MappingTest extends TestCase
      */
     public function testGetDeleteRule(): void
     {
-        $this->assertEquals('RESTRICT', $this->getDbMapping()->getDeleteRule(User::class, 'unit'));
+        $this->assertEquals(
+            'RESTRICT',
+            $this->getDbMapping()->getDeleteRule(User::class, 'unit')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullDeleteRule(): void
+    {
+        $this->assertEquals(null, $this->getDbMapping()->getDeleteRule(User::class, 'id'));
     }
 
     /**
@@ -198,8 +472,18 @@ class MappingTest extends TestCase
      */
     public function testGetUpdateRule(): void
     {
-        $this->assertEquals('CASCADE', $this->getDbMapping()->getUpdateRule(User::class, 'unit'));
+        $this->assertEquals(
+            'CASCADE',
+            $this->getDbMapping()->getUpdateRule(User::class, 'unit')
+        );
     }
 
-
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNullUpdateRule(): void
+        {
+            $this->assertEquals(null, $this->getDbMapping()->getUpdateRule(User::class, 'id'));
+        }
 }

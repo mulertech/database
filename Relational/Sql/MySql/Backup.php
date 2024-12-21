@@ -20,8 +20,7 @@ class Backup
      */
     public function __construct()
     {
-        $dbParameters = ['DATABASE_URL' => getenv('DATABASE_URL')];
-        $this->dbParameters = PhpDatabaseManager::populateParameters($dbParameters);
+        $this->dbParameters = PhpDatabaseManager::populateParameters();
     }
 
     /**

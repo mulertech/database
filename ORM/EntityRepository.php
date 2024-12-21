@@ -3,7 +3,6 @@
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\Entity\Entity;
 
 /**
  * Class EntityRepository
@@ -12,28 +11,31 @@ use MulerTech\Entity\Entity;
  */
 class EntityRepository
 {
-
     /**
      * @var EntityManagerInterface $entityManager
      */
-    protected $entityManager;
+    protected EntityManagerInterface $entityManager;
     /**
-     * @var string $entity
+     * @var class-string $entityName
      */
-    private $entity;
+    private string $entityName;
 
-    public function __construct(EntityManagerInterface $entityManager, string $entity)
+    /**
+     * @param EntityManagerInterface $entityManager
+     * @param class-string $entityName
+     */
+    public function __construct(EntityManagerInterface $entityManager, string $entityName)
     {
         $this->entityManager = $entityManager;
-        $this->entity = $entity;
+        $this->entityName = $entityName;
     }
 
     /**
-     * @return string
+     * @return class-string
      */
-    public function getEntity(): string
+    public function getEntityName(): string
     {
-        return $this->entity;
+        return $this->entityName;
     }
 
     /**
@@ -41,15 +43,15 @@ class EntityRepository
      */
     protected function createQueryBuilder(): QueryBuilder
     {
-        return (new QueryBuilder($this->entityManager->getEmEngine()))->from($this->entity);
+        return (new QueryBuilder($this->entityManager->getEmEngine()))->from($this->entityName);
     }
 
     /**
      * @param string $id
-     * @return Entity|null
+     * @return Object|null
      */
-    public function find(string $id): ?Entity
+    public function find(string $id): ?Object
     {
-        return $this->entityManager->find($this->entity, $id);
+        return $this->entityManager->find($this->entityName, $id);
     }
 }
