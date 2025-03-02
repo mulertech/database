@@ -12,11 +12,11 @@ use Attribute;
 class MtManyToMany
 {
     /**
-     * @param class-string|null $entity
-     * @param string|null $mappedBy
-     * @param string|null $joinTable
-     * @param string|null $joinColumn
-     * @param string|null $inverseJoinColumn
+     * @param class-string|null $entity Target entity class name
+     * @param string|null $mappedBy Pivot Entity
+     * @param string|null $joinTable Pivot table name
+     * @param string|null $joinColumn Pivot table column name
+     * @param string|null $inverseJoinColumn Pivot table column name of the target entity
      */
     public function __construct(
         public string|null $entity = null,

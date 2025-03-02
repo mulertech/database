@@ -6,6 +6,7 @@ use _config\UpdateDatabaseMysql;
 use App\Entity\Version;
 use Exception;
 use MulerTech\ArrayManipulation\ArrayManipulation;
+use MulerTech\Collections\Collection;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
@@ -94,10 +95,14 @@ class EmEngine
      */
     private ?EventManagerInterface $eventManager;
     /**
-     * @var class-string $entity
-     * @todo Replace this entity by EntityMapping
+     * @var class-string $entityName
+     * @todo Replace this entityName by EntityMapping
      */
     private string $entityName;
+    /**
+     * @var EntityRelationLoader $entityRelationLoader
+     */
+    private EntityRelationLoader $entityRelationLoader;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -106,6 +111,7 @@ class EmEngine
         private EntityManagerInterface $entityManager,
     ) {
         $this->eventManager = $this->entityManager->getEventManager();
+        $this->entityRelationLoader = new EntityRelationLoader($this->entityManager);
     }
 
     /**
@@ -152,6 +158,70 @@ class EmEngine
         }
         $entityParts = explode('\\', $this->entityName);
         return strtolower(end($entityParts));
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param EntityManagerResultType $resultType
+     * @param class-string $entityName
+     * @return object|Collection|null
+     * @throws ReflectionException
+     */
+    public function getQueryBuilderResult(
+        QueryBuilder $queryBuilder,
+        EntityManagerResultType $resultType,
+        string $entityName,
+        bool $loadRelations = true
+    ): object|array|null {
+        $pdoStatement = $queryBuilder->getResult();
+
+        $pdoStatement->execute();
+
+        if ($resultType === EntityManagerResultType::OBJECT) {
+            $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
+            $fetchClass = $pdoStatement->fetch();
+            $pdoStatement->closeCursor();
+
+            if ($fetchClass === false) {
+                return null;
+            }
+
+            $this->computeOriginalEntity($fetchClass);
+
+            if ($loadRelations) {
+                $this->loadEntityRelations($fetchClass);
+            }
+
+            return $fetchClass;
+        }
+
+        $classList = $pdoStatement->fetchAll(PDO::FETCH_CLASS, $entityName);
+
+        if ($classList === []) {
+            return null;
+        }
+
+        $pdoStatement->closeCursor();
+
+        foreach ($classList as $class) {
+            $this->computeOriginalEntity($class);
+
+            if ($loadRelations) {
+                $this->loadEntityRelations($class);
+            }
+        }
+
+        return new Collection($classList);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     * @throws ReflectionException
+     */
+    private function loadEntityRelations(object $entity): void
+    {
+        $this->entityRelationLoader->loadRelations($entity);
     }
 
     /**
@@ -266,6 +336,10 @@ class EmEngine
                 continue;
             }
 
+            if (is_object($entityChanges[$property][1])) {
+                $entityChanges[$property][1] = $entityChanges[$property][1]->getId();
+            }
+
             $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($entityChanges[$property][1]));
         }
 
@@ -314,8 +388,9 @@ class EmEngine
      * @param class-string $entityName
      * @param int|string|SqlOperations|null $idOrWhere
      * @return Object|null Entity filled or null
+     * @throws ReflectionException
      */
-    public function find(string $entityName, int|string|SqlOperations $idOrWhere = null): ?Object
+    public function find(string $entityName, null|int|string|SqlOperations $idOrWhere = null): ?Object
     {
         $queryBuilder = new QueryBuilder($this);
         $queryBuilder->select('*')->from($this->entityManager->getDbMapping()->getTableName($entityName));
@@ -326,23 +401,7 @@ class EmEngine
             $queryBuilder->where($idOrWhere);
         }
 
-        // prepare request
-        $pdoStatement = $queryBuilder->getResult();
-
-        // execute request
-        $pdoStatement->execute();
-        $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
-        $fetchClass = $pdoStatement->fetch();
-
-        // close cursor
-        $pdoStatement->closeCursor();
-
-        // set original entity
-        if ($fetchClass !== false) {
-            $this->computeOriginalEntity($fetchClass);
-        }
-
-        return $fetchClass === false ? null : $fetchClass;
+        return $this->getQueryBuilderResult($queryBuilder, EntityManagerResultType::OBJECT, $entityName);
     }
 
     /**
@@ -656,6 +715,7 @@ class EmEngine
 
     /**
      * @throws ReflectionException
+     * Todo : set field_id if $property is a relational property into originalEntityData setter
      */
     private function computeEntityChanges(Object $entity): void
     {
@@ -674,6 +734,14 @@ class EmEngine
                 continue;
             }
 
+            if (is_object($newValue)
+                && is_null($newValue->getId())
+                && !isset($this->entityInsertions[spl_object_id($newValue)])
+            ) {
+                $this->persist($newValue);
+                $this->computeEntityChanges($newValue);
+            }
+
             $entityChanges[$property] = [$oldValue, $newValue];
         }
 
@@ -690,6 +758,7 @@ class EmEngine
     }
 
     /**
+     * Todo : remove this method if it is not used
      * @param Object $entity
      * @return void
      */
@@ -888,6 +957,10 @@ class EmEngine
         foreach ($this->getPropertiesColumns($entity::class, false) as $property => $column) {
             if (!isset($entityChanges[$property][1])) {
                 continue;
+            }
+
+            if (is_object($entityChanges[$property][1])) {
+                $entityChanges[$property][1] = $entityChanges[$property][1]->getId();
             }
 
             $queryBuilder->setValue($column, $queryBuilder->addDynamicParameter($entityChanges[$property][1]));

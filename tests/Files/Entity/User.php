@@ -2,11 +2,14 @@
 
 namespace MulerTech\Database\Tests\Files\Entity;
 
+use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\ColumnKey;
 use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
 use MulerTech\Database\Mapping\MtFk;
+use MulerTech\Database\Mapping\MtManyToMany;
+use MulerTech\Database\Mapping\MtOneToOne;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 
 /**
@@ -15,7 +18,7 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
  * @author Sébastien Muler
  */
 #[MtEntity(repository: UserRepository::class, tableName: "users_test", autoIncrement: 100)]
-class User extends ParentUser
+class User
 {
     #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
@@ -24,17 +27,21 @@ class User extends ParentUser
     private ?string $username = null;
 
     /**
-     * @var int $unit
+     * @var null|Unit $unit
      */
     #[MtColumn(columnName: "unit_id", columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Unit::class, referencedColumn: "id", deleteRule: FkRule::RESTRICT, updateRule: FkRule::CASCADE)]
-    private ?int $unit = null;
+    #[MtOneToOne(entity: Unit::class)]
+    private ?Unit $unit = null;
+
+    #[MtManyToMany(entity: Group::class, joinTable: "user_group_test", joinColumn: "user_id", inverseJoinColumn: "group_id")]
+    private ?Collection $groups = null;
 
     /**
      * Test of a variable which is not a column in the database
-     * @var int $group
+     * @var int $notColumn
      */
-    private int $group;
+    private int $notColumn;
 
     public function getId(): ?int
     {
@@ -60,12 +67,12 @@ class User extends ParentUser
         return $this;
     }
 
-    public function getUnit(): ?int
+    public function getUnit(): ?Unit
     {
         return $this->unit;
     }
 
-    public function setUnit(int $unit): self
+    public function setUnit(Unit $unit): self
     {
         $this->unit = $unit;
 

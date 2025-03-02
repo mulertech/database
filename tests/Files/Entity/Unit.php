@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\Files\Entity;
 
+use MulerTech\Database\Mapping\ColumnKey;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
 use MulerTech\Database\Tests\Files\UnitRepository;
@@ -14,7 +15,7 @@ use MulerTech\Database\Tests\Files\UnitRepository;
 #[MtEntity(repository: UnitRepository::class, tableName: "units_test", autoIncrement: 100)]
 class Unit
 {
-    #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: MtColumn::PRIMARY_KEY)]
+    #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
     #[MtColumn(columnType: "varchar(255)", isNullable: false)]
@@ -25,9 +26,11 @@ class Unit
         return $this->id;
     }
 
-    public function setId(int $id): void
+    public function setId(int $id): self
     {
         $this->id = $id;
+
+        return $this;
     }
 
     public function getName(): ?string
@@ -35,8 +38,10 @@ class Unit
         return $this->name;
     }
 
-    public function setName(string $name): void
+    public function setName(string $name): self
     {
         $this->name = $name;
+
+        return $this;
     }
 }

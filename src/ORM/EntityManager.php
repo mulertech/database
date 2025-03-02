@@ -8,6 +8,7 @@ use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
 use MulerTech\EventManager\EventManagerInterface;
 use MulerTech\HttpRequest\Session\Session;
 use PDOStatement;
+use ReflectionException;
 
 class EntityManager implements EntityManagerInterface
 {
@@ -73,12 +74,13 @@ class EntityManager implements EntityManagerInterface
 
     /**
      * @param class-string $entity
-     * @param string|int|null $idorwhere
+     * @param string|int|null $idOrWhere
      * @return Object|null
+     * @throws ReflectionException
      */
-    public function find(string $entity, string|int|null $idorwhere = null): ?Object
+    public function find(string $entity, string|int|null $idOrWhere = null): ?Object
     {
-        return $this->emEngine->find($entity, $idorwhere);
+        return $this->emEngine->find($entity, $idOrWhere);
     }
 
     /**
@@ -182,7 +184,7 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function flush(): void
     {

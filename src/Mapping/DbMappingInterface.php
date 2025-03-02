@@ -132,4 +132,32 @@ interface DbMappingInterface
      * @return string|null
      */
     public function getUpdateRule(string $entityName, string $property): ?string;
+
+    /**
+     * @param class-string $entityName
+     * @return array|null
+     * @throws ReflectionException
+     */
+    public function getOneToOne(string $entityName): ?array;
+
+    /**
+     * @param class-string $entityName
+     * @return array|null
+     * @throws ReflectionException
+     */
+    public function getOneToMany(string $entityName): ?array;
+
+    /**
+     * @param class-string $entityName
+     * @return array|null
+     * @throws ReflectionException
+     */
+    public function getManyToOne(string $entityName): ?array;
+
+    /**
+     * @param class-string $entityName
+     * @return array|null
+     * @throws ReflectionException
+     */
+    public function getManyToMany(string $entityName): ?array;
 }

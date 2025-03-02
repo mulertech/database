@@ -13,8 +13,8 @@ use Attribute;
 class MtOneToMany
 {
     /**
-     * @param class-string|null $entity
-     * @param string|null $mappedBy
+     * @param class-string|null $entity Target entity class name
+     * @param string|null $mappedBy Database column name in the target entity
      */
     public function __construct(
         public string|null $entity = null,

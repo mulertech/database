@@ -278,6 +278,65 @@
          }
 
          /**
+          * @param class-string $entityName
+          * @return array|null
+          * @throws ReflectionException
+          */
+         public function getOneToOne(string $entityName): ?array
+         {
+             return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtOneToOne::class);
+         }
+
+         /**
+          * @param class-string $entityName
+          * @return array|null
+          * @throws ReflectionException
+          */
+         public function getOneToMany(string $entityName): ?array
+         {
+             return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtOneToMany::class);
+         }
+
+         /**
+          * @param class-string $entityName
+          * @return array|null
+          * @throws ReflectionException
+          */
+         public function getManyToOne(string $entityName): ?array
+         {
+             return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtManyToOne::class);
+         }
+
+         /**
+          * @param class-string $entityName
+          * @return array|null
+          * @throws ReflectionException
+          */
+         public function getManyToMany(string $entityName): ?array
+         {
+             return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtManyToMany::class);
+         }
+
+         /**
+          * Todo : if it not used delete it
+          * @param class-string $entityName
+          * @param string $property
+          * @return MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null
+          * @throws ReflectionException
+          */
+         public function getRelatedProperty(
+             string $entityName,
+             string $property
+         ): MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null {
+             $relation = $this->getRelation($entityName, $property, MtOneToOne::class)
+                 ?? $this->getRelation($entityName, $property, MtOneToMany::class)
+                 ?? $this->getRelation($entityName, $property, MtManyToOne::class)
+                 ?? $this->getRelation($entityName, $property, MtManyToMany::class);
+
+             return $relation;
+         }
+
+         /**
           * @return void
           * @throws ReflectionException
           */
@@ -365,56 +424,15 @@
          /**
           * @param class-string $entityName
           * @param string $property
-          * @return object|null
-          * @throws ReflectionException
-          */
-         public function getOneToOne(string $entityName, string $property): ?object
-         {
-             return $this->getRelation($entityName, $property, MtOneToOne::class);
-         }
-
-         /**
-          * @param class-string $entityName
-          * @param string $property
-          * @return object|null
-          * @throws ReflectionException
-          */
-         public function getOneToMany(string $entityName, string $property): ?object
-         {
-             return $this->getRelation($entityName, $property, MtOneToMany::class);
-         }
-
-         /**
-          * @param class-string $entityName
-          * @param string $property
-          * @return object|null
-          * @throws ReflectionException
-          */
-         public function getManyToOne(string $entityName, string $property): ?object
-         {
-             return $this->getRelation($entityName, $property, MtManyToOne::class);
-         }
-
-         /**
-          * @param class-string $entityName
-          * @param string $property
-          * @return object|null
-          * @throws ReflectionException
-          */
-         public function getManyToMany(string $entityName, string $property): ?object
-         {
-             return $this->getRelation($entityName, $property, MtManyToMany::class);
-         }
-
-         /**
-          * @param class-string $entityName
-          * @param string $property
           * @param class-string $relationClass
-          * @return object|null
+          * @return MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null
           * @throws ReflectionException
           */
-         private function getRelation(string $entityName, string $property, string $relationClass): ?object
-         {
+         private function getRelation(
+             string $entityName,
+             string $property,
+             string $relationClass
+         ): MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null {
              return Php::getInstanceOfPropertiesAttributesNamed($entityName, $relationClass)[$property] ?? null;
          }
      }

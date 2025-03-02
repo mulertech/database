@@ -5,9 +5,12 @@ namespace MulerTech\Database\Tests;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\MtFk;
+use MulerTech\Database\Mapping\MtManyToMany;
+use MulerTech\Database\Mapping\MtManyToOne;
+use MulerTech\Database\Mapping\MtOneToMany;
+use MulerTech\Database\Mapping\MtOneToOne;
 use MulerTech\Database\Tests\Files\Entity\Group;
-use MulerTech\Database\Tests\Files\Entity\Groups;
-use MulerTech\Database\Tests\Files\Entity\ParentUser;
+use MulerTech\Database\Tests\Files\Entity\SameTableName;
 use MulerTech\Database\Tests\Files\Entity\SubDirectory\GroupSub;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -37,7 +40,7 @@ class MappingTest extends TestCase
      */
     public function testTableNameWithMtEntityMapping(): void
     {
-        $this->assertEquals('group', $this->getDbMapping()->getTableName(Group::class));
+        $this->assertEquals('groups_test', $this->getDbMapping()->getTableName(Group::class));
     }
 
     /**
@@ -46,7 +49,7 @@ class MappingTest extends TestCase
      */
     public function testTableNameWithoutTableNameSet(): void
     {
-        $this->assertEquals('groups', $this->getDbMapping()->getTableName(Groups::class));
+        $this->assertEquals('sametablename', $this->getDbMapping()->getTableName(SameTableName::class));
     }
 
     /**
@@ -66,7 +69,7 @@ class MappingTest extends TestCase
     {
         $dbMapping = $this->getDbMapping();
         $this->assertEquals(
-            ['group', 'groups', 'groupsub', 'parent_users_test', 'units_test', 'users_test'],
+            ['groups_test', 'groupsub', 'sametablename', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }
@@ -79,7 +82,7 @@ class MappingTest extends TestCase
     {
         $dbMapping = new DbMapping(__DIR__ . '/Files/Entity', false);
         $this->assertEquals(
-            ['group', 'groups', 'parent_users_test', 'units_test', 'users_test'],
+            ['groups_test', 'sametablename', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }
@@ -101,7 +104,7 @@ class MappingTest extends TestCase
     public function testGetEntities(): void
     {
         $this->assertEquals(
-            [Group::class, Groups::class, ParentUser::class, GroupSub::class, Unit::class, User::class],
+            [Group::class, SameTableName::class, GroupSub::class, Unit::class, User::class],
             $this->getDbMapping()->getEntities()
         );
     }
@@ -134,7 +137,7 @@ class MappingTest extends TestCase
      */
     public function testRepositoryWithoutRepositoryIntoMtEntityMapping(): void
     {
-        $this->assertEquals(null, $this->getDbMapping()->getRepository(Groups::class));
+        $this->assertEquals(null, $this->getDbMapping()->getRepository(SameTableName::class));
     }
 
     /**
@@ -163,7 +166,7 @@ class MappingTest extends TestCase
      */
     public function testNullAutoIncrement(): void
     {
-        $this->assertEquals(null, $this->getDbMapping()->getAutoIncrement(Groups::class));
+        $this->assertEquals(null, $this->getDbMapping()->getAutoIncrement(SameTableName::class));
     }
 
     /**
@@ -263,6 +266,9 @@ class MappingTest extends TestCase
         );
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testGetColumnTypeOfNonExistingColumn(): void
     {
         $this->assertEquals(
@@ -492,7 +498,98 @@ class MappingTest extends TestCase
      * @throws ReflectionException
      */
     public function testGetNullUpdateRule(): void
-        {
-            $this->assertEquals(null, $this->getDbMapping()->getUpdateRule(User::class, 'id'));
-        }
+    {
+        $this->assertEquals(
+            null,
+            $this->getDbMapping()->getUpdateRule(User::class, 'id')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetOneToOne(): void
+    {
+        $this->assertEquals(
+            ['unit' => new MtOneToOne(entity: Unit::class)],
+            $this->getDbMapping()->getOneToOne(User::class)
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNoOneToOne(): void
+    {
+        $this->assertEquals([], $this->getDbMapping()->getOneToOne(Unit::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetOneToMany(): void
+    {
+        $this->assertEquals(
+            ['children' => new MtOneToMany(entity: Group::class, mappedBy: 'parent_id')],
+            $this->getDbMapping()->getOneToMany(Group::class)
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNoOneToMany(): void
+    {
+        $this->assertEquals([], $this->getDbMapping()->getOneToMany(Unit::class));
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetManyToOne(): void
+    {
+        $this->assertEquals(
+            ['parent' => new MtManyToOne(entity: Group::class)],
+            $this->getDbMapping()->getManyToOne(Group::class)
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNoManyToOne(): void
+    {
+        $this->assertEquals([], $this->getDbMapping()->getManyToOne(Unit::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetManyToMany(): void
+    {
+        $manyToMany = new MtManyToMany(
+            entity: Group::class,
+            joinTable: 'user_group_test',
+            joinColumn: 'user_id',
+            inverseJoinColumn: 'group_id'
+        );
+        $this->assertEquals(
+            ['groups' => $manyToMany],
+            $this->getDbMapping()->getManyToMany(User::class)
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetNoManyToMany(): void
+    {
+        $this->assertEquals([], $this->getDbMapping()->getManyToMany(Unit::class));
+    }
 }

@@ -16,14 +16,6 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
     public const string DATABASE_URL = 'DATABASE_URL';
     /**
-     * @var ConnectorInterface $connector
-     */
-    private ConnectorInterface $connector;
-    /**
-     * @var array $parameters
-     */
-    private array $parameters;
-    /**
      * @var PDO PDO connection.
      */
     private PDO $connection;
@@ -35,13 +27,10 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     /**
      * PhpDatabaseManager constructor.
      * @param ConnectorInterface $connector
-     * @param $parameters
+     * @param array $parameters
      */
-    public function __construct(ConnectorInterface $connector, $parameters)
-    {
-        $this->connector = $connector;
-        $this->parameters = $parameters;
-    }
+    public function __construct(private readonly ConnectorInterface $connector, private readonly array $parameters)
+    {}
 
     /**
      * @return PDO Connection to database (PDO)
@@ -152,14 +141,18 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param string $statement
-     * @param int $mode
-     * @param null $arg3
-     * @param array $ctorargs
+     * @param string $query
+     * @param int $fetchMode
+     * @param int|string|object|null $arg3
+     * @param array|null $constructorArgs
      * @return Statement
      */
-    public function query(string $statement, int $mode = PDO::ATTR_DEFAULT_FETCH_MODE, $arg3 = null, array $ctorargs = []): Statement
-    {
+    public function query(
+        string $query,
+        int $fetchMode = PDO::ATTR_DEFAULT_FETCH_MODE,
+        int|string|object|null $arg3 = null,
+        array|null $constructorArgs = null
+    ): Statement {
         $pdo = $this->getConnection();
         $result = $pdo->query(...func_get_args());
         if (false === $result) {
@@ -167,7 +160,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 sprintf(
                     'Class : PhpDatabaseManager, function : query. The query was failed. Message : %s. Statement : %s.',
                     $this->getConnection()->errorInfo()[2],
-                    $statement
+                    $query
                 )
             );
         }
@@ -178,7 +171,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      * @param string|null $name
      * @return string
      */
-    public function lastInsertId(string $name = null): string
+    public function lastInsertId(?string $name = null): string
     {
         return $this->getConnection()->lastInsertId($name);
     }

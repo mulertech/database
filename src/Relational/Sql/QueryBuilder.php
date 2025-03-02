@@ -14,10 +14,6 @@ use RuntimeException;
  */
 class QueryBuilder
 {
-    public const RESULT_TYPE_OBJECT = 'object';
-    public const RESULT_TYPE_ARRAY = 'array';
-    public const RESULT_TYPE_ONE = 'one';
-
     /**
      * @var EmEngine $emEngine
      */
@@ -427,7 +423,13 @@ class QueryBuilder
     public function select(string ...$fields): QueryBuilder
     {
         $this->type = SqlQuery::SELECT;
-        if (strpos($fields[0], SqlQuery::DISTINCT) === 0) {
+
+        if ($fields === []) {
+            $this->select = ['*'];
+            return $this;
+        }
+
+        if (str_starts_with($fields[0], SqlQuery::DISTINCT)) {
             $this->distinct = true;
             $fields[0] = substr($fields[0], iconv_strlen(SqlQuery::DISTINCT) + 1);
         }
@@ -639,14 +641,10 @@ class QueryBuilder
      * @param string|SqlOperations $where
      * @return $this
      */
-    public function where($where): QueryBuilder
+    public function where(SqlOperations|string $where): QueryBuilder
     {
-        if ($where instanceof SqlOperations) {
-            $this->where = $where;
-        } else {
-            $sql = new SqlOperations();
-            $this->where = $sql->addOperation($where);
-        }
+        $this->where = is_string($where) ? new SqlOperations($where) : $where;
+
         return $this;
     }
 
@@ -990,7 +988,7 @@ class QueryBuilder
      * @return Statement
      * @todo link this function with the EmEngine, return format........
      */
-    public function getResult(string $type = self::RESULT_TYPE_OBJECT): Statement
+    public function getResult(): Statement
     {
         if ($this->emEngine === null) {
             throw new RuntimeException(

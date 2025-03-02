@@ -13,12 +13,7 @@ use Attribute;
 class MtOneToOne
 {
     /**
-     * @param class-string|null $entity
-     * @param string|null $mappedBy
+     * @param class-string|null $entity Target entity class name
      */
-    public function __construct(
-        public string|null $entity = null,
-        public string|null $mappedBy = null,
-    )
-    {}
+    public function __construct(public string|null $entity = null) {}
 }

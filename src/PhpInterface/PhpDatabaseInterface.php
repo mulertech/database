@@ -53,13 +53,18 @@ interface PhpDatabaseInterface
     public function exec(string $statement): int;
 
     /**
-     * @param string $statement
-     * @param int $mode
+     * @param string $query
+     * @param int $fetchMode
      * @param null $arg3
      * @param array $ctorargs
      * @return Statement
      */
-    public function query(string $statement, int $mode = PDO::ATTR_DEFAULT_FETCH_MODE, $arg3 = null, array $ctorargs = []): Statement;
+    public function query(
+        string $query,
+        int $fetchMode = PDO::ATTR_DEFAULT_FETCH_MODE,
+        int|string|object|null $arg3 = null,
+        array|null $constructorArgs = null
+    ): Statement;
 
     /**
      * @param string|null $name

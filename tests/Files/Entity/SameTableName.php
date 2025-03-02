@@ -10,7 +10,7 @@ use MulerTech\Database\Mapping\MtEntity;
  * @author Sébastien Muler
  */
 #[MtEntity]
-class Groups
+class SameTableName
 {
 
 }
