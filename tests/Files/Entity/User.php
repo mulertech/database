@@ -31,17 +31,27 @@ class User
      */
     #[MtColumn(columnName: "unit_id", columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Unit::class, referencedColumn: "id", deleteRule: FkRule::RESTRICT, updateRule: FkRule::CASCADE)]
-    #[MtOneToOne(entity: Unit::class)]
+    #[MtOneToOne(targetEntity: Unit::class)]
     private ?Unit $unit = null;
 
-    #[MtManyToMany(entity: Group::class, joinTable: "user_group_test", joinColumn: "user_id", inverseJoinColumn: "group_id")]
-    private ?Collection $groups = null;
+    #[MtManyToMany(
+        targetEntity: Group::class,
+        mappedBy: GroupUser::class,
+        joinColumn: "user_id",
+        inverseJoinColumn: "group_id"
+    )]
+    private Collection $groups;
 
     /**
      * Test of a variable which is not a column in the database
      * @var int $notColumn
      */
     private int $notColumn;
+
+    public function __construct()
+    {
+        $this->groups = new Collection();
+    }
 
     public function getId(): ?int
     {
@@ -79,5 +89,31 @@ class User
         return $this;
     }
 
+    public function getGroups(): ?Collection
+    {
+        return $this->groups;
+    }
 
+    public function setGroups(Collection $groups): self
+    {
+        $this->groups = $groups;
+
+        return $this;
+    }
+
+    public function addGroup(Group $group): self
+    {
+        if (!$this->groups->contains($group)) {
+            $this->groups->push($group);
+        }
+
+        return $this;
+    }
+
+    public function removeGroup(Group $group): self
+    {
+        $this->groups->removeItem($group);
+
+        return $this;
+    }
 }

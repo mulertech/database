@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests;
 
+use MulerTech\Collections\Collection;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
@@ -52,6 +53,15 @@ class ORMTest extends TestCase
         $pdo->exec($query);
     }
 
+    private function createLinkUserGroupTestTable(): void
+    {
+        $pdo = $this->getPhpDatabaseManager();
+        $query = 'DROP TABLE IF EXISTS link_user_group_test';
+        $pdo->exec($query);
+        $query = 'CREATE TABLE IF NOT EXISTS link_user_group_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED, group_id INT UNSIGNED)';
+        $pdo->exec($query);
+    }
+
     public function getEntityManager(): EntityManagerInterface
     {
         $this->eventManager = new EventManager();
@@ -72,6 +82,8 @@ class ORMTest extends TestCase
     public function testFindEntityWithOneToOneRelation(): void
     {
         $this->createUserTestTable();
+        $this->createGroupTestTable();
+        $this->createLinkUserGroupTestTable();
         $em = $this->getEntityManager();
         $unit = new Unit()->setName('JohnUnit');
         $em->persist($unit);
@@ -97,7 +109,7 @@ class ORMTest extends TestCase
         $group2->setParent($group1);
         $group3 = new Group();
         $group3->setName('Group3');
-        $group3->setParent($group1);
+        $group1->addChild($group3);
         $em->persist($group1);
         $em->persist($group2);
         $em->persist($group3);
@@ -127,6 +139,36 @@ class ORMTest extends TestCase
         $group = $em->find(Group::class, 'name=\'Group2\'');
         self::assertInstanceOf(Group::class, $group);
         self::assertEquals('Group1', $group->getParent()->getName());
+    }
+
+    public function testFindEntityWithManyToManyRelation(): void
+    {
+        $this->createUserTestTable();
+        $this->createGroupTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->getEntityManager();
+        $group1 = new Group();
+        $group1->setName('Group1');
+        $group2 = new Group();
+        $group2->setName('Group2');
+        $user1 = new User();
+        $user1->setUsername('User1');
+        $user2 = new User();
+        $user2->setUsername('User2');
+        $user1->addGroup($group1);
+        $user1->addGroup($group2);
+        $user2->addGroup($group1);
+        $em->persist($group1);
+        $em->persist($group2);
+        $em->persist($user1);
+        $em->persist($user2);
+        $em->flush();
+        $newUser1 = $em->find(User::class, 'username=\'User1\'');
+        var_dump($newUser1);
+        self::assertEquals(
+            2,
+            count($em->find(User::class, 'username=\'User1\'')->getGroups())
+        );
     }
 
     public function testExecuteInsertionsAndPostPersistEvent(): void

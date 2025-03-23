@@ -15,7 +15,9 @@ use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PrePersistEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\MtFk;
+use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\PhpInterface\Statement;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\DateTimeFormat\DateFormat;
@@ -66,6 +68,15 @@ class EmEngine
      */
     private array $entityDeletions = [];
     /**
+     * @var array<object> The list of MtManyToMany objects to be inserted.
+     */
+    private array $manyToManyInsertions = [];
+    /**
+     * @var array<int, array<int, int>> The list of entities to be inserted into a pivot table. For example :
+     * [$objectId1 => [$objectId2, $objectId3]]
+     */
+    private array $collectionUpdates = [];
+    /**
      * @var array<int, array<string, array<int, string>>> Save all the entity changes example :
      * [$objectId => [$property => [$oldValue, $newValue]]]
      */
@@ -75,6 +86,11 @@ class EmEngine
      * [$objectId => [$property => $value]]
      */
     private array $originalEntityData = [];
+    /**
+     * @var array<int, array<int>> $entityInsertionOrder
+     * * [$objectId1 => [$objectId2, $objectId3]] $objectId1 must be inserted after $objectId2 and $objectId3
+     */
+    private array $entityInsertionOrder = [];
     /**
      * @var array<class-string, array<int, string>> Save the entity and this event when updated example :
      * [$entityName => $eventCalled]
@@ -133,7 +149,6 @@ class EmEngine
         } else {
             $this->entityName = $entity;
         }
-
     }
 
     /**
@@ -162,38 +177,46 @@ class EmEngine
 
     /**
      * @param QueryBuilder $queryBuilder
-     * @param EntityManagerResultType $resultType
      * @param class-string $entityName
-     * @return object|Collection|null
+     * @param bool $loadRelations
+     * @return object|null
      * @throws ReflectionException
      */
-    public function getQueryBuilderResult(
+    public function getQueryBuilderObjectResult(
         QueryBuilder $queryBuilder,
-        EntityManagerResultType $resultType,
         string $entityName,
         bool $loadRelations = true
-    ): object|array|null {
+    ): ?object {
         $pdoStatement = $queryBuilder->getResult();
-
         $pdoStatement->execute();
+        $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
 
-        if ($resultType === EntityManagerResultType::OBJECT) {
-            $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
-            $fetchClass = $pdoStatement->fetch();
-            $pdoStatement->closeCursor();
+        $fetchClass = $pdoStatement->fetch();
+        $pdoStatement->closeCursor();
 
-            if ($fetchClass === false) {
-                return null;
-            }
-
-            $this->computeOriginalEntity($fetchClass);
-
-            if ($loadRelations) {
-                $this->loadEntityRelations($fetchClass);
-            }
-
-            return $fetchClass;
+        if ($fetchClass === false) {
+            return null;
         }
+
+        $this->manageNewEntity($fetchClass, $loadRelations);
+
+        return $fetchClass;
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param class-string $entityName
+     * @param bool $loadRelations
+     * @return array|null
+     * @throws ReflectionException
+     */
+    public function getQueryBuilderListResult(
+        QueryBuilder $queryBuilder,
+        string $entityName,
+        bool $loadRelations = true
+    ): ?array {
+        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement->execute();
 
         $classList = $pdoStatement->fetchAll(PDO::FETCH_CLASS, $entityName);
 
@@ -204,14 +227,54 @@ class EmEngine
         $pdoStatement->closeCursor();
 
         foreach ($classList as $class) {
-            $this->computeOriginalEntity($class);
-
-            if ($loadRelations) {
-                $this->loadEntityRelations($class);
-            }
+            $this->manageNewEntity($class, $loadRelations);
         }
 
-        return new Collection($classList);
+        return $classList;
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param class-string $entityName
+     * @param bool $loadRelations
+     * @return array|null
+     * @throws ReflectionException
+     */
+    public function getQueryBuilderListKeyByIdResult(
+        QueryBuilder $queryBuilder,
+        string $entityName,
+        bool $loadRelations = true
+    ): ?array {
+        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement->execute();
+
+        $classList = $pdoStatement->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_CLASS, $entityName);
+
+        if ($classList === []) {
+            return null;
+        }
+
+        $pdoStatement->closeCursor();
+
+        foreach ($classList as $class) {
+            $this->manageNewEntity($class, $loadRelations);
+        }
+
+        return $classList;
+    }
+
+    /**
+     * @param Object $entity
+     * @param bool $loadRelations
+     * @throws ReflectionException
+     */
+    private function manageNewEntity(Object $entity, bool $loadRelations): void
+    {
+        $this->computeOriginalEntity($entity);
+
+        if ($loadRelations) {
+            $this->loadEntityRelations($entity);
+        }
     }
 
     /**
@@ -292,7 +355,8 @@ class EmEngine
     {
         if (!empty($this->entityInsertions)) {
             $entities = [];
-            foreach ($this->entityInsertions as $uio => $entity) {
+
+            foreach ($this->getEntityInsertions() as $uio => $entity) {
                 $queryBuilder = $this->generateInsertQueryBuilder($entity);
 
                 //prepare request
@@ -318,6 +382,27 @@ class EmEngine
                 }
             }
         }
+    }
+
+    /**
+     * @return array
+     */
+    private function getEntityInsertions(): array
+    {
+        $first = [];
+        $second = [];
+
+        foreach ($this->entityInsertionOrder as $childEntities) {
+            foreach ($childEntities as $childEntityId) {
+                if (!isset($this->entityInsertionOrder[$childEntityId])) {
+                    $first[$childEntityId] = $this->entityInsertions[$childEntityId];
+                    continue;
+                }
+                $second[$childEntityId] = $this->entityInsertions[$childEntityId];
+            }
+        }
+
+        return $first + $second + $this->entityInsertions;
     }
 
     /**
@@ -401,7 +486,7 @@ class EmEngine
             $queryBuilder->where($idOrWhere);
         }
 
-        return $this->getQueryBuilderResult($queryBuilder, EntityManagerResultType::OBJECT, $entityName);
+        return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
     }
 
     /**
@@ -629,6 +714,7 @@ class EmEngine
 
         // process flush entities
         $this->entityManager->getPdm()->beginTransaction();
+
         if (!empty($this->entityInsertions)) {
             $this->executeInsertions();
         }
@@ -639,6 +725,11 @@ class EmEngine
 
         if (!empty($this->entityDeletions)) {
             $this->executeDeletions();
+        }
+
+        // Todo : executeManyToManyRelations
+        if (!empty($this->manyToManyInsertions)) {
+            $this->executeManyToManyRelations();
         }
 
         $this->entityManager->getPdm()->commit();
@@ -734,12 +825,16 @@ class EmEngine
                 continue;
             }
 
+            // One-to-one entity relation who is not persisted yet (not id)
+            // Add the entity to the entityInsertions list and persist it
             if (is_object($newValue)
                 && is_null($newValue->getId())
-                && !isset($this->entityInsertions[spl_object_id($newValue)])
             ) {
-                $this->persist($newValue);
-                $this->computeEntityChanges($newValue);
+                if (!isset($this->entityInsertions[spl_object_id($newValue)])) {
+                    $this->persist($newValue);
+                    $this->computeEntityChanges($newValue);
+                }
+                $this->entityInsertionOrder[spl_object_id($entity)] = [spl_object_id($newValue)];
             }
 
             $entityChanges[$property] = [$oldValue, $newValue];
@@ -754,22 +849,84 @@ class EmEngine
             $this->entityUpdates[spl_object_id($entity)] = $entity;
         }
 
+        $this->manageOneToManyRelations($entity, $entityReflection);
+        $this->manageManyToManyRelations($entity, $entityReflection);
+
         $this->entityChanges[spl_object_id($entity)] = $entityChanges;
     }
 
     /**
-     * Todo : remove this method if it is not used
+     * This method is used to manage the related entities not persisted yet
      * @param Object $entity
-     * @return void
+     * @param ReflectionClass $entityReflection
+     * @throws ReflectionException
      */
-    private function setEntityUpdates(Object $entity): void
+    private function manageOneToManyRelations(Object $entity, ReflectionClass $entityReflection): void
     {
-        $this->entityUpdates[spl_object_id($entity)] = $entity;
+        $entityName = get_class($entity);
+        foreach ($this->entityManager->getDbMapping()->getOneToMany($entityName) as $property => $oneToMany) {
+            $entities = $entityReflection->getProperty($property)->getValue($entity);
 
-        /**
-         * Prevent identical spl_object_id
-         */
-        unset($this->entityChanges[spl_object_id($entity)]);
+            if (!$entities instanceof Collection) {
+                continue;
+            }
+
+            foreach ($entities->items() as $relatedEntity) {
+                // Check if the related entity is not already managed
+                if (is_object($relatedEntity) && $relatedEntity->getId() === null) {
+                    $this->persist($relatedEntity);
+                    $this->computeEntityChanges($relatedEntity);
+                }
+            }
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function manageManyToManyRelations(Object $entity, ReflectionClass $entityReflection): void
+    {
+        $entityName = get_class($entity);
+        foreach ($this->entityManager->getDbMapping()->getManyToMany($entityName) as $property => $manyToMany) {
+            $entities = $entityReflection->getProperty($property)->getValue($entity);
+
+            if (!$entities instanceof Collection) {
+                continue;
+            }
+
+            // Check for any changes in the collection
+//            if ($entities->hasChanges()) {
+//                // Process added entities
+//                foreach ($entities->getAddedEntities() as $relatedEntity) {
+//                    // Check if the related entity is not already managed and if not persist it
+//                    if (is_object($relatedEntity)
+//                        && $relatedEntity->getId() === null
+//                        && !isset($this->entityInsertions[spl_object_id($relatedEntity)])
+//                    ) {
+//                        $this->persist($relatedEntity);
+//                        $this->computeEntityChanges($relatedEntity);
+//                    }
+//
+//                    // Add to many-to-many insertions
+//                    $this->manyToManyInsertions[] = [
+//                        'entity' => $entity,
+//                        'related' => $relatedEntity,
+//                        'property' => $property
+//                    ];
+//                }
+//
+//                // Process removed entities
+//                foreach ($entities->getRemovedEntities() as $relatedEntity) {
+//                    // Track removals for many-to-many relationships
+//                    $this->manyToManyInsertions[] = [
+//                        'entity' => $entity,
+//                        'related' => $relatedEntity,
+//                        'property' => $property,
+//                        'action' => 'remove'
+//                    ];
+//                }
+//            }
+        }
     }
 
     /** Find MySql join from the path with the constraints schema
@@ -1018,6 +1175,40 @@ class EmEngine
                     $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
                 }
             }
+        }
+    }
+
+    /**
+     * Process many-to-many relationship changes in database
+     * This method should be called during flush
+     */
+    private function executeManyToManyRelations(): void
+    {
+        if (empty($this->manyToManyInsertions)) {
+            return;
+        }
+
+        foreach ($this->manyToManyInsertions as $key => $relation) {
+            $entity = $relation['entity'];
+            $relatedEntity = $relation['related'];
+            $property = $relation['property'];
+            $action = $relation['action'] ?? 'insert';
+
+            $entityName = get_class($entity);
+            $manyToManyInfo = $this->entityManager->getDbMapping()->getManyToMany($entityName)[$property];
+
+            // TODO: Implement the actual database operations
+            // For inserts: INSERT INTO pivot_table (entity_id, related_id) VALUES (?, ?)
+            // For removals: DELETE FROM pivot_table WHERE entity_id = ? AND related_id = ?
+
+            // Placeholder for implementation
+            if ($action === 'insert') {
+                // Create insert query to pivot table
+            } else {
+                // Create delete query from pivot table
+            }
+
+            unset($this->manyToManyInsertions[$key]);
         }
     }
 

@@ -28,11 +28,29 @@ class Group
 
     #[MtColumn(columnName: 'parent_id', columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Group::class, referencedColumn: "id")]
-    #[MtManyToOne(entity: Group::class)]
+    #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $parent = null;
 
-    #[MtOneToMany(entity: Group::class, mappedBy: "parent_id")]
-    private ?Collection $children = null;
+    #[MtOneToMany(targetEntity: Group::class, mappedBy: "parent")]
+    private Collection $children;
+
+    #[MtManyToMany(
+        targetEntity: User::class,
+        mappedBy: GroupUser::class,
+        joinColumn: "group_id",
+        inverseJoinColumn: "user_id"
+    )]
+    private Collection $users;
+
+    public function __construct()
+    {
+        $this->children = new Collection();
+        $this->users = new Collection();
+    }
+
+     /**
+     * @return Collection
+     */
 
     public function getId(): ?int
     {
@@ -63,7 +81,7 @@ class Group
         return $this->parent;
     }
 
-    public function setParent(Group $parent): self
+    public function setParent(?Group $parent): self
     {
         $this->parent = $parent;
 
@@ -78,6 +96,48 @@ class Group
     public function setChildren(Collection $children): self
     {
         $this->children = $children;
+        foreach ($children as $child) {
+            $child->setParent($this);
+        }
+
+        return $this;
+    }
+
+    public function addChild(Group $child): self
+    {
+        if (!$this->children->contains($child)) {
+            $this->children->push($child);
+            $child->setParent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChild(Group $child): self
+    {
+        $this->children->removeItem($child);
+        $child->setParent(null);
+
+        return $this;
+    }
+
+    public function getUsers(): ?Collection
+    {
+        return $this->users;
+    }
+
+    public function setUsers(Collection $users): self
+    {
+        $this->users = $users;
+
+        return $this;
+    }
+
+    public function addUser(User $user): self
+    {
+        if (!$this->users->contains($user)) {
+            $this->users->push($user);
+        }
 
         return $this;
     }

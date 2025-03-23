@@ -11,4 +11,5 @@ enum EntityManagerResultType: string
 {
     case OBJECT = 'object';
     case LIST = 'list';
+    case LIST_KEY_BY_ID = 'list_key_by_id';
 }

@@ -511,7 +511,7 @@ class MappingTest extends TestCase
     public function testGetOneToOne(): void
     {
         $this->assertEquals(
-            ['unit' => new MtOneToOne(entity: Unit::class)],
+            ['unit' => new MtOneToOne(targetEntity: Unit::class)],
             $this->getDbMapping()->getOneToOne(User::class)
         );
     }
@@ -532,7 +532,7 @@ class MappingTest extends TestCase
     public function testGetOneToMany(): void
     {
         $this->assertEquals(
-            ['children' => new MtOneToMany(entity: Group::class, mappedBy: 'parent_id')],
+            ['children' => new MtOneToMany(targetEntity: Group::class, mappedBy: 'parent_id')],
             $this->getDbMapping()->getOneToMany(Group::class)
         );
     }
@@ -552,7 +552,7 @@ class MappingTest extends TestCase
     public function testGetManyToOne(): void
     {
         $this->assertEquals(
-            ['parent' => new MtManyToOne(entity: Group::class)],
+            ['parent' => new MtManyToOne(targetEntity: Group::class)],
             $this->getDbMapping()->getManyToOne(Group::class)
         );
     }
@@ -573,9 +573,9 @@ class MappingTest extends TestCase
     public function testGetManyToMany(): void
     {
         $manyToMany = new MtManyToMany(
-            entity: Group::class,
-            joinTable: 'user_group_test',
-            joinColumn: 'user_id',
+            targetEntity:      Group::class,
+            joinEntity:        'link_user_group_test',
+            joinColumn:        'user_id',
             inverseJoinColumn: 'group_id'
         );
         $this->assertEquals(

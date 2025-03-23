@@ -2,6 +2,8 @@
 
 namespace MulerTech\Database\Mapping;
 
+use ReflectionException;
+
 /**
  * Interface DbMappingInterface
  * @package MulerTech\Database\Mapping
