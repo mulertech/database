@@ -389,6 +389,10 @@ class EmEngine
      */
     private function getEntityInsertions(): array
     {
+        if (empty($this->entityInsertionOrder)) {
+            return $this->entityInsertions;
+        }
+
         $first = [];
         $second = [];
 
@@ -400,6 +404,14 @@ class EmEngine
                 }
                 $second[$childEntityId] = $this->entityInsertions[$childEntityId];
             }
+        }
+
+        if ($first === []) {
+            return $second + $this->entityInsertions;
+        }
+
+        if ($second === []) {
+            return $first + $this->entityInsertions;
         }
 
         return $first + $second + $this->entityInsertions;
@@ -689,7 +701,7 @@ class EmEngine
      */
     public function persist(Object $entity): void
     {
-        if ($entity->getId() === null) {
+        if ($entity->getId() === null && !isset($this->entityInsertions[spl_object_id($entity)])) {
             //Event Pre persist
             if ($this->eventManager) {
                 $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager));
@@ -727,7 +739,6 @@ class EmEngine
             $this->executeDeletions();
         }
 
-        // Todo : executeManyToManyRelations
         if (!empty($this->manyToManyInsertions)) {
             $this->executeManyToManyRelations();
         }
@@ -890,43 +901,62 @@ class EmEngine
         foreach ($this->entityManager->getDbMapping()->getManyToMany($entityName) as $property => $manyToMany) {
             $entities = $entityReflection->getProperty($property)->getValue($entity);
 
-            if (!$entities instanceof Collection) {
+            if ($entities instanceof Collection) {
+                if (count($entities) === 0) {
+                    continue;
+                }
+
+                // If the collection is instance of Collection, all the related entities are not persisted yet
+                foreach ($entities->items() as $relatedEntity) {
+                    $this->manyToManyInsertions[] = [
+                        'entity' => $entity,
+                        'related' => $relatedEntity,
+                        'manyToMany' => $manyToMany,
+                    ];
+                }
                 continue;
             }
 
             // Check for any changes in the collection
-//            if ($entities->hasChanges()) {
-//                // Process added entities
-//                foreach ($entities->getAddedEntities() as $relatedEntity) {
-//                    // Check if the related entity is not already managed and if not persist it
-//                    if (is_object($relatedEntity)
-//                        && $relatedEntity->getId() === null
-//                        && !isset($this->entityInsertions[spl_object_id($relatedEntity)])
-//                    ) {
-//                        $this->persist($relatedEntity);
-//                        $this->computeEntityChanges($relatedEntity);
-//                    }
-//
-//                    // Add to many-to-many insertions
-//                    $this->manyToManyInsertions[] = [
-//                        'entity' => $entity,
-//                        'related' => $relatedEntity,
-//                        'property' => $property
-//                    ];
-//                }
-//
-//                // Process removed entities
-//                foreach ($entities->getRemovedEntities() as $relatedEntity) {
-//                    // Track removals for many-to-many relationships
-//                    $this->manyToManyInsertions[] = [
-//                        'entity' => $entity,
-//                        'related' => $relatedEntity,
-//                        'property' => $property,
-//                        'action' => 'remove'
-//                    ];
-//                }
-//            }
+            $addedEntities = $entities->getAddedEntities();
+            if (!empty($addedEntities)) {
+                // Process added entities
+                foreach ($entities->getAddedEntities() as $relatedEntity) {
+                    $this->manyToManyInsertions[] = [
+                        'entity' => $entity,
+                        'related' => $relatedEntity,
+                        'manyToMany' => $manyToMany,
+                    ];
+                }
+            }
+
+            // Check for any deletions
+            $deletedEntities = $entities->getDeletedEntities();
+            if (!empty($deletedEntities)) {
+                // Process deleted entities
+                foreach ($deletedEntities as $relatedEntity) {
+                    $this->manyToManyInsertions[] = [
+                        'entity' => $entity,
+                        'related' => $relatedEntity,
+                        'manyToMany' => $manyToMany,
+                        'action' => 'delete'
+                    ];
+                }
+            }
         }
+    }
+
+    private function createLinkEntity(
+        MtManyToMany $manyToMany,
+        Object $entity,
+        Object $relatedEntity
+    ): object {
+        $linkEntity = new $manyToMany->mappedBy();
+        $setEntity = 'set' . ucfirst($manyToMany->joinProperty);
+        $setRelatedEntity = 'set' . ucfirst($manyToMany->inverseJoinProperty);
+        $linkEntity->$setEntity($entity);
+        $linkEntity->$setRelatedEntity($relatedEntity);
+        return $linkEntity;
     }
 
     /** Find MySql join from the path with the constraints schema
@@ -1181,6 +1211,7 @@ class EmEngine
     /**
      * Process many-to-many relationship changes in database
      * This method should be called during flush
+     * @throws ReflectionException
      */
     private function executeManyToManyRelations(): void
     {
@@ -1191,25 +1222,64 @@ class EmEngine
         foreach ($this->manyToManyInsertions as $key => $relation) {
             $entity = $relation['entity'];
             $relatedEntity = $relation['related'];
-            $property = $relation['property'];
+            $manyToMany = $relation['manyToMany'];
             $action = $relation['action'] ?? 'insert';
 
-            $entityName = get_class($entity);
-            $manyToManyInfo = $this->entityManager->getDbMapping()->getManyToMany($entityName)[$property];
+            $linkRelation = $this->getLinkRelation($manyToMany, $entity, $relatedEntity);
+            if (!is_null($linkRelation)) {
+                if ($action === 'delete') {
+                    $this->remove($linkRelation);
+                }
 
-            // TODO: Implement the actual database operations
-            // For inserts: INSERT INTO pivot_table (entity_id, related_id) VALUES (?, ?)
-            // For removals: DELETE FROM pivot_table WHERE entity_id = ? AND related_id = ?
+                unset($this->manyToManyInsertions[$key]);
+                continue;
+            }
 
-            // Placeholder for implementation
+            // Unmanaged entities
+            $linkEntity = $this->createLinkEntity($manyToMany, $entity, $relatedEntity);
             if ($action === 'insert') {
-                // Create insert query to pivot table
+                $this->persist($linkEntity);
             } else {
-                // Create delete query from pivot table
+                $this->remove($linkEntity);
             }
 
             unset($this->manyToManyInsertions[$key]);
         }
+        $this->flush();
+    }
+
+    private function getLinkRelation(MtManyToMany $manyToMany, object $entity, object $relatedEntity): ?object
+    {
+        if ($manyToMany->entity === null) {
+            $manyToMany->entity = $entity::class;
+        }
+
+        if ($manyToMany->joinProperty === null || $manyToMany->inverseJoinProperty === null) {
+            throw new RuntimeException(
+                sprintf(
+                    'Invalid MtManyToMany relation configuration between %s and %s classes.',
+                    $entity::class,
+                    $relatedEntity::class
+                )
+            );
+        }
+
+        foreach ($this->managedEntities as $managedEntity) {
+            if (!($managedEntity instanceof $manyToMany->mappedBy)) {
+                continue;
+            }
+
+            $getEntity = 'get' . ucfirst($manyToMany->joinProperty);
+            $getRelatedEntity = 'get' . ucfirst($manyToMany->inverseJoinProperty);
+
+            if ($managedEntity->$getEntity() === $entity->id
+                && $managedEntity->$getRelatedEntity() === $relatedEntity->id
+            ) {
+                return $managedEntity;
+            }
+        }
+
+        return null;
     }
 
     /**

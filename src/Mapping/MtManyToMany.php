@@ -16,16 +16,16 @@ class MtManyToMany
      * @param class-string|null $targetEntity Target entity class name
      * @param class-string|null $mappedBy Pivot Entity
      * @param string|null $joinTable Pivot table name
-     * @param string|null $joinColumn Pivot table column name
-     * @param string|null $inverseJoinColumn Pivot table column name of the target entity
+     * @param string|null $joinProperty
+     * @param string|null $inverseJoinProperty
      */
     public function __construct(
         public string|null $entity = null,
         public string|null $targetEntity = null,
         public string|null $mappedBy = null,
         public string|null $joinTable = null,
-        public string|null $joinColumn = null,
-        public string|null $inverseJoinColumn = null,
+        public string|null $joinProperty = null,
+        public string|null $inverseJoinProperty = null,
     )
     {}
 }

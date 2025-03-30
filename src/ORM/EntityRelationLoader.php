@@ -28,6 +28,10 @@ class EntityRelationLoader
         $this->dbMapping = $entityManager->getDbMapping();
     }
 
+    /**
+     * Todo: delete this method if not used
+     * @throws ReflectionException
+     */
     public function loadEntities(array $entities, int $level = 0): void
     {
         if ($level > 10) {
@@ -213,16 +217,18 @@ class EntityRelationLoader
                 sprintf('MtEntity->tableName not define for %s class', $manyToMany->mappedBy)
             );
         }
-        if ($manyToMany->inverseJoinColumn === null) {
+        if ($manyToMany->inverseJoinProperty === null) {
             throw new RuntimeException(
-                sprintf('MtManyToMany->inverseJoinColumn not define for %s class', get_class($entity))
+                sprintf('MtManyToMany->inverseJoinProperty not define for %s class', get_class($entity))
             );
         }
-        if ($manyToMany->joinColumn === null) {
+        if ($manyToMany->joinProperty === null) {
             throw new RuntimeException(
-                sprintf('MtManyToMany->joinColumn not define for %s class', get_class($entity))
+                sprintf('MtManyToMany->joinProperty not define for %s class', get_class($entity))
             );
         }
+
+        $joinColumn = $this->dbMapping->getColumnName($manyToMany->mappedBy, $manyToMany->joinProperty);
 
         $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
         $queryBuilder
@@ -231,9 +237,8 @@ class EntityRelationLoader
             ->innerJoin(
                 $table . ' t',
                 $pivotTable . ' j',
-                SqlOperations::equal('j.' . $manyToMany->inverseJoinColumn, 't.id')
-            )
-            ->where(SqlOperations::equal('j.' . $manyToMany->joinColumn, $entityId));
+                SqlOperations::equal('j.' . $joinColumn, 't.id')
+            );
 
         $manyToManyResult = $this->entityManager->getEmEngine()->getQueryBuilderListKeyByIdResult(
             $queryBuilder,

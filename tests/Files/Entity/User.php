@@ -37,8 +37,8 @@ class User
     #[MtManyToMany(
         targetEntity: Group::class,
         mappedBy: GroupUser::class,
-        joinColumn: "user_id",
-        inverseJoinColumn: "group_id"
+        joinProperty: "user",
+        inverseJoinProperty: "group"
     )]
     private Collection $groups;
 

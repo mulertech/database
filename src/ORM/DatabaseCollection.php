@@ -94,7 +94,7 @@ class DatabaseCollection extends Collection
             $this->persistOneToManyRelations($entity);
         }
 
-        // Delete the pivot entity for the removed entities
+        // Todo: Delete the pivot entity for the removed entities
     }
 
     private function persistOneToManyRelations(object $entity): void

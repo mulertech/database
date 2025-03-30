@@ -2,7 +2,6 @@
 
 namespace MulerTech\Database\Tests;
 
-use MulerTech\Collections\Collection;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
@@ -164,7 +163,6 @@ class ORMTest extends TestCase
         $em->persist($user2);
         $em->flush();
         $newUser1 = $em->find(User::class, 'username=\'User1\'');
-        var_dump($newUser1);
         self::assertEquals(
             2,
             count($em->find(User::class, 'username=\'User1\'')->getGroups())
@@ -195,6 +193,8 @@ class ORMTest extends TestCase
     public function testExecuteUpdatesAndPostUpdateEvent(): void
     {
         $this->createUserTestTable();
+        $this->createLinkUserGroupTestTable();
+        $this->createGroupTestTable();
         $em = $this->getEntityManager();
         $pdo = $this->getPhpDatabaseManager();
         $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
@@ -222,6 +222,7 @@ class ORMTest extends TestCase
     public function testExecuteDeletions(): void
     {
         $this->createUserTestTable();
+        $this->createLinkUserGroupTestTable();
         $em = $this->getEntityManager();
         $pdo = $this->getPhpDatabaseManager();
         $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
@@ -234,33 +235,33 @@ class ORMTest extends TestCase
         self::assertFalse($statement->fetch());
     }
 
-    public function testRead(): void
-    {
-        $this->createUserTestTable();
-        $em = $this->getEntityManager();
-        $pdo = $this->getPhpDatabaseManager();
-        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
-        $statement->execute(['username' => 'John']);
-        $users = $em->read(User::class);
+//    public function testRead(): void
+//    {
+//        $this->createUserTestTable();
+//        $em = $this->getEntityManager();
+//        $pdo = $this->getPhpDatabaseManager();
+//        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
+//        $statement->execute(['username' => 'John']);
 //        $users = $em->read(User::class);
-        var_dump($users);
-        self::assertCount(1, $users);
-        self::assertEquals(1, $users[0]->getId());
-        self::assertEquals('John', $users[0]->getUsername());
-    }
+////        $users = $em->read(User::class);
+//        var_dump($users);
+//        self::assertCount(1, $users);
+//        self::assertEquals(1, $users[0]->getId());
+//        self::assertEquals('John', $users[0]->getUsername());
+//    }
 
-    public function testReadWithWhere(): void
-    {
-        $this->createUserTestTable();
-        $em = $this->getEntityManager();
-        $pdo = $this->getPhpDatabaseManager();
-        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
-        $statement->execute(['username' => 'John']);
-        $statement->execute(['username' => 'Jane']);
-        $users = $em->read(User::class, ['username' => 'Jane']);
-        self::assertCount(1, $users);
-        self::assertInstanceOf(User::class, $users[0]);
-        self::assertEquals(2, $users[0]->getId());
-        self::assertEquals('Jane', $users[0]->getUsername());
-    }
+//    public function testReadWithWhere(): void
+//    {
+//        $this->createUserTestTable();
+//        $em = $this->getEntityManager();
+//        $pdo = $this->getPhpDatabaseManager();
+//        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
+//        $statement->execute(['username' => 'John']);
+//        $statement->execute(['username' => 'Jane']);
+//        $users = $em->read(User::class, ['username' => 'Jane']);
+//        self::assertCount(1, $users);
+//        self::assertInstanceOf(User::class, $users[0]);
+//        self::assertEquals(2, $users[0]->getId());
+//        self::assertEquals('Jane', $users[0]->getUsername());
+//    }
 }

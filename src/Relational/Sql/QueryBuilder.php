@@ -299,7 +299,7 @@ class QueryBuilder
         if (!empty($unionAll = $this->unionAll)) {
             return implode(' ' . SqlQuery::UNION_ALL . ' ', $unionAll);
         }
-        return (new SqlQuery($this))->generateQuery();
+        return new SqlQuery($this)->generateQuery();
     }
 
     /**
