@@ -20,7 +20,6 @@ use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\PhpInterface\Statement;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\DateTimeFormat\DateFormat;
 use MulerTech\EventManager\EventManagerInterface;
 use MulerTech\FileManipulation\FileType\Json;
 use PDO;
@@ -1780,7 +1779,7 @@ class EmEngine
                 $version->setId(1);
             }
             $version->setVersion($this->openDbStructure()['dbversion']);
-            $version->setDate_version((new DateFormat())->dateTime());
+            $version->setDate_version(date('Y-m-d H:i:s'));
             $this->persist($version);
             $this->flush();
         }

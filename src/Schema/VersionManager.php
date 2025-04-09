@@ -4,7 +4,6 @@
 
     use MulerTech\Database\Entity\Version;
     use MulerTech\Database\ORM\EntityManagerInterface;
-    use DateFormat;
 
     class VersionManager
     {
@@ -46,7 +45,7 @@
             }
 
             $version->setVersion($newVersion);
-            $version->setDate_version((new DateFormat())->dateTime());
+            $version->setDate_version(date('Y-m-d H:i:s'));
             $this->entityManager->flush();
         }
 
