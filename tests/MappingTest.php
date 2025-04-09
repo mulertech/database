@@ -10,6 +10,7 @@ use MulerTech\Database\Mapping\MtManyToOne;
 use MulerTech\Database\Mapping\MtOneToMany;
 use MulerTech\Database\Mapping\MtOneToOne;
 use MulerTech\Database\Tests\Files\Entity\Group;
+use MulerTech\Database\Tests\Files\Entity\GroupUser;
 use MulerTech\Database\Tests\Files\Entity\SameTableName;
 use MulerTech\Database\Tests\Files\Entity\SubDirectory\GroupSub;
 use MulerTech\Database\Tests\Files\Entity\Unit;
@@ -69,7 +70,7 @@ class MappingTest extends TestCase
     {
         $dbMapping = $this->getDbMapping();
         $this->assertEquals(
-            ['groups_test', 'groupsub', 'sametablename', 'units_test', 'users_test'],
+            ['groups_test', 'groupsub', 'link_user_group_test', 'sametablename', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }
@@ -82,7 +83,7 @@ class MappingTest extends TestCase
     {
         $dbMapping = new DbMapping(__DIR__ . '/Files/Entity', false);
         $this->assertEquals(
-            ['groups_test', 'sametablename', 'units_test', 'users_test'],
+            ['groups_test', 'link_user_group_test', 'sametablename', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }
@@ -104,7 +105,7 @@ class MappingTest extends TestCase
     public function testGetEntities(): void
     {
         $this->assertEquals(
-            [Group::class, SameTableName::class, GroupSub::class, Unit::class, User::class],
+            [Group::class, GroupUser::class, SameTableName::class, GroupSub::class, Unit::class, User::class],
             $this->getDbMapping()->getEntities()
         );
     }
@@ -532,7 +533,7 @@ class MappingTest extends TestCase
     public function testGetOneToMany(): void
     {
         $this->assertEquals(
-            ['children' => new MtOneToMany(targetEntity: Group::class, mappedBy: 'parent_id')],
+            ['children' => new MtOneToMany(targetEntity: Group::class, mappedBy: 'parent')],
             $this->getDbMapping()->getOneToMany(Group::class)
         );
     }
@@ -574,9 +575,9 @@ class MappingTest extends TestCase
     {
         $manyToMany = new MtManyToMany(
             targetEntity:      Group::class,
-            joinEntity:        'link_user_group_test',
-            joinColumn:        'user_id',
-            inverseJoinColumn: 'group_id'
+            mappedBy:        GroupUser::class,
+            joinProperty:        'user',
+            inverseJoinProperty: 'group'
         );
         $this->assertEquals(
             ['groups' => $manyToMany],

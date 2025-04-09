@@ -17,7 +17,6 @@ use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\PhpInterface\Statement;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManagerInterface;
