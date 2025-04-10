@@ -25,7 +25,7 @@
 
          /**
           * @param class-string $entityName
-          * return string|null
+          * @return string|null
           * @throws ReflectionException
           */
          public function getTableName(string $entityName): ?string

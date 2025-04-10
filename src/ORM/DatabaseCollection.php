@@ -99,7 +99,7 @@ class DatabaseCollection extends Collection
 
     private function persistOneToManyRelations(object $entity): void
     {
-        $mapedBy = $this->relationalMapping->mappedBy;
+        $mapedBy = $this->relationalMapping->inverseJoinProperty;
         if ($mapedBy === null) {
             throw new InvalidArgumentException(
                 'The mappedBy property must be set in the relationalMapping.'
@@ -117,7 +117,7 @@ class DatabaseCollection extends Collection
 
     private function persistManyToManyRelations(object $entity): void
     {
-        $mapedBy = $this->relationalMapping->mappedBy;
+        $mapedBy = $this->relationalMapping->inverseJoinProperty;
         if ($mapedBy === null) {
             throw new InvalidArgumentException(
                 'The mappedBy property must be set in the relationalMapping.'
@@ -125,8 +125,8 @@ class DatabaseCollection extends Collection
         }
 
         foreach ($this->getAddedEntities() as $relatedEntity) {
-            $pivotEntity = new $this->relationalMapping->mappedBy();
-            foreach ($this->entityManager->getDbMapping()->getOneToMany($this->relationalMapping->mappedBy) as $property => $manyToOne) {
+            $pivotEntity = new $this->relationalMapping->inverseJoinProperty();
+            foreach ($this->entityManager->getDbMapping()->getOneToMany($this->relationalMapping->inverseJoinProperty) as $property => $manyToOne) {
                 $setter = 'set' . ucfirst($property);
                 if (is_a($entity, $manyToOne->targetEntity)) {
                     $pivotEntity->$setter($entity);

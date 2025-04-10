@@ -15,38 +15,11 @@ use RuntimeException;
 
 class EntityRelationLoader
 {
-    /**
-     * @var DbMappingInterface
-     */
     private DbMappingInterface $dbMapping;
 
-    /**
-     * @param EntityManagerInterface $entityManager
-     */
     public function __construct(private EntityManagerInterface $entityManager)
     {
         $this->dbMapping = $entityManager->getDbMapping();
-    }
-
-    /**
-     * Todo: delete this method if not used
-     * @throws ReflectionException
-     */
-    public function loadEntities(array $entities, int $level = 0): void
-    {
-        if ($level > 10) {
-            return;
-        }
-
-        $entitiesToLoad = [];
-
-        foreach ($entities as $entity) {
-            $entitiesToLoad = $this->loadRelations($entity);
-        }
-
-        if (!empty($entitiesToLoad)) {
-            $this->loadEntities($entitiesToLoad, ++$level);
-        }
     }
 
     /**
@@ -60,28 +33,39 @@ class EntityRelationLoader
 
         $entitiesToLoad = [];
 
-        foreach ($this->dbMapping->getOneToOne($entityName) as $property => $oneToOne) {
-            $result = $this->loadOneToOne($entity, $oneToOne, $property);
-            if ($result !== null) {
-                $entitiesToLoad[] = $result;
+        if (!empty($entityOneToOne = $this->dbMapping->getOneToOne($entityName))) {
+            foreach ($entityOneToOne as $property => $oneToOne) {
+                $result = $this->loadSingleRelation($entity, $oneToOne, $property);
+                if ($result !== null) {
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
-        foreach ($this->dbMapping->getOneToMany($entityName) as $property => $oneToMany) {
-            $result = $this->loadOneToMany($entity, $oneToMany, $property);
-            if ($result !== null) {
-                $entitiesToLoad[] = $result;
+
+        if (!empty($entityOneToMany = $this->dbMapping->getOneToMany($entityName))) {
+            foreach ($entityOneToMany as $property => $oneToMany) {
+                $result = $this->loadOneToMany($entity, $oneToMany, $property);
+                if ($result !== null) {
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
-        foreach ($this->dbMapping->getManyToOne($entityName) as $property => $manyToOne) {
-            $result = $this->loadManyToOne($entity, $manyToOne, $property);
-            if ($result !== null) {
-                $entitiesToLoad[] = $result;
+
+        if (!empty($entityManyToOne = $this->dbMapping->getManyToOne($entityName))) {
+            foreach ($entityManyToOne as $property => $manyToOne) {
+                $result = $this->loadSingleRelation($entity, $manyToOne, $property);
+                if ($result !== null) {
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
-        foreach ($this->dbMapping->getManyToMany($entityName) as $property => $manyToMany) {
-            $result = $this->loadManyToMany($entity, $manyToMany, $property);
-            if ($result !== null) {
-                $entitiesToLoad[] = $result;
+
+        if (!empty($entityManyToMany = $this->dbMapping->getManyToMany($entityName))) {
+            foreach ($entityManyToMany as $property => $manyToMany) {
+                $result = $this->loadManyToMany($entity, $manyToMany, $property);
+                if ($result !== null) {
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
 
@@ -90,11 +74,11 @@ class EntityRelationLoader
 
     /**
      * @param object $entity
-     * @param MtOneToOne $oneToOne
+     * @param MtOneToOne|MtManyToOne $relation
      * @param string $property
      * @return object|null
      */
-    private function loadOneToOne(object $entity, MtOneToOne $oneToOne, string $property): ?object
+    private function loadSingleRelation(object $entity, MtOneToOne|MtManyToOne $relation, string $property): ?object
     {
         $setter = 'set' . ucfirst($property);
         $getter = 'get' . ucfirst($property);
@@ -103,10 +87,13 @@ class EntityRelationLoader
             return null;
         }
 
-        $column = $this->dbMapping->getColumnName(get_class($entity), $property);
+        $column = $this->getColumnName(get_class($entity), $property);
 
         if (!is_null($entity->$column) && method_exists($entity, $setter)) {
-            $relatedEntity = $this->entityManager->find($oneToOne->targetEntity, $entity->$column);
+            $relatedEntity = $this->entityManager->find(
+                $this->getTargetEntity(get_class($entity), $relation, $property),
+                $entity->$column
+            );
             $entity->$setter($relatedEntity);
         }
 
@@ -122,7 +109,11 @@ class EntityRelationLoader
      */
     private function loadOneToMany(object $entity, MtOneToMany $oneToMany, string $property): ?Collection
     {
-        $setter = 'set' . ucfirst($property);
+        $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
+        if (is_null($entityId)) {
+            return null;
+        }
+
         $getter = 'get' . ucfirst($property);
 
         // If the relation is already loaded, return it
@@ -131,67 +122,84 @@ class EntityRelationLoader
             return $actualRelation;
         }
 
-        $mappedByColumn = $this->dbMapping->getColumnName(get_class($entity), $oneToMany->mappedBy);
-
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder
+        $mappedByColumn = $this->getColumnName(
+            get_class($entity),
+            $this->getInverseJoinProperty(get_class($entity), $oneToMany, $property)
+        );
+        $targetEntity = $this->getTargetEntity(get_class($entity), $oneToMany, $property);
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->select()
-            ->from($this->dbMapping->getTableName($oneToMany->targetEntity))
-            ->where(SqlOperations::equal($mappedByColumn, $entity->getId()));
+            ->from($this->getTableName($targetEntity))
+            ->where(SqlOperations::equal($mappedByColumn, $entityId));
 
-        $manyRelationResult = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
-            $queryBuilder,
-            $oneToMany->targetEntity,
-            false
+        $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
+            $queryBuilder, $targetEntity, false
         );
 
-        if ($manyRelationResult === null) {
+        if ($result === null) {
             return null;
         }
 
         $oneToMany->entity = get_class($entity);
-        $databaseCollection = new DatabaseCollection($this->entityManager, $oneToMany, $manyRelationResult);
+        $collection = new DatabaseCollection($this->entityManager, $oneToMany, $result);
 
-        $entity->$setter($databaseCollection);
-
-        return $databaseCollection;
-    }
-
-    /**
-     * @param object $entity
-     * @param MtManyToOne $manyToOne
-     * @param string $property
-     * @return object|null
-     */
-    private function loadManyToOne(object $entity, MtManyToOne $manyToOne, string $property): ?object
-    {
         $setter = 'set' . ucfirst($property);
-        $getter = 'get' . ucfirst($property);
+        $entity->$setter($collection);
 
-        if (!is_null($entity->$getter())) {
-            return null;
+        return $collection;
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return string
+     */
+    private function getTableName(string $entityName): string
+    {
+        if (null === $tableName = $this->dbMapping->getTableName($entityName)) {
+            throw new RuntimeException(
+                sprintf(
+                    'TableName not define for %s class',
+                    $entityName
+                )
+            );
         }
 
-        $column = $this->dbMapping->getColumnName(get_class($entity), $property);
+        return $tableName;
+    }
 
-        if (!is_null($entity->$column) && method_exists($entity, $setter)) {
-            $relatedEntity = $this->entityManager->find($manyToOne->targetEntity, $entity->$column);
-            $entity->$setter($relatedEntity);
+    /**
+     * @param class-string $entityName
+     * @param string $property
+     * @return string
+     */
+    private function getColumnName(string $entityName, string $property): string
+    {
+        if (null === $columnName = $this->dbMapping->getColumnName($entityName, $property)) {
+            throw new RuntimeException(
+                sprintf(
+                    'ColumnName not define for %s class and property %s',
+                    $entityName,
+                    $property
+                )
+            );
         }
 
-        return $relatedEntity ?? null;
+        return $columnName;
     }
 
     /**
      * @param object $entity
-     * @param MtManyToMany $manyToMany
+     * @param MtManyToMany $relation
      * @param string $property
      * @return Collection|null
      * @throws ReflectionException
      */
-    private function loadManyToMany(object $entity, MtManyToMany $manyToMany, string $property): ?Collection
+    private function loadManyToMany(object $entity, MtManyToMany $relation, string $property): ?Collection
     {
-        $setter = 'set' . ucfirst($property);
+        $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
+        if (is_null($entityId)) {
+            return null;
+        }
         $getter = 'get' . ucfirst($property);
 
         // If the relation is already loaded, return it
@@ -200,63 +208,123 @@ class EntityRelationLoader
             return $actualRelation;
         }
 
-        $entityId = $entity->getId();
+        $table = $this->getTableName(get_class($entity));
+        $pivotTable = $this->getTableName($this->getMappedBy(get_class($entity), $relation, $property));
 
-        if (is_null($entityId)) {
-            return null;
-        }
-        $table = $this->dbMapping->getTableName(get_class($entity));
-        if ($table === null) {
-            throw new RuntimeException(
-                sprintf('MtEntity->tableName not define for %s class', get_class($entity))
-            );
-        }
-        $pivotTable = $this->dbMapping->getTableName($manyToMany->mappedBy);
-        if ($pivotTable === null) {
-            throw new RuntimeException(
-                sprintf('MtEntity->tableName not define for %s class', $manyToMany->mappedBy)
-            );
-        }
-        if ($manyToMany->inverseJoinProperty === null) {
-            throw new RuntimeException(
-                sprintf('MtManyToMany->inverseJoinProperty not define for %s class', get_class($entity))
-            );
-        }
-        if ($manyToMany->joinProperty === null) {
-            throw new RuntimeException(
-                sprintf('MtManyToMany->joinProperty not define for %s class', get_class($entity))
-            );
-        }
+        $joinColumn = $this->getColumnName(
+            $this->getMappedBy(get_class($entity), $relation, $property),
+            $this->getJoinProperty(get_class($entity), $relation, $property)
+        );
 
-        $joinColumn = $this->dbMapping->getColumnName($manyToMany->mappedBy, $manyToMany->joinProperty);
-
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->select('t.*')
             ->from($table, 't')
-            ->innerJoin(
-                $table . ' t',
-                $pivotTable . ' j',
-                SqlOperations::equal('j.' . $joinColumn, 't.id')
-            );
+            ->innerJoin($table . ' t', $pivotTable . ' j', SqlOperations::equal('j.' . $joinColumn, 't.id'));
 
-        $manyToManyResult = $this->entityManager->getEmEngine()->getQueryBuilderListKeyByIdResult(
+        $result = $this->entityManager->getEmEngine()->getQueryBuilderListKeyByIdResult(
             $queryBuilder,
-            $manyToMany->targetEntity,
+            $this->getTargetEntity(get_class($entity), $relation, $property),
             false
         );
 
-        if ($manyToManyResult === null) {
+        if ($result === null) {
             return null;
         }
 
-        $manyToMany->entity = get_class($entity);
-        $databaseCollection = new DatabaseCollection($this->entityManager, $manyToMany, $manyToManyResult);
+        $relation->entity = get_class($entity);
+        $collection = new DatabaseCollection($this->entityManager, $relation, $result);
 
+        $setter = 'set' . ucfirst($property);
         if (method_exists($entity, $setter)) {
-            $entity->$setter($databaseCollection);
+            $entity->$setter($collection);
         }
 
-        return $databaseCollection;
+        return $collection;
+    }
+
+    /**
+     * @param class-string $entity
+     * @param MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relation
+     * @param string $property
+     * @return class-string
+     */
+    private function getTargetEntity(
+        string $entity, MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relation,
+        string $property
+    ): string {
+        if (null === $targetEntity = $relation->targetEntity) {
+            throw new RuntimeException(
+                sprintf(
+                    'MtEntity->targetEntity not define for %s class and property %s',
+                    $entity,
+                    $property
+                )
+            );
+        }
+
+        return $targetEntity;
+    }
+
+    /**
+     * @param class-string $entity
+     * @param MtOneToMany $relation
+     * @param string $property
+     * @return string
+     */
+    private function getInverseJoinProperty(string $entity, MtOneToMany $relation, string $property): string
+    {
+        if (null === $inverseJoinProperty = $relation->inverseJoinProperty) {
+            throw new RuntimeException(
+                sprintf(
+                    'MtEntity->inverseJoinProperty not define for %s class and property %s',
+                    $entity,
+                    $property
+                )
+            );
+        }
+
+        return $inverseJoinProperty;
+    }
+
+    /**
+     * @param class-string $entity
+     * @param MtManyToMany $relation
+     * @param string $property
+     * @return class-string
+     */
+    private function getMappedBy(string $entity, MtManyToMany $relation, string $property): string
+    {
+        if (null === $mappedBy = $relation->mappedBy) {
+            throw new RuntimeException(
+                sprintf(
+                    'MtEntity->mappedBy not define for %s class and property %s',
+                    $entity,
+                    $property
+                )
+            );
+        }
+
+        return $mappedBy;
+    }
+
+    /**
+     * @param class-string $entity
+     * @param MtManyToMany $relation
+     * @param string $property
+     * @return string
+     */
+    private function getJoinProperty(string $entity, MtManyToMany $relation, string $property): string
+    {
+        if (null === $joinProperty = $relation->joinProperty) {
+            throw new RuntimeException(
+                sprintf(
+                    'MtEntity->joinProperty not define for %s class and property %s',
+                    $entity,
+                    $property
+                )
+            );
+        }
+
+        return $joinProperty;
     }
 }

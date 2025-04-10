@@ -35,22 +35,22 @@ class DatabaseCollectionTest extends TestCase
         $this->oneToManyMapping = new MtOneToMany(
             entity: Group::class,
             targetEntity: Group::class,
-            mappedBy: "parent_id"
+            inverseJoinProperty: "parent_id"
         );
 
         $this->manyToManyMappingWithMappedBy = new MtManyToMany(
             entity: User::class,
             targetEntity: Group::class,
             mappedBy: GroupUser::class,
-            joinColumn: "user_id",
-            inverseJoinColumn: "group_id"
+            joinProperty: "user",
+            inverseJoinProperty: "group"
         );
         $this->manyToManyMappingWithJoinTable = new MtManyToMany(
             entity: User::class,
             targetEntity: Group::class,
-            joinTable: "user_groups",
-            joinColumn: "user_id",
-            inverseJoinColumn: "group_id"
+            mappedBy: GroupUser::class,
+            joinProperty: "user",
+            inverseJoinProperty: "group"
         );
     }
 

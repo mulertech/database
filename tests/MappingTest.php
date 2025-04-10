@@ -533,7 +533,7 @@ class MappingTest extends TestCase
     public function testGetOneToMany(): void
     {
         $this->assertEquals(
-            ['children' => new MtOneToMany(targetEntity: Group::class, mappedBy: 'parent')],
+            ['children' => new MtOneToMany(targetEntity: Group::class, inverseJoinProperty: 'parent')],
             $this->getDbMapping()->getOneToMany(Group::class)
         );
     }

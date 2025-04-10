@@ -31,7 +31,7 @@ class Group
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $parent = null;
 
-    #[MtOneToMany(targetEntity: Group::class, mappedBy: "parent")]
+    #[MtOneToMany(targetEntity: Group::class, inverseJoinProperty: "parent")]
     private Collection $children;
 
     #[MtManyToMany(
