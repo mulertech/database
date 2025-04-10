@@ -5,6 +5,7 @@ namespace MulerTech\Database\ORM;
 use _config\UpdateDatabaseMysql;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
+use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\EventManager\EventManagerInterface;
 use MulerTech\HttpRequest\Session\Session;
 use PDOStatement;
@@ -134,37 +135,61 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * Check if this item exists, with this $entity, $column and WHERE $search.
-     * The search must exclude itself with its $id (if given).
+     * Checks if a property value is unique for an entity type, with option to exclude one entity by ID.
      * @param class-string $entity
-     * @param string $column
-     * @param string|int $search
-     * @param int|string|null $id
-     * @param bool $matchCase
-     * @return bool
+     * @param string $property Property to check for uniqueness
+     * @param int|string $search Value to search for
+     * @param int|string|null $id ID of entity to exclude (for update scenarios)
+     * @param bool $matchCase Whether to perform case-sensitive comparison
+     * @return bool True if the property value is unique
+     * @throws ReflectionException
      */
-    public function isUnique(string $entity, string $column, $search, $id = null, bool $matchCase = false): bool
-    {
-        //search
-        if (is_numeric($search)) {
-            $item = $this->find($entity, "$column=$search");
-        } else {
-            $item = $this->find($entity, $column . '=\'' . $search . '\'');
-        }
-        if (is_null($item)) {
+    public function isUnique(
+        string $entity,
+        string $property,
+        int|string $search,
+        int|string|null $id = null,
+        bool $matchCase = false
+    ): bool {
+        // Get column name and prepare search value
+        $column = $this->dbMapping->getColumnName($entity, $property);
+        $searchValue = is_int($search) ? $search : "'$search'";
+
+        // Build query condition with case sensitivity option
+        $whereCondition = $matchCase ? "BINARY $column = $searchValue" : "$column = $searchValue";
+
+        // Create and execute query
+        $queryBuilder = new QueryBuilder($this->emEngine);
+        $queryBuilder->select('*')
+                    ->from($this->dbMapping->getTableName($entity))
+                    ->where($whereCondition);
+
+        $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
+
+        // No results means the value is unique
+        if (empty($results)) {
             return true;
         }
-        if ($id === null) {
-            //Sometimes Mysql sends a record which is not exactly the same as the search (for Mysql 898709919412651836=898709919412651837)...
-            //A PHP comparison is required ($item->$column() !== $search)
-            if ($matchCase || is_int($item->$column())) {
-                return $item->$column() !== $search;
-            }
-            return strtolower($item->$column()) !== strtolower($search);
+
+        // Filter results to handle MySQL numeric comparison edge cases
+        $getter = 'get' . ucfirst($property);
+        $matchingResults = array_filter($results, function($item) use ($getter, $search) {
+            $value = $item->$getter();
+            return !(is_numeric($value) && is_numeric($search) && $value != $search);
+        });
+
+        // If no matching results after filtering, it's unique
+        if (empty($matchingResults)) {
+            return true;
         }
 
-        //ID can be an integer OR a UUID
-        return $item->getId() == $id;
+        // If multiple matches, not unique
+        if (count($matchingResults) > 1) {
+            return false;
+        }
+
+        // One match with the same ID is still considered unique (update case)
+        return !($id === null) && current($matchingResults)->getId() == $id;
     }
 
     /**

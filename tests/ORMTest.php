@@ -37,7 +37,7 @@ class ORMTest extends TestCase
         $pdo->exec($query);
         $query = 'DROP TABLE IF EXISTS units_test';
         $pdo->exec($query);
-        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), unit_id INT UNSIGNED)';
+        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED)';
         $pdo->exec($query);
         $query = 'CREATE TABLE IF NOT EXISTS units_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255))';
         $pdo->exec($query);
@@ -185,7 +185,7 @@ class ORMTest extends TestCase
         $statement = $pdo->prepare('SELECT * FROM users_test');
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
-        self::assertEquals(['id' => 1, 'username' => 'John', 'unit_id' => null], $statement->fetch());
+        self::assertEquals(['id' => 1, 'username' => 'John', 'size' => null, 'unit_id' => null], $statement->fetch());
         self::assertEquals('JohnUpdatedByEvent', $user->getUsername());
         self::assertEquals('Unit', $user->getUnit()->getName());
     }
@@ -233,6 +233,34 @@ class ORMTest extends TestCase
         $statement = $pdo->prepare('SELECT * FROM users_test');
         $statement->execute();
         self::assertFalse($statement->fetch());
+    }
+
+    public function testIsUnique(): void
+    {
+        $this->createUserTestTable();
+        $em = $this->getEntityManager();
+        $pdo = $this->getPhpDatabaseManager();
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 1, 'username' => 'John']);
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 2, 'username' => 'Jack']);
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 3, 'username' => '898709919412651836']);
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username, size) VALUES (:id, :username, :size)');
+        $statement->execute(['id' => 4, 'username' => 'Helen', 'size' => 165]);
+        self::assertFalse($em->isUnique(User::class, 'username', 'John'));
+        self::assertTrue($em->isUnique(User::class, 'username', 'John', 1));
+        // If we want to update the username of the user with id 2 from 'another username' to 'John',
+        // it should return false
+        self::assertFalse($em->isUnique(User::class, 'username', 'John', 2));
+        self::assertTrue($em->isUnique(User::class, 'username', 'john', 2, true));
+        self::assertFalse($em->isUnique(User::class, 'username', '898709919412651836'));
+        self::assertTrue($em->isUnique(User::class, 'username', '898709919412651836', 3));
+        // For mysql, 898709919412651836=898709919412651837, the php comparison is required
+        self::assertTrue($em->isUnique(User::class, 'username', '898709919412651837'));
+        self::assertTrue($em->isUnique(User::class, 'size', '170'));
+        self::assertFalse($em->isUnique(User::class, 'size', '165'));
+        self::assertTrue($em->isUnique(User::class, 'size', '165', 4));
     }
 
 //    public function testRead(): void

@@ -15,138 +15,131 @@ use RuntimeException;
 class QueryBuilder
 {
     /**
-     * @var EmEngine $emEngine
+     * @var string $type It can be SELECT, INSERT, UPDATE or DELETE.
      */
-    private $emEngine;
-
-    /**
-     * @var string|null $type It can be SELECT, INSERT, UPDATE or DELETE.
-     */
-    private $type;
+    private string $type;
 
     /**
      * Alias of this query, for example $alias = 'adult_number' :
      * ...(SELECT COUNT(*) FROM users WHERE age > 18) as adult_number
      * @var string $alias
      */
-    private $alias = '';
+    private string $alias = '';
 
     /**
      * @var array $select
      */
-    private $select = [];
+    private array $select = [];
 
     /**
      * @var bool $distinct
      */
-    private $distinct = false;
+    private bool $distinct = false;
 
     /**
      * @var array $from is used into SELECT, INSERT, UPDATE and DELETE.
      * Example : ['name' => 'table1', 'alias' => 'alias1']
      */
-    private $from = [];
+    private array $from = [];
 
     /**
      * @var array $join Stored by from table.
      */
-    private $join = [];
+    private array $join = [];
 
     /**
      * @var array $tablesJoined List the tables joined by table name (and alias is defined) like :
      * ['table1' => 'alias1', 'table2' => null,..]; (null for alias if not define).
      * It can be used for check if the alias is use just one time.
      */
-    private $tablesJoined = [];
+    private array $tablesJoined = [];
 
     /**
      * @var SqlOperations $where
      */
-    private $where;
+    private SqlOperations $where;
 
     /**
      * @var array $groupBy
      */
-    private $groupBy = [];
+    private array $groupBy = [];
 
     /**
      * @var bool $withRollup
      */
-    private $withRollup = false;
+    private bool $withRollup = false;
 
     /**
      * @var SqlOperations $having
      */
-    private $having;
+    private SqlOperations $having;
 
     /**
      * @var array $orderBy like : ['column1 ASC', 'column2 DESC']
      */
-    private $orderBy = [];
+    private array $orderBy = [];
 
     /**
      * @var int $limit
      */
-    private $limit = 0;
+    private int $limit = 0;
 
     /**
      * @var int $offset
      */
-    private $offset = 0;
+    private int $offset = 0;
 
     /**
      * @var QueryBuilder[] $union
      */
-    private $union = [];
+    private array $union = [];
 
     /**
      * @var QueryBuilder[] $unionAll
      */
-    private $unionAll = [];
+    private array $unionAll = [];
 
     /**
      * @var array $values like : [0 => ['column' => 'value'], 1 => [...]]
      */
-    private $values = [];
+    private array $values = [];
 
     /**
      * @var array $updates
      */
-    private $updates = [];
+    private array $updates = [];
 
     /**
      * Store the named parameters and values, example :
      * ['namedParam1' => 'value', 'namedParam2' => 'other value']
      * @var array $namedParameters
      */
-    private $namedParameters = [];
+    private array $namedParameters = [];
 
     /**
      * Store the dynamic parameters values, example :
      * ['value 1', 'value2',..]
      * @var array $dynamicParameters
      */
-    private $dynamicParameters = [];
+    private array $dynamicParameters = [];
 
     /**
      * This is the named parameters prefix, for example : namedParam1, namedParam2...
      */
-    private const NAMED_PARAMETERS_PREFIX = 'namedParam';
+    private const string NAMED_PARAMETERS_PREFIX = 'namedParam';
 
     /**
      * @param EmEngine|null $emEngine
      */
-    public function __construct(EmEngine $emEngine = null)
-    {
-        $this->emEngine = $emEngine;
-    }
+    public function __construct(private ?EmEngine $emEngine = null)
+    {}
 
     /**
      * @return string|null
      */
     public function getType(): ?string
     {
-        return $this->type;
+        return $this->type ?? null;
     }
 
     /**
@@ -204,7 +197,7 @@ class QueryBuilder
      */
     public function getWhere(): ?SqlOperations
     {
-        return $this->where;
+        return $this->where ?? null;
     }
 
     /**
@@ -228,7 +221,7 @@ class QueryBuilder
      */
     public function getHaving(): ?SqlOperations
     {
-        return $this->having;
+        return $this->having ?? null;
     }
 
     /**
@@ -308,7 +301,7 @@ class QueryBuilder
     public function getSubQuery(): string
     {
         if (!empty($this->alias)) {
-            return (new SqlQuery($this))->generateQuery();
+            return new SqlQuery($this)->generateQuery();
         }
         return '(' . $this->getQuery() . ')';
     }
@@ -332,7 +325,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array|null
      */
     public function getBindParameters(): ?array
     {
@@ -380,11 +373,11 @@ class QueryBuilder
      * setValue('column1', $value);
      *
      * @param string $column
-     * @param $value
+     * @param mixed $value
      * @param string|null $type
      * @return $this
      */
-    public function setValue(string $column, $value, string $type = null): QueryBuilder
+    public function setValue(string $column, mixed $value, ?string $type = null): QueryBuilder
     {
         $this->values[$column] = [$value, $type];
         return $this;
@@ -457,7 +450,7 @@ class QueryBuilder
      * @param string|null $alias
      * @return $this
      */
-    public function from($from, ?string $alias = null): QueryBuilder
+    public function from(string|QueryBuilder $from, ?string $alias = null): QueryBuilder
     {
         return $this->addFrom($from, $alias);
     }
@@ -468,7 +461,7 @@ class QueryBuilder
      * @param string|null $alias If the alias is given this alias must be used into the join to find it.
      * @return $this
      */
-    public function addFrom($from, ?string $alias = null): QueryBuilder
+    public function addFrom(string|QueryBuilder $from, ?string $alias = null): QueryBuilder
     {
         if (is_string($from) && is_null($alias)) {
             $this->from[] = $this->extractAlias($from);
@@ -652,7 +645,7 @@ class QueryBuilder
      * @param string|SqlOperations $where
      * @return $this
      */
-    public function andWhere($where): QueryBuilder
+    public function andWhere(SqlOperations|string $where): QueryBuilder
     {
         $this->where->addOperation($where);
         return $this;
@@ -662,7 +655,7 @@ class QueryBuilder
      * @param string|SqlOperations $where
      * @return $this
      */
-    public function andNotWhere($where): QueryBuilder
+    public function andNotWhere(SqlOperations|string $where): QueryBuilder
     {
         $this->where->andNot($where);
         return $this;
@@ -672,7 +665,7 @@ class QueryBuilder
      * @param string|SqlOperations $where
      * @return $this
      */
-    public function orWhere($where): QueryBuilder
+    public function orWhere(SqlOperations|string $where): QueryBuilder
     {
         $this->where->addOperation($where, LinkOperator::OR);
         return $this;
@@ -682,7 +675,7 @@ class QueryBuilder
      * @param string|SqlOperations $where
      * @return $this
      */
-    public function orNotWhere($where): QueryBuilder
+    public function orNotWhere(SqlOperations|string $where): QueryBuilder
     {
         $this->where->orNot($where);
         return $this;
@@ -724,7 +717,7 @@ class QueryBuilder
      * @param string|SqlOperations $having
      * @return $this
      */
-    public function having($having): QueryBuilder
+    public function having(SqlOperations|string $having): QueryBuilder
     {
         $sql = new SqlOperations();
         $sql->addOperation($having);
@@ -736,7 +729,7 @@ class QueryBuilder
      * @param string|SqlOperations $having
      * @return $this
      */
-    public function andHaving($having): QueryBuilder
+    public function andHaving(SqlOperations|string $having): QueryBuilder
     {
         $this->having->addOperation($having);
         return $this;
@@ -746,7 +739,7 @@ class QueryBuilder
      * @param string|SqlOperations $having
      * @return $this
      */
-    public function andNotHaving($having): QueryBuilder
+    public function andNotHaving(SqlOperations|string $having): QueryBuilder
     {
         $this->having->andNot($having);
         return $this;
@@ -756,7 +749,7 @@ class QueryBuilder
      * @param string|SqlOperations $having
      * @return $this
      */
-    public function orHaving($having): QueryBuilder
+    public function orHaving(SqlOperations|string $having): QueryBuilder
     {
         $this->having->addOperation($having, LinkOperator::OR);
         return $this;
@@ -766,7 +759,7 @@ class QueryBuilder
      * @param string|SqlOperations $having
      * @return $this
      */
-    public function orNotHaving($having): QueryBuilder
+    public function orNotHaving(SqlOperations|string $having): QueryBuilder
     {
         $this->having->orNot($having);
         return $this;
@@ -879,11 +872,11 @@ class QueryBuilder
     }
 
     /**
-     * @param $value
+     * @param mixed $value
      * @param int $type
      * @return string
      */
-    public function addNamedParameter($value, int $type = PDO::PARAM_STR): string
+    public function addNamedParameter(mixed $value, int $type = PDO::PARAM_STR): string
     {
         if (!empty($this->dynamicParameters)) {
             throw new RuntimeException(
@@ -897,11 +890,11 @@ class QueryBuilder
     }
 
     /**
-     * @param $value
+     * @param mixed $value
      * @param int $type
      * @return string
      */
-    public function addDynamicParameter($value, int $type = PDO::PARAM_STR): string
+    public function addDynamicParameter(mixed $value, int $type = PDO::PARAM_STR): string
     {
         if (!empty($this->namedParameters)) {
             throw new RuntimeException(
@@ -914,12 +907,12 @@ class QueryBuilder
     }
 
     /**
-     * @param $key
-     * @param $value
+     * @param int|string $key
+     * @param mixed $value
      * @param int $type
      * @return $this
      */
-    public function setParameter($key, $value, int $type = PDO::PARAM_STR): QueryBuilder
+    public function setParameter(int|string $key, mixed $value, int $type = PDO::PARAM_STR): QueryBuilder
     {
         if (is_numeric($key)) {
             $this->dynamicParameters[$key] = [$value, $type];

@@ -26,6 +26,9 @@ class User
     #[MtColumn(columnType: "varchar(255)", isNullable: false, columnDefault: "John")]
     private ?string $username = null;
 
+    #[MtColumn(columnName: "size", columnType: "int", isNullable: true)]
+    private ?int $size = null;
+
     /**
      * @var null|Unit $unit
      */
@@ -73,6 +76,18 @@ class User
     public function setUsername(string $username): self
     {
         $this->username = $username;
+
+        return $this;
+    }
+
+    public function getSize(): ?int
+    {
+        return $this->size;
+    }
+
+    public function setSize(int $size): self
+    {
+        $this->size = $size;
 
         return $this;
     }

@@ -176,7 +176,7 @@ class MappingTest extends TestCase
      */
     public function testGetColumns(): void
     {
-        $this->assertEquals(['id', 'username', 'unit_id'], $this->getDbMapping()->getColumns(User::class));
+        $this->assertEquals(['id', 'username', 'size', 'unit_id'], $this->getDbMapping()->getColumns(User::class));
     }
 
     /**
@@ -195,7 +195,7 @@ class MappingTest extends TestCase
     public function testGetPropertiesColumns(): void
     {
         $propertiesColumns = $this->getDbMapping()->getPropertiesColumns(User::class);
-        $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id'], $propertiesColumns);
+        $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id', 'size' => 'size'], $propertiesColumns);
     }
 
     /**

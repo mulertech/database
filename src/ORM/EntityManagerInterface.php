@@ -4,9 +4,9 @@ namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
-use MulerTech\Entity\Entity;
 use MulerTech\EventManager\EventManagerInterface;
 use PDOStatement;
+use ReflectionException;
 
 interface EntityManagerInterface
 {
@@ -68,6 +68,24 @@ interface EntityManagerInterface
         ?string $request = null,
         ?string $join = null
     );
+
+    /**
+     * Checks if a property value is unique for an entity type, with option to exclude one entity by ID.
+     * @param class-string $entity
+     * @param string $property Property to check for uniqueness
+     * @param int|string $search Value to search for
+     * @param int|string|null $id ID of entity to exclude (for update scenarios)
+     * @param bool $matchCase Whether to perform case-sensitive comparison
+     * @return bool True if the property value is unique
+     * @throws ReflectionException
+     */
+    public function isUnique(
+        string $entity,
+        string $property,
+        int|string $search,
+        int|string|null $id = null,
+        bool $matchCase = false
+    ): bool;
 
     /**
      * @param Object $entity
