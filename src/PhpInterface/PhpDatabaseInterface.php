@@ -70,7 +70,7 @@ interface PhpDatabaseInterface
      * @param string|null $name
      * @return string
      */
-    public function lastInsertId(string $name = null): string;
+    public function lastInsertId(?string $name = null): string;
 
     /**
      * @return mixed

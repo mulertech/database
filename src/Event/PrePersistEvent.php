@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Event;
 
-use MulerTech\Database\ORM\EntityManager;
+use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
  * Class PrePersistEvent
@@ -13,9 +13,9 @@ class PrePersistEvent extends EntityEvent
 {
     /**
      * @param Object $entity
-     * @param EntityManager $entityManager
+     * @param EntityManagerInterface $entityManager
      */
-    public function __construct(Object $entity, EntityManager $entityManager) {
+    public function __construct(Object $entity, EntityManagerInterface $entityManager) {
         $this->setName(DbEvents::prePersist->value);
         parent::__construct($entity, $entityManager);
     }

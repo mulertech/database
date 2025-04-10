@@ -6,8 +6,7 @@ use _config\UpdateDatabaseMysql;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\EventManager\EventManagerInterface;
-use MulerTech\HttpRequest\Session\Session;
+use MulerTech\EventManager\EventManager;
 use PDOStatement;
 use ReflectionException;
 
@@ -21,12 +20,12 @@ class EntityManager implements EntityManagerInterface
     /**
      * @param PhpDatabaseInterface $pdm
      * @param DbMappingInterface $dbMapping
-     * @param EventManagerInterface|null $eventManager
+     * @param EventManager|null $eventManager
      */
     public function __construct(
         private PhpDatabaseInterface $pdm,
         private DbMappingInterface $dbMapping,
-        private ?EventManagerInterface $eventManager = null
+        private ?EventManager $eventManager = null
     ) {
         $this->emEngine = new EmEngine($this);
     }
@@ -66,9 +65,9 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @return EventManagerInterface|null
+     * @return EventManager|null
      */
-    public function getEventManager(): ?EventManagerInterface
+    public function getEventManager(): ?EventManager
     {
         return $this->eventManager;
     }
@@ -85,53 +84,14 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @param string $table
-     * @param array|null $cells
-     * @param string|null $orderfor
-     * @param string|null $orderby
-     * @param string|null $idorwhere
-     * @param int|null $limit
-     * @param int|null $page
-     * @param string $sort
-     * @param string|null $request
-     * @param string|null $join
-     * @return array|bool|mixed|PDOStatement|string|null
-     */
-    public function read(
-        string $table,
-        ?array $cells = null,
-        ?string $orderfor = null,
-        ?string $orderby = null,
-        ?string $idorwhere = null,
-        ?int $limit = null,
-        ?int $page = null,
-        string $sort = "default",
-        ?string $request = null,
-        ?string $join = null
-    ) {
-        return $this->emEngine->read(
-            $table,
-            $cells,
-            $orderfor,
-            $orderby,
-            $idorwhere,
-            $limit,
-            $page,
-            $sort,
-            $request,
-            $join
-        );
-    }
-
-    /**
      * Count the result of the request with the table $table and the $where conditions
-     * @param string $table
+     * @param class-string $entityName
      * @param string|null $where
      * @return int
      */
-    public function rowsCount(string $table, ?string $where = null): int
+    public function rowCount(string $entityName, ?string $where = null): int
     {
-        return $this->read($table, null, null, null, $where, null, null, 'count');
+        return $this->emEngine->rowCount($entityName, $where);
     }
 
     /**

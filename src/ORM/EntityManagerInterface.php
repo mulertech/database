@@ -4,7 +4,7 @@ namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
-use MulerTech\EventManager\EventManagerInterface;
+use MulerTech\EventManager\EventManager;
 use PDOStatement;
 use ReflectionException;
 
@@ -27,9 +27,9 @@ interface EntityManagerInterface
     public function getRepository(string $entity): EntityRepository;
 
     /**
-     * @return EventManagerInterface|null
+     * @return EventManager|null
      */
-    public function getEventManager(): ?EventManagerInterface;
+    public function getEventManager(): ?EventManager;
 
     /**
      * @return DbMappingInterface
@@ -42,32 +42,6 @@ interface EntityManagerInterface
      * @return Object|null
      */
     public function find(string $entity, string|int|null $idOrWhere = null): ?Object;
-
-    /**
-     * @param string $table
-     * @param array|null $cells
-     * @param string|null $orderfor
-     * @param string|null $orderby
-     * @param string|null $idorwhere
-     * @param int|null $limit
-     * @param int|null $page
-     * @param string $sort
-     * @param string|null $request
-     * @param string|null $join
-     * @return array|bool|mixed|PDOStatement|string|null
-     */
-    public function read(
-        string $table,
-        ?array $cells = null,
-        ?string $orderfor = null,
-        ?string $orderby = null,
-        ?string $idorwhere = null,
-        ?int $limit = null,
-        ?int $page = null,
-        string $sort = "default",
-        ?string $request = null,
-        ?string $join = null
-    );
 
     /**
      * Checks if a property value is unique for an entity type, with option to exclude one entity by ID.

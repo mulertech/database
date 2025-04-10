@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Event;
 
-use MulerTech\Database\ORM\EntityManager;
+use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
  * Class PreUpdateEvent
@@ -13,10 +13,14 @@ class PreUpdateEvent extends EntityEvent
 {
     /**
      * @param Object $entity
-     * @param EntityManager $entityManager
+     * @param EntityManagerInterface $entityManager
      * @param array<int, array<string, array<int, string>>> $entityChanges
      */
-    public function __construct(Object $entity, EntityManager $entityManager, private array $entityChanges) {
+    public function __construct(
+        Object $entity,
+        EntityManagerInterface $entityManager,
+        private readonly array $entityChanges
+    ) {
         $this->setName(DbEvents::preUpdate->value);
         parent::__construct($entity, $entityManager);
     }

@@ -263,33 +263,15 @@ class ORMTest extends TestCase
         self::assertTrue($em->isUnique(User::class, 'size', '165', 4));
     }
 
-//    public function testRead(): void
-//    {
-//        $this->createUserTestTable();
-//        $em = $this->getEntityManager();
-//        $pdo = $this->getPhpDatabaseManager();
-//        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
-//        $statement->execute(['username' => 'John']);
-//        $users = $em->read(User::class);
-////        $users = $em->read(User::class);
-//        var_dump($users);
-//        self::assertCount(1, $users);
-//        self::assertEquals(1, $users[0]->getId());
-//        self::assertEquals('John', $users[0]->getUsername());
-//    }
-
-//    public function testReadWithWhere(): void
-//    {
-//        $this->createUserTestTable();
-//        $em = $this->getEntityManager();
-//        $pdo = $this->getPhpDatabaseManager();
-//        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
-//        $statement->execute(['username' => 'John']);
-//        $statement->execute(['username' => 'Jane']);
-//        $users = $em->read(User::class, ['username' => 'Jane']);
-//        self::assertCount(1, $users);
-//        self::assertInstanceOf(User::class, $users[0]);
-//        self::assertEquals(2, $users[0]->getId());
-//        self::assertEquals('Jane', $users[0]->getUsername());
-//    }
+    public function testRowsCount(): void
+    {
+        $this->createUserTestTable();
+        $em = $this->getEntityManager();
+        $pdo = $this->getPhpDatabaseManager();
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 1, 'username' => 'John']);
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 2, 'username' => 'Jack']);
+        self::assertEquals(2, $em->rowCount(User::class));
+    }
 }

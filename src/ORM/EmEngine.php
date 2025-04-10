@@ -19,10 +19,9 @@ use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\EventManager\EventManagerInterface;
+use MulerTech\EventManager\EventManager;
 use MulerTech\FileManipulation\FileType\Json;
 use PDO;
-use PDOStatement;
 use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
@@ -70,11 +69,6 @@ class EmEngine
      */
     private array $manyToManyInsertions = [];
     /**
-     * @var array<int, array<int, int>> The list of entities to be inserted into a pivot table. For example :
-     * [$objectId1 => [$objectId2, $objectId3]]
-     */
-    private array $collectionUpdates = [];
-    /**
      * @var array<int, array<string, array<int, string>>> Save all the entity changes example :
      * [$objectId => [$property => [$oldValue, $newValue]]]
      */
@@ -105,14 +99,9 @@ class EmEngine
      */
     private string $join = '';
     /**
-     * @var EventManagerInterface|null $eventManager
+     * @var EventManager|null $eventManager
      */
-    private ?EventManagerInterface $eventManager;
-    /**
-     * @var class-string $entityName
-     * @todo Replace this entityName by EntityMapping
-     */
-    private string $entityName;
+    private ?EventManager $eventManager;
     /**
      * @var EntityRelationLoader $entityRelationLoader
      */
@@ -134,43 +123,6 @@ class EmEngine
     public function getEntityManager(): EntityManagerInterface
     {
         return $this->entityManager;
-    }
-
-    /**
-     * @param object|class-string $entity
-     * @deprecated do not use $this->entityName
-     */
-    protected function setEntity(object|string $entity): void
-    {
-        if (is_object($entity)) {
-            $this->entityName = get_class($entity);
-        } else {
-            $this->entityName = $entity;
-        }
-    }
-
-    /**
-     * @return string
-     * @deprecated do not use $this->entityName
-     */
-    protected function getEntity(): string
-    {
-        return $this->entityName;
-    }
-
-    /**
-     * @return string
-     * @deprecated do not use $this->entityName
-     */
-    protected function getEntityTable(): string
-    {
-        if (!isset($this->entityName)) {
-            throw new RuntimeException(
-                'Class : EmEngine, Function : getEntityTable. The entity variable of the EmEngine was not set.'
-            );
-        }
-        $entityParts = explode('\\', $this->entityName);
-        return strtolower(end($entityParts));
     }
 
     /**
@@ -286,68 +238,7 @@ class EmEngine
     }
 
     /**
-     * @param string $request
-     * @param array|null $execute_values
-     * @param string|null $output
-     * @param string|null $field
-     * @param array|null $bind_param
-     * @return array|bool|mixed|PDOStatement|string|null
-     * @deprecated use QueryBuilder
-     */
-    public function prepareRequest(
-        string $request,
-        ?array $execute_values = null,
-        ?string $output = null,
-        ?string $field = null,
-        array $bind_param = null
-    ) {
-        //prepare request
-        $pdoStatement = $this->entityManager->getPdm()->prepare($request);
-        if (!empty($bind_param)) {
-            if (!empty($bind_param['data_type'])) {
-                $pdoStatement->bindParam($bind_param['parameter'], $bind_param['variable'], $bind_param['data_type']);
-            } else {
-                $pdoStatement->bindParam($bind_param['parameter'], $bind_param['variable']);
-            }
-        }
-        if (!empty($execute_values)) {
-            $pdoStatement->execute($execute_values);
-        } else {
-            $pdoStatement->execute();
-        }
-        //return request
-        $return = null;
-        if (strtolower($output) === "array" && $pdoStatement->rowCount() !== 0) {
-            $return = $pdoStatement->fetch(PDO::FETCH_ASSOC);
-        } elseif (!empty($field) && strtolower($output) === "field" && $pdoStatement->rowCount() !== 0) {
-            $return = $pdoStatement->fetch(PDO::FETCH_ASSOC)[$field];
-        } elseif ((strtolower($output) === "arraylist" || strtolower(
-                    $output
-                ) === "default" || ($output === null && $bind_param === null)) && $pdoStatement->rowCount() !== 0) {
-            $return = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
-        } elseif (strtolower($output) === "column" && $pdoStatement->rowCount() !== 0) {
-            $return = $pdoStatement->fetchAll(PDO::FETCH_COLUMN);
-        } elseif (strtolower($output) === "count") {
-            $return = $pdoStatement->rowCount();
-        } elseif (strtolower($output) === "class" || strtolower($output) === "object") {
-            $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $this->getEntity());
-            $class = $pdoStatement->fetch();
-            $return = (empty($class)) ? null : $class;
-        } elseif (strtolower($output) === "classlist") {
-            $classList = $pdoStatement->fetchAll(PDO::FETCH_CLASS, $this->getEntity());
-            $return = ($classList === []) ? null : $classList;
-        } elseif (strtolower($output) === "classlistid") {
-            //List of classes with array Key = id of this entity.
-            $classList = $pdoStatement->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_CLASS, $this->getEntity());
-            $return = ($classList === []) ? null : $classList;
-        }
-        //close cursor
-        $pdoStatement->closeCursor();
-        //Return
-        return $return;
-    }
-
-    /**
+     * @return void
      */
     private function executeInsertions(): void
     {
@@ -363,7 +254,13 @@ class EmEngine
 
                 //set id
                 if (!empty($lastId = $this->entityManager->getPdm()->lastInsertId())) {
-                    $this->setIdEntity($uio, $lastId);
+                    if (!method_exists($entity, 'setId')) {
+                        throw new RuntimeException(
+                            sprintf('The entity %s must have a setId method', $entity::class)
+                        );
+                    }
+
+                    $entity->setId($lastId);
                 }
 
                 //close cursor
@@ -383,7 +280,7 @@ class EmEngine
     }
 
     /**
-     * @return array
+     * @return array<int, object>
      */
     private function getEntityInsertions(): array
     {
@@ -422,7 +319,7 @@ class EmEngine
     private function generateInsertQueryBuilder(Object $entity): QueryBuilder
     {
         $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->insert($this->entityManager->getDbMapping()->getTableName($entity::class));
+        $queryBuilder->insert($this->getTableName(get_class($entity)));
 
         $entityChanges = $this->getEntityChanges($entity);
 
@@ -432,7 +329,7 @@ class EmEngine
             }
 
             if (is_object($entityChanges[$property][1])) {
-                $entityChanges[$property][1] = $entityChanges[$property][1]->getId();
+                $entityChanges[$property][1] = $this->getId($entityChanges[$property][1]);
             }
 
             $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($entityChanges[$property][1]));
@@ -442,8 +339,25 @@ class EmEngine
     }
 
     /**
+     * @param class-string $entityName
+     * @return string
+     */
+    private function getTableName(string $entityName): string
+    {
+        $tableName = $this->entityManager->getDbMapping()->getTableName($entityName);
+
+        if ($tableName === null) {
+            throw new RuntimeException(
+                sprintf('The entity %s is not mapped in the database', $entityName)
+            );
+        }
+
+        return $tableName;
+    }
+
+    /**
      * @param Object $entity
-     * @return array<int, array<string, array<int, string>>>
+     * @return array<string, array<int, string>>
      */
     private function getEntityChanges(Object $entity): array
     {
@@ -452,6 +366,7 @@ class EmEngine
 
     /**
      * @param class-string $entityName
+     * @param bool $keepId
      * @return array
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
@@ -470,25 +385,16 @@ class EmEngine
     }
 
     /**
-     * @param $hash
-     * @param $id
-     */
-    private function setIdEntity($hash, $id): void
-    {
-        $this->entityInsertions[$hash]?->setId($id);
-    }
-
-    /**
-     * read Mysql table and push it in object
+     * Find an entity by its ID or a WHERE clause.
      * @param class-string $entityName
-     * @param int|string|SqlOperations|null $idOrWhere
+     * @param int|string|SqlOperations $idOrWhere
      * @return Object|null Entity filled or null
      * @throws ReflectionException
      */
-    public function find(string $entityName, null|int|string|SqlOperations $idOrWhere = null): ?Object
+    public function find(string $entityName, int|string|SqlOperations $idOrWhere): ?Object
     {
         $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->select('*')->from($this->entityManager->getDbMapping()->getTableName($entityName));
+        $queryBuilder->select('*')->from($this->getTableName($entityName));
 
         if (is_numeric($idOrWhere)) {
             $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($idOrWhere));
@@ -500,212 +406,32 @@ class EmEngine
     }
 
     /**
-     *
-     * @param string $table (table of the first item)
-     * @param array|null $cells (cells with ‘name’ as ‘alias’ and for items of an another table : ‘origin’ as ‘search’)
-     * @param string|null $orderfor (column to order, for example : $cells[1][‘name’])
-     * @param string|null $orderby (asc or desc)
-     * @param string|null $idorwhere (search after the Mysql 'WHERE ')
-     * @param int|null $limit (number of item by page)
-     * @param int|null $page
-     * @param string $sort
-     * @param string|null $request
-     * @param string|null $join
-     * @return mixed
-     */
-    public function read(
-        string $table,
-        ?array $cells = null,
-        ?string $orderfor = null,
-        ?string $orderby = null,
-        ?string $idorwhere = null,
-        ?int $limit = null,
-        ?int $page = null,
-        string $sort = "default",
-        ?string $request = null,
-        ?string $join = null
-    ) {
-        $this->join = '';
-        $this->tablesLinked = [];
-        //If the model class was given.
-        if (strpos($table, '\\')) {
-            $this->setEntity($table);
-            $entity = explode('\\', $table);
-            $table = strtolower(end($entity));
-        }
-        //test if the table exist
-        if (!in_array($table, $this->getEntityManager()->getDbMapping()->getTables(), true)) {
-            throw new RuntimeException(
-                sprintf('Class : EmEngine, Function : read. The table "%s" does not exist.', $table)
-            );
-        }
-        //test if the cell name is indicated
-        if (!empty($cells)) {
-            foreach ($cells as $cellstest) {
-                if (empty($cellstest['name'])) {
-                    throw new RuntimeException(
-                        'Class : EmEngine, Function : read. A column name does not exist into the cells variable.'
-                    );
-                }
-            }
-        }
-        //test if the orderfor var is a cell
-        /**
-         * @todo remove this verification, if the column is an alias this can't verify the real table...
-         */
-//        if (!empty($orderfor) && (
-//                (!is_null($cells) && (!in_array($orderfor, array_column($cells, 'name'), true))
-//                ) && (
-//                    (strpos($orderfor, '.') !== false) && !array_key_exists(
-//                        explode('.', $orderfor)[1],
-//                        $this->openDbStructure()['structure'][explode('.', $orderfor)[0]]
-//                    )
-//                ) && (
-//                    (strpos($orderfor, '.') === false) && !array_key_exists(
-//                        $orderfor,
-//                        $this->openDbStructure()['structure'][$table]
-//                    )
-//                ))) {
-//            throw new RuntimeException(
-//                sprintf(
-//                    'Class : EmEngine, Function : read. The column "%s" designed in orderfor variable is unknown.',
-//                    $orderfor
-//                )
-//            );
-//        }
-        //test if the orderby var is ASC or DESC word
-        if (!empty($orderby) && !(strcasecmp($orderby, 'asc') === 0 || strcasecmp($orderby, 'desc') === 0)) {
-            throw new RuntimeException(
-                sprintf(
-                    'Class : EmEngine, Function : read. The orderby variable must be ASC or DESC, "%s" given.',
-                    $orderby
-                )
-            );
-        }
-        //offset
-        if ($page !== 0 && !is_null($limit)) {
-            $offset = (is_null($page)) ? 0 : $limit * ($page - 1);
-        }
-        //prepare Mysql request
-        $sqlreq = '';
-        if (!empty($request)) {
-            $sqlreq = $request;
-        } elseif ($cells === null) {
-            $sqlreq = "SELECT * FROM `" . $table . "`";
-        } else {
-            //SELECT
-            foreach ($cells as $cvalue) {
-                if (empty($sqlreq)) {
-                    $sqlreq = "SELECT ";
-                } else {
-                    $sqlreq .= ", ";
-                }
-                //no search or search
-                if (!empty($cvalue['table_linked_as'])) {
-                    $cvalue['name'] = $cvalue['table_linked_as'] . '.' . explode('.', $cvalue['name'])[1];
-                }
-                $name_as = (!empty($cvalue['name_as'])) ? $cvalue['name_as'] : str_replace(
-                    '.',
-                    '',
-                    $cvalue['name']
-                );
-                $sqlreq .= "{$cvalue['name']} AS " . $name_as;
-                if (isset($cvalue['origin']) && $cvalue['origin'] !== $cvalue['name']) {
-                    $origin_as = (!empty($cvalue['origin_as'])) ? $cvalue['origin_as'] : str_replace(
-                        '.',
-                        '',
-                        $cvalue['origin']
-                    );
-                    $sqlreq .= ", {$cvalue['origin']} AS " . $origin_as;
-                }
-            }
-            //FROM
-            $sqlreq .= " FROM `" . $table . "` ";
-            //JOIN
-            /**
-             * @todo link tables with the origin column name, 2 columns can be linked with the same table.
-             */
-            if (isset($join)) {
-                $sqlreq .= $join . ' ';
-            } else {
-                $jcells = [];
-                foreach ($cells as $jvalue) {
-                    $jcell = explode(".", $jvalue['name']);
-                    $jtable = $jcell[0];
-                    if ($jtable !== $table && (!in_array($jtable, $this->tablesLinked, true) || in_array(
-                                $jvalue['name'],
-                                $jcells,
-                                true
-                            ))) {
-                        $constraints = $this->constraintsList();
-                        //Find joins level 1
-                        $this->findJoins(
-                            [$table, $jtable],
-                            $constraints,
-                            (!empty($jvalue['table_linked_as'])) ? $jvalue['table_linked_as'] : '',
-                            (!empty($jvalue['table_linked_as'])) ? explode('.', $jvalue['origin'])[1] : ''
-                        );
-                        if (!in_array($jtable, $this->tablesLinked, true)) {
-                            if (!empty($jvalue['path']) && is_array($jvalue['path'])) {
-                                $this->findJoins($jvalue['path'], $constraints);
-                            } elseif (!empty($jvalue['origin'])) {
-                                throw new RuntimeException(
-                                    sprintf(
-                                        'Class : EmEngine, Function : read. Impossible to determine the link between these tables "%s" and "%s". You can define the path of this column into the cells variable.',
-                                        $table,
-                                        $jtable
-                                    )
-                                );
-                            }
-                        }
-                        if (!in_array($jvalue['name'], $jcells, true)) {
-                            $jcells[] = $jvalue['name'];
-                        }
-                    }
-                }
-                if (!empty($this->join)) {
-                    $sqlreq .= $this->join . " ";
-//                    echo $sqlreq, '<br>';
-                }
-            }
-        }
-        //if where is define
-        if (!empty($idorwhere)) {
-            $sqlreq .= (is_numeric($idorwhere)) ? ' WHERE id=' . $idorwhere : ' WHERE ' . $idorwhere;
-        }
-        //if orderfor is define
-        if (!empty($orderfor)) {
-            $sqlreq .= ' ORDER BY ' . $orderfor;
-        }
-        //if orderby is define
-        if (!empty($orderfor) && !empty($orderby)) {
-            $sqlreq .= ' ' . $orderby;
-        }
-        //if limit is define
-        if (isset($offset)) {
-            $sqlreq .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
-        }
-//        echo $sqlreq;
-        //prepare request
-        $field = (strtolower($sort) === "field") ? str_replace('.', '', $cells[0]['name']) : null;
-//        echo $sqlreq, '<br>';
-        return $this->prepareRequest($sqlreq, null, $sort, $field);
-    }
-
-    /**
      * Manage new entity for creation, if this entity must be deleted, it will be removed from the entityInsertions.
      * @param Object $entity
      * @return void
      */
     public function persist(Object $entity): void
     {
-        if ($entity->getId() === null && !isset($this->entityInsertions[spl_object_id($entity)])) {
+        if ($this->getId($entity) === null && !isset($this->entityInsertions[spl_object_id($entity)])) {
             //Event Pre persist
-            if ($this->eventManager) {
-                $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager));
-            }
+            $this->eventManager?->dispatch(new PrePersistEvent($entity, $this->entityManager));
             $this->entityInsertions[spl_object_id($entity)] = $entity;
         }
+    }
+
+    /**
+     * @param Object $entity
+     * @return int|null
+     */
+    private function getId(Object $entity): ?int
+    {
+        if (!method_exists($entity, 'getId')) {
+            throw new RuntimeException(
+                sprintf('The entity %s must have a getId method', $entity::class)
+            );
+        }
+
+        return $entity->getId();
     }
 
     /**
@@ -836,9 +562,7 @@ class EmEngine
 
             // One-to-one entity relation who is not persisted yet (not id)
             // Add the entity to the entityInsertions list and persist it
-            if (is_object($newValue)
-                && is_null($newValue->getId())
-            ) {
+            if (is_object($newValue) && is_null($this->getId($newValue))) {
                 if (!isset($this->entityInsertions[spl_object_id($newValue)])) {
                     $this->persist($newValue);
                     $this->computeEntityChanges($newValue);
@@ -882,7 +606,7 @@ class EmEngine
 
             foreach ($entities->items() as $relatedEntity) {
                 // Check if the related entity is not already managed
-                if (is_object($relatedEntity) && $relatedEntity->getId() === null) {
+                if (is_object($relatedEntity) && $this->getId($relatedEntity) === null) {
                     $this->persist($relatedEntity);
                     $this->computeEntityChanges($relatedEntity);
                 }
@@ -1135,7 +859,7 @@ class EmEngine
     private function generateUpdateQueryBuilder(Object $entity): QueryBuilder
     {
         $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->update($this->entityManager->getDbMapping()->getTableName($entity::class));
+        $queryBuilder->update($this->getTableName($entity::class));
 
         $entityChanges = $this->getEntityChanges($entity);
 
@@ -1145,12 +869,12 @@ class EmEngine
             }
 
             if (is_object($entityChanges[$property][1])) {
-                $entityChanges[$property][1] = $entityChanges[$property][1]->getId();
+                $entityChanges[$property][1] = $this->getId($entityChanges[$property][1]);
             }
 
             $queryBuilder->setValue($column, $queryBuilder->addDynamicParameter($entityChanges[$property][1]));
         }
-        $queryBuilder->where(SqlOperations::equal('id', $queryBuilder->addDynamicParameter($entity->getId())));
+        $queryBuilder->where(SqlOperations::equal('id', $queryBuilder->addDynamicParameter($this->getId($entity))));
 
         return $queryBuilder;
     }
@@ -1182,9 +906,9 @@ class EmEngine
             $entitiesEvent = [];
             foreach ($this->entityDeletions as $uio => $entity) {
                 $queryBuilder = new QueryBuilder($this);
-                $queryBuilder->delete($this->entityManager->getDbMapping()->getTableName($entity::class));
+                $queryBuilder->delete($this->getTableName($entity::class));
                 $queryBuilder->where(
-                    SqlOperations::equal('id', $queryBuilder->addNamedParameter($entity->getId()))
+                    SqlOperations::equal('id', $queryBuilder->addNamedParameter($this->getId($entity)))
                 );
 
                 // prepare request
@@ -1281,6 +1005,32 @@ class EmEngine
     }
 
     /**
+     * Count the result of the request with the table $table and the $where conditions
+     * @param class-string $entityName
+     * @param string|null $where
+     * @return int
+     */
+    public function rowCount(string $entityName, ?string $where = null): int
+    {
+        $queryBuilder = new QueryBuilder($this);
+        $queryBuilder->select('*')->from($this->getTableName($entityName));
+
+        if (is_numeric($where)) {
+            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($where));
+        } elseif (is_string($where)) {
+            $queryBuilder->where($where);
+        }
+
+        $statement = $queryBuilder->getResult();
+        $statement->execute();
+        return $statement->rowCount();
+    }
+
+    /**
+     * todo : move this below in migration class
+     */
+
+    /**
      * List of this database tables (Mysql)
      * @return array
      */
@@ -1298,35 +1048,6 @@ class EmEngine
         $success->closeCursor();
         return $tables_list;
     }
-
-    /**
-     * Count the result of the request with the table $table and the $where conditions
-     * @param string $table
-     * @param string|null $where
-     * @return int
-     */
-    public function rowsCount(string $table, ?string $where = null): int
-    {
-        //prepare and execute request
-        if ($where === null) {
-            $success = $this->entityManager->getPdm()->query('SELECT COUNT(*) FROM `' . $table . '`');
-        } else {
-            $success = $this->entityManager->getPdm()->query('SELECT COUNT(*) FROM `' . $table . '` WHERE ' . $where);
-        }
-        $count = $success->fetchColumn();
-        //close cursor
-        $success->closeCursor();
-        return $count;
-    }
-
-    private function computeChanges(Object $entity): void
-    {
-        $name = $entity::class;
-    }
-
-    /**
-     * todo : move this below in migration class
-     */
 
     /**
      * Make a structure of database for save in a json file
