@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests;
+namespace MulerTech\Database\Tests\Relational;
 
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\LinkOperator;
@@ -8,7 +8,7 @@ use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use PHPUnit\Framework\TestCase;
 
-class RelationalSqlOperationsTest extends TestCase
+class SqlOperationsTest extends TestCase
 {
     public function testManualOperation(): void
     {

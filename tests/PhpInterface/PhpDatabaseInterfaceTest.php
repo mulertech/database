@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests;
+namespace MulerTech\Database\Tests\PhpInterface;
 
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;

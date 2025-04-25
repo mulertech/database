@@ -3,11 +3,18 @@
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
 use MulerTech\EventManager\EventManager;
 use PDOStatement;
 use ReflectionException;
 
+/**
+ * Entity Manager Interface
+ *
+ * @package MulerTech\Database\ORM
+ * @author Sébastien Muler
+ */
 interface EntityManagerInterface
 {
     /**
@@ -16,9 +23,9 @@ interface EntityManagerInterface
     public function getEmEngine(): EmEngine;
 
     /**
-     * @return PhpDatabaseInterface
+     * @return PhpDatabaseManager
      */
-    public function getPdm(): PhpDatabaseInterface;
+    public function getPdm(): PhpDatabaseManager;
 
     /**
      * @param class-string $entity

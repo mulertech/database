@@ -6,7 +6,7 @@ use RuntimeException;
 
 /**
  * Class SqlQuery is a SQL query.
- * @package MulerTech\Database\SQL
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SqlQuery

@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests;
+namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostPersistEvent;
@@ -21,18 +21,38 @@ use MulerTech\EventManager\EventManagerInterface;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
-class ORMTest extends TestCase
+class EntityManagerTest extends TestCase
 {
     private EventManagerInterface $eventManager;
+    private EntityManagerInterface $entityManager;
 
-    private function getPhpDatabaseManager(): PhpDatabaseManager
+    protected function setUp(): void
     {
-        return new PhpDatabaseManager(new PdoConnector(new Driver()), []);
+        parent::setUp();
+        $this->eventManager = new EventManager();
+        $this->entityManager = new EntityManager(
+            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'),
+            $this->eventManager
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        $query = 'DROP TABLE IF EXISTS users_test';
+        $this->entityManager->getPdm()->exec($query);
+        $query = 'DROP TABLE IF EXISTS units_test';
+        $this->entityManager->getPdm()->exec($query);
+        $query = 'DROP TABLE IF EXISTS groups_test';
+        $this->entityManager->getPdm()->exec($query);
+        $query = 'DROP TABLE IF EXISTS link_user_group_test';
+        $this->entityManager->getPdm()->exec($query);
     }
 
     private function createUserTestTable(): void
     {
-        $pdo = $this->getPhpDatabaseManager();
+        $pdo = $this->entityManager->getPdm();
         $query = 'DROP TABLE IF EXISTS users_test';
         $pdo->exec($query);
         $query = 'DROP TABLE IF EXISTS units_test';
@@ -45,7 +65,7 @@ class ORMTest extends TestCase
 
     private function createGroupTestTable(): void
     {
-        $pdo = $this->getPhpDatabaseManager();
+        $pdo = $this->entityManager->getPdm();
         $query = 'DROP TABLE IF EXISTS groups_test';
         $pdo->exec($query);
         $query = 'CREATE TABLE IF NOT EXISTS groups_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), parent_id INT UNSIGNED)';
@@ -54,26 +74,16 @@ class ORMTest extends TestCase
 
     private function createLinkUserGroupTestTable(): void
     {
-        $pdo = $this->getPhpDatabaseManager();
+        $pdo = $this->entityManager->getPdm();
         $query = 'DROP TABLE IF EXISTS link_user_group_test';
         $pdo->exec($query);
         $query = 'CREATE TABLE IF NOT EXISTS link_user_group_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED, group_id INT UNSIGNED)';
         $pdo->exec($query);
     }
 
-    public function getEntityManager(): EntityManagerInterface
-    {
-        $this->eventManager = new EventManager();
-        return new EntityManager(
-            $this->getPhpDatabaseManager(),
-            new DbMapping(__DIR__ . '/Files/Entity'),
-            $this->eventManager
-        );
-    }
-
     public function testGetRepository(): void
     {
-        $em = $this->getEntityManager();
+        $em = $this->entityManager;
         $repository = $em->getRepository(User::class);
         self::assertInstanceOf(UserRepository::class, $repository);
     }
@@ -83,7 +93,7 @@ class ORMTest extends TestCase
         $this->createUserTestTable();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
-        $em = $this->getEntityManager();
+        $em = $this->entityManager;
         $unit = new Unit()->setName('JohnUnit');
         $em->persist($unit);
         $createUser = new User()->setUsername('John')->setUnit($unit);
@@ -100,7 +110,9 @@ class ORMTest extends TestCase
     public function testFindEntityWithOneToManyRelation(): void
     {
         $this->createGroupTestTable();
-        $em = $this->getEntityManager();
+        $this->createUserTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->entityManager;
         $group1 = new Group();
         $group1->setName('Group1');
         $group2 = new Group();
@@ -122,7 +134,9 @@ class ORMTest extends TestCase
     public function testFindEntityWithManyToOneRelation(): void
     {
         $this->createGroupTestTable();
-        $em = $this->getEntityManager();
+        $this->createUserTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->entityManager;
         $group1 = new Group();
         $group1->setName('Group1');
         $group2 = new Group();
@@ -145,7 +159,7 @@ class ORMTest extends TestCase
         $this->createUserTestTable();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
-        $em = $this->getEntityManager();
+        $em = $this->entityManager;
         $group1 = new Group();
         $group1->setName('Group1');
         $group2 = new Group();
@@ -172,7 +186,7 @@ class ORMTest extends TestCase
     public function testExecuteInsertionsAndPostPersistEvent(): void
     {
         $this->createUserTestTable();
-        $em = $this->getEntityManager();
+        $em = $this->entityManager;
         $this->eventManager->addListener(DbEvents::postPersist->value, static function (PostPersistEvent $event) {
             $user = $event->getEntity();
             $user->setUsername($user->getUsername() . 'UpdatedByEvent')->setUnit(new Unit()->setName('Unit'));
@@ -181,7 +195,7 @@ class ORMTest extends TestCase
         $user->setUsername('John');
         $em->persist($user);
         $em->flush();
-        $pdo = $this->getPhpDatabaseManager();
+        $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('SELECT * FROM users_test');
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
@@ -195,8 +209,8 @@ class ORMTest extends TestCase
         $this->createUserTestTable();
         $this->createLinkUserGroupTestTable();
         $this->createGroupTestTable();
-        $em = $this->getEntityManager();
-        $pdo = $this->getPhpDatabaseManager();
+        $em = $this->entityManager;
+        $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
         $statement->execute(['username' => 'John']);
         $user = $em->find(User::class, 1);
@@ -223,8 +237,8 @@ class ORMTest extends TestCase
     {
         $this->createUserTestTable();
         $this->createLinkUserGroupTestTable();
-        $em = $this->getEntityManager();
-        $pdo = $this->getPhpDatabaseManager();
+        $em = $this->entityManager;
+        $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
         $statement->execute(['username' => 'John']);
         $user = $em->find(User::class, 1);
@@ -238,8 +252,10 @@ class ORMTest extends TestCase
     public function testIsUnique(): void
     {
         $this->createUserTestTable();
-        $em = $this->getEntityManager();
-        $pdo = $this->getPhpDatabaseManager();
+        $this->createLinkUserGroupTestTable();
+        $this->createGroupTestTable();
+        $em = $this->entityManager;
+        $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
         $statement->execute(['id' => 1, 'username' => 'John']);
         $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
@@ -266,8 +282,8 @@ class ORMTest extends TestCase
     public function testRowsCount(): void
     {
         $this->createUserTestTable();
-        $em = $this->getEntityManager();
-        $pdo = $this->getPhpDatabaseManager();
+        $em = $this->entityManager;
+        $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
         $statement->execute(['id' => 1, 'username' => 'John']);
         $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');

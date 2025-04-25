@@ -30,7 +30,7 @@
           */
          public function getTableName(string $entityName): ?string
          {
-             $this->initializeTables();
+             $this->initializeTables($entityName);
              return $this->tables[$entityName] ?? null;
          }
 
@@ -337,10 +337,11 @@
          }
 
          /**
+          * @param class-string $entity
           * @return void
           * @throws ReflectionException
           */
-         private function initializeTables(): void
+         private function initializeTables(?string $entity = null): void
          {
              if (empty($this->tables)) {
                  $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
@@ -349,6 +350,13 @@
                      if ($table) {
                          $this->tables[$className] = $table;
                      }
+                 }
+             }
+
+             if ($entity !== null && !isset($this->tables[$entity])) {
+                 $table = $this->generateTableName($entity);
+                 if ($table) {
+                     $this->tables[$entity] = $table;
                  }
              }
          }
@@ -434,5 +442,14 @@
              string $relationClass
          ): MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null {
              return Php::getInstanceOfPropertiesAttributesNamed($entityName, $relationClass)[$property] ?? null;
+         }
+
+         private function getEntityProperties(string $entityName): array
+         {
+             $reflectionClass = new ReflectionClass($entityName);
+             return array_map(
+                 static fn ($property) => $property->getName(),
+                 $reflectionClass->getProperties()
+             );
          }
      }
