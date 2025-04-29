@@ -22,12 +22,19 @@ class PhpDatabaseInterfaceTest extends TestCase
         return trim(getenv('DATABASE_PATH'), '/');
     }
 
-    private function createTestTable(): void
+    protected function setUp(): void
     {
         $pdo = $this->getPhpDatabaseManager();
         $query = 'DROP TABLE IF EXISTS test_table';
         $pdo->exec($query);
         $query = 'CREATE TABLE IF NOT EXISTS test_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, firstname VARCHAR(255), lastname VARCHAR(255))';
+        $pdo->exec($query);
+    }
+
+    protected function tearDown(): void
+    {
+        $pdo = $this->getPhpDatabaseManager();
+        $query = 'DROP TABLE IF EXISTS test_table';
         $pdo->exec($query);
     }
 
@@ -94,7 +101,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testExecLastInsertIdAndQuery(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         self::assertEquals(1, $pdo->lastInsertId());
@@ -208,7 +214,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementExecute(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
@@ -222,7 +227,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementFetch(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
@@ -233,7 +237,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementBindParam(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES (:firstname)';
         $statement = $pdo->prepare($query);
         $name = 'test';
@@ -247,7 +250,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementBindColumn(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id, firstname FROM test_table WHERE firstname=:firstname');
@@ -262,7 +264,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementBindValue(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES (:firstname)';
         $statement = $pdo->prepare($query);
         $name = 'test';
@@ -276,7 +277,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementRowCount(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
@@ -287,7 +287,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementFetchColumn(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
@@ -298,7 +297,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementFetchAll(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $query = 'INSERT INTO test_table (firstname) VALUES ("test")';
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
@@ -318,7 +316,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementFetchObject(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $pdo->exec('INSERT INTO test_table (firstname) VALUES ("test")');
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
         $statement->execute(['firstname' => 'test']);
@@ -343,7 +340,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementGetAttribute(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $statement = $pdo->prepare('SELECT id FROM test_table');
         self::assertIsBool($statement->getAttribute(PDO::ATTR_EMULATE_PREPARES));
     }
@@ -351,7 +347,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementColumnCount(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $statement = $pdo->prepare('SELECT firstname FROM test_table WHERE firstname="test"');
         self::assertEquals(0, $statement->columnCount());
         $statement->execute();
@@ -365,7 +360,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementGetColumnMeta(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $statement = $pdo->prepare('SELECT id, firstname, lastname FROM test_table');
         $statement->execute();
         self::assertEquals(
@@ -388,7 +382,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementGetIterator(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $pdo->exec('INSERT INTO test_table (firstname) VALUES ("test")');
         $statement = $pdo->prepare('SELECT id, firstname FROM test_table WHERE firstname=:firstname');
         $statement->execute(['firstname' => 'test']);
@@ -401,7 +394,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementSetFetchMode(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $pdo->exec('INSERT INTO test_table (firstname) VALUES ("test")');
         $statement = $pdo->prepare('SELECT id, firstname FROM test_table WHERE firstname=:firstname');
         $statement->execute(['firstname' => 'test']);
@@ -412,7 +404,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementNextRowset(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $pdo->exec('INSERT INTO test_table (firstname) VALUES ("test"), ("test2")');
         $statement = $pdo->prepare('SELECT id, firstname FROM test_table');
         $statement->execute();
@@ -426,7 +417,6 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementCloseCursor(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        $this->createTestTable();
         $pdo->exec('INSERT INTO test_table (firstname) VALUES ("test"), ("test2")');
         $statement = $pdo->prepare('SELECT id, firstname FROM test_table');
         $statement->execute();

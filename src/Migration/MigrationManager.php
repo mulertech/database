@@ -10,7 +10,6 @@ use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use PDO;
 use RuntimeException;
 
 /**
@@ -30,12 +29,13 @@ class MigrationManager
      * @var string[] Executed migration versions
      */
     private array $executedMigrations = [];
-    
+
     /**
      * @param EntityManagerInterface $entityManager
      */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager
+        private readonly EntityManagerInterface $entityManager,
+        private readonly string $migrationHistory = MigrationHistory::class
     ) {
         $this->initializeMigrationTable();
         $this->loadExecutedMigrations();
@@ -53,7 +53,7 @@ class MigrationManager
         $dbMapping = $this->entityManager->getDbMapping();
         $emEngine = $this->entityManager->getEmEngine();
         
-        $tableName = $dbMapping->getTableName(MigrationHistory::class);
+        $tableName = $dbMapping->getTableName($this->migrationHistory);
         if ($tableName === null) {
             throw new RuntimeException("Migration history table name not found in mapping.");
         }
@@ -76,10 +76,10 @@ class MigrationManager
             $this->createMigrationHistoryTable($tableName);
         }
     }
-    
+
     /**
      * Create migration history table
-     * Todo: use Migration to create the table
+     * @param string $tableName
      * @return void
      */
     private function createMigrationHistoryTable(string $tableName): void
@@ -112,7 +112,7 @@ class MigrationManager
 
             $results = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
                 $queryBuilder,
-                MigrationHistory::class
+                $this->migrationHistory,
             );
 
             if (!is_null($results)) {
@@ -133,7 +133,7 @@ class MigrationManager
     public function registerMigration(Migration $migration): self
     {
         $version = $migration->getVersion();
-        
+
         // Check for duplicate version
         if (isset($this->migrations[$version])) {
             throw new RuntimeException(
@@ -266,7 +266,7 @@ class MigrationManager
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $history = new MigrationHistory();
+        $history = new $this->migrationHistory();
         $history->setVersion($migration->getVersion());
         $history->setExecutedAt(new DateTime()->format('Y-m-d H:i:s'));
         $history->setExecutionTime((int)($executionTime * 1000)); // Convert to milliseconds

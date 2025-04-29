@@ -95,7 +95,7 @@ class SqlQuery
             $parts = explode('.', $string);
             return self::escape($parts[0]) . '.' . self::escape($parts[1]);
         }
-        return '`' . $string . '`';
+        return "`" . str_replace("`", "``", $string) . "`";
     }
 
     /**

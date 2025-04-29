@@ -10,7 +10,8 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Tests\Files\Migrations\Migration202504211358;
+use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Tests\Files\Migrations\Migration202504201358;
 use MulerTech\EventManager\EventManager;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -28,26 +29,24 @@ class MigrationManagerTest extends TestCase
             new EventManager()
         );
 
-        $query = 'DROP TABLE IF EXISTS migration_history';
-        $this->entityManager->getPdm()->exec($query);
+        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS migration_history');
         
         $this->migrationManager = new MigrationManager($this->entityManager);
     }
     
     public function testRegisterMigration(): void
     {
-        $migration = new Migration202504211358($this->entityManager);
+        $migration = new Migration202504201358($this->entityManager);
 
         $this->migrationManager->registerMigration($migration);
 
-        $this->assertSame($migration, $this->migrationManager->getMigrations()['20250421-1358']);
+        $this->assertSame($migration, $this->migrationManager->getMigrations()['20250420-1358']);
     }
     
     public function testRegisterMigrationsDuplicateVersionThrowsException(): void
     {
         $migration1 = $this->createMock(Migration::class);
         $migration1->method('getVersion')->willReturn('20230101-0000');
-        
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0000'); // Same version
         
@@ -63,7 +62,6 @@ class MigrationManagerTest extends TestCase
     {
         $migration1 = $this->createMock(Migration::class);
         $migration1->method('getVersion')->willReturn('20230101-0000');
-        
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0001');
         
@@ -79,14 +77,12 @@ class MigrationManagerTest extends TestCase
     
     public function testGetPendingMigrations(): void
     {
-        // Set up reflection to access private property
         $reflectionClass = new ReflectionClass($this->migrationManager);
         $executedMigrationsProperty = $reflectionClass->getProperty('executedMigrations');
         $executedMigrationsProperty->setValue($this->migrationManager, ['20230101-0000']);
         
         $migration1 = $this->createMock(Migration::class);
         $migration1->method('getVersion')->willReturn('20230101-0000'); // Already executed
-        
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0001'); // Pending
         
@@ -101,33 +97,26 @@ class MigrationManagerTest extends TestCase
     
     public function testMigrate(): void
     {
-        // Set up reflection to set executed migrations
         $reflectionClass = new ReflectionClass($this->migrationManager);
         $executedMigrationsProperty = $reflectionClass->getProperty('executedMigrations');
         $executedMigrationsProperty->setValue($this->migrationManager, ['20230101-0000']);
         
-        // Create mock migrations
         $migration1 = $this->createMock(Migration::class);
         $migration1->method('getVersion')->willReturn('20230101-0000'); // Already executed
         $migration1->expects($this->never())->method('up');
-        
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0001'); // Will be executed
         $migration2->expects($this->once())->method('up');
-        
         $migration3 = $this->createMock(Migration::class);
         $migration3->method('getVersion')->willReturn('20230101-0002'); // Will be executed
         $migration3->expects($this->once())->method('up');
         
-        // Register migrations
         $this->migrationManager->registerMigration($migration1);
         $this->migrationManager->registerMigration($migration2);
         $this->migrationManager->registerMigration($migration3);
         
-        // Execute migrations
         $result = $this->migrationManager->migrate();
         
-        // Should have executed 2 migrations
         $this->assertEquals(2, $result);
     }
     
@@ -150,21 +139,17 @@ class MigrationManagerTest extends TestCase
     
     public function testRollback(): void
     {
-        // Set up reflection to set executed migrations
         $reflectionClass = new ReflectionClass($this->migrationManager);
         $executedMigrationsProperty = $reflectionClass->getProperty('executedMigrations');
         $executedMigrationsProperty->setValue($this->migrationManager, ['20230101-0000', '20230101-0001']);
         
-        // Create mock migrations
         $migration1 = $this->createMock(Migration::class);
         $migration1->method('getVersion')->willReturn('20230101-0000');
-        
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0001'); // Last migration, will be rolled back
         $migration2->expects($this->once())->method('down');
         
-        // Set up QueryBuilder mock via reflection
-        $queryBuilder = $this->getMockBuilder(\MulerTech\Database\Relational\Sql\QueryBuilder::class)
+        $queryBuilder = $this->getMockBuilder(QueryBuilder::class)
             ->disableOriginalConstructor()
             ->getMock();
             
@@ -172,58 +157,44 @@ class MigrationManagerTest extends TestCase
         $queryBuilder->method('where')->willReturnSelf();
         $queryBuilder->method('addNamedParameter')->willReturn(':namedParam1');
 
-        // Register migrations
         $this->migrationManager->registerMigration($migration1);
         $this->migrationManager->registerMigration($migration2);
         
-        // Create a getMockBuilder for MigrationManager to mock internal methods
         $migrationManager = $this->getMockBuilder(MigrationManager::class)
             ->setConstructorArgs([$this->entityManager])
             ->onlyMethods(['removeMigrationRecord'])
             ->getMock();
             
-        // Mock the removeMigrationRecord method
         $migrationManager->expects($this->once())
             ->method('removeMigrationRecord')
             ->with('20230101-0001');
             
-        // Set the same migrations
-        foreach ($this->migrationManager->getMigrations() as $version => $migration) {
+        foreach ($this->migrationManager->getMigrations() as $migration) {
             $migrationManager->registerMigration($migration);
         }
         
-        // Set the executed migrations via reflection
         $executedMigrationsProperty->setValue($migrationManager, ['20230101-0000', '20230101-0001']);
         
-        // Execute rollback
         $result = $migrationManager->rollback();
-        
-        // Should have rolled back 1 migration
         $this->assertTrue($result);
     }
     
     public function testRollbackWithNoMigrationsReturnsFalse(): void
     {
-        // Set up reflection to set empty executed migrations
         $reflectionClass = new ReflectionClass($this->migrationManager);
         $executedMigrationsProperty = $reflectionClass->getProperty('executedMigrations');
         $executedMigrationsProperty->setValue($this->migrationManager, []);
         
-        // Execute rollback with no migrations
         $result = $this->migrationManager->rollback();
         
-        // Should return false as no migrations to roll back
         $this->assertFalse($result);
     }
     
     public function testRollbackWithMissingMigrationThrowsException(): void
     {
-        // Set up reflection to set executed migrations
         $reflectionClass = new ReflectionClass($this->migrationManager);
         $executedMigrationsProperty = $reflectionClass->getProperty('executedMigrations');
         $executedMigrationsProperty->setValue($this->migrationManager, ['20230101-0001']);
-        
-        // No migrations registered but one marked as executed
         
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Migration 20230101-0001 is recorded as executed but cannot be found');
