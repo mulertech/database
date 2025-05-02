@@ -6,7 +6,7 @@ use RuntimeException;
 
 /**
  * Class SqlQuery is a SQL query.
- * @package MulerTech\Database\SQL
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SqlQuery
@@ -95,7 +95,7 @@ class SqlQuery
             $parts = explode('.', $string);
             return self::escape($parts[0]) . '.' . self::escape($parts[1]);
         }
-        return '`' . $string . '`';
+        return "`" . str_replace("`", "``", $string) . "`";
     }
 
     /**

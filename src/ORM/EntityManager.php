@@ -5,6 +5,7 @@ namespace MulerTech\Database\ORM;
 use _config\UpdateDatabaseMysql;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
+use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\EventManager\EventManager;
 use PDOStatement;
@@ -39,9 +40,9 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @return PhpDatabaseInterface
+     * @return PhpDatabaseManager
      */
-    public function getPdm(): PhpDatabaseInterface
+    public function getPdm(): PhpDatabaseManager
     {
         return $this->pdm;
     }

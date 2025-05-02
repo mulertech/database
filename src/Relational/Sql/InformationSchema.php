@@ -2,9 +2,15 @@
 
 namespace MulerTech\Database\Relational\Sql;
 
+use MulerTech\Database\ORM\EmEngine;
 use PDO;
 
-class InformationSchema extends QueryBuilder
+/**
+ * Class InformationSchema
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
+class InformationSchema
 {
     public const string INFORMATION_SCHEMA = 'information_schema';
 
@@ -20,6 +26,8 @@ class InformationSchema extends QueryBuilder
      * @var array $foreignKeys
      */
     public array $foreignKeys;
+
+    public function __construct(private EmEngine $emEngine) {}
 
     /**
      * @param string $database
@@ -66,12 +74,14 @@ class InformationSchema extends QueryBuilder
      */
     private function populateTables(string $database): void
     {
-        $queryBuilder = $this
+        $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('TABLE_NAME', 'AUTO_INCREMENT')
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::TABLES->value)
-            ->where(SqlOperations::equal('TABLE_SCHEMA', $database));
+            ->where(SqlOperations::equal('TABLE_SCHEMA', "'$database'"));
 
-        $this->tables = $queryBuilder->getResult()->fetchAll(PDO::FETCH_ASSOC);
+        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement->execute();
+        $this->tables = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -80,7 +90,7 @@ class InformationSchema extends QueryBuilder
      */
     private function populateColumns(string $database): void
     {
-        $queryBuilder = $this
+        $queryBuilder = new QueryBuilder($this->emEngine)
             ->select(
                 'TABLE_NAME',
                 'COLUMN_NAME',
@@ -91,9 +101,11 @@ class InformationSchema extends QueryBuilder
                 'COLUMN_KEY'
             )
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::COLUMNS->value)
-            ->where(SqlOperations::equal('TABLE_SCHEMA', $database));
+            ->where(SqlOperations::equal('TABLE_SCHEMA', "'$database'"));
 
-        $this->columns = $queryBuilder->getResult()->fetchAll(PDO::FETCH_ASSOC);
+        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement->execute();
+        $this->columns = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -102,7 +114,7 @@ class InformationSchema extends QueryBuilder
      */
     private function populateForeignKeys(string $database): void
     {
-        $queryBuilder = $this
+        $queryBuilder = new QueryBuilder($this->emEngine)
             ->select(
                 'k.TABLE_NAME',
                 'k.CONSTRAINT_NAME',
@@ -115,16 +127,17 @@ class InformationSchema extends QueryBuilder
             )
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value, 'k')
             ->leftJoin(
-                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value,
-                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value . ' as r',
-                'k.CONSTRAINT_NAME = r.CONSTRAINT_NAME'
+                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value . ' k',
+                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value . ' r',
+                'k.CONSTRAINT_NAME=r.CONSTRAINT_NAME'
             )
-            ->where(SqlOperations::equal('k.CONSTRAINT_SCHEMA', $database))
+            ->where(SqlOperations::equal('k.CONSTRAINT_SCHEMA', "'$database'"))
             ->andWhere('k.REFERENCED_TABLE_SCHEMA IS NOT NULL')
             ->andWhere('k.REFERENCED_TABLE_NAME IS NOT NULL')
             ->andWhere('k.REFERENCED_COLUMN_NAME IS NOT NULL');
 
-        $this->foreignKeys = $queryBuilder->getResult()->fetchAll(PDO::FETCH_ASSOC);
+        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement->execute();
+        $this->foreignKeys = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
     }
-
 }

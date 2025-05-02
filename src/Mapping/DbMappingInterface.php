@@ -87,6 +87,14 @@ interface DbMappingInterface
     public function getExtra(string $entityName, string $property): ?string;
     
     /**
+          * @param class-string $entityName
+          * @param string $property
+          * @return string|null
+          * @throws ReflectionException
+          */
+          public function getColumnDefault(string $entityName, string $property): ?string;
+          
+    /**
      * @param class-string $entityName
      * @param string $property
      * @return string|null

@@ -28,7 +28,7 @@ use RuntimeException;
 
 /**
  * Class EmEngine
- * @package MulerTech\Database\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EmEngine
@@ -139,8 +139,10 @@ class EmEngine
     ): ?object {
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
 
+        // Todo : use hydrator instead of FETCH_CLASS, it is deprecated to create dynamically the properties
+        // Todo : use $pdoStatement->fetch(PDO::FETCH_ASSOC);
+        $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
         $fetchClass = $pdoStatement->fetch();
         $pdoStatement->closeCursor();
 
@@ -148,6 +150,7 @@ class EmEngine
             return null;
         }
 
+        // Todo : use hydrator into this method, give it the result
         $this->manageNewEntity($fetchClass, $loadRelations);
 
         return $fetchClass;
@@ -157,7 +160,7 @@ class EmEngine
      * @param QueryBuilder $queryBuilder
      * @param class-string $entityName
      * @param bool $loadRelations
-     * @return array|null
+     * @return array<object>|null
      * @throws ReflectionException
      */
     public function getQueryBuilderListResult(
@@ -168,15 +171,16 @@ class EmEngine
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
+        // Todo : use hydrator instead of FETCH_CLASS, it is deprecated to create dynamically the properties
+        // Todo : use $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
         $classList = $pdoStatement->fetchAll(PDO::FETCH_CLASS, $entityName);
-
         if ($classList === []) {
             return null;
         }
-
         $pdoStatement->closeCursor();
 
         foreach ($classList as $class) {
+            // Todo : use hydrator into this method, give it the result
             $this->manageNewEntity($class, $loadRelations);
         }
 
@@ -198,6 +202,8 @@ class EmEngine
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
+        // Todo : use hydrator instead of FETCH_CLASS, it is deprecated to create dynamically the properties
+        // Todo : use $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
         $classList = $pdoStatement->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_CLASS, $entityName);
 
         if ($classList === []) {
@@ -207,6 +213,7 @@ class EmEngine
         $pdoStatement->closeCursor();
 
         foreach ($classList as $class) {
+            // Todo : use hydrator into this method, give it the result
             $this->manageNewEntity($class, $loadRelations);
         }
 

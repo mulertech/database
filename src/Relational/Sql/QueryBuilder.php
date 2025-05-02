@@ -9,7 +9,7 @@ use RuntimeException;
 
 /**
  * Class QueryBuilder
- * @package MulerTech\Database\Relational\Sql
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class QueryBuilder
@@ -490,12 +490,24 @@ class QueryBuilder
      * join('user', 'users as manager', 'LEFT JOIN', 'user.manager_id = manager.id')
      *
      * @param string $type
-     * @param string|null $on
+     * @param string|null $on If it uses alias the aliases must be given in the from and to parameters.
      */
     private function addJoin(string $from, string $to, string $type, ?string $on = null): void
     {
-        $fromExtract = $this->extractAlias($from);
-        if (!$this->tableKnown($fromExtract)) {
+        ['name' => $fromName, 'alias' => $fromAlias] = $this->extractAlias($from);
+        ['name' => $toName, 'alias' => $toAlias] = $this->extractAlias($to);
+
+        if ($fromAlias === null && $on !== null && !str_contains($on, $fromName)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Class : QueryBuilder, Function : addJoin. The from table "%s" is not an alias and the on condition "%s" is not a part of the from table.',
+                    $from,
+                    $on
+                )
+            );
+        }
+
+        if (!$this->tableKnown($fromName, $fromAlias)) {
             throw new RuntimeException(
                 sprintf(
                     'Class : QueryBuilder, Function : addJoin. Unable to find the from table "%s" given for add join of type : %s',
@@ -504,46 +516,67 @@ class QueryBuilder
                 )
             );
         }
-        $toExtract = $this->extractAlias($to);
+
+        if ($toAlias === null && $on !== null && !str_contains($on, $toName)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Class : QueryBuilder, Function : addJoin. The to table "%s" is not an alias and the on condition "%s" is not a part of the to table.',
+                    $to,
+                    $on
+                )
+            );
+        }
+
         //Check if the alias is used
-        if ($toExtract['alias'] && in_array($toExtract['alias'], $this->tablesJoined, true)) {
+        if ($toAlias !== null && in_array($toAlias, array_merge(...array_values($this->tablesJoined)))) {
             throw new RuntimeException(
                 sprintf(
                     'Class : QueryBuilder, Function : addJoin. The alias "%s" for join of type "%s" is used.',
-                    $toExtract['alias'],
+                    $toAlias,
                     $type
                 )
             );
         }
-        $this->join[$fromExtract['alias'] ?? $fromExtract['name']][] = [
+
+        $this->join[$fromAlias ?? $fromName][] = [
             'type' => $type,
-            'to' => $toExtract['name'] . (($toExtract['alias']) ? ' ' . $toExtract['alias'] : ''),
+            'to' => $toName . (($toAlias) ? ' ' . $toAlias : ''),
             'on' => $on
         ];
-        $this->tablesJoined[$toExtract['name']] = $toExtract['alias'];
+
+        $this->tablesJoined[$toName][] = $toAlias;
     }
 
     /**
      * Check if the table is known and update the alias into from and nameAlias if null.
-     * @param array $nameAlias
+     * @param string $name
+     * @param string|null $alias
      * @return bool
      */
-    private function tableKnown(array $nameAlias): bool
+    private function tableKnown(string $name, ?string $alias): bool
     {
-        //Priority 1 : alias
-        if (isset($this->from[0]['alias']) && ($nameAlias['alias'] === $this->from[0]['alias'])) {
+        // alias priority
+        if (!is_null($alias)) {
+            //Priority 1 : vérification par alias
+            if (isset($this->from[0]['alias']) && ($alias === $this->from[0]['alias'])) {
+                return true;
+            }
+            if (isset($this->tablesJoined[$name]) && in_array($alias, $this->tablesJoined[$name], true)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        //Priority 2 : table name
+        if (isset($this->from[0]['name']) && $name === $this->from[0]['name']) {
             return true;
         }
-        if (in_array($nameAlias['alias'], $this->tablesJoined, true)) {
+
+        if (isset($this->tablesJoined[$name])) {
             return true;
         }
-        //Priority 2 : name
-        if (isset($this->from[0]['name']) && ($nameAlias['name'] === $this->from[0]['name'])) {
-            return true;
-        }
-        if (array_key_exists($nameAlias['name'], $this->tablesJoined)) {
-            return true;
-        }
+
         return false;
     }
 
@@ -1019,3 +1052,4 @@ class QueryBuilder
 
 
 }
+

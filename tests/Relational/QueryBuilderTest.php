@@ -1,15 +1,14 @@
 <?php
 
-namespace MulerTech\Database\Tests;
+namespace MulerTech\Database\Tests\Relational;
 
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\Database\Relational\Sql\SqlOperators;
 use MulerTech\Database\Relational\Sql\SqlQuery;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
-class RelationalQueryBuilderTest extends TestCase
+class QueryBuilderTest extends TestCase
 {
 
     public function testQueryBuilderInsertOneDynamicParameter(): void
@@ -178,9 +177,7 @@ class RelationalQueryBuilderTest extends TestCase
         $this->expectExceptionMessage(
             'Class SqlQuery, function generateFrom. The type (not define) of the query (for the "atable" table) into the QueryBuilder was not define or incorrect.'
         );
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->from('atable');
-        $queryBuilder->getQuery();
+        new QueryBuilder()->from('atable')->getQuery();
     }
 
     public function testQueryBuilderWithoutFrom(): void
@@ -188,22 +185,18 @@ class RelationalQueryBuilderTest extends TestCase
         $this->expectExceptionMessage(
             'Class SqlQuery, function generateFrom. The from variable was not found, for the "SELECT" request.'
         );
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('*');
-        $queryBuilder->getQuery();
+        new QueryBuilder()->select('*')->getQuery();
     }
 
     public function testQueryBuilderSimpleSelect(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('*')->from('atable');
+        $queryBuilder = new QueryBuilder()->select('*')->from('atable');
         self::assertEquals('SELECT * FROM `atable`', $queryBuilder->getQuery());
     }
 
     public function testQueryBuilderSelectMultipleFrom(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('name', 'price', 'options', 'photo')
             ->from('food')->addFrom('food_menu')
             ->where(SqlOperations::equal('food_id', 1));
@@ -215,8 +208,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectMultipleFromWithAlias(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('name', 'price', 'options', 'photo')
             ->from('food', 'foodas')->addFrom('food_menu', 'menuas')
             ->where(SqlOperations::equal('food_id', 1));
@@ -228,10 +220,9 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectWithFromSubQuery(): void
     {
-        $queryBuilder = new QueryBuilder();
         $from = new QueryBuilder();
         $from->select('c1 sc1', 'c2 sc2', 'c3 sc3')->from('tb1');
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('sc1', 'sc2', 'sc3')
             ->from($from, 'sb')
             ->where(SqlOperations::greater('sc1', 1));
@@ -243,10 +234,9 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectWithFromSubQuerySelectAlias(): void
     {
-        $queryBuilder = new QueryBuilder();
         $from = new QueryBuilder();
         $from->select('c1 sc1', 'c2 sc2', 'c3 sc3')->from('tb1')->selectAlias('sb');
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('sc1', 'sc2', 'sc3')
             ->from($from)
             ->where(SqlOperations::greater('sc1', 1));
@@ -258,8 +248,11 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectLimit(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('*')->from('atable')->limit(10)->offset(5, 10);
+        $queryBuilder = new QueryBuilder()
+            ->select('*')
+            ->from('atable')
+            ->limit(10)
+            ->offset(5, 10);
         self::assertEquals('SELECT * FROM `atable` LIMIT 10 OFFSET 40', $queryBuilder->getQuery());
     }
 
@@ -268,35 +261,34 @@ class RelationalQueryBuilderTest extends TestCase
         $this->expectExceptionMessage(
             'Class QueryBuilder, function : offset. The limit must be define before the offset.'
         );
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('*')->from('atable')->offset(5, 10);
+        new QueryBuilder()->select('*')->from('atable')->offset(5, 10);
     }
 
     public function testQueryBuilderSelectLimitManualOffset(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('*')->from('atable')->limit(10)->offset(null, 40);
+        $queryBuilder = new QueryBuilder()
+            ->select('*')
+            ->from('atable')
+            ->limit(10)
+            ->offset(null, 40);
         self::assertEquals('SELECT * FROM `atable` LIMIT 10 OFFSET 40', $queryBuilder->getQuery());
     }
 
     public function testQueryBuilderSelectDistinct(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('firstname')->from('atable')->distinct();
+        $queryBuilder = new QueryBuilder()->select('firstname')->from('atable')->distinct();
         self::assertEquals('SELECT DISTINCT `firstname` FROM `atable`', $queryBuilder->getQuery());
     }
 
     public function testQueryBuilderSelectDistinctIndicated(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('DISTINCT firstname')->from('atable')->distinct();
+        $queryBuilder = new QueryBuilder()->select('DISTINCT firstname')->from('atable')->distinct();
         self::assertEquals('SELECT DISTINCT `firstname` FROM `atable`', $queryBuilder->getQuery());
     }
 
     public function testQueryBuilderSelect(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('username AS name', 'age as user_age')
             ->from('atable')
             ->orderBy('age', 'DESC')
@@ -309,8 +301,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectInnerJoin(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('customername', 'customercity', 'customermail', 'ordertotal', 'salestotal')
             ->from('customers c')
             ->innerJoin('customers c', 'orders o', 'c.customerid=o.customerid')
@@ -321,13 +312,40 @@ class RelationalQueryBuilderTest extends TestCase
         );
     }
 
+    public function testQueryBuilderSelectLeftJoinInformationSchema(): void
+    {
+        $queryBuilder = new QueryBuilder()
+            ->select(
+                'k.TABLE_NAME',
+                'k.CONSTRAINT_NAME',
+                'k.COLUMN_NAME',
+                'k.REFERENCED_TABLE_SCHEMA',
+                'k.REFERENCED_TABLE_NAME',
+                'k.REFERENCED_COLUMN_NAME',
+                'r.DELETE_RULE',
+                'r.UPDATE_RULE'
+            )
+            ->from('INFORMATION_SCHEMA.KEY_COLUMN_USAGE', 'k')
+            ->leftJoin(
+                'INFORMATION_SCHEMA.KEY_COLUMN_USAGE k',
+                'INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS r',
+                'k.CONSTRAINT_NAME=r.CONSTRAINT_NAME'
+            )
+            ->where(SqlOperations::equal('k.CONSTRAINT_SCHEMA', "'db'"))
+            ->andWhere('k.REFERENCED_TABLE_SCHEMA IS NOT NULL')
+            ->andWhere('k.REFERENCED_TABLE_NAME IS NOT NULL')
+            ->andWhere('k.REFERENCED_COLUMN_NAME IS NOT NULL');
+        self::assertEquals(
+            'SELECT `k`.`TABLE_NAME`, `k`.`CONSTRAINT_NAME`, `k`.`COLUMN_NAME`, `k`.`REFERENCED_TABLE_SCHEMA`, `k`.`REFERENCED_TABLE_NAME`, `k`.`REFERENCED_COLUMN_NAME`, `r`.`DELETE_RULE`, `r`.`UPDATE_RULE` FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` `k` LEFT JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` `r` ON `k`.`CONSTRAINT_NAME`=`r`.`CONSTRAINT_NAME` WHERE k.CONSTRAINT_SCHEMA=\'db\' AND k.REFERENCED_TABLE_SCHEMA IS NOT NULL AND k.REFERENCED_TABLE_NAME IS NOT NULL AND k.REFERENCED_COLUMN_NAME IS NOT NULL',
+            $queryBuilder->getQuery()
+        );
+    }
     public function testQueryBuilderSelectInnerJoinAndLeftJoinTableNotFound(): void
     {
         $this->expectExceptionMessage(
             'Class : QueryBuilder, Function : addJoin. Unable to find the from table "unknown u" given for add join of type : LEFT JOIN'
         );
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        new QueryBuilder()
             ->select('customername', 'customercity', 'customermail', 'ordertotal', 'salestotal')
             ->from('customers c')
             ->innerJoin('customers c', 'orders o', 'c.customerid=o.customerid')
@@ -339,8 +357,7 @@ class RelationalQueryBuilderTest extends TestCase
         $this->expectExceptionMessage(
             'Class : QueryBuilder, Function : addJoin. The alias "o" for join of type "LEFT JOIN" is used.'
         );
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        new QueryBuilder()
             ->select('customername', 'customercity', 'customermail', 'ordertotal', 'salestotal')
             ->from('customers c')
             ->innerJoin('customers c', 'orders o', 'c.customerid=o.customerid')
@@ -349,8 +366,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectComplexLeftJoinThatFollow(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'basecolumn',
                 'acolumn',
@@ -383,8 +399,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectComplexLeftJoinMultipheTableAlias(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'basecolumn',
                 'alphacolumn',
@@ -405,8 +420,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectComplexLeftJoinThatNotFollow(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'basecolumn',
                 'acolumn',
@@ -439,8 +453,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectInnerJoinWithAlias(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'cust.firstname',
                 'cust.lastname',
@@ -464,8 +477,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectCrossJoin(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('username AS name', 'age as user_age')
             ->from('atable table')
             ->crossJoin('atable table', 'btable');
@@ -477,8 +489,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectRightJoin(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('username AS name', 'age as user_age')
             ->from('atable table')
             ->rightJoin('atable table', 'btable', 'table.id_btable = btable.id');
@@ -490,8 +501,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectFullJoin(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('username AS name', 'age as user_age')
             ->from('atable table')
             ->fullJoin('atable table', 'btable', 'table.id_btable = btable.id');
@@ -503,8 +513,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectNaturalJoin(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('username AS name', 'age as user_age')
             ->from('atable table')
             ->naturalJoin('atable table', 'btable', 'table.id_btable = btable.id');
@@ -516,8 +525,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectUnionJoin(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('username AS name', 'age as user_age')
             ->from('atable table')
             ->unionJoin('atable table', 'btable', 'table.id_btable = btable.id');
@@ -529,10 +537,8 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectUnionAll(): void
     {
-        $subQuery1 = new QueryBuilder();
-        $subQuery1->select('username')->from('atable');
-        $subQuery2 = new QueryBuilder();
-        $subQuery2->select('username')->from('btable');
+        $subQuery1 = new QueryBuilder()->select('username')->from('atable');
+        $subQuery2 = new QueryBuilder()->select('username')->from('btable');
         $queryBuilder = new QueryBuilder();
         self::assertEquals(
             'SELECT `username` FROM `atable` UNION ALL SELECT `username` FROM `btable`',
@@ -542,8 +548,10 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectGroupBy(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('year', 'SUM(profit) AS profit')->from('sales')->groupBy('year');
+        $queryBuilder = new QueryBuilder()
+            ->select('year', 'SUM(profit) AS profit')
+            ->from('sales')
+            ->groupBy('year');
         self::assertEquals(
             'SELECT `year`, SUM(profit) AS profit FROM `sales` GROUP BY `year`',
             $queryBuilder->getQuery()
@@ -552,8 +560,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectGroupByWithRollUp(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('year', 'SUM(profit) AS profit')
             ->from('sales')
             ->groupBy('year')
@@ -566,8 +573,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectWhere(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->where(SqlOperations::equal('pr.numprod', 'p.numprod'))
@@ -594,8 +600,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectNotWhere(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->where(SqlOperations::equal('pr.numprod', 'p.numprod'))
@@ -608,8 +613,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectOrWhere(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->where(SqlOperations::equal('pr.numprod', 'p.numprod'))
@@ -622,8 +626,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectOrNotWhere(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->where(SqlOperations::equal('pr.numprod', 'p.numprod'))
@@ -636,8 +639,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectManualWhere(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->manualWhere('pr.numprod=p.numprod');
@@ -649,8 +651,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectHavingAnd(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'ordernumber',
                 'SUM(quantityOrdered) AS itemsCount',
@@ -669,8 +670,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectHavingOr(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'ordernumber',
                 'SUM(quantityOrdered) AS itemsCount',
@@ -689,8 +689,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectManualHaving(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select(
                 'ordernumber',
                 'SUM(quantityOrdered) AS itemsCount',
@@ -707,13 +706,12 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectSubQueryIntoSelect(): void
     {
-        $queryBuilder = new QueryBuilder();
         $subQuery = new QueryBuilder();
         $subQuery
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->where(SqlOperations::equal('pr.numprod', 'p.numprod'));
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('product_name', $subQuery->getSubQuery() . ' as nb_supplier')
             ->from('produit', 'p');
         self::assertEquals(
@@ -724,13 +722,12 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectSubQueryIntoFrom(): void
     {
-        $queryBuilder = new QueryBuilder();
         $subQuery = new QueryBuilder();
         $subQuery
             ->select('COUNT(*)')
             ->from('products', 'pr')
             ->where(SqlOperations::equal('pr.numprod', 'p.numprod'));
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->select('product_name', $subQuery->getSubQuery() . ' as nb_supplier')
             ->from('produit', 'p');
         self::assertEquals(
@@ -741,8 +738,10 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderUpdate(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->update('employees')->set('lastname', 'Hill')->set('firstname', 'John');
+        $queryBuilder = new QueryBuilder()
+            ->update('employees')
+            ->set('lastname', 'Hill')
+            ->set('firstname', 'John');
         self::assertEquals(
             'UPDATE `employees` SET `lastname` = ?, `firstname` = ?',
             $queryBuilder->getQuery()
@@ -751,8 +750,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderUpdateAlias(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->update('employees', 'emp')->set('lastname', 'Hill');
+        $queryBuilder = new QueryBuilder()->update('employees', 'emp')->set('lastname', 'Hill');
         self::assertEquals(
             'UPDATE `employees` `emp` SET `lastname` = ?',
             $queryBuilder->getQuery()
@@ -772,7 +770,10 @@ class RelationalQueryBuilderTest extends TestCase
     public function testQueryBuilderUpdateWithWhereAndNamedParameters(): void
     {
         $queryBuilder = new QueryBuilder();
-        $queryBuilder->update('employees')->setValue('lastname', $queryBuilder->addNamedParameter('Hill'))->where(SqlOperations::equal('id', $queryBuilder->addNamedParameter(1)));
+        $queryBuilder
+            ->update('employees')
+            ->setValue('lastname', $queryBuilder->addNamedParameter('Hill'))
+            ->where(SqlOperations::equal('id', $queryBuilder->addNamedParameter(1)));
         self::assertEquals(
             'UPDATE `employees` SET `lastname` = :namedParam1 WHERE id=:namedParam2',
             $queryBuilder->getQuery()
@@ -781,8 +782,9 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderDelete(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->delete('employees')->where(SqlOperations::equal('employees.id', 1));
+        $queryBuilder = new QueryBuilder()
+            ->delete('employees')
+            ->where(SqlOperations::equal('employees.id', 1));
         self::assertEquals(
             'DELETE FROM `employees` WHERE employees.id=1',
             $queryBuilder->getQuery()
@@ -791,8 +793,7 @@ class RelationalQueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectSubQueryIntoFromWithUnion(): void
     {
-        $kitrepairs = new QueryBuilder();
-        $kitrepairs
+        $kitrepairs = new QueryBuilder()
             ->select(
                 'aux_repairs.id AS id',
                 'aux_repairs.equipment_table AS equipment_table',
@@ -809,8 +810,7 @@ class RelationalQueryBuilderTest extends TestCase
             ->leftJoin('aux_repairs', 'aux_kits', 'aux_repairs.idequipment = aux_kits.id')
             ->leftJoin('aux_kits', 'units', 'aux_kits.id_units = units.id')
             ->where(SqlOperations::equal(SqlQuery::escape('aux_repairs.equipment_table'), "'aux_kits'"));
-        $phonerepairs = new QueryBuilder();
-        $phonerepairs
+        $phonerepairs = new QueryBuilder()
             ->select(
                 'aux_repairs.id AS id',
                 'aux_repairs.equipment_table AS equipment_table',
@@ -827,10 +827,8 @@ class RelationalQueryBuilderTest extends TestCase
             ->leftJoin('aux_repairs', 'aux_phones', 'aux_repairs.idequipment = aux_phones.id')
             ->leftJoin('aux_phones', 'units', 'aux_phones.id_units = units.id')
             ->where(SqlOperations::equal(SqlQuery::escape('aux_repairs.equipment_table'), "'aux_phones'"));
-        $subQuery = new QueryBuilder();
-        $subQuery->union($kitrepairs, $phonerepairs);
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->select('*')->from($subQuery, 'aux_repairs');
+        $subQuery = new QueryBuilder()->union($kitrepairs, $phonerepairs);
+        $queryBuilder = new QueryBuilder()->select('*')->from($subQuery, 'aux_repairs');
         self::assertEquals(
             "SELECT * FROM (SELECT `aux_repairs`.`id` `id`, `aux_repairs`.`equipment_table` `equipment_table`, `aux_repairs`.`idequipment` `idequipment`, `failures`.`description` `failuresdescription`, `aux_repairs`.`id_failures` `id_failures`, `aux_repairs`.`comment` `comment`, `aux_repairs`.`date_failure` `date_failure`, `aux_kits`.`name` `itemname`, `units`.`name` `unitsname` FROM `aux_repairs` LEFT JOIN `failures` ON `aux_repairs`.`id_failures`=`failures`.`id` LEFT JOIN `aux_kits` ON `aux_repairs`.`idequipment`=`aux_kits`.`id` LEFT JOIN `units` ON `aux_kits`.`id_units`=`units`.`id` WHERE `aux_repairs`.`equipment_table`='aux_kits' UNION SELECT `aux_repairs`.`id` `id`, `aux_repairs`.`equipment_table` `equipment_table`, `aux_repairs`.`idequipment` `idequipment`, `failures`.`description` `failuresdescription`, `aux_repairs`.`id_failures` `id_failures`, `aux_repairs`.`comment` `comment`, `aux_repairs`.`date_failure` `date_failure`, `aux_phones`.`name` `itemname`, `units`.`name` `unitsname` FROM `aux_repairs` LEFT JOIN `failures` ON `aux_repairs`.`id_failures`=`failures`.`id` LEFT JOIN `aux_phones` ON `aux_repairs`.`idequipment`=`aux_phones`.`id` LEFT JOIN `units` ON `aux_phones`.`id_units`=`units`.`id` WHERE `aux_repairs`.`equipment_table`='aux_phones') `aux_repairs`",
             $queryBuilder->getQuery()

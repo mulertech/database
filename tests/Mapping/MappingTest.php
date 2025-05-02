@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests;
+namespace MulerTech\Database\Tests\Mapping;
 
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\FkRule;
@@ -32,7 +32,9 @@ class MappingTest extends TestCase
      */
     private function getDbMapping(): DbMapping
     {
-        return $this->dbMapping ?? ($this->dbMapping = new DbMapping(__DIR__ . '/Files/Entity'));
+        return $this->dbMapping ?? ($this->dbMapping = new DbMapping(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        ));
     }
 
     /**
@@ -81,7 +83,10 @@ class MappingTest extends TestCase
      */
     public function testTablesWithoutRecursiveDirectory(): void
     {
-        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity', false);
+        $dbMapping = new DbMapping(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity',
+            false
+        );
         $this->assertEquals(
             ['groups_test', 'link_user_group_test', 'sametablename', 'units_test', 'users_test'],
             $dbMapping->getTables()
