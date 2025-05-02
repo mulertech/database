@@ -137,25 +137,47 @@ class MigrationManager
         // Check for duplicate version
         if (isset($this->migrations[$version])) {
             throw new RuntimeException(
-                "Migration with version {$version} is already registered. Each migration must have a unique version."
+                "Migration with version $version is already registered. Each migration must have a unique version."
             );
         }
         
         $this->migrations[$version] = $migration;
         return $this;
     }
-    
+
     /**
-     * Register multiple migrations at once
+     * Register migrations from a directory
      *
-     * @param Migration[] $migrations
+     * @param string $directory Path to migrations directory
      * @return $this
+     * @throws RuntimeException If directory does not exist
      */
-    public function registerMigrations(array $migrations): self
+    public function registerMigrations(string $directory): self
     {
-        foreach ($migrations as $migration) {
-            $this->registerMigration($migration);
+        if (!is_dir($directory)) {
+            throw new RuntimeException("Migration directory does not exist: $directory");
         }
+
+        $files = glob($directory . DIRECTORY_SEPARATOR . 'Migration*.php');
+
+        foreach ($files as $file) {
+            $className = pathinfo($file, PATHINFO_FILENAME);
+
+            // Inclure le fichier s'il n'est pas déjà chargé
+            if (!class_exists($className)) {
+                require_once $file;
+            }
+
+            // Instancier la migration
+            if (class_exists($className)) {
+                $migration = new $className($this->entityManager);
+
+                if ($migration instanceof Migration) {
+                    $this->registerMigration($migration);
+                }
+            }
+        }
+
         return $this;
     }
     
@@ -236,22 +258,27 @@ class MigrationManager
         try {
             // Begin transaction
             $this->entityManager->getPdm()->beginTransaction();
-            
+
             // Execute migration
             $migration->up();
-            
+
             // Record migration in history
             $this->recordMigrationExecution($migration, microtime(true) - $startTime);
             
-            // Commit transaction
-            $this->entityManager->getPdm()->commit();
-            
+            // Commit transaction if there is a transaction in progress
+            // The CREATE or DROP TABLE statements are not transactional
+            if ($this->entityManager->getPdm()->inTransaction()) {
+                $this->entityManager->getPdm()->commit();
+            }
+
             // Update executed migrations cache
             $this->executedMigrations[] = $version;
         } catch (Exception $e) {
-            // Rollback transaction
-            $this->entityManager->getPdm()->rollBack();
-            
+            // Rollback transaction if it's possible
+            if ($this->entityManager->getPdm()->inTransaction()) {
+                $this->entityManager->getPdm()->rollBack();
+            }
+
             // Re-throw exception
             throw new RuntimeException("Migration {$version} failed: " . $e->getMessage(), 0, $e);
         }

@@ -6,6 +6,6 @@ enum ReferentialAction: string
 {
     case RESTRICT = 'RESTRICT';
     case CASCADE = 'CASCADE';
-    case SET_NULL = 'SET_NULL';
-    case NO_ACTION = 'NO_ACTION';
+    case SET_NULL = 'SET NULL';
+    case NO_ACTION = 'NO ACTION';
 }

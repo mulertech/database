@@ -30,8 +30,8 @@ class ReferentialActionTest extends TestCase
     {
         $this->assertEquals('RESTRICT', ReferentialAction::RESTRICT->value);
         $this->assertEquals('CASCADE', ReferentialAction::CASCADE->value);
-        $this->assertEquals('SET_NULL', ReferentialAction::SET_NULL->value);
-        $this->assertEquals('NO_ACTION', ReferentialAction::NO_ACTION->value);
+        $this->assertEquals('SET NULL', ReferentialAction::SET_NULL->value);
+        $this->assertEquals('NO ACTION', ReferentialAction::NO_ACTION->value);
     }
 
     /**
@@ -41,8 +41,8 @@ class ReferentialActionTest extends TestCase
     {
         $this->assertSame(ReferentialAction::RESTRICT, ReferentialAction::from('RESTRICT'));
         $this->assertSame(ReferentialAction::CASCADE, ReferentialAction::from('CASCADE'));
-        $this->assertSame(ReferentialAction::SET_NULL, ReferentialAction::from('SET_NULL'));
-        $this->assertSame(ReferentialAction::NO_ACTION, ReferentialAction::from('NO_ACTION'));
+        $this->assertSame(ReferentialAction::SET_NULL, ReferentialAction::from('SET NULL'));
+        $this->assertSame(ReferentialAction::NO_ACTION, ReferentialAction::from('NO ACTION'));
     }
     
     /**
@@ -61,8 +61,8 @@ class ReferentialActionTest extends TestCase
     {
         $this->assertSame(ReferentialAction::RESTRICT, ReferentialAction::tryFrom('RESTRICT'));
         $this->assertSame(ReferentialAction::CASCADE, ReferentialAction::tryFrom('CASCADE'));
-        $this->assertSame(ReferentialAction::SET_NULL, ReferentialAction::tryFrom('SET_NULL'));
-        $this->assertSame(ReferentialAction::NO_ACTION, ReferentialAction::tryFrom('NO_ACTION'));
+        $this->assertSame(ReferentialAction::SET_NULL, ReferentialAction::tryFrom('SET NULL'));
+        $this->assertSame(ReferentialAction::NO_ACTION, ReferentialAction::tryFrom('NO ACTION'));
     }
     
     /**

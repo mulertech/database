@@ -18,6 +18,7 @@
     "mulertech/event-manager": "^1",
     "mulertech/file-manipulation": "^1",
     "mulertech/http-request": "^1",
+    "mulertech/mterm": "^1",
     "symfony/yaml": "^7",
     "ext-pdo": "*",
     "ext-iconv": "*"

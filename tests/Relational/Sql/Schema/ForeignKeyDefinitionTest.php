@@ -94,4 +94,22 @@ class ForeignKeyDefinitionTest extends TestCase
         $this->assertEquals(ReferentialAction::NO_ACTION, $foreignKey->getOnUpdate());
         $this->assertEquals(ReferentialAction::CASCADE, $foreignKey->getOnDelete());
     }
+
+    public function testDropForeignKey(): void
+    {
+        $foreignKey = new ForeignKeyDefinition('test_fk');
+        $result = $foreignKey->setDrop();
+
+        $this->assertSame($foreignKey, $result, 'Method should return $this for chaining');
+        $this->assertTrue($foreignKey->isDrop());
+    }
+
+    public function testDropForeignKeyWithParameter(): void
+    {
+        $foreignKey = new ForeignKeyDefinition('test_fk');
+        $result = $foreignKey->setDrop(true);
+
+        $this->assertSame($foreignKey, $result, 'Method should return $this for chaining');
+        $this->assertTrue($foreignKey->isDrop());
+    }
 }

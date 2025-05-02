@@ -2,7 +2,6 @@
 
 namespace MulerTech\Database\Migration;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\Migration\Schema\SchemaDifference;
 use RuntimeException;
@@ -15,14 +14,18 @@ use RuntimeException;
  */
 class MigrationGenerator
 {
+    private array $uses = [
+        'use MulerTech\Database\Migration\Migration;',
+        'use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;'
+    ];
+
     /**
      * @var string Template for migration class
      */
     private const string MIGRATION_TEMPLATE = <<<'EOT'
 <?php
 
-use MulerTech\Database\Migration\Migration;
-use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
+%uses%
 
 /**
  * Auto-generated migration
@@ -50,12 +53,10 @@ EOT;
     /**
      * @param SchemaComparer $schemaComparer
      * @param string $migrationsDirectory
-     * @param DbMappingInterface $dbMapping
      */
     public function __construct(
         private readonly SchemaComparer $schemaComparer,
         private readonly string $migrationsDirectory,
-        private readonly DbMappingInterface $dbMapping
     ) {
         // Ensure migrations directory exists
         if (!is_dir($migrationsDirectory)) {
@@ -87,7 +88,10 @@ EOT;
         $upCode = $this->generateUpCode($diff);
         $downCode = $this->generateDownCode($diff);
 
+        sort($this->uses);
+
         $migrationContent = strtr(self::MIGRATION_TEMPLATE, [
+            '%uses%' => implode(PHP_EOL, $this->uses),
             '%date%' => $date,
             '%up_code%' => $upCode,
             '%down_code%' => $downCode
@@ -108,14 +112,6 @@ EOT;
      */
     private function validateSchemaDifferences(SchemaDifference $diff): void
     {
-        // Validate tables to create have columns
-        foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
-            $columns = $this->dbMapping->getPropertiesColumns($entityClass);
-            if (empty($columns)) {
-                throw new RuntimeException("Cannot create table '$tableName': Entity '$entityClass' has no columns defined.");
-            }
-        }
-
         // Track tables and columns that will be created
         $tablesToCreate = array_keys($diff->getTablesToCreate());
         $columnsToCreate = [];
@@ -191,12 +187,19 @@ EOT;
         }
         
         // Create new tables
+        $columnsToAdd = $diff->getColumnsToAdd();
         foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
-            $code[] = $this->generateCreateTableStatement($tableName, $entityClass);
+            if (!isset($columnsToAdd[$tableName])) {
+                throw new RuntimeException("Table '$tableName' has no columns defined.");
+            }
+
+            $tableColumns = $columnsToAdd[$tableName];
+            $code[] = $this->generateCreateTableStatement($tableName, $tableColumns);
+            unset($columnsToAdd[$tableName]);
         }
         
         // Add new columns
-        foreach ($diff->getColumnsToAdd() as $tableName => $columns) {
+        foreach ($columnsToAdd as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
                 $code[] = $this->generateAddColumnStatement($tableName, $columnName, $columnDefinition);
             }
@@ -234,11 +237,6 @@ EOT;
     {
         $code = [];
 
-        // Drop tables that were created in up()
-        foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
-            $code[] = $this->generateDropTableStatement($tableName);
-        }
-
         // Drop foreign keys that were added in up()
         foreach ($diff->getForeignKeysToAdd() as $tableName => $foreignKeys) {
             foreach ($foreignKeys as $constraintName => $foreignKeyInfo) {
@@ -246,8 +244,15 @@ EOT;
             }
         }
 
+        // Drop tables that were created in up()
+        $columnsToDrop = $diff->getColumnsToAdd();
+        foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
+            $code[] = $this->generateDropTableStatement($tableName);
+            unset($columnsToDrop[$tableName]);
+        }
+
         // Drop columns that were added in up()
-        foreach ($diff->getColumnsToAdd() as $tableName => $columns) {
+        foreach ($columnsToDrop as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
                 $code[] = $this->generateDropColumnStatement($tableName, $columnName);
             }
@@ -272,36 +277,36 @@ EOT;
     /**
      * Generate code to create a table with all its columns
      */
-    private function generateCreateTableStatement(string $tableName, string $entityClass): string
+    private function generateCreateTableStatement(string $tableName, array $columnsToAdd): string
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->createTable("' . $tableName . '")';
+        $code[] = '        $tableDefinition = $schema->createTable("' . $tableName . '");';
 
         // Get all columns for this entity
-        foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
-            $columnType = $this->dbMapping->getColumnType($entityClass, $property);
-            $isNullable = $this->dbMapping->isNullable($entityClass, $property);
-            $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property);
-            $columnExtra = $this->dbMapping->getExtra($entityClass, $property);
-            $columnKey = $this->dbMapping->getColumnKey($entityClass, $property);
-
+        foreach ($columnsToAdd as $columnName => $columnDefinition) {
             // Parse column type to determine the appropriate method
-            $columnDefinitionCode = $this->parseColumnType($columnType, $columnName, $isNullable, $columnDefault, $columnExtra);
+            $columnDefinitionCode = $this->parseColumnType(
+                $columnDefinition['COLUMN_TYPE'] ?? null,
+                $columnName,
+                $columnDefinition['IS_NULLABLE'] === 'YES',
+                $columnDefinition['COLUMN_DEFAULT'] ?? null,
+                $columnDefinition['EXTRA'] ?? null
+            );
             $code[] = '    ' . $columnDefinitionCode;
 
             // Add primary/unique/index keys
-            if ($columnKey === 'PRI') {
-                $code[] = '    ->primaryKey("' . $columnName . '")';
+            if ($columnDefinition['COLUMN_KEY'] === 'PRI') {
+                $code[] = '        $tableDefinition->primaryKey("' . $columnName . '");';
             }
         }
 
-        $code[] = '    ->engine("InnoDB")';
-        $code[] = '    ->charset("utf8mb4")';
-        $code[] = '    ->collation("utf8mb4_unicode_ci");';
+        $code[] = '        $tableDefinition->engine("InnoDB")';
+        $code[] = '            ->charset("utf8mb4")';
+        $code[] = '            ->collation("utf8mb4_unicode_ci");';
 
-        $code[] = '$sql = $tableDefinition->toSql();';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -311,7 +316,7 @@ EOT;
      */
     private function parseColumnType(?string $columnType, string $columnName, bool $isNullable, $columnDefault, ?string $columnExtra): string
     {
-        $code = '->column("' . $columnName . '")';
+        $code = '    $tableDefinition->column("' . $columnName . '")';
 
         if ($columnType === null || $columnType === '') {
             $code .= '->string()';
@@ -347,7 +352,7 @@ EOT;
             $code .= '->autoIncrement()';
         }
 
-        return $code;
+        return $code . ';';
     }
 
     /**
@@ -357,8 +362,8 @@ EOT;
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$sql = $schema->dropTable("' . $tableName . '");';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '        $sql = $schema->dropTable("' . $tableName . '");';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -375,7 +380,7 @@ EOT;
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '")';
+        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
 
         $columnDefinitionCode = $this->parseColumnType(
             $columnType,
@@ -385,9 +390,9 @@ EOT;
             $columnExtra
         );
 
-        $code[] = '    ' . $columnDefinitionCode . ';';
-        $code[] = '$sql = $tableDefinition->toSql();';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '    ' . $columnDefinitionCode;
+        $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -410,7 +415,7 @@ EOT;
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '")';
+        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
 
         $columnDefinitionCode = $this->parseColumnType(
             $columnType,
@@ -420,9 +425,9 @@ EOT;
             $columnExtra
         );
 
-        $code[] = '    ' . $columnDefinitionCode . ';'; // L'altération va modifier la colonne existante
-        $code[] = '$sql = $tableDefinition->toSql();';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '    ' . $columnDefinitionCode;
+        $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -445,7 +450,7 @@ EOT;
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '")';
+        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '");';
 
         $columnDefinitionCode = $this->parseColumnType(
             $columnType,
@@ -455,9 +460,9 @@ EOT;
             $columnExtra
         );
 
-        $code[] = '    ' . $columnDefinitionCode . ';';
-        $code[] = '$sql = $tableDefinition->toSql();';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '    ' . $columnDefinitionCode;
+        $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -469,10 +474,10 @@ EOT;
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '")';
-        $code[] = '    ->dropColumn("' . $columnName . '");';
-        $code[] = '$sql = $tableDefinition->toSql();';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '")';
+        $code[] = '            ->dropColumn("' . $columnName . '");';
+        $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -482,16 +487,27 @@ EOT;
      */
     private function generateAddForeignKeyStatement(string $tableName, string $constraintName, array $foreignKeyInfo): string
     {
+        if (!in_array('use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;', $this->uses)) {
+            $this->uses[] = 'use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;';
+        }
+
+        $onDeleteRule = $foreignKeyInfo['DELETE_RULE']
+            ? 'ReferentialAction::' . $foreignKeyInfo['DELETE_RULE']
+            : 'ReferentialAction::CASCADE';
+        $onUpdateRule = $foreignKeyInfo['UPDATE_RULE']
+            ? 'ReferentialAction::' . $foreignKeyInfo['UPDATE_RULE']
+            : 'ReferentialAction::CASCADE';
+
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '")';
-        $code[] = '    ->foreignKey("' . $constraintName . '")';
-        $code[] = '    ->columns("' . $foreignKeyInfo['COLUMN_NAME'] . '")';
-        $code[] = '    ->references("' . $foreignKeyInfo['REFERENCED_TABLE_NAME'] . '", "' . $foreignKeyInfo['REFERENCED_COLUMN_NAME'] . '")';
-        $code[] = '    ->onDelete("' . ($foreignKeyInfo['DELETE_RULE'] ?? 'CASCADE') . '")';
-        $code[] = '    ->onUpdate("' . ($foreignKeyInfo['UPDATE_RULE'] ?? 'CASCADE') . '");';
-        $code[] = '$sql = $tableDefinition->toSql();';
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition->foreignKey("' . $constraintName . '")';
+        $code[] = '            ->columns("' . $foreignKeyInfo['COLUMN_NAME'] . '")';
+        $code[] = '            ->references("' . $foreignKeyInfo['REFERENCED_TABLE_NAME'] . '", "' . $foreignKeyInfo['REFERENCED_COLUMN_NAME'] . '")';
+        $code[] = '            ->onDelete(' . $onDeleteRule . ')';
+        $code[] = '            ->onUpdate(' . $onUpdateRule . ');';
+        $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
@@ -503,8 +519,9 @@ EOT;
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$sql = "ALTER TABLE ' . $tableName . ' DROP FOREIGN KEY ' . $constraintName . '";'; // À adapter quand SchemaBuilder supportera cette opération
-        $code[] = '$this->entityManager->getPdm()->exec($sql);';
+        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition->dropForeignKey("' . $constraintName . '");';
+        $code[] = '        $this->entityManager->getPdm()->exec($tableDefinition->toSql());';
 
         return implode("\n", $code);
     }

@@ -185,7 +185,7 @@ class SchemaComparer
             
             $entityColumns[$columnName] = [
                 'COLUMN_TYPE' => $columnType,
-                'IS_NULLABLE' => $isNullable ? 'YES' : 'NO',
+                'IS_NULLABLE' => $isNullable === false ? 'NO' : 'YES',
                 'COLUMN_DEFAULT' => $columnDefault,
                 'EXTRA' => $columnExtra,
                 'COLUMN_KEY' => $columnKey

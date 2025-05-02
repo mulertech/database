@@ -120,7 +120,7 @@ class SchemaQueryGeneratorTest extends TestCase
                     "  `title` VARCHAR(255) NOT NULL," . PHP_EOL .
                     "  PRIMARY KEY (`id`)," . PHP_EOL .
                     "  CONSTRAINT `fk_posts_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE," . PHP_EOL .
-                    "  CONSTRAINT `fk_posts_categories` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET_NULL ON UPDATE NO_ACTION" . PHP_EOL .
+                    "  CONSTRAINT `fk_posts_categories` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION" . PHP_EOL .
                     ");";
                     
         $this->assertEquals($expected, $sql);
@@ -225,8 +225,7 @@ class SchemaQueryGeneratorTest extends TestCase
     public function testGenerateForeignKey(): void
     {
         $method = new ReflectionMethod(SchemaQueryGenerator::class, 'generateForeignKey');
-        $method->setAccessible(true);
-        
+
         // Test basic foreign key
         $fk = new ForeignKeyDefinition('fk_test');
         $fk->columns('user_id')->references('users', 'id');

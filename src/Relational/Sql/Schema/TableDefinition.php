@@ -120,6 +120,20 @@ class TableDefinition
     }
 
     /**
+     * @param string $name
+     * @return self
+     */
+    public function dropForeignKey(string $name): self
+    {
+        if (!isset($this->foreignKeys[$name])) {
+            $this->foreignKeys[$name] = new ForeignKeyDefinition($name);
+        }
+
+        $this->foreignKeys[$name]->setDrop();
+        return $this;
+    }
+
+    /**
      * @param string $engine
      * @return self
      */

@@ -2,6 +2,9 @@
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
+use MulerTech\Database\Relational\Sql\SqlQuery;
+use RuntimeException;
+
 /**
  * Class ForeignKeyDefinition
  * @package MulerTech\Database
@@ -9,7 +12,6 @@ namespace MulerTech\Database\Relational\Sql\Schema;
  */
 class ForeignKeyDefinition
 {
-    private string $name;
     private array $columns = [];
     private string $referencedTable;
     private array $referencedColumns = [];
@@ -20,10 +22,8 @@ class ForeignKeyDefinition
     /**
      * @param string $name
      */
-    public function __construct(string $name)
-    {
-        $this->name = $name;
-    }
+    public function __construct(private string $name)
+    {}
 
     /**
      * @return string
@@ -85,7 +85,7 @@ class ForeignKeyDefinition
      * @param bool $isDrop
      * @return self
      */
-    public function setDrop(bool $isDrop): self
+    public function setDrop(bool $isDrop = true): self
     {
         $this->isDrop = $isDrop;
         return $this;

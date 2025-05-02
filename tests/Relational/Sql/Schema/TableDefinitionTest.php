@@ -198,16 +198,17 @@ class TableDefinitionTest extends TestCase
         $table = new TableDefinition('users', false);
         $table->column('new_column')->string(50)->notNull();
         $table->dropColumn('old_column');
+        $table->dropForeignKey('fk_users_posts');
         
         // Create a real SchemaQueryGenerator to test the integration
         $generator = new SchemaQueryGenerator();
         $sql = $table->toSql();
         
         $this->assertNotEmpty($sql);
-        $this->assertStringContainsString('ALTER TABLE', $sql);
-        $this->assertStringContainsString('`users`', $sql);
-        $this->assertStringContainsString('ADD COLUMN', $sql);
-        $this->assertStringContainsString('DROP COLUMN', $sql);
+        $this->assertStringContainsString('ALTER TABLE `users`', $sql);
+        $this->assertStringContainsString('ADD COLUMN `new_column` VARCHAR(50) NOT NULL', $sql);
+        $this->assertStringContainsString('DROP COLUMN `old_column`', $sql);
+        $this->assertStringContainsString('DROP FOREIGN KEY `fk_users_posts`', $sql);
     }
 
     /**
