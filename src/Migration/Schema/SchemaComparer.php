@@ -177,7 +177,7 @@ class SchemaComparer
         $entityColumns = [];
         
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
-            $columnType = $this->dbMapping->getColumnType($entityClass, $property);
+            $columnType = $this->dbMapping->getColumnTypeDefinition($entityClass, $property);
             $isNullable = $this->dbMapping->isNullable($entityClass, $property);
             $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property) ?? null;
             $columnExtra = $this->dbMapping->getExtra($entityClass, $property);

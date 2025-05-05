@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\Mapping;
 
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\MtFk;
@@ -255,7 +256,7 @@ class MappingTest extends TestCase
     public function testGetTypeOfId(): void
     {
         $this->assertEquals(
-            'int unsigned',
+            ColumnType::INT,
             $this->getDbMapping()->getColumnType(User::class, 'id')
         );
     }

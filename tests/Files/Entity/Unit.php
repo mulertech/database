@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Database\Mapping\ColumnKey;
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
 use MulerTech\Database\Tests\Files\UnitRepository;
@@ -15,10 +16,10 @@ use MulerTech\Database\Tests\Files\UnitRepository;
 #[MtEntity(repository: UnitRepository::class, tableName: "units_test", autoIncrement: 100)]
 class Unit
 {
-    #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
-    #[MtColumn(columnType: "varchar(255)", isNullable: false)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false)]
     private ?string $name = null;
 
     public function getId(): ?int

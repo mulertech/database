@@ -123,12 +123,46 @@ class DbMapping implements DbMappingInterface
     /**
      * @param class-string $entityName
      * @param string $property
+     * @return ColumnType|null
+     * @throws ReflectionException
+     */
+    public function getColumnType(string $entityName, string $property): ?ColumnType
+    {
+        return $this->getMtColumns($entityName)[$property]->columnType ?? null;
+    }
+
+    /**
+     * @param class-string $entityName
+     * @param string $property
+     * @return int|null
+     * @throws ReflectionException
+     */
+    public function getColumnLength(string $entityName, string $property): ?int
+    {
+        return $this->getMtColumns($entityName)[$property]->length ?? null;
+    }
+
+    /**
+     * @param class-string $entityName
+     * @param string $property
      * @return string|null
      * @throws ReflectionException
      */
-    public function getColumnType(string $entityName, string $property): ?string
+    public function getColumnTypeDefinition(string $entityName, string $property): ?string
     {
-        return $this->getMtColumns($entityName)[$property]->columnType ?? null;
+        $mtColumn = $this->getMtColumns($entityName)[$property] ?? null;
+        
+        if (!$mtColumn || !$mtColumn->columnType) {
+            return null;
+        }
+        
+        // Si c'est un type DECIMAL, on utilise la valeur de extra comme précision
+        $precision = null;
+        if ($mtColumn->columnType === ColumnType::DECIMAL && $mtColumn->extra) {
+            $precision = (int) $mtColumn->extra;
+        }
+        
+        return $mtColumn->columnType->toSqlDefinition($mtColumn->length, $precision, $mtColumn->unsigned);
     }
 
     /**
@@ -456,4 +490,16 @@ class DbMapping implements DbMappingInterface
             $reflectionClass->getProperties()
         );
     }
+
+    /**
+     * @param class-string $entityName
+     * @param string $property
+     * @return bool
+     * @throws ReflectionException
+     */
+    public function isUnsigned(string $entityName, string $property): bool
+    {
+        return $this->getMtColumns($entityName)[$property]->unsigned ?? false;
+    }
 }
+

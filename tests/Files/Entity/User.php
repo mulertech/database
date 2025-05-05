@@ -4,6 +4,7 @@ namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\ColumnKey;
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
@@ -20,19 +21,19 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
 #[MtEntity(repository: UserRepository::class, tableName: "users_test", autoIncrement: 100)]
 class User
 {
-    #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
-    #[MtColumn(columnType: "varchar(255)", isNullable: false, columnDefault: "John")]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false, columnDefault: "John")]
     private ?string $username = null;
 
-    #[MtColumn(columnName: "size", columnType: "int", isNullable: true)]
+    #[MtColumn(columnName: "size", columnType: ColumnType::INT, isNullable: true)]
     private ?int $size = null;
 
     /**
      * @var null|Unit $unit
      */
-    #[MtColumn(columnName: "unit_id", columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: "unit_id", columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Unit::class, referencedColumn: "id", deleteRule: FkRule::RESTRICT, updateRule: FkRule::CASCADE)]
     #[MtOneToOne(targetEntity: Unit::class)]
     private ?Unit $unit = null;
@@ -100,6 +101,18 @@ class User
     public function setUnit(Unit $unit): self
     {
         $this->unit = $unit;
+
+        return $this;
+    }
+
+    public function getManager(): ?User
+    {
+        return $this->manager;
+    }
+
+    public function setManager(User $manager): self
+    {
+        $this->manager = $manager;
 
         return $this;
     }

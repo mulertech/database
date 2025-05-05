@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Migration\Entity;
 
 use MulerTech\Database\Mapping\ColumnKey;
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
 
@@ -20,7 +21,8 @@ class MigrationHistory
      */
     #[MtColumn(
         columnName: 'id',
-        columnType: 'int unsigned',
+        columnType: ColumnType::INT,
+        unsigned: true,
         isNullable: false,
         extra: 'auto_increment',
         columnKey: ColumnKey::PRIMARY_KEY
@@ -28,21 +30,21 @@ class MigrationHistory
     private ?int $id = null;
     
     /**
-     * @var string $version Migration version (YYYYMMDD-HHMM)
+     * @var string|null $version Migration version (YYYYMMDD-HHMM)
      */
-    #[MtColumn(columnName: 'version', columnType: 'varchar(13)', isNullable: false, columnKey: ColumnKey::UNIQUE_KEY)]
+    #[MtColumn(columnName: 'version', columnType: ColumnType::VARCHAR, length: 13, isNullable: false, columnKey: ColumnKey::UNIQUE_KEY)]
     private ?string $version = null;
     
     /**
-     * @var string $executed_at When the migration was executed
+     * @var string|null $executed_at When the migration was executed
      */
-    #[MtColumn(columnName: 'executed_at', columnType: 'datetime', isNullable: false, columnDefault: 'CURRENT_TIMESTAMP')]
+    #[MtColumn(columnName: 'executed_at', columnType: ColumnType::DATETIME, isNullable: false, columnDefault: 'CURRENT_TIMESTAMP')]
     private ?string $executed_at = null;
     
     /**
      * @var int $execution_time Execution time in milliseconds
      */
-    #[MtColumn(columnName: 'execution_time', columnType: 'int unsigned', isNullable: false, columnDefault: '0')]
+    #[MtColumn(columnName: 'execution_time', columnType: ColumnType::INT, unsigned: true, isNullable: false, columnDefault: '0')]
     private int $execution_time = 0;
     
     /**
