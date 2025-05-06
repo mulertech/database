@@ -4,6 +4,7 @@ namespace MulerTech\Database\ORM;
 
 use _config\UpdateDatabaseMysql;
 use App\Entity\Version;
+use DateTime;
 use Exception;
 use MulerTech\ArrayManipulation\ArrayManipulation;
 use MulerTech\Collections\Collection;
@@ -75,7 +76,7 @@ class EmEngine
     private array $entityChanges = [];
     /**
      * @var array<int, array<string, mixed>> Save the original entity before update example :
-     * [$objectId => [$property => $value]]
+     * [$objectId => [$column => $value]]
      */
     private array $originalEntityData = [];
     /**
@@ -106,6 +107,7 @@ class EmEngine
      * @var EntityRelationLoader $entityRelationLoader
      */
     private EntityRelationLoader $entityRelationLoader;
+    private EntityHydrator $hydrator;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -115,6 +117,7 @@ class EmEngine
     ) {
         $this->eventManager = $this->entityManager->getEventManager();
         $this->entityRelationLoader = new EntityRelationLoader($this->entityManager);
+        $this->hydrator = new EntityHydrator($this->entityManager->getDbMapping());
     }
 
     /**
@@ -140,20 +143,14 @@ class EmEngine
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
-        // Todo : use hydrator instead of FETCH_CLASS, it is deprecated to create dynamically the properties
-        // Todo : use $pdoStatement->fetch(PDO::FETCH_ASSOC);
-        $pdoStatement->SetFetchMode(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $entityName);
-        $fetchClass = $pdoStatement->fetch();
+        $fetch = $pdoStatement->fetch(PDO::FETCH_ASSOC);
         $pdoStatement->closeCursor();
 
-        if ($fetchClass === false) {
+        if ($fetch === false) {
             return null;
         }
 
-        // Todo : use hydrator into this method, give it the result
-        $this->manageNewEntity($fetchClass, $loadRelations);
-
-        return $fetchClass;
+        return $this->manageNewEntity($fetch, $entityName, $loadRelations);
     }
 
     /**
@@ -171,20 +168,19 @@ class EmEngine
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
-        // Todo : use hydrator instead of FETCH_CLASS, it is deprecated to create dynamically the properties
-        // Todo : use $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
-        $classList = $pdoStatement->fetchAll(PDO::FETCH_CLASS, $entityName);
-        if ($classList === []) {
-            return null;
-        }
+        $fetchAll = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
         $pdoStatement->closeCursor();
 
-        foreach ($classList as $class) {
-            // Todo : use hydrator into this method, give it the result
-            $this->manageNewEntity($class, $loadRelations);
+        if ($fetchAll === []) {
+            return null;
         }
 
-        return $classList;
+        return array_map(
+            function ($entityData) use ($entityName, $loadRelations) {
+                return $this->manageNewEntity($entityData, $entityName, $loadRelations);
+            },
+            $fetchAll
+        );
     }
 
     /**
@@ -202,50 +198,43 @@ class EmEngine
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
-        // Todo : use hydrator instead of FETCH_CLASS, it is deprecated to create dynamically the properties
-        // Todo : use $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
-        $classList = $pdoStatement->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_CLASS, $entityName);
+        $fetchAll = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $pdoStatement->closeCursor();
 
-        if ($classList === []) {
+        if ($fetchAll === []) {
             return null;
         }
 
-        $pdoStatement->closeCursor();
-
-        foreach ($classList as $class) {
-            // Todo : use hydrator into this method, give it the result
-            $this->manageNewEntity($class, $loadRelations);
+        $entities = [];
+        foreach ($fetchAll as $entityData) {
+            $entity = $this->manageNewEntity($entityData, $entityName, $loadRelations);
+            $entities[$entity->getId()] = $entity;
         }
 
-        return $classList;
+        return $entities;
     }
 
     /**
-     * @param Object $entity
+     * @param array $entityData
+     * @param class-string $entityName
      * @param bool $loadRelations
+     * @return object
      * @throws ReflectionException
      */
-    private function manageNewEntity(Object $entity, bool $loadRelations): void
+    private function manageNewEntity(array $entityData, string $entityName, bool $loadRelations): object
     {
-        $this->computeOriginalEntity($entity);
+        $entity = $this->computeOriginalEntity($entityData, $entityName);
 
         if ($loadRelations) {
-            $this->loadEntityRelations($entity);
+            $this->entityRelationLoader->loadRelations($entity, $entityData);
         }
+
+        return $entity;
     }
 
     /**
-     * @param object $entity
      * @return void
      * @throws ReflectionException
-     */
-    private function loadEntityRelations(object $entity): void
-    {
-        $this->entityRelationLoader->loadRelations($entity);
-    }
-
-    /**
-     * @return void
      */
     private function executeInsertions(): void
     {
@@ -322,6 +311,7 @@ class EmEngine
     /**
      * @param Object $entity
      * @return QueryBuilder
+     * @throws ReflectionException
      */
     private function generateInsertQueryBuilder(Object $entity): QueryBuilder
     {
@@ -348,6 +338,7 @@ class EmEngine
     /**
      * @param class-string $entityName
      * @return string
+     * @throws ReflectionException
      */
     private function getTableName(string $entityName): string
     {
@@ -375,6 +366,7 @@ class EmEngine
      * @param class-string $entityName
      * @param bool $keepId
      * @return array
+     * @throws ReflectionException
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
     {
@@ -530,20 +522,19 @@ class EmEngine
     }
 
     /**
+     * @param array $entityData
+     * @param class-string $entityName
+     * @return object
      * @throws ReflectionException
      */
-    private function computeOriginalEntity(Object $entity): void
+    private function computeOriginalEntity(array $entityData, string $entityName): object
     {
-        $properties = $this->getPropertiesColumns($entity::class);
-        $entityReflection = new ReflectionClass($entity);
+        $entity = $this->hydrator->hydrate($entityData, $entityName);
 
-        $originalEntity = [];
-        foreach ($properties as $property => $column) {
-            $originalEntity[$property] = $entityReflection->getProperty($property)->getValue($entity);
-        }
-        
         $this->managedEntities[spl_object_id($entity)] = $entity;
-        $this->originalEntityData[spl_object_id($entity)] = $originalEntity;
+        $this->originalEntityData[spl_object_id($entity)] = $entityData;
+
+        return $entity;
     }
 
     /**
@@ -561,7 +552,7 @@ class EmEngine
         $entityChanges = [];
         foreach ($properties as $property => $column) {
             $newValue = $entityReflection->getProperty($property)->getValue($entity);
-            $oldValue = $originalEntityData ? $originalEntityData[$property] : null;
+            $oldValue = $originalEntityData ? $originalEntityData[$column] : null;
 
             if ($oldValue === $newValue && !is_null($originalEntityData)) {
                 continue;
@@ -688,116 +679,9 @@ class EmEngine
         return $linkEntity;
     }
 
-    /** Find MySql join from the path with the constraints schema
-     * @param array<string> $path (origin table, ...intermediate table if needed, destination table)
-     * @param array $constraints
-     * @param string $table_as (alias of the destination table)
-     * @param string $column_origin (if the table_as is an alias, the column of the origin table)
-     * @param string $joinType
-     */
-    private function findJoins(
-        array $path,
-        array $constraints,
-        string $table_as = '',
-        string $column_origin = '',
-        string $joinType = 'LEFT JOIN'
-    ): void {
-        $originTable = array_shift($path);
-        $destinationTable = $path[0];
-
-
-
-
-
-
-        foreach ($constraints as $value) {
-            if (
-                !in_array($destinationTable, $this->tablesLinked, true) ||
-                (!empty($table_as) && !in_array($table_as, $this->tablesLinked, true))
-            ) {
-                $table_as_req = (empty($table_as) || count($path) > 1) ? '' : ' AS ' . $table_as;
-                $ref_table = (empty($table_as) || count($path) > 1) ? $value['REFERENCED_TABLE_NAME'] : $table_as;
-                $origin_column = (empty($column_origin) || count($path) > 1) ? $value['COLUMN_NAME'] : $column_origin;
-                if (
-                    ($value['TABLE_NAME'] === $destinationTable && $value['REFERENCED_TABLE_NAME'] === $originTable) ||
-                    ($value['TABLE_NAME'] === $originTable && $value['REFERENCED_TABLE_NAME'] === $destinationTable)
-                ) {
-                    $this->join .=
-                        ' ' .
-                        $joinType .
-                        ' `' .
-                        $destinationTable .
-                        '`' .
-                        $table_as_req .
-                        ' ON ' .
-                        $value['TABLE_NAME'] .
-                        '.' .
-                        $origin_column .
-                        ' = ' .
-                        $ref_table .
-                        '.' .
-                        $value['REFERENCED_COLUMN_NAME'];
-                    $this->tablesLinked[] = $destinationTable;
-                    if (!empty($table_as)) {
-                        $this->tablesLinked[] = $table_as;
-                    }
-                }
-            }
-        }
-        if (count($path) !== 1) {
-            $this->findJoins($path, $constraints);
-        }
-    }
-//    private function findJoins(
-//        array $path,
-//        array $constraints,
-//        string $table_as = '',
-//        string $column_origin = '',
-//        string $joinType = 'LEFT JOIN'
-//    ): void {
-//        $originTable = array_shift($path);
-//        $destinationTable = $path[0];
-//        foreach ($constraints as $value) {
-//            if (
-//                !in_array($destinationTable, $this->tableslinked, true) ||
-//                (!empty($table_as) && !in_array($table_as, $this->tableslinked, true))
-//            ) {
-//                $table_as_req = (empty($table_as) || count($path) > 1) ? '' : ' AS ' . $table_as;
-//                $ref_table = (empty($table_as) || count($path) > 1) ? $value['REFERENCED_TABLE_NAME'] : $table_as;
-//                $origin_column = (empty($column_origin) || count($path) > 1) ? $value['COLUMN_NAME'] : $column_origin;
-//                if (
-//                    ($value['TABLE_NAME'] === $destinationTable && $value['REFERENCED_TABLE_NAME'] === $originTable) ||
-//                    ($value['TABLE_NAME'] === $originTable && $value['REFERENCED_TABLE_NAME'] === $destinationTable)
-//                ) {
-//                    $this->join .=
-//                        ' ' .
-//                        $joinType .
-//                        ' `' .
-//                        $destinationTable .
-//                        '`' .
-//                        $table_as_req .
-//                        ' ON ' .
-//                        $value['TABLE_NAME'] .
-//                        '.' .
-//                        $origin_column .
-//                        ' = ' .
-//                        $ref_table .
-//                        '.' .
-//                        $value['REFERENCED_COLUMN_NAME'];
-//                    $this->tableslinked[] = $destinationTable;
-//                    if (!empty($table_as)) {
-//                        $this->tableslinked[] = $table_as;
-//                    }
-//                }
-//            }
-//        }
-//        if (count($path) !== 1) {
-//            $this->findJoins($path, $constraints);
-//        }
-//    }
-
     /**
      *
+     * @throws ReflectionException
      */
     private function executeUpdates(): void
     {
@@ -862,6 +746,7 @@ class EmEngine
     /**
      * @param Object $entity
      * @return QueryBuilder
+     * @throws ReflectionException
      */
     private function generateUpdateQueryBuilder(Object $entity): QueryBuilder
     {
@@ -906,6 +791,7 @@ class EmEngine
 
     /**
      * @return void
+     * @throws ReflectionException
      */
     private function executeDeletions(): void
     {
@@ -1016,6 +902,7 @@ class EmEngine
      * @param class-string $entityName
      * @param string|null $where
      * @return int
+     * @throws ReflectionException
      */
     public function rowCount(string $entityName, ?string $where = null): int
     {
@@ -1032,521 +919,4 @@ class EmEngine
         $statement->execute();
         return $statement->rowCount();
     }
-
-    /**
-     * todo : move this below in migration class
-     */
-
-    /**
-     * List of this database tables (Mysql)
-     * @return array
-     */
-    public function tablesList(): array
-    {
-        $dbParameters = PhpDatabaseManager::populateParameters();
-        $dbName = $dbParameters['dbname'];
-        //prepare and execute request
-        $success = $this->entityManager->getPdm()->query('SHOW TABLES');
-        $tables_list = [];
-        foreach ($success as $value) {
-            $tables_list[] = $value['Tables_in_' . $dbName];
-        }
-        //close cursor
-        $success->closeCursor();
-        return $tables_list;
-    }
-
-    /**
-     * Make a structure of database for save in a json file
-     * @return array
-     */
-    private function onlineDatabaseStructure(): array
-    {
-        $dbParameters = PhpDatabaseManager::populateParameters();
-        $dbName = $dbParameters['dbname'];
-        //Array db
-        $arraydb = ['structure' => []];
-
-        //COLUMNS req
-        $columnsreq = "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, EXTRA, COLUMN_DEFAULT, COLUMN_KEY FROM `information_schema`.`COLUMNS` WHERE TABLE_SCHEMA = '" . $dbName . "'";
-        $reqcolumns = $this->entityManager->getPdm()->query($columnsreq);
-        $column_structure = $reqcolumns->fetchAll(PDO::FETCH_ASSOC);
-        $reqcolumns->closeCursor();
-        foreach ($column_structure as $column) {
-            if (array_key_exists($column['TABLE_NAME'], $arraydb['structure'])) {
-                //add in structure -> column name -> fields
-                $table_name = array_shift($column);
-                $column_name = array_shift($column);
-                $arraydb['structure'][$table_name][$column_name] = $column;
-                unset($table_name, $column_name);
-            } else {
-                //create structure -> column name
-                $table_name = array_shift($column);
-                $column_name = array_shift($column);
-                $arraydb['structure'][$table_name][$column_name] = $column;
-                unset($table_name, $column_name);
-            }
-        }
-        //TABLES req
-        $tablesreq = "SELECT TABLE_NAME, AUTO_INCREMENT FROM `information_schema`.`TABLES` WHERE TABLE_SCHEMA = '" . $dbName . "'";
-        $reqtables = $this->entityManager->getPdm()->query($tablesreq);
-        $tables_structure = $reqtables->fetchAll(PDO::FETCH_ASSOC);
-        $reqtables->closeCursor();
-        foreach ($tables_structure as $table) {
-            if (array_key_exists($table['TABLE_NAME'], $arraydb['structure'])) {
-                //add in structure -> table name -> auto_increment
-                $table_name = array_shift($table);
-                $arraydb['structure'][$table_name]['auto_increment'] = $table['AUTO_INCREMENT'];
-                unset($table_name);
-            }
-        }
-        //KEY_COLUMN_USAGE AND REFERENTIAL_CONSTRAINTS
-        $constraintreq = "SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_SCHEMA, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.DELETE_RULE, r.UPDATE_RULE 
-            FROM `information_schema`.`KEY_COLUMN_USAGE` AS k LEFT JOIN `information_schema`.`REFERENTIAL_CONSTRAINTS` AS r 
-            ON k.CONSTRAINT_NAME = r.CONSTRAINT_NAME 
-            WHERE k.CONSTRAINT_SCHEMA = '" . $dbName . "' 
-            AND k.REFERENCED_TABLE_SCHEMA IS NOT NULL 
-            AND k.REFERENCED_TABLE_NAME IS NOT NULL 
-            AND k.REFERENCED_COLUMN_NAME IS NOT NULL";
-        $reqconstraints = $this->entityManager->getPdm()->query($constraintreq);
-        $constraints_structure = $reqconstraints->fetchAll(PDO::FETCH_ASSOC);
-        $reqconstraints->closeCursor();
-        foreach ($constraints_structure as $constraint) {
-            if (array_key_exists($constraint['TABLE_NAME'], $arraydb['structure'])) {
-                //add in structure -> table name -> auto_increment
-                $table_name = array_shift($constraint);
-                if (isset(${'line' . $table_name})) {
-                    ${'line' . $table_name}++;
-                } else {
-                    ${'line' . $table_name} = 0;
-                }
-                $arraydb['structure'][$table_name]['foreign_keys'][$constraint['CONSTRAINT_NAME']] = $constraint;
-                unset($table_name);
-            }
-        }
-        return $arraydb;
-    }
-
-    /**
-     * List of constraints of this database [
-     *     ['TABLE_NAME' => 'table_name', 'COLUMN_NAME' => 'column_name', 'REFERENCED_TABLE_NAME' => 'referenced_table_name', 'REFERENCED_COLUMN_NAME' => 'referenced_column_name']
-     * ]
-     * @return array|null
-     */
-    private function constraintsList(): ?array
-    {
-        if (!empty($db_structure = $this->openDbStructure())) {
-            $constraint_list = [];
-            foreach ($db_structure['structure'] as $table => $table_content) {
-                if (!empty($table_content['foreign_keys'])) {
-                    foreach ($table_content['foreign_keys'] as $fk) {
-                        $constraint_list[] = [
-                            'TABLE_NAME' => $table,
-                            'COLUMN_NAME' => $fk['COLUMN_NAME'],
-                            'REFERENCED_TABLE_NAME' => $fk['REFERENCED_TABLE_NAME'],
-                            'REFERENCED_COLUMN_NAME' => $fk['REFERENCED_COLUMN_NAME']
-                        ];
-                    }
-                }
-            }
-            return $constraint_list;
-        }
-
-        return null;
-    }
-
-    /** Create Mysql table
-     * @param string $table
-     * @param array $columns
-     * @param bool $ifnotexists
-     */
-    private function createTable(string $table, array $columns, bool $ifnotexists = true): void
-    {
-        $ine = ($ifnotexists) ? 'IF NOT EXISTS ' : '';
-        $req = "CREATE TABLE " . $ine . "`" . $table . "` (";
-        foreach ($columns as $key => $value) {
-            $req .= $key . ' ' . $value['COLUMN_TYPE'];
-            if ($value['IS_NULLABLE'] === 'NO') {
-                $req .= ' NOT NULL';
-            }
-            if ($value['COLUMN_DEFAULT'] === null && $value['IS_NULLABLE'] === 'YES') {
-                $req .= ' DEFAULT NULL';
-            } elseif ($value['COLUMN_DEFAULT'] === 'CURRENT_TIMESTAMP') {
-                $req .= " DEFAULT " . $value['COLUMN_DEFAULT'];
-            } elseif (is_string($value['COLUMN_DEFAULT']) && $value['COLUMN_DEFAULT'] !== '') {
-                $req .= " DEFAULT '" . $value['COLUMN_DEFAULT'] . "'";
-            }
-            $req .= ', ';
-        }
-        $req = trim($req, ', ') . ')';
-        //request
-        $success = $this->entityManager->getPdm()->query($req);
-        $success->closeCursor();
-    }
-
-    /** Alter Mysql table with one column changes.
-     * @param string $table
-     * @param string $column_name
-     * @param array $column
-     */
-    private function alterTable(string $table, string $column_name, array $column): void
-    {
-        $req = "ALTER TABLE `" . $table . "` CHANGE " . $column_name . ' ' . $column_name . ' ' . $column['COLUMN_TYPE'];
-        if ($column['IS_NULLABLE'] === 'NO') {
-            $req .= ' NOT NULL';
-        }
-        if ($column['COLUMN_DEFAULT'] === null && $column['IS_NULLABLE'] === 'YES') {
-            $req .= ' DEFAULT NULL';
-        } elseif ($column['COLUMN_DEFAULT'] === 'CURRENT_TIMESTAMP') {
-            $req .= " DEFAULT " . $column['COLUMN_DEFAULT'];
-        } elseif (is_string($column['COLUMN_DEFAULT']) && $column['COLUMN_DEFAULT'] !== '') {
-            $req .= " DEFAULT '" . $column['COLUMN_DEFAULT'] . "'";
-        }
-        //request
-        $success = $this->entityManager->getPdm()->query($req);
-        $success->closeCursor();
-    }
-
-    /** Alter Mysql table with one column changes.
-     * @param string $table
-     * @param string $column_name
-     * @param array $column
-     */
-    private function alterTableAddColumn(string $table, string $column_name, array $column): void
-    {
-        $req = "ALTER TABLE `" . $table . "` ADD " . $column_name . ' ' . $column['COLUMN_TYPE'];
-        if ($column['IS_NULLABLE'] === 'NO') {
-            $req .= ' NOT NULL';
-        }
-        if ($column['COLUMN_DEFAULT'] === null && $column['IS_NULLABLE'] === 'YES') {
-            $req .= ' DEFAULT NULL';
-        } elseif ($column['COLUMN_DEFAULT'] === 'CURRENT_TIMESTAMP') {
-            $req .= " DEFAULT " . $column['COLUMN_DEFAULT'];
-        } elseif (is_string($column['COLUMN_DEFAULT']) && $column['COLUMN_DEFAULT'] !== '') {
-            $req .= " DEFAULT '" . $column['COLUMN_DEFAULT'] . "'";
-        }
-        //request
-        $success = $this->entityManager->getPdm()->query($req);
-        $success->closeCursor();
-    }
-
-    /** Alter Mysql table, add keys.
-     * @param string $table
-     * @param array $table_keys
-     */
-    private function alterTableAddKey(string $table, array $table_keys): void
-    {
-        $req = "ALTER TABLE `" . $table . "`";
-        foreach ($table_keys as $key => $value) {
-            if ($value[1] === 'PRI') {
-                $req .= " ADD PRIMARY KEY (`" . $key . "`),";
-            } elseif ($value[1] === 'MUL') {
-                $req .= " ADD KEY `" . $key . "`" . " (`" . $key . "`),";
-            }
-        }
-        $req = trim($req, ',');
-        //request
-        $success = $this->entityManager->getPdm()->query($req);
-        $success->closeCursor();
-    }
-
-    /** Alter Mysql table, add auto increment with the number of it (if exists)
-     * @param string $table
-     * @param string $column_name
-     * @param array $column
-     * @param string|null $auto_increment
-     */
-    private function alterTableAutoIncrement(
-        string $table,
-        string $column_name,
-        array $column,
-        string $auto_increment = null
-    ): void {
-        $req = "ALTER TABLE `" . $table . "` MODIFY " . $column_name . " " . $column['COLUMN_TYPE'];
-        if ($column['IS_NULLABLE'] === 'NO') {
-            $req .= ' NOT NULL';
-        }
-        if ($column['COLUMN_DEFAULT'] === null && $column['IS_NULLABLE'] === 'YES') {
-            $req .= ' DEFAULT NULL';
-        } elseif ($column['COLUMN_DEFAULT'] === 'CURRENT_TIMESTAMP') {
-            $req .= " DEFAULT " . $column['COLUMN_DEFAULT'];
-        } elseif (is_string($column['COLUMN_DEFAULT']) && $column['COLUMN_DEFAULT'] !== '') {
-            $req .= " DEFAULT '" . $column['COLUMN_DEFAULT'] . "'";
-        }
-        $req .= ' AUTO_INCREMENT';
-        if (!empty($auto_increment)) {
-            $req .= ', AUTO_INCREMENT=' . $auto_increment;
-        }
-        //request
-        $success = $this->entityManager->getPdm()->query($req);
-        $success->closeCursor();
-    }
-
-    /** Alter Mysql table, add foreign key
-     * @param string $table
-     * @param string $column
-     * @param MtFk $fk
-     */
-    private function alterTableForeignKey(string $table, string $column, MtFk $fk): void
-    {
-        if (
-            !is_null($fk->getConstraintName()) &&
-            !is_null($fk->referencedTable) &&
-            !is_null($fk->referencedColumn) &&
-            !is_null($fk->deleteRule) &&
-            !is_null($fk->updateRule)
-        ) {
-            $req = "ALTER TABLE `" .
-                $table .
-                "` ADD CONSTRAINT `" .
-                $fk->getConstraintName() .
-                "` FOREIGN KEY (`" .
-                $column .
-                "`) REFERENCES `" .
-                $fk->referencedTable .
-                "` (`" .
-                $fk->referencedColumn .
-                "`) ON DELETE " .
-                $fk->deleteRule .
-                " ON UPDATE " .
-                $fk->updateRule;
-            //request
-            $success = $this->entityManager->getPdm()->query($req);
-            $success->closeCursor();
-        }
-    }
-//    private function alterTableForeignKey(string $table, array $foreign_key): void
-//    {
-//        if (
-//            !empty($foreign_key['CONSTRAINT_NAME']) &&
-//            !empty($foreign_key['COLUMN_NAME']) &&
-//            !empty($foreign_key['REFERENCED_TABLE_NAME']) &&
-//            !empty($foreign_key['REFERENCED_COLUMN_NAME']) &&
-//            !empty($foreign_key['DELETE_RULE']) &&
-//            !empty($foreign_key['UPDATE_RULE'])
-//        ) {
-//            $req = "ALTER TABLE `" .
-//                $table .
-//                "` ADD CONSTRAINT `" .
-//                $foreign_key['CONSTRAINT_NAME'] .
-//                "` FOREIGN KEY (`" .
-//                $foreign_key['COLUMN_NAME'] .
-//                "`) REFERENCES `" .
-//                $foreign_key['REFERENCED_TABLE_NAME'] .
-//                "` (`" .
-//                $foreign_key['REFERENCED_COLUMN_NAME'] .
-//                "`) ON DELETE " .
-//                $foreign_key['DELETE_RULE'] .
-//                " ON UPDATE " .
-//                $foreign_key['UPDATE_RULE'];
-//            //request
-//            $success = $this->em->getPdm()->query($req);
-//            $success->closeCursor();
-//        }
-//    }
-
-    /** Insert values
-     * @param array $values
-     * @param bool $insert_ignore
-     */
-    private function insertValues(array $values, bool $insert_ignore = true): void
-    {
-        $req = '';
-        $ignore = ($insert_ignore) ? 'IGNORE ' : '';
-        foreach ($values as $key => $value) {
-            foreach ($value as $item) {
-                $columns = '';
-                $data = '';
-                foreach ($item as $insertKey => $insertValue) {
-                    $columns .= (!empty($columns)) ? ', `' . $insertKey . '`' : '`' . $insertKey . '`';
-                    if (is_numeric($insertValue)) {
-                        $data .= (!empty($data)) ? ", " . $insertValue : $insertValue;
-                    } else {
-                        $data .= (!empty($data)) ? ", '" . $insertValue . "'" : "'" . $insertValue . "'";
-                    }
-                }
-                $req .= 'INSERT ' . $ignore . 'INTO `' . $key . '` (' . $columns . ') VALUES (' . $data . '); ';
-                unset($columns, $data);
-            }
-        }
-        //request
-        $this->entityManager->getPdm()->exec($req);
-    }
-
-    /**
-     * @var bool $installationMode
-     * @throws Exception
-     */
-    public function automaticUpdate(bool $installationMode = false): void
-    {
-        //first check manual update
-        if ($this->updateDatabase) {
-            $this->updateDatabase->Update();
-        }
-        //second step automatic update with Database Structure
-        /**
-         * @var Object $version
-         */
-        $online_version = (!is_null($version = $this->find(Version::class, 1))) ? $version->getVersion() : null;
-        if ($installationMode || (!empty($online_version) && (float)$online_version < (float)$this->openDbStructure(
-                )['dbversion'])) {
-            //structure array
-            $online_structure = $this->onlineDatabaseStructure()['structure'];
-            $site_structure = $this->openDbStructure()['structure'];
-            //check tables
-            $structuretocreate = (!empty($online_structure)) ? array_diff_key(
-                $site_structure,
-                $online_structure
-            ) : $site_structure;
-            foreach ($structuretocreate as $tablekey => $tableval) {
-                //create table if not exists
-                $cols = $site_structure[$tablekey];
-                if (isset($cols['auto_increment'])) {
-                    unset($cols['auto_increment']);
-                }
-                if (isset($cols['foreign_keys'])) {
-                    unset($cols['foreign_keys']);
-                }
-                $this->createTable($tablekey, $cols);
-            }
-            //check differences between tables
-            $online_structure = $this->onlineDatabaseStructure()['structure'];
-            if (!empty($online_structure)) {
-                foreach ($site_structure as $checktablekey => $checktableval) {
-                    if (!empty($site_structure[$checktablekey]) && is_array($site_structure[$checktablekey])) {
-                        foreach ($site_structure[$checktablekey] as $checkcolumnkey => $checkcolumnval) {
-                            if ($checkcolumnkey !== 'auto_increment' && $checkcolumnkey !== 'foreign_keys') {
-                                if (!empty($online_structure[$checktablekey][$checkcolumnkey])) {
-                                    $differentcolumns = ArrayManipulation::findDifferencesByName(
-                                        $online_structure[$checktablekey][$checkcolumnkey],
-                                        $checkcolumnval
-                                    );
-                                    //Do not update when the column is int( for a column int
-                                    if (!empty($differentcolumns['COLUMN_TYPE']) && strpos(
-                                            $differentcolumns['COLUMN_TYPE'][0],
-                                            'int('
-                                        ) === 0 && strpos(
-                                            $differentcolumns['COLUMN_TYPE'][1],
-                                            'int '
-                                        ) === 0) {
-                                        unset($differentcolumns['COLUMN_TYPE']);
-                                    }
-                                    //if key not exists create it (after this step)
-                                    if (!empty($differentcolumns['COLUMN_KEY']) && empty($online_structure[$checktablekey][$checkcolumnkey]['COLUMN_KEY'])) {
-                                        $keys[$checktablekey][$checkcolumnkey] = $differentcolumns['COLUMN_KEY'];
-                                        unset($differentcolumns['COLUMN_KEY']);
-                                    }
-                                    if (!empty($differentcolumns['EXTRA']) && $differentcolumns['EXTRA'][1] === 'auto_increment') {
-                                        $autoincrements[$checktablekey][$checkcolumnkey] = $differentcolumns['EXTRA'][1];
-                                        unset($differentcolumns['EXTRA']);
-                                    }
-                                    if (!empty($differentcolumns)) {
-                                        //update column
-                                        $this->alterTable($checktablekey, $checkcolumnkey, $checkcolumnval);
-                                    }
-                                } else {
-                                    //Create column
-                                    if (!empty($checkcolumnval['COLUMN_KEY']) && empty($online_structure[$checktablekey][$checkcolumnkey]['COLUMN_KEY'])) {
-                                        $keys[$checktablekey][$checkcolumnkey] = $checkcolumnval['COLUMN_KEY'];
-                                        unset($checkcolumnval['COLUMN_KEY']);
-                                    }
-                                    if (!empty($checkcolumnval['EXTRA']) && $checkcolumnval['EXTRA'][1] === 'auto_increment') {
-                                        $autoincrements[$checktablekey][$checkcolumnkey] = $checkcolumnval['EXTRA'][1];
-                                        unset($checkcolumnval['EXTRA']);
-                                    }
-                                    $this->alterTableAddColumn($checktablekey, $checkcolumnkey, $checkcolumnval);
-                                }
-                            } elseif ($checkcolumnkey === 'foreign_keys') {
-                                // store foreign keys of db structure
-                                $fk[$checktablekey] = $checkcolumnval;
-                            }
-                        }
-                    }
-                }
-            }
-            //create or modify keys and index
-            if (!empty($keys)) {
-                foreach ($keys as $keystablekey => $keystableval) {
-                    $this->alterTableAddKey($keystablekey, $keys[$keystablekey]);
-                }
-            }
-            //create auto increment and affect a number if needed
-            if (!empty($autoincrements)) {
-                foreach ($autoincrements as $aitablekey => $aitableval) {
-                    foreach ($autoincrements[$aitablekey] as $aicolumnkey => $aicolumnval) {
-                        //update column
-                        $this->alterTableAutoIncrement(
-                            $aitablekey,
-                            $aicolumnkey,
-                            $site_structure[$aitablekey][$aicolumnkey],
-                            (!empty($site_structure[$aitablekey]['auto_increment'])) ? $site_structure[$aitablekey]['auto_increment'] : null
-                        );
-                    }
-                }
-            }
-            //create constraints if needed
-            $online_structure = $this->onlineDatabaseStructure()['structure'];
-            foreach ($this->getEntityManager()->getDbMapping()->getEntities() as $entity) {
-                foreach ($this->getEntityManager()->getDbMapping()->getPropertiesColumns($entity) as $property => $column) {
-                    $fk = $this->getEntityManager()->getDbMapping()->getForeignKey($entity, $property);
-
-                    if (($fk !== null) && !empty($online_structure[$entity][$property]['foreign_keys'][$fk['CONSTRAINT_NAME']])) {
-                        $this->alterTableForeignKey($entity, $column, $fk);
-                    }
-                }
-            }
-            //create necessary values
-            if (!empty($values = $this->openDbStructure()['values'])) {
-                $this->insertValues($values);
-            }
-            //update online version
-            if (is_null($version)) {
-                //create version
-                $version = new Version();
-                $version->setId(1);
-            }
-            $version->setVersion($this->openDbStructure()['dbversion']);
-            $version->setDate_version(date('Y-m-d H:i:s'));
-            $this->persist($version);
-            $this->flush();
-        }
-    }
-
-    /**
-     * @param string|null $path
-     * @param string|null $file_name
-     * @return array
-     * @throws \JsonException
-     * @deprecated use DbMapping
-     */
-    private function openDbStructure(?string $path = null, string $file_name = null): array
-    {
-        if (empty($path)) {
-            $path = self::DB_STRUCTURE_PATH;
-        }
-        if (empty($file_name)) {
-            $file_name = self::DB_STRUCTURE_NAME;
-        }
-        return (new Json($path . $file_name))->openFile();
-    }
-
-    /**
-     * @param Object $old_item
-     * @param Object $new_item
-     * @return array|null
-     */
-    protected function compareUpdateItem(Object $old_item, Object $new_item): ?array
-    {
-        $new_properties = $new_item->properties($new_item);
-        $old_properties = $old_item->properties($old_item);
-        $oldDiffProperties = array_diff_assoc($old_properties, $new_properties);
-        $differences = [];
-        foreach ($oldDiffProperties as $key => $value) {
-            if ($value !== $new_properties[$key]) {
-                $differences[$key] = [$value, $new_properties[$key]];
-            }
-        }
-        return (!empty($differences)) ? $differences : null;
-    }
-
 }

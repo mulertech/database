@@ -85,4 +85,15 @@ class ReferentialActionTest extends TestCase
         $this->assertContains(ReferentialAction::SET_NULL, $cases);
         $this->assertContains(ReferentialAction::NO_ACTION, $cases);
     }
+
+    /**
+     * Test toEnumCallString method
+     */
+    public function testToEnumCallString(): void
+    {
+        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::RESTRICT', ReferentialAction::RESTRICT->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE', ReferentialAction::CASCADE->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_NULL', ReferentialAction::SET_NULL->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::NO_ACTION', ReferentialAction::NO_ACTION->toEnumCallString());
+    }
 }

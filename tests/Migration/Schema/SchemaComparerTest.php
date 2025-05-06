@@ -17,6 +17,7 @@ use MulerTech\Database\Tests\Files\Entity\SubDirectory\GroupSub;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class SchemaComparerTest extends TestCase
 {
@@ -56,7 +57,9 @@ class SchemaComparerTest extends TestCase
                 username VARCHAR(255) NOT NULL default "John",
                 size INT,
                 unit_id INT UNSIGNED NOT NULL,
-                CONSTRAINT fk_users_test_unit_id_units_test FOREIGN KEY (unit_id) REFERENCES units_test(id)
+                manager INT UNSIGNED,
+                CONSTRAINT fk_users_test_unit_id_units_test FOREIGN KEY (unit_id) REFERENCES units_test(id),
+                CONSTRAINT fk_users_test_manager_users_test FOREIGN KEY (manager) REFERENCES users_test(id)
             )'
         );
         $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS link_user_group_test (
@@ -80,13 +83,27 @@ class SchemaComparerTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS link_user_group_test');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS users_test');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS units_test');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS groups_test');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS sametablename');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS groupsub');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS fake');
+        $tables = [
+            'link_user_group_test',
+            'users_test',
+            'units_test',
+            'groups_test',
+            'sametablename',
+            'groupsub',
+            'fake'
+        ];
+
+        $errors = [];
+        foreach ($tables as $table) {
+            $result = $this->entityManager->getPdm()->exec("DROP TABLE IF EXISTS $table");
+            if ($result === false) {
+                $errors[] = "Failed to drop table $table";
+            }
+        }
+
+        if (!empty($errors)) {
+            throw new RuntimeException(implode(', ', $errors));
+        }
     }
     
     public function testCompareFindsNewTables(): void

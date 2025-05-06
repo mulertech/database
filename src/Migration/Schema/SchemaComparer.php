@@ -63,13 +63,7 @@ class SchemaComparer
      */
     private function getTableInfo(string $tableName): ?array
     {
-        foreach ($this->databaseTables as $table) {
-            if ($table['TABLE_NAME'] === $tableName) {
-                return $table;
-            }
-        }
-        
-        return null;
+        return array_find($this->databaseTables, fn($table) => $table['TABLE_NAME'] === $tableName);
     }
     
     /**
@@ -108,11 +102,12 @@ class SchemaComparer
         
         return $foreignKeys;
     }
-    
+
     /**
      * Compare database schema with entity mappings
      *
      * @return SchemaDifference
+     * @throws ReflectionException
      */
     public function compare(): SchemaDifference
     {
@@ -126,7 +121,7 @@ class SchemaComparer
                 $entityTables[$tableName] = $entityClass;
             }
         }
-        
+
         // Find tables to create (in entity mappings but not in database)
         foreach ($entityTables as $tableName => $entityClass) {
             if (!$this->getTableInfo($tableName)) {

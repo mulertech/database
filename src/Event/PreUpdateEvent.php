@@ -14,7 +14,7 @@ class PreUpdateEvent extends EntityEvent
     /**
      * @param Object $entity
      * @param EntityManagerInterface $entityManager
-     * @param array<int, array<string, array<int, string>>> $entityChanges
+     * @param array<string, array<int, string>> $entityChanges
      */
     public function __construct(
         Object $entity,
@@ -26,7 +26,7 @@ class PreUpdateEvent extends EntityEvent
     }
 
     /**
-     * @return array<int, array<string, array<int, string>>>
+     * @return array<string, array<int, string>>
      */
     public function getEntityChanges(): array
     {

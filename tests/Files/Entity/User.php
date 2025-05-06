@@ -38,6 +38,12 @@ class User
     #[MtOneToOne(targetEntity: Unit::class)]
     private ?Unit $unit = null;
 
+    // Normally, we should use manager_id as column name. It's for test purpose
+    #[MtColumn(columnName: "manager", columnType: ColumnType::INT, unsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtFk(referencedTable: User::class, referencedColumn: "id", deleteRule: FkRule::SET_NULL, updateRule: FkRule::CASCADE)]
+    #[MtOneToOne(targetEntity: User::class)]
+    private ?User $manager = null;
+
     #[MtManyToMany(
         targetEntity: Group::class,
         mappedBy: GroupUser::class,
@@ -86,7 +92,7 @@ class User
         return $this->size;
     }
 
-    public function setSize(int $size): self
+    public function setSize(?int $size): self
     {
         $this->size = $size;
 
