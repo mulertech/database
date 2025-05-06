@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\Mapping;
 
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\MtFk;
@@ -181,7 +182,7 @@ class MappingTest extends TestCase
      */
     public function testGetColumns(): void
     {
-        $this->assertEquals(['id', 'username', 'size', 'unit_id'], $this->getDbMapping()->getColumns(User::class));
+        $this->assertEquals(['id', 'username', 'size', 'unit_id', 'manager'], $this->getDbMapping()->getColumns(User::class));
     }
 
     /**
@@ -200,7 +201,7 @@ class MappingTest extends TestCase
     public function testGetPropertiesColumns(): void
     {
         $propertiesColumns = $this->getDbMapping()->getPropertiesColumns(User::class);
-        $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id', 'size' => 'size'], $propertiesColumns);
+        $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id', 'size' => 'size', 'manager' => 'manager'], $propertiesColumns);
     }
 
     /**
@@ -255,7 +256,7 @@ class MappingTest extends TestCase
     public function testGetTypeOfId(): void
     {
         $this->assertEquals(
-            'int unsigned',
+            ColumnType::INT,
             $this->getDbMapping()->getColumnType(User::class, 'id')
         );
     }
@@ -517,7 +518,10 @@ class MappingTest extends TestCase
     public function testGetOneToOne(): void
     {
         $this->assertEquals(
-            ['unit' => new MtOneToOne(targetEntity: Unit::class)],
+            [
+                'unit' => new MtOneToOne(targetEntity: Unit::class),
+                'manager' => new MtOneToOne(targetEntity: User::class),
+            ],
             $this->getDbMapping()->getOneToOne(User::class)
         );
     }

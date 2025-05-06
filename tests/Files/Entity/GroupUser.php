@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Database\Mapping\ColumnKey;
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
@@ -17,15 +18,15 @@ use MulerTech\Database\Mapping\MtManyToOne;
 #[MtEntity(tableName: "link_user_group_test")]
 class GroupUser
 {
-    #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
-    #[MtColumn(columnName: "user_id", columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: "user_id", columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: User::class, referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
     #[MtManyToOne(targetEntity: User::class)]
     private ?User $user = null;
 
-    #[MtColumn(columnName: "group_id", columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: "group_id", columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Group::class, referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $group = null;

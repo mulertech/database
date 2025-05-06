@@ -8,4 +8,9 @@ enum ReferentialAction: string
     case CASCADE = 'CASCADE';
     case SET_NULL = 'SET NULL';
     case NO_ACTION = 'NO ACTION';
+
+    public function toEnumCallString(): string
+    {
+        return sprintf('%s::%s', self::class, $this->name);
+    }
 }

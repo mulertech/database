@@ -4,6 +4,7 @@ namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\ColumnKey;
+use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtEntity;
 use MulerTech\Database\Mapping\MtFk;
@@ -20,13 +21,13 @@ use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 #[MtEntity(repository: GroupRepository::class, tableName: 'groups_test')]
 class Group
 {
-    #[MtColumn(columnType: "int unsigned", isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
-    #[MtColumn(columnType: "varchar(255)", isNullable: false)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false)]
     private ?string $name = null;
 
-    #[MtColumn(columnName: 'parent_id', columnType: "int unsigned", isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Group::class, referencedColumn: "id")]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $parent = null;

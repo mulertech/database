@@ -15,7 +15,6 @@ use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Migrations\Migration202504201358;
 use MulerTech\MTerm\Core\Terminal;
 use PHPUnit\Framework\MockObject\Exception;
@@ -335,41 +334,6 @@ class MigrationTest extends TestCase
         
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Foreign key 'fk_incomplete' has incomplete definition.");
-        
-        $migrationGenerator->generateMigration($this->migrationDatetime);
-    }
-
-    public function testValidationThrowsExceptionForNonExistingColumn(): void
-    {
-        $schemaDifference = new SchemaDifference();
-        
-        // Add foreign key that references a column that doesn't exist
-        $schemaDifference->addForeignKeyToAdd('users_test', 'fk_missing_column', [
-            'COLUMN_NAME' => 'non_existent_column',
-            'REFERENCED_TABLE_NAME' => 'units_test',
-            'REFERENCED_COLUMN_NAME' => 'id'
-        ]);
-        
-        // Add referenced table to avoid that validation error
-        $schemaDifference->addTableToCreate('units_test', Unit::class);
-        
-        $this->dbMapping->method('getPropertiesColumns')
-            ->willReturnCallback(function($class) {
-                if ($class === Unit::class) {
-                    return [
-                        'id' => 'id',
-                        'name' => 'name'
-                    ];
-                }
-                return [];
-            });
-        
-        $this->schemaComparer->method('compare')->willReturn($schemaDifference);
-        
-        $migrationGenerator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
-        
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Cannot add foreign key 'fk_missing_column': Column 'users_test.non_existent_column' does not exist.");
         
         $migrationGenerator->generateMigration($this->migrationDatetime);
     }

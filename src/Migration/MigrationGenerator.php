@@ -4,6 +4,8 @@ namespace MulerTech\Database\Migration;
 
 use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\Migration\Schema\SchemaDifference;
+use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;
+use ReflectionException;
 use RuntimeException;
 
 /**
@@ -14,18 +16,14 @@ use RuntimeException;
  */
 class MigrationGenerator
 {
-    private array $uses = [
-        'use MulerTech\Database\Migration\Migration;',
-        'use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;'
-    ];
-
     /**
      * @var string Template for migration class
      */
     private const string MIGRATION_TEMPLATE = <<<'EOT'
 <?php
 
-%uses%
+use MulerTech\Database\Migration\Migration;
+use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
 
 /**
  * Auto-generated migration
@@ -68,6 +66,7 @@ EOT;
      * Generate a migration based on schema differences
      *
      * @return string|null Path to generated migration file or null if no changes
+     * @throws ReflectionException
      */
     public function generateMigration(?string $datetime = null): ?string
     {
@@ -88,10 +87,7 @@ EOT;
         $upCode = $this->generateUpCode($diff);
         $downCode = $this->generateDownCode($diff);
 
-        sort($this->uses);
-
         $migrationContent = strtr(self::MIGRATION_TEMPLATE, [
-            '%uses%' => implode(PHP_EOL, $this->uses),
             '%date%' => $date,
             '%up_code%' => $upCode,
             '%down_code%' => $downCode
@@ -139,24 +135,6 @@ EOT;
 
                 if (!$columnName || !$referencedTable || !$referencedColumn) {
                     throw new RuntimeException("Foreign key '$constraintName' has incomplete definition.");
-                }
-
-                // Check if the column exists or will be created
-                $columnWillExist = isset($columnsToCreate[$tableName]) && in_array($columnName, $columnsToCreate[$tableName], true);
-
-                if (!$columnWillExist) {
-                    throw new RuntimeException(
-                        "Cannot add foreign key '$constraintName': Column '$tableName.$columnName' does not exist."
-                    );
-                }
-
-                // Check if referenced table exists or will be created
-                $tableWillExist = in_array($referencedTable, $tablesToCreate, true);
-
-                if (!$tableWillExist) {
-                    throw new RuntimeException(
-                        "Cannot add foreign key '$constraintName': Referenced table '$referencedTable' does not exist."
-                    );
                 }
             }
         }
@@ -487,16 +465,12 @@ EOT;
      */
     private function generateAddForeignKeyStatement(string $tableName, string $constraintName, array $foreignKeyInfo): string
     {
-        if (!in_array('use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;', $this->uses)) {
-            $this->uses[] = 'use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;';
-        }
-
         $onDeleteRule = $foreignKeyInfo['DELETE_RULE']
-            ? 'ReferentialAction::' . $foreignKeyInfo['DELETE_RULE']
-            : 'ReferentialAction::CASCADE';
+            ? ReferentialAction::from($foreignKeyInfo['DELETE_RULE'])->toEnumCallString()
+            : ReferentialAction::CASCADE->toEnumCallString();
         $onUpdateRule = $foreignKeyInfo['UPDATE_RULE']
-            ? 'ReferentialAction::' . $foreignKeyInfo['UPDATE_RULE']
-            : 'ReferentialAction::CASCADE';
+            ? ReferentialAction::from($foreignKeyInfo['UPDATE_RULE'])->toEnumCallString()
+            : ReferentialAction::CASCADE->toEnumCallString();
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';

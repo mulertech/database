@@ -24,10 +24,11 @@ class EntityRelationLoader
 
     /**
      * @param object $entity
+     * @param array $entityData
      * @return array
      * @throws ReflectionException
      */
-    public function loadRelations(object $entity): array
+    public function loadRelations(object $entity, array $entityData): array
     {
         $entityName = get_class($entity);
 
@@ -35,7 +36,7 @@ class EntityRelationLoader
 
         if (!empty($entityOneToOne = $this->dbMapping->getOneToOne($entityName))) {
             foreach ($entityOneToOne as $property => $oneToOne) {
-                $result = $this->loadSingleRelation($entity, $oneToOne, $property);
+                $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
                 if ($result !== null) {
                     $entitiesToLoad[] = $result;
                 }
@@ -53,7 +54,7 @@ class EntityRelationLoader
 
         if (!empty($entityManyToOne = $this->dbMapping->getManyToOne($entityName))) {
             foreach ($entityManyToOne as $property => $manyToOne) {
-                $result = $this->loadSingleRelation($entity, $manyToOne, $property);
+                $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
                 if ($result !== null) {
                     $entitiesToLoad[] = $result;
                 }
@@ -78,8 +79,12 @@ class EntityRelationLoader
      * @param string $property
      * @return object|null
      */
-    private function loadSingleRelation(object $entity, MtOneToOne|MtManyToOne $relation, string $property): ?object
-    {
+    private function loadSingleRelation(
+        object $entity,
+        MtOneToOne|MtManyToOne $relation,
+        string $property,
+        array $entityData
+    ): ?object {
         $setter = 'set' . ucfirst($property);
         $getter = 'get' . ucfirst($property);
 
@@ -89,10 +94,10 @@ class EntityRelationLoader
 
         $column = $this->getColumnName(get_class($entity), $property);
 
-        if (!is_null($entity->$column) && method_exists($entity, $setter)) {
+        if (!is_null($entityData[$column]) && method_exists($entity, $setter)) {
             $relatedEntity = $this->entityManager->find(
                 $this->getTargetEntity(get_class($entity), $relation, $property),
-                $entity->$column
+                $entityData[$column]
             );
             $entity->$setter($relatedEntity);
         }
