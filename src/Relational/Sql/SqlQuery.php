@@ -214,7 +214,7 @@ class SqlQuery
     }
 
     /**
-     * @param array<int, array<string, string>> $from
+     * @param array<int, array{name: string|QueryBuilder, alias: string|null}> $from
      * @return string
      */
     private function generateSelectFroms(array $from): string
@@ -229,7 +229,7 @@ class SqlQuery
     }
 
     /**
-     * @param array<string, string> $from
+     * @param array{name: string|QueryBuilder, alias: string|null} $from
      * @return string
      */
     private function generateSelectFrom(array $from): string
@@ -252,6 +252,15 @@ class SqlQuery
     {
         $query = '';
         if ($level === 0) {
+            if ($table === null) {
+                throw new RuntimeException(
+                    sprintf(
+                        'Class SqlQuery, function generateJoin. The table was not set for the "%s" request.',
+                        $this->queryBuilder->getFrom()[0]['name']
+                    )
+                );
+            }
+
             $this->joinedTables[0][] = $table;
         }
 
@@ -262,8 +271,8 @@ class SqlQuery
                     if (in_array($key, $levelTables, true)) {
                         foreach ($value as $join) {
                             $query .= ' ' . $join['type'] . ' ' . self::escape(
-                                    $join['to']
-                                ) . (($join['on']) ? ' ON ' . self::escape($join['on']) : '');
+                                $join['to']
+                            ) . (($join['on']) ? ' ON ' . self::escape($join['on']) : '');
                             $aliasOrName = $this->queryBuilder->extractAlias($join['to']);
                             $this->joinedTables[$level + 1][] = $aliasOrName['alias'] ?? $aliasOrName['name'];
                         }
@@ -313,9 +322,9 @@ class SqlQuery
     private function generateOrderBy(): string
     {
         return (!empty($this->queryBuilder->getOrderBy())) ? ' ' . self::ORDER_BY . ' ' . implode(
-                ', ',
-                $this->queryBuilder->getOrderBy()
-            ) : '';
+            ', ',
+            $this->queryBuilder->getOrderBy()
+        ) : '';
     }
 
     /**
@@ -384,13 +393,13 @@ class SqlQuery
                 );
             }
 
-            return ' SET ' . implode(', ', array_map(fn($value) => self::escape($value) . ' = ?', array_keys($values)));
+            return ' SET ' . implode(', ', array_map(fn ($value) => self::escape($value) . ' = ?', array_keys($values)));
         }
 
         return ' SET ' . implode(', ', array_map(
-                fn ($key, $value) => self::escape($key) . ' = ' . $value[0],
-                array_keys($values),
-                array_values($values)
-            ));
+            fn ($key, $value) => self::escape($key) . ' = ' . $value[0],
+            array_keys($values),
+            array_values($values)
+        ));
     }
 }

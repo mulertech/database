@@ -9,21 +9,22 @@ namespace MulerTech\Database\Relational\Sql\Schema;
  */
 class TableDefinition
 {
-    private string $tableName;
-    private bool $isCreate;
-    private array $columns = [];
-    private array $indexes = [];
-    private array $foreignKeys = [];
-    private array $options = [];
-
     /**
-     * @param string $tableName
-     * @param bool $isCreate
+     * @param string $tableName The name of the table
+     * @param bool $isCreate Whether this is a create operation
+     * @param array<string, ColumnDefinition|array{drop: bool}> $columns Table columns
+     * @param array<string, array{type: string, columns: array<int, string>}> $indexes Table indexes
+     * @param array<string, ForeignKeyDefinition> $foreignKeys Table foreign keys
+     * @param array<string, string> $options Table options
      */
-    public function __construct(string $tableName, bool $isCreate)
-    {
-        $this->tableName = $tableName;
-        $this->isCreate = $isCreate;
+    public function __construct(
+        private string $tableName,
+        private bool $isCreate,
+        private array $columns = [],
+        private array $indexes = [],
+        private array $foreignKeys = [],
+        private array $options = []
+    ) {
     }
 
     /**
@@ -43,7 +44,7 @@ class TableDefinition
     }
 
     /**
-     * @return array
+     * @return array<string, ColumnDefinition|array{drop: bool}>
      */
     public function getColumns(): array
     {
@@ -51,7 +52,7 @@ class TableDefinition
     }
 
     /**
-     * @return array
+     * @return array<string, array{type: string, columns: array<int, string>}>
      */
     public function getIndexes(): array
     {
@@ -59,7 +60,7 @@ class TableDefinition
     }
 
     /**
-     * @return array
+     * @return array<string, ForeignKeyDefinition>
      */
     public function getForeignKeys(): array
     {
@@ -67,7 +68,7 @@ class TableDefinition
     }
 
     /**
-     * @return array
+     * @return array<string, string>
      */
     public function getOptions(): array
     {
@@ -96,7 +97,7 @@ class TableDefinition
     }
 
     /**
-     * @param string|array $columns
+     * @param string|array<int, string> $columns
      * @return self
      */
     public function primaryKey(string|array $columns): self
@@ -172,4 +173,3 @@ class TableDefinition
         return $schemaGenerator->generate($this);
     }
 }
-

@@ -10,7 +10,6 @@ use RuntimeException;
 
 class Statement
 {
-
     private PDOStatement $statement;
 
     /**

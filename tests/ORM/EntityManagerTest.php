@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\Event\DbEvents;
+use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
@@ -57,7 +58,7 @@ class EntityManagerTest extends TestCase
         $pdo->exec($query);
         $query = 'DROP TABLE IF EXISTS units_test';
         $pdo->exec($query);
-        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED)';
+        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED, manager INT UNSIGNED)';
         $pdo->exec($query);
         $query = 'CREATE TABLE IF NOT EXISTS units_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255))';
         $pdo->exec($query);
@@ -199,9 +200,32 @@ class EntityManagerTest extends TestCase
         $statement = $pdo->prepare('SELECT * FROM users_test');
         $statement->execute();
         $statement->setFetchMode(PDO::FETCH_ASSOC);
-        self::assertEquals(['id' => 1, 'username' => 'John', 'size' => null, 'unit_id' => null], $statement->fetch());
+        self::assertEquals(['id' => 1, 'username' => 'John', 'size' => null, 'unit_id' => null, 'manager' => null], $statement->fetch());
         self::assertEquals('JohnUpdatedByEvent', $user->getUsername());
         self::assertEquals('Unit', $user->getUnit()->getName());
+    }
+
+    public function testExecuteInsertionsAndPostFlushEvent(): void
+    {
+        $this->createUserTestTable();
+        $this->createLinkUserGroupTestTable();
+        $this->createGroupTestTable();
+        $em = $this->entityManager;
+        $this->eventManager->addListener(DbEvents::postFlush->value, static function (PostFlushEvent $event) {
+            $jane = new User()->setUsername('Jane');
+            $john = $event->getEntityManager()->find(User::class, 'username=\'John\'');
+            $jane->setManager($john);
+            $event->getEntityManager()->persist($jane);
+            $event->getEntityManager()->flush();
+        });
+        $user = new User();
+        $user->setUsername('John');
+        $em->persist($user);
+        $em->flush();
+        $jane = $em->find(User::class, 'username=\'Jane\'');
+        $john = $em->find(User::class, 'username=\'John\'');
+        self::assertEquals('John', $john->getUsername());
+        self::assertEquals('John', $jane->getManager()->getUsername());
     }
 
     public function testExecuteUpdatesAndPostUpdateEvent(): void

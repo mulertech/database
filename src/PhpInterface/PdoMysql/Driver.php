@@ -11,7 +11,6 @@ use MulerTech\Database\PhpInterface\DriverInterface;
  */
 class Driver implements DriverInterface
 {
-
     /**
      * @param array $dsnOptions
      * @return string

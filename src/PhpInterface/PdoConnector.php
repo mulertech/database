@@ -13,7 +13,6 @@ use RuntimeException;
  */
 class PdoConnector implements ConnectorInterface
 {
-
     /**
      * @var DriverInterface
      */

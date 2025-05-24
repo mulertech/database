@@ -21,6 +21,6 @@ class MtOneToMany
         public string|null $entity = null,
         public string|null $targetEntity = null,
         public string|null $inverseJoinProperty = null,
-    )
-    {}
+    ) {
+    }
 }

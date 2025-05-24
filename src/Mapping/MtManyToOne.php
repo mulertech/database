@@ -17,5 +17,6 @@ class MtManyToOne
      */
     public function __construct(
         public string|null $targetEntity = null,
-    ) {}
+    ) {
+    }
 }

@@ -206,4 +206,3 @@ interface DbMappingInterface
      */
     public function isUnsigned(string $entityName, string $property): bool;
 }
-

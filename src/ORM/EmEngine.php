@@ -108,6 +108,7 @@ class EmEngine
      */
     private EntityRelationLoader $entityRelationLoader;
     private EntityHydrator $hydrator;
+    private bool $isFlushInProgress = false;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -267,7 +268,7 @@ class EmEngine
                 $entities[] = $entity;
             }
             //Event Post persist
-            if ($this->eventManager) {
+            if ($this->eventManager && !$this->isFlushInProgress) {
                 foreach ($entities as $entity) {
                     $this->eventManager->dispatch(new PostPersistEvent($entity, $this->entityManager));
                 }
@@ -413,7 +414,9 @@ class EmEngine
     {
         if ($this->getId($entity) === null && !isset($this->entityInsertions[spl_object_id($entity)])) {
             //Event Pre persist
-            $this->eventManager?->dispatch(new PrePersistEvent($entity, $this->entityManager));
+            if ($this->eventManager !== null && !$this->isFlushInProgress) {
+                $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager));
+            }
             $this->entityInsertions[spl_object_id($entity)] = $entity;
         }
     }
@@ -469,7 +472,10 @@ class EmEngine
         $this->entityManager->getPdm()->commit();
 
         //Event Post flush
-        $this->eventManager?->dispatch(new PostFlushEvent($this->entityManager));
+        if ($this->eventManager !== null  && !$this->isFlushInProgress) {
+            $this->isFlushInProgress = true;
+            $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
+        }
     }
 
     /**
@@ -552,8 +558,8 @@ class EmEngine
         $entityChanges = [];
         foreach ($properties as $property => $column) {
             $newValue = $entityReflection->getProperty($property)->getValue($entity);
-            $oldValue = $originalEntityData ? $originalEntityData[$column] : null;
-
+            $oldValue = (is_array($originalEntityData) && isset($originalEntityData[$column]))
+                ? $originalEntityData[$column] : null;
             if ($oldValue === $newValue && !is_null($originalEntityData)) {
                 continue;
             }
@@ -690,7 +696,7 @@ class EmEngine
                 $entityChanges = $this->getEntityChanges($entity);
 
                 //Pre update Event
-                if ($this->eventManager && !$this->isEventCalled($entity::class, DbEvents::preUpdate->value)) {
+                if ($this->eventManager !== null && !$this->isEventCalled($entity::class, DbEvents::preUpdate->value)) {
                     $this->eventCalled($entity::class, DbEvents::preUpdate->value);
                     $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $entityChanges));
                 }
@@ -815,7 +821,7 @@ class EmEngine
             }
 
             //Event Post remove
-            if ($this->eventManager) {
+            if ($this->eventManager !== null && !$this->isFlushInProgress) {
                 foreach ($entitiesEvent as $entity) {
                     $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
                 }

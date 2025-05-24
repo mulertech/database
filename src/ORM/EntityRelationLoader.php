@@ -94,7 +94,7 @@ class EntityRelationLoader
 
         $column = $this->getColumnName(get_class($entity), $property);
 
-        if (!is_null($entityData[$column]) && method_exists($entity, $setter)) {
+        if (isset($entityData[$column]) && method_exists($entity, $setter)) {
             $relatedEntity = $this->entityManager->find(
                 $this->getTargetEntity(get_class($entity), $relation, $property),
                 $entityData[$column]
@@ -138,7 +138,9 @@ class EntityRelationLoader
             ->where(SqlOperations::equal($mappedByColumn, $entityId));
 
         $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
-            $queryBuilder, $targetEntity, false
+            $queryBuilder,
+            $targetEntity,
+            false
         );
 
         if ($result === null) {
@@ -254,7 +256,8 @@ class EntityRelationLoader
      * @return class-string
      */
     private function getTargetEntity(
-        string $entity, MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relation,
+        string $entity,
+        MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relation,
         string $property
     ): string {
         if (null === $targetEntity = $relation->targetEntity) {

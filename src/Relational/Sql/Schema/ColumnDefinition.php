@@ -9,16 +9,59 @@ namespace MulerTech\Database\Relational\Sql\Schema;
  */
 class ColumnDefinition
 {
+    /**
+     * @var string
+     */
     private string $name;
+
+    /**
+     * @var DataType
+     */
     private DataType $type;
+
+    /**
+     * @var int|null
+     */
     private ?int $length = null;
+
+    /**
+     * @var int|null
+     */
     private ?int $precision = null;
+
+    /**
+     * @var int|null
+     */
     private ?int $scale = null;
+
+    /**
+     * @var bool
+     */
     private bool $nullable = true;
-    private $default = null;
+
+    /**
+     * @var mixed
+     */
+    private mixed $default = null;
+
+    /**
+     * @var bool
+     */
     private bool $autoIncrement = false;
+
+    /**
+     * @var bool
+     */
     private bool $unsigned = false;
+
+    /**
+     * @var string|null
+     */
     private ?string $comment = null;
+
+    /**
+     * @var string|null
+     */
     private ?string $after = null;
 
     /**
@@ -234,4 +277,3 @@ class ColumnDefinition
         return $this;
     }
 }
-

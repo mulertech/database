@@ -21,8 +21,7 @@ class DbMapping implements DbMappingInterface
     public function __construct(
         private readonly string $entitiesPath,
         private readonly bool   $recursive = true
-    )
-    {
+    ) {
     }
 
     /**
@@ -151,17 +150,17 @@ class DbMapping implements DbMappingInterface
     public function getColumnTypeDefinition(string $entityName, string $property): ?string
     {
         $mtColumn = $this->getMtColumns($entityName)[$property] ?? null;
-        
+
         if (!$mtColumn || !$mtColumn->columnType) {
             return null;
         }
-        
+
         // Si c'est un type DECIMAL, on utilise la valeur de extra comme précision
         $precision = null;
         if ($mtColumn->columnType === ColumnType::DECIMAL && $mtColumn->extra) {
             $precision = (int) $mtColumn->extra;
         }
-        
+
         return $mtColumn->columnType->toSqlDefinition($mtColumn->length, $precision, $mtColumn->unsigned);
     }
 
@@ -242,7 +241,12 @@ class DbMapping implements DbMappingInterface
             return null;
         }
 
-        return "fk_{$table}_{$column}_{$referencedTable}";
+        return sprintf(
+            "fk_%s_%s_%s",
+            strtolower($table),
+            strtolower($column),
+            strtolower($referencedTable)
+        );
     }
 
     /**
@@ -354,26 +358,6 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * Todo : if it not used delete it
-     * @param class-string $entityName
-     * @param string $property
-     * @return MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null
-     * @throws ReflectionException
-     */
-    public function getRelatedProperty(
-        string $entityName,
-        string $property
-    ): MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null
-    {
-        $relation = $this->getRelation($entityName, $property, MtOneToOne::class)
-            ?? $this->getRelation($entityName, $property, MtOneToMany::class)
-            ?? $this->getRelation($entityName, $property, MtManyToOne::class)
-            ?? $this->getRelation($entityName, $property, MtManyToMany::class);
-
-        return $relation;
-    }
-
-    /**
      * @param class-string $entity
      * @return void
      * @throws ReflectionException
@@ -450,7 +434,7 @@ class DbMapping implements DbMappingInterface
     private function getMtColumns(string $entityName): array
     {
         $columns = Php::getInstanceOfPropertiesAttributesNamed($entityName, MtColumn::class);
-        return array_filter($columns, static fn($column) => $column instanceof MtColumn);
+        return array_filter($columns, static fn ($column) => $column instanceof MtColumn);
     }
 
     /**
@@ -462,32 +446,7 @@ class DbMapping implements DbMappingInterface
     {
         return array_filter(
             Php::getInstanceOfPropertiesAttributesNamed($entityName, MtFk::class),
-            static fn($fk) => $fk instanceof MtFk
-        );
-    }
-
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @param class-string $relationClass
-     * @return MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null
-     * @throws ReflectionException
-     */
-    private function getRelation(
-        string $entityName,
-        string $property,
-        string $relationClass
-    ): MtOneToOne|MtOneToMany|MtManyToOne|MtManyToMany|null
-    {
-        return Php::getInstanceOfPropertiesAttributesNamed($entityName, $relationClass)[$property] ?? null;
-    }
-
-    private function getEntityProperties(string $entityName): array
-    {
-        $reflectionClass = new ReflectionClass($entityName);
-        return array_map(
-            static fn($property) => $property->getName(),
-            $reflectionClass->getProperties()
+            static fn ($fk) => $fk instanceof MtFk
         );
     }
 
@@ -502,4 +461,3 @@ class DbMapping implements DbMappingInterface
         return $this->getMtColumns($entityName)[$property]->unsigned ?? false;
     }
 }
-

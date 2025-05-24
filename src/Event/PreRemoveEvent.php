@@ -15,7 +15,8 @@ class PreRemoveEvent extends EntityEvent
      * @param Object $entity
      * @param EntityManagerInterface $em
      */
-    public function __construct(Object $entity, EntityManagerInterface $em) {
+    public function __construct(Object $entity, EntityManagerInterface $em)
+    {
         $this->setName(DbEvents::preRemove->value);
         parent::__construct($entity, $em);
     }

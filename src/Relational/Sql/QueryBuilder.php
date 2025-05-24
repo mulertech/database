@@ -27,7 +27,7 @@ class QueryBuilder
     private string $alias = '';
 
     /**
-     * @var array $select
+     * @var array<int, string> $select
      */
     private array $select = [];
 
@@ -37,30 +37,27 @@ class QueryBuilder
     private bool $distinct = false;
 
     /**
-     * @var array $from is used into SELECT, INSERT, UPDATE and DELETE.
-     * Example : ['name' => 'table1', 'alias' => 'alias1']
+     * @var array<int, array{name: string|QueryBuilder, alias: string|null}> $from
      */
     private array $from = [];
 
     /**
-     * @var array $join Stored by from table.
+     * @var array<string, array<int, array{type: string, to: string, on: string|null}>> $join
      */
     private array $join = [];
 
     /**
-     * @var array $tablesJoined List the tables joined by table name (and alias is defined) like :
-     * ['table1' => 'alias1', 'table2' => null,..]; (null for alias if not define).
-     * It can be used for check if the alias is use just one time.
+     * @var array<string, array<int, string|null>> $tablesJoined
      */
     private array $tablesJoined = [];
 
     /**
-     * @var SqlOperations $where
+     * @var SqlOperations|null $where
      */
-    private SqlOperations $where;
+    private ?SqlOperations $where = null;
 
     /**
-     * @var array $groupBy
+     * @var array<int, string> $groupBy
      */
     private array $groupBy = [];
 
@@ -70,12 +67,12 @@ class QueryBuilder
     private bool $withRollup = false;
 
     /**
-     * @var SqlOperations $having
+     * @var SqlOperations|null $having
      */
-    private SqlOperations $having;
+    private ?SqlOperations $having = null;
 
     /**
-     * @var array $orderBy like : ['column1 ASC', 'column2 DESC']
+     * @var array<int, string> $orderBy like : ['column1 ASC', 'column2 DESC']
      */
     private array $orderBy = [];
 
@@ -90,36 +87,36 @@ class QueryBuilder
     private int $offset = 0;
 
     /**
-     * @var QueryBuilder[] $union
+     * @var array<int, QueryBuilder> $union
      */
     private array $union = [];
 
     /**
-     * @var QueryBuilder[] $unionAll
+     * @var array<int, QueryBuilder> $unionAll
      */
     private array $unionAll = [];
 
     /**
-     * @var array $values like : [0 => ['column' => 'value'], 1 => [...]]
+     * @var array<string, array{0: mixed, 1: string|null}> $values like : [0 => ['column' => 'value'], 1 => [...]]
      */
     private array $values = [];
 
     /**
-     * @var array $updates
+     * @var array<string, mixed> $updates
      */
     private array $updates = [];
 
     /**
      * Store the named parameters and values, example :
      * ['namedParam1' => 'value', 'namedParam2' => 'other value']
-     * @var array $namedParameters
+     * @var array<string, array{0: mixed, 1: int}> $namedParameters
      */
     private array $namedParameters = [];
 
     /**
      * Store the dynamic parameters values, example :
      * ['value 1', 'value2',..]
-     * @var array $dynamicParameters
+     * @var array<int|string, array{0: mixed, 1: int}> $dynamicParameters
      */
     private array $dynamicParameters = [];
 
@@ -151,7 +148,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getSelect(): array
     {
@@ -168,16 +165,16 @@ class QueryBuilder
 
     /**
      * @param bool $distinct
-     * @return $this
+     * @return self
      */
-    public function distinct(bool $distinct = true): QueryBuilder
+    public function distinct(bool $distinct = true): self
     {
         $this->distinct = $distinct;
         return $this;
     }
 
     /**
-     * @return array
+     * @return array<int, array{name: string|QueryBuilder, alias: string|null}>
      */
     public function getFrom(): array
     {
@@ -185,7 +182,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array<string, array<int, array{type: string, to: string, on: string|null}>>
      */
     public function getJoin(): array
     {
@@ -197,11 +194,11 @@ class QueryBuilder
      */
     public function getWhere(): ?SqlOperations
     {
-        return $this->where ?? null;
+        return $this->where;
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getGroupBy(): array
     {
@@ -221,11 +218,11 @@ class QueryBuilder
      */
     public function getHaving(): ?SqlOperations
     {
-        return $this->having ?? null;
+        return $this->having;
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getOrderBy(): array
     {
@@ -250,7 +247,7 @@ class QueryBuilder
 
     /**
      * Get the insert values.
-     * @return array
+     * @return array<string, array{0: mixed, 1: string|null}>
      */
     public function getValues(): array
     {
@@ -258,7 +255,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array<int|string, array{0: mixed, 1: int}>
      */
     public function getDynamicParameters(): array
     {
@@ -266,7 +263,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array<string, array{0: mixed, 1: int}>
      */
     public function getNamedParameters(): array
     {
@@ -274,7 +271,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array<string, mixed>
      */
     public function getUpdates(): array
     {
@@ -307,7 +304,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function getExecuteParameters(): array
     {
@@ -325,7 +322,7 @@ class QueryBuilder
     }
 
     /**
-     * @return array|null
+     * @return array<int, array{0: int|string, 1: mixed, 2: int}>|null
      */
     public function getBindParameters(): ?array
     {
@@ -344,9 +341,9 @@ class QueryBuilder
 
     /**
      * @param string $table
-     * @return $this
+     * @return self
      */
-    public function insert(string $table): QueryBuilder
+    public function insert(string $table): self
     {
         $this->type = SqlQuery::INSERT;
         $this->from[] = $this->extractAlias($table);
@@ -375,9 +372,9 @@ class QueryBuilder
      * @param string $column
      * @param mixed $value
      * @param string|null $type
-     * @return $this
+     * @return self
      */
-    public function setValue(string $column, mixed $value, ?string $type = null): QueryBuilder
+    public function setValue(string $column, mixed $value, ?string $type = null): self
     {
         $this->values[$column] = [$value, $type];
         return $this;
@@ -386,10 +383,10 @@ class QueryBuilder
     /**
      * Set all the values like this :
      * [['column1' => 'value column 1']['column2' => 'value column 2']]
-     * @param array $values
-     * @return $this
+     * @param array<int, array{0: string, 1: mixed}> $values
+     * @return self
      */
-    public function setValues(array $values): QueryBuilder
+    public function setValues(array $values): self
     {
         foreach ($values as $value) {
             $this->setValue($value[0], $value[1]);
@@ -411,9 +408,9 @@ class QueryBuilder
      * select('product_name', $subQuery->getSubQuery() . ' as nb_supplier');
      *
      * @param string ...$fields
-     * @return $this
+     * @return self
      */
-    public function select(string ...$fields): QueryBuilder
+    public function select(string ...$fields): self
     {
         $this->type = SqlQuery::SELECT;
 
@@ -426,15 +423,15 @@ class QueryBuilder
             $this->distinct = true;
             $fields[0] = substr($fields[0], iconv_strlen(SqlQuery::DISTINCT) + 1);
         }
-        $this->select = array_map([SqlQuery::class, 'escape'], $fields);
+        $this->select = array_values(array_map([SqlQuery::class, 'escape'], $fields));
         return $this;
     }
 
     /**
      * @param string $alias
-     * @return QueryBuilder
+     * @return self
      */
-    public function selectAlias(string $alias): QueryBuilder
+    public function selectAlias(string $alias): self
     {
         $this->alias = $alias;
         return $this;
@@ -446,22 +443,21 @@ class QueryBuilder
      * from('users', 'user') or like :
      * from('users')
      * Do not escape the column and alias, this is automatic.
-     * @param string|self $from
+     * @param string|QueryBuilder $from
      * @param string|null $alias
-     * @return $this
+     * @return self
      */
-    public function from(string|QueryBuilder $from, ?string $alias = null): QueryBuilder
+    public function from(string|QueryBuilder $from, ?string $alias = null): self
     {
         return $this->addFrom($from, $alias);
     }
 
     /**
-     * See the function from above this.
-     * @param string|self $from
-     * @param string|null $alias If the alias is given this alias must be used into the join to find it.
-     * @return $this
+     * @param string|QueryBuilder $from
+     * @param string|null $alias
+     * @return self
      */
-    public function addFrom(string|QueryBuilder $from, ?string $alias = null): QueryBuilder
+    public function addFrom(string|QueryBuilder $from, ?string $alias = null): self
     {
         if (is_string($from) && is_null($alias)) {
             $this->from[] = $this->extractAlias($from);
@@ -491,6 +487,7 @@ class QueryBuilder
      *
      * @param string $type
      * @param string|null $on If it uses alias the aliases must be given in the from and to parameters.
+     * @return void
      */
     private function addJoin(string $from, string $to, string $type, ?string $on = null): void
     {
@@ -557,7 +554,7 @@ class QueryBuilder
     {
         // alias priority
         if (!is_null($alias)) {
-            //Priority 1 : vérification par alias
+            //Priority 1 : vérification by alias
             if (isset($this->from[0]['alias']) && ($alias === $this->from[0]['alias'])) {
                 return true;
             }
@@ -584,9 +581,9 @@ class QueryBuilder
      * @param string $from
      * @param string $to Table (and alias)
      * @param string|null $on The equal sign must be surrounded by spaces for the automatic escape to work.
-     * @return $this
+     * @return self
      */
-    public function innerJoin(string $from, string $to, ?string $on = null): QueryBuilder
+    public function innerJoin(string $from, string $to, ?string $on = null): self
     {
         $this->addJoin($from, $to, SqlQuery::INNER_JOIN, $on);
         return $this;
@@ -595,9 +592,9 @@ class QueryBuilder
     /**
      * @param string $from
      * @param string $to Table (and alias)
-     * @return $this
+     * @return self
      */
-    public function crossJoin(string $from, string $to): QueryBuilder
+    public function crossJoin(string $from, string $to): self
     {
         $this->addJoin($from, $to, SqlQuery::CROSS_JOIN);
         return $this;
@@ -607,9 +604,9 @@ class QueryBuilder
      * @param string $from
      * @param string $to Table (and alias)
      * @param string|null $on The equal sign must be surrounded by spaces for the automatic escape to work.
-     * @return $this
+     * @return self
      */
-    public function leftJoin(string $from, string $to, ?string $on = null): QueryBuilder
+    public function leftJoin(string $from, string $to, ?string $on = null): self
     {
         $this->addJoin($from, $to, SqlQuery::LEFT_JOIN, $on);
         return $this;
@@ -619,9 +616,9 @@ class QueryBuilder
      * @param string $from
      * @param string $to Table (and alias)
      * @param string|null $on The equal sign must be surrounded by spaces for the automatic escape to work.
-     * @return $this
+     * @return self
      */
-    public function rightJoin(string $from, string $to, ?string $on = null): QueryBuilder
+    public function rightJoin(string $from, string $to, ?string $on = null): self
     {
         $this->addJoin($from, $to, SqlQuery::RIGHT_JOIN, $on);
         return $this;
@@ -631,9 +628,9 @@ class QueryBuilder
      * @param string $from
      * @param string $to Table (and alias)
      * @param string|null $on The equal sign must be surrounded by spaces for the automatic escape to work.
-     * @return $this
+     * @return self
      */
-    public function fullJoin(string $from, string $to, ?string $on = null): QueryBuilder
+    public function fullJoin(string $from, string $to, ?string $on = null): self
     {
         $this->addJoin($from, $to, SqlQuery::FULL_JOIN, $on);
         return $this;
@@ -643,9 +640,9 @@ class QueryBuilder
      * @param string $from
      * @param string $to Table (and alias)
      * @param string|null $on The equal sign must be surrounded by spaces for the automatic escape to work.
-     * @return $this
+     * @return self
      */
-    public function naturalJoin(string $from, string $to, ?string $on = null): QueryBuilder
+    public function naturalJoin(string $from, string $to, ?string $on = null): self
     {
         $this->addJoin($from, $to, SqlQuery::NATURAL_JOIN, $on);
         return $this;
@@ -655,71 +652,78 @@ class QueryBuilder
      * @param string $from
      * @param string $to Table (and alias)
      * @param string|null $on The equal sign must be surrounded by spaces for the automatic escape to work.
-     * @return $this
+     * @return self
      */
-    public function unionJoin(string $from, string $to, ?string $on = null): QueryBuilder
+    public function unionJoin(string $from, string $to, ?string $on = null): self
     {
         $this->addJoin($from, $to, SqlQuery::UNION_JOIN, $on);
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $where
-     * @return $this
+     * @param SqlOperations|string $where
+     * @return self
      */
-    public function where(SqlOperations|string $where): QueryBuilder
+    public function where(SqlOperations|string $where): self
     {
         $this->where = is_string($where) ? new SqlOperations($where) : $where;
-
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $where
-     * @return $this
+     * @param SqlOperations|string $where
+     * @return self
      */
-    public function andWhere(SqlOperations|string $where): QueryBuilder
+    public function andWhere(SqlOperations|string $where): self
     {
-        $this->where->addOperation($where);
+        if ($this->where !== null) {
+            $this->where->addOperation($where);
+        }
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $where
-     * @return $this
+     * @param SqlOperations|string $where
+     * @return self
      */
-    public function andNotWhere(SqlOperations|string $where): QueryBuilder
+    public function andNotWhere(SqlOperations|string $where): self
     {
-        $this->where->andNot($where);
+        if ($this->where !== null) {
+            $this->where->andNot($where);
+        }
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $where
-     * @return $this
+     * @param SqlOperations|string $where
+     * @return self
      */
-    public function orWhere(SqlOperations|string $where): QueryBuilder
+    public function orWhere(SqlOperations|string $where): self
     {
-        $this->where->addOperation($where, LinkOperator::OR);
+        if ($this->where !== null) {
+            $this->where->addOperation($where, LinkOperator::OR);
+        }
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $where
-     * @return $this
+     * @param SqlOperations|string $where
+     * @return self
      */
-    public function orNotWhere(SqlOperations|string $where): QueryBuilder
+    public function orNotWhere(SqlOperations|string $where): self
     {
-        $this->where->orNot($where);
+        if ($this->where !== null) {
+            $this->where->orNot($where);
+        }
         return $this;
     }
 
     /**
      * Define the where part of this request manually.
      * @param string $where
-     * @return $this
+     * @return self
      */
-    public function manualWhere(string $where): QueryBuilder
+    public function manualWhere(string $where): self
     {
         $this->where = new SqlOperations();
         $this->where->manualOperation($where);
@@ -728,29 +732,29 @@ class QueryBuilder
 
     /**
      * @param string ...$fields
-     * @return $this
+     * @return self
      */
-    public function groupBy(string ...$fields): QueryBuilder
+    public function groupBy(string ...$fields): self
     {
-        $this->groupBy = array_map([SqlQuery::class, 'escape'], $fields);
+        $this->groupBy = array_values(array_map([SqlQuery::class, 'escape'], $fields));
         return $this;
     }
 
     /**
      * @param bool $rollup
-     * @return QueryBuilder
+     * @return self
      */
-    public function withRollup(bool $rollup = true): QueryBuilder
+    public function withRollup(bool $rollup = true): self
     {
         $this->withRollup = $rollup;
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $having
-     * @return $this
+     * @param SqlOperations|string $having
+     * @return self
      */
-    public function having(SqlOperations|string $having): QueryBuilder
+    public function having(SqlOperations|string $having): self
     {
         $sql = new SqlOperations();
         $sql->addOperation($having);
@@ -759,51 +763,59 @@ class QueryBuilder
     }
 
     /**
-     * @param string|SqlOperations $having
-     * @return $this
+     * @param SqlOperations|string $having
+     * @return self
      */
-    public function andHaving(SqlOperations|string $having): QueryBuilder
+    public function andHaving(SqlOperations|string $having): self
     {
-        $this->having->addOperation($having);
+        if ($this->having !== null) {
+            $this->having->addOperation($having);
+        }
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $having
-     * @return $this
+     * @param SqlOperations|string $having
+     * @return self
      */
-    public function andNotHaving(SqlOperations|string $having): QueryBuilder
+    public function andNotHaving(SqlOperations|string $having): self
     {
-        $this->having->andNot($having);
+        if ($this->having !== null) {
+            $this->having->andNot($having);
+        }
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $having
-     * @return $this
+     * @param SqlOperations|string $having
+     * @return self
      */
-    public function orHaving(SqlOperations|string $having): QueryBuilder
+    public function orHaving(SqlOperations|string $having): self
     {
-        $this->having->addOperation($having, LinkOperator::OR);
+        if ($this->having !== null) {
+            $this->having->addOperation($having, LinkOperator::OR);
+        }
         return $this;
     }
 
     /**
-     * @param string|SqlOperations $having
-     * @return $this
+     * @param SqlOperations|string $having
+     * @return self
      */
-    public function orNotHaving(SqlOperations|string $having): QueryBuilder
+    public function orNotHaving(SqlOperations|string $having): self
     {
-        $this->having->orNot($having);
+        if ($this->having !== null) {
+            $this->having->orNot($having);
+        }
         return $this;
     }
 
     /**
      * Define the having part of this request manually.
      * @param string $having
-     * @return $this
+     * @return self
      */
-    public function manualHaving(string $having): QueryBuilder
+    public function manualHaving(string $having): self
     {
         $this->having = new SqlOperations();
         $this->having->manualOperation($having);
@@ -812,10 +824,10 @@ class QueryBuilder
 
     /**
      * @param string $by
-     * @param string $order ASC (default) or DESC
-     * @return $this
+     * @param string $order
+     * @return self
      */
-    public function orderBy(string $by, string $order = 'ASC'): QueryBuilder
+    public function orderBy(string $by, string $order = 'ASC'): self
     {
         $this->orderBy[] = SqlQuery::escape($by) . ((strtoupper($order) === 'DESC') ? ' DESC' : ' ASC');
         return $this;
@@ -823,10 +835,10 @@ class QueryBuilder
 
     /**
      * @param string $by
-     * @param string $order ASC (default) or DESC
-     * @return $this
+     * @param string $order
+     * @return self
      */
-    public function addOrderBy(string $by, string $order = 'ASC'): QueryBuilder
+    public function addOrderBy(string $by, string $order = 'ASC'): self
     {
         $this->orderBy[] = SqlQuery::escape($by) . ((strtoupper($order) === 'DESC') ? ' DESC' : ' ASC');
         return $this;
@@ -835,9 +847,9 @@ class QueryBuilder
     /**
      * Define the number of item per page.
      * @param int $limit Zero = no limit.
-     * @return $this
+     * @return self
      */
-    public function limit(int $limit = 0): QueryBuilder
+    public function limit(int $limit = 0): self
     {
         $this->limit = $limit;
         return $this;
@@ -848,9 +860,9 @@ class QueryBuilder
      * or the start item number (offset).
      * @param int|null $page
      * @param int $offset To define offset the $page variable must be null.
-     * @return $this
+     * @return self
      */
-    public function offset(?int $page = 1, int $offset = 0): QueryBuilder
+    public function offset(?int $page = 1, int $offset = 0): self
     {
         if (!is_null($page)) {
             if ($this->limit === 0) {
@@ -868,9 +880,9 @@ class QueryBuilder
     /**
      * @param string $table
      * @param string|null $alias
-     * @return $this
+     * @return self
      */
-    public function update(string $table, ?string $alias = null): QueryBuilder
+    public function update(string $table, ?string $alias = null): self
     {
         $this->type = SqlQuery::UPDATE;
         if (is_null($alias)) {
@@ -885,9 +897,9 @@ class QueryBuilder
      * Set the update value for the column.
      * @param string $column
      * @param mixed $value
-     * @return $this
+     * @return self
      */
-    public function set(string $column, mixed $value): QueryBuilder
+    public function set(string $column, mixed $value): self
     {
         $this->setValue($column, $this->addDynamicParameter($value));
         return $this;
@@ -895,12 +907,12 @@ class QueryBuilder
 
     /**
      * @param string $table
-     * @return $this
+     * @return self
      */
-    public function delete(string $table): QueryBuilder
+    public function delete(string $table): self
     {
         $this->type = SqlQuery::DELETE;
-        $this->from[0] = ['name' => $table];
+        $this->from[0] = ['name' => $table, 'alias' => null];
         return $this;
     }
 
@@ -934,7 +946,13 @@ class QueryBuilder
                 'Class QueryBuilder, function addDynamicParameter. A dynamic parameter can\'t be define because one or more named parameter is already defined.'
             );
         }
-        $key = (!empty($dynamicParams = $this->getDynamicParameters())) ? array_key_last($dynamicParams) + 1 : 1;
+        $dynamicParams = $this->getDynamicParameters();
+        if (!empty($dynamicParams)) {
+            $lastKey = array_key_last($dynamicParams);
+            $key = is_int($lastKey) ? $lastKey + 1 : 1;
+        } else {
+            $key = 1;
+        }
         $this->dynamicParameters[$key] = [$value, $type];
         return '?';
     }
@@ -943,9 +961,9 @@ class QueryBuilder
      * @param int|string $key
      * @param mixed $value
      * @param int $type
-     * @return $this
+     * @return self
      */
-    public function setParameter(int|string $key, mixed $value, int $type = PDO::PARAM_STR): QueryBuilder
+    public function setParameter(int|string $key, mixed $value, int $type = PDO::PARAM_STR): self
     {
         if (is_numeric($key)) {
             $this->dynamicParameters[$key] = [$value, $type];
@@ -957,21 +975,21 @@ class QueryBuilder
 
     /**
      * @param QueryBuilder ...$queries
-     * @return $this
+     * @return self
      */
-    public function union(QueryBuilder ...$queries): QueryBuilder
+    public function union(QueryBuilder ...$queries): self
     {
-        $this->union = $queries;
+        $this->union = array_values($queries);
         return $this;
     }
 
     /**
      * @param QueryBuilder ...$queries
-     * @return $this
+     * @return self
      */
-    public function unionAll(QueryBuilder ...$queries): QueryBuilder
+    public function unionAll(QueryBuilder ...$queries): self
     {
-        $this->unionAll = $queries;
+        $this->unionAll = array_values($queries);
         return $this;
     }
 
@@ -985,21 +1003,21 @@ class QueryBuilder
 
     /**
      * @param string $name
-     * @return array
+     * @return array{name: string, alias: string|null}
      */
     public function extractAlias(string $name): array
     {
         $name = trim($name);
 
-        if (strpos($name, ' as ') !== false) {
+        if (str_contains($name, ' as ')) {
             $return = explode(' as ', $name);
             return ['name' => $return[0], 'alias' => $return[1]];
         }
-        if (strpos($name, ' AS ') !== false) {
+        if (str_contains($name, ' AS ')) {
             $return = explode(' AS ', $name);
             return ['name' => $return[0], 'alias' => $return[1]];
         }
-        if (strpos($name, ' ') !== false) {
+        if (str_contains($name, ' ')) {
             $return = explode(' ', $name);
             return ['name' => $return[0], 'alias' => $return[1]];
         }
@@ -1009,10 +1027,7 @@ class QueryBuilder
     /** EmEngine functions */
 
     /**
-     * Get the result of this request with the EmEngine.
-     * @param string $type
      * @return Statement
-     * @todo link this function with the EmEngine, return format........
      */
     public function getResult(): Statement
     {
@@ -1049,7 +1064,4 @@ class QueryBuilder
         $pdo = $this->emEngine->getEntityManager()->getPdm();
         $pdo->prepare($this->getQuery());
     }
-
-
 }
-

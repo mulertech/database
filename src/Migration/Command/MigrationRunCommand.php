@@ -40,35 +40,35 @@ class MigrationRunCommand extends AbstractCommand
 
         try {
             $pendingMigrations = $this->migrationManager->getPendingMigrations();
-            
+
             if (empty($pendingMigrations)) {
                 $this->terminal->writeLine('No pending migrations.', 'yellow');
                 return 0;
             }
-            
+
             $this->terminal->writeLine(count($pendingMigrations) . ' pending migration(s):', 'white');
-            
+
             foreach ($pendingMigrations as $version => $migration) {
                 $this->terminal->writeLine(' - ' . $version, 'white');
             }
-            
+
             // Option to run in dry-run mode
             if (!empty($args) && $args[0] === '--dry-run') {
                 $this->terminal->writeLine('Dry-run mode completed. Use without --dry-run to execute the migrations.', 'yellow');
                 return 0;
             }
-            
+
             // Ask for confirmation
             $confirmation = $this->terminal->readChar('Do you want to run these migrations? (y/n): ');
-            
+
             if (strtolower($confirmation) !== 'y') {
                 $this->terminal->writeLine('Execution aborted.', 'yellow');
                 return 0;
             }
-            
+
             // Execute migrations
             $executed = $this->migrationManager->migrate();
-            
+
             $this->terminal->writeLine($executed . ' migration(s) successfully executed.', 'green');
             return 0;
         } catch (Exception $e) {

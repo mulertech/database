@@ -9,7 +9,6 @@ namespace MulerTech\Database\PhpInterface;
  */
 interface DriverInterface
 {
-
     /**
      * @param array $dsnOptions
      * @return string

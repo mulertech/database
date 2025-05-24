@@ -14,7 +14,7 @@ use RuntimeException;
 
 /**
  * Migration manager for executing and tracking migrations
- * 
+ *
  * @package MulerTech\Database\Migration
  * @author Sébastien Muler
  */
@@ -24,7 +24,7 @@ class MigrationManager
      * @var Migration[] Registered migrations
      */
     private array $migrations = [];
-    
+
     /**
      * @var string[] Executed migration versions
      */
@@ -40,7 +40,7 @@ class MigrationManager
         $this->initializeMigrationTable();
         $this->loadExecutedMigrations();
     }
-    
+
     /**
      * Ensure migration history table exists
      *
@@ -52,7 +52,7 @@ class MigrationManager
         // Using low-level approach to avoid circular dependencies
         $dbMapping = $this->entityManager->getDbMapping();
         $emEngine = $this->entityManager->getEmEngine();
-        
+
         $tableName = $dbMapping->getTableName($this->migrationHistory);
         if ($tableName === null) {
             throw new RuntimeException("Migration history table name not found in mapping.");
@@ -92,10 +92,10 @@ class MigrationManager
             PRIMARY KEY (`id`),
             KEY `version` (`version`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
-        
+
         $this->entityManager->getPdm()->exec($sql);
     }
-    
+
     /**
      * Load executed migrations from database
      *
@@ -123,7 +123,7 @@ class MigrationManager
             $this->executedMigrations = [];
         }
     }
-    
+
     /**
      * Register a migration with the manager
      *
@@ -140,7 +140,7 @@ class MigrationManager
                 "Migration with version $version is already registered. Each migration must have a unique version."
             );
         }
-        
+
         $this->migrations[$version] = $migration;
         return $this;
     }
@@ -180,7 +180,7 @@ class MigrationManager
 
         return $this;
     }
-    
+
     /**
      * Check if a migration has been executed
      *
@@ -191,7 +191,7 @@ class MigrationManager
     {
         return in_array($version, $this->executedMigrations, true);
     }
-    
+
     /**
      * Get all migrations
      *
@@ -203,7 +203,7 @@ class MigrationManager
         ksort($migrations); // Sort by version
         return $migrations;
     }
-    
+
     /**
      * Get pending migrations (not yet executed)
      *
@@ -212,16 +212,16 @@ class MigrationManager
     public function getPendingMigrations(): array
     {
         $pendingMigrations = [];
-        
+
         foreach ($this->getMigrations() as $version => $migration) {
             if (!$this->isMigrationExecuted($version)) {
                 $pendingMigrations[$version] = $migration;
             }
         }
-        
+
         return $pendingMigrations;
     }
-    
+
     /**
      * Execute all pending migrations
      *
@@ -230,15 +230,15 @@ class MigrationManager
     public function migrate(): int
     {
         $executed = 0;
-        
+
         foreach ($this->getPendingMigrations() as $migration) {
             $this->executeMigration($migration);
             $executed++;
         }
-        
+
         return $executed;
     }
-    
+
     /**
      * Execute a specific migration
      *
@@ -248,13 +248,13 @@ class MigrationManager
     public function executeMigration(Migration $migration): void
     {
         $version = $migration->getVersion();
-        
+
         if ($this->isMigrationExecuted($version)) {
             throw new RuntimeException("Migration {$version} has already been executed.");
         }
-        
+
         $startTime = microtime(true);
-        
+
         try {
             // Begin transaction
             $this->entityManager->getPdm()->beginTransaction();
@@ -264,7 +264,7 @@ class MigrationManager
 
             // Record migration in history
             $this->recordMigrationExecution($migration, microtime(true) - $startTime);
-            
+
             // Commit transaction if there is a transaction in progress
             // The CREATE or DROP TABLE statements are not transactional
             if ($this->entityManager->getPdm()->inTransaction()) {
@@ -283,7 +283,7 @@ class MigrationManager
             throw new RuntimeException("Migration {$version} failed: " . $e->getMessage(), 0, $e);
         }
     }
-    
+
     /**
      * Record migration execution in database
      *
@@ -301,7 +301,7 @@ class MigrationManager
         $this->entityManager->persist($history);
         $this->entityManager->flush();
     }
-    
+
     /**
      * Roll back the last executed migration
      *
@@ -312,41 +312,41 @@ class MigrationManager
         if (empty($this->executedMigrations)) {
             return false;
         }
-        
+
         $lastVersion = end($this->executedMigrations);
-        
+
         // Find the migration
         $migration = $this->migrations[$lastVersion] ?? null;
         if ($migration === null) {
             throw new RuntimeException("Migration {$lastVersion} is recorded as executed but cannot be found.");
         }
-        
+
         try {
             // Begin transaction
             $this->entityManager->getPdm()->beginTransaction();
-            
+
             // Execute migration down
             $migration->down();
-            
+
             // Remove from migration history
             $this->removeMigrationRecord($lastVersion);
-            
+
             // Commit transaction
             $this->entityManager->getPdm()->commit();
-            
+
             // Remove from executed migrations cache
             array_pop($this->executedMigrations);
-            
+
             return true;
         } catch (Exception $e) {
             // Rollback transaction
             $this->entityManager->getPdm()->rollBack();
-            
+
             // Re-throw exception
             throw new RuntimeException("Migration rollback {$lastVersion} failed: " . $e->getMessage(), 0, $e);
         }
     }
-    
+
     /**
      * Remove migration record from database
      *
@@ -359,7 +359,7 @@ class MigrationManager
         $queryBuilder
             ->delete('migration_history')
             ->where(SqlOperations::equal('version', $queryBuilder->addNamedParameter($version)));
-            
+
         $statement = $queryBuilder->getResult();
         $statement->execute();
     }

@@ -4,7 +4,7 @@ namespace MulerTech\Database\Migration\Schema;
 
 /**
  * Holds differences between database schema and entity mappings
- * 
+ *
  * @package MulerTech\Database\Migration\Schema
  * @author Sébastien Muler
  */
@@ -14,37 +14,37 @@ class SchemaDifference
      * @var array<string, string> Tables to create [tableName => entityClass]
      */
     private array $tablesToCreate = [];
-    
+
     /**
      * @var array<string> Tables to drop
      */
     private array $tablesToDrop = [];
-    
+
     /**
      * @var array<string, array<string, array>> Columns to add [tableName => [columnName => columnDefinition]]
      */
     private array $columnsToAdd = [];
-    
+
     /**
      * @var array<string, array<string, array>> Columns to modify [tableName => [columnName => differences]]
      */
     private array $columnsToModify = [];
-    
+
     /**
      * @var array<string, array<string>> Columns to drop [tableName => [columnNames]]
      */
     private array $columnsToDrop = [];
-    
+
     /**
      * @var array<string, array<string, array>> Foreign keys to add [tableName => [constraintName => definition]]
      */
     private array $foreignKeysToAdd = [];
-    
+
     /**
      * @var array<string, array<string>> Foreign keys to drop [tableName => [constraintNames]]
      */
     private array $foreignKeysToDrop = [];
-    
+
     /**
      * Add a table to be created
      *
@@ -57,7 +57,7 @@ class SchemaDifference
         $this->tablesToCreate[$tableName] = $entityClass;
         return $this;
     }
-    
+
     /**
      * Add a table to be dropped
      *
@@ -69,7 +69,7 @@ class SchemaDifference
         $this->tablesToDrop[] = $tableName;
         return $this;
     }
-    
+
     /**
      * Add a column to be added
      *
@@ -83,11 +83,11 @@ class SchemaDifference
         if (!isset($this->columnsToAdd[$tableName])) {
             $this->columnsToAdd[$tableName] = [];
         }
-        
+
         $this->columnsToAdd[$tableName][$columnName] = $columnDefinition;
         return $this;
     }
-    
+
     /**
      * Add a column to be modified
      *
@@ -101,11 +101,11 @@ class SchemaDifference
         if (!isset($this->columnsToModify[$tableName])) {
             $this->columnsToModify[$tableName] = [];
         }
-        
+
         $this->columnsToModify[$tableName][$columnName] = $differences;
         return $this;
     }
-    
+
     /**
      * Add a column to be dropped
      *
@@ -118,11 +118,11 @@ class SchemaDifference
         if (!isset($this->columnsToDrop[$tableName])) {
             $this->columnsToDrop[$tableName] = [];
         }
-        
+
         $this->columnsToDrop[$tableName][] = $columnName;
         return $this;
     }
-    
+
     /**
      * Add a foreign key to be added
      *
@@ -136,11 +136,11 @@ class SchemaDifference
         if (!isset($this->foreignKeysToAdd[$tableName])) {
             $this->foreignKeysToAdd[$tableName] = [];
         }
-        
+
         $this->foreignKeysToAdd[$tableName][$constraintName] = $foreignKeyDefinition;
         return $this;
     }
-    
+
     /**
      * Add a foreign key to be dropped
      *
@@ -153,11 +153,11 @@ class SchemaDifference
         if (!isset($this->foreignKeysToDrop[$tableName])) {
             $this->foreignKeysToDrop[$tableName] = [];
         }
-        
+
         $this->foreignKeysToDrop[$tableName][] = $constraintName;
         return $this;
     }
-    
+
     /**
      * Get tables to create
      *
@@ -167,7 +167,7 @@ class SchemaDifference
     {
         return $this->tablesToCreate;
     }
-    
+
     /**
      * Get tables to drop
      *
@@ -177,7 +177,7 @@ class SchemaDifference
     {
         return $this->tablesToDrop;
     }
-    
+
     /**
      * Get columns to add
      *
@@ -187,7 +187,7 @@ class SchemaDifference
     {
         return $this->columnsToAdd;
     }
-    
+
     /**
      * Get columns to modify
      *
@@ -197,7 +197,7 @@ class SchemaDifference
     {
         return $this->columnsToModify;
     }
-    
+
     /**
      * Get columns to drop
      *
@@ -207,7 +207,7 @@ class SchemaDifference
     {
         return $this->columnsToDrop;
     }
-    
+
     /**
      * Get foreign keys to add
      *
@@ -217,7 +217,7 @@ class SchemaDifference
     {
         return $this->foreignKeysToAdd;
     }
-    
+
     /**
      * Get foreign keys to drop
      *
@@ -227,7 +227,7 @@ class SchemaDifference
     {
         return $this->foreignKeysToDrop;
     }
-    
+
     /**
      * Check if there are any differences
      *

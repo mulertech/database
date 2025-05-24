@@ -25,7 +25,8 @@ class EntityEvent extends Event
      * @param Object $entity
      * @param EntityManagerInterface $entityManager
      */
-    public function __construct(Object $entity, EntityManagerInterface $entityManager) {
+    public function __construct(Object $entity, EntityManagerInterface $entityManager)
+    {
         $this->entity = $entity;
         $this->entityManager = $entityManager;
     }

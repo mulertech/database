@@ -13,7 +13,6 @@ use RuntimeException;
  */
 class PhpDatabaseManager implements PhpDatabaseInterface
 {
-
     public const string DATABASE_URL = 'DATABASE_URL';
     /**
      * @var PDO PDO connection.
@@ -30,7 +29,8 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      * @param array $parameters
      */
     public function __construct(private readonly ConnectorInterface $connector, private readonly array $parameters)
-    {}
+    {
+    }
 
     /**
      * @return PDO Connection to database (PDO)
@@ -288,7 +288,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     private static function decodeUrl(array $url): array
     {
-        array_walk_recursive($url, static function(&$urlPart) {
+        array_walk_recursive($url, static function (&$urlPart) {
             $urlPart = urldecode($urlPart);
         });
         return $url;

@@ -1,6 +1,5 @@
 <?php
 
-
 namespace MulerTech\Database\Event;
 
 enum DbEvents: string

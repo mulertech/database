@@ -134,7 +134,7 @@ class EntityManager implements EntityManagerInterface
 
         // Filter results to handle MySQL numeric comparison edge cases
         $getter = 'get' . ucfirst($property);
-        $matchingResults = array_filter($results, function($item) use ($getter, $search) {
+        $matchingResults = array_filter($results, function ($item) use ($getter, $search) {
             $value = $item->$getter();
             return !(is_numeric($value) && is_numeric($search) && $value != $search);
         });

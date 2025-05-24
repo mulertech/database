@@ -28,14 +28,14 @@ class EntityHydrator
 
     /**
      * EntityHydrator constructor
-     * 
+     *
      * @param DbMappingInterface|null $dbMapping Database mapping service
      */
     public function __construct(?DbMappingInterface $dbMapping = null)
     {
         $this->dbMapping = $dbMapping;
     }
-    
+
     /**
      * Hydrate an entity with data from database result
      *
@@ -48,7 +48,7 @@ class EntityHydrator
     {
         $entity = new $entityName();
         $columnToPropertyMap = [];
-        
+
         // If DbMapping is available, use it to create a column-to-property mapping
         if ($this->dbMapping !== null) {
             try {
@@ -75,7 +75,7 @@ class EntityHydrator
             if (method_exists($entity, $setterMethod)) {
                 // Process the value based on property type
                 $processedValue = $this->processValue($entityName, $propertyName, $value);
-                
+
                 // Call the setter with the processed value
                 $entity->$setterMethod($processedValue);
             }
@@ -131,7 +131,7 @@ class EntityHydrator
         if ($this->dbMapping !== null) {
             try {
                 $columnType = $this->dbMapping->getColumnType($entityClass, $propertyName);
-                
+
                 if ($columnType !== null) {
                     return $this->processValueByColumnType($value, $columnType);
                 }
@@ -145,7 +145,7 @@ class EntityHydrator
             $reflection = new ReflectionClass($entityClass);
             if ($reflection->hasProperty($propertyName)) {
                 $property = $reflection->getProperty($propertyName);
-                
+
                 // Try to use MtColumn attribute if available
                 $mtColumnAttr = $property->getAttributes(MtColumn::class)[0] ?? null;
                 if ($mtColumnAttr !== null) {
@@ -154,7 +154,7 @@ class EntityHydrator
                         return $this->processValueByColumnType($value, $mtColumn->columnType);
                     }
                 }
-                
+
                 // Fall back to PHP type hints
                 return $this->processValueByType($value, $property);
             }
@@ -242,7 +242,7 @@ class EntityHydrator
                 }
                 return (int)$value;
 
-            // Decimal types
+                // Decimal types
             case ColumnType::DECIMAL:
             case ColumnType::NUMERIC:
             case ColumnType::FLOAT:
@@ -250,7 +250,7 @@ class EntityHydrator
             case ColumnType::REAL:
                 return (float)$value;
 
-            // String, text, enum and set types
+                // String, text, enum and set types
             case ColumnType::CHAR:
             case ColumnType::LONGTEXT:
             case ColumnType::MEDIUMTEXT:
@@ -260,23 +260,23 @@ class EntityHydrator
             case ColumnType::ENUM:
             case ColumnType::VARCHAR:
                 return $this->sanitizeText($value);
-                
-            // Date and time types
+
+                // Date and time types
             case ColumnType::DATE:
             case ColumnType::DATETIME:
             case ColumnType::TIMESTAMP:
                 return $this->processDateTime($value);
-                
-            // Boolean types
+
+                // Boolean types
             case ColumnType::BOOLEAN:
             case ColumnType::BOOL:
                 return (bool)$value;
-                
-            // JSON type
+
+                // JSON type
             case ColumnType::JSON:
                 return $this->processJson($value);
 
-            // Default, Binary and BLOB types : return as is, possibly handle as streams or base64
+                // Default, Binary and BLOB types : return as is, possibly handle as streams or base64
             default:
                 return $value;
         }
@@ -284,16 +284,16 @@ class EntityHydrator
 
     /**
      * Check if a value is likely intended to be a boolean
-     * 
+     *
      * @param mixed $value Value to check
      * @return bool True if value is likely a boolean
      */
-    private function isBoolean(mixed $value): bool 
+    private function isBoolean(mixed $value): bool
     {
-        return $value === '0' || $value === '1' || $value === 0 || $value === 1 || 
+        return $value === '0' || $value === '1' || $value === 0 || $value === 1 ||
                $value === true || $value === false;
     }
-    
+
     /**
      * Sanitize text to prevent XSS attacks
      *
@@ -369,4 +369,3 @@ class EntityHydrator
         return new $className();
     }
 }
-

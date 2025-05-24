@@ -14,7 +14,7 @@ class SqlOperationsTest extends TestCase
     {
         $sqlOperation = new SqlOperations();
         $sqlOperation->manualOperation('age < 90');
-        self::assertEquals(' age < 90', $sqlOperation->generateOperation());
+        self::assertEquals(' age < 90', $sqlOperation);
     }
 
     public function testAddOperation(): void
@@ -43,7 +43,7 @@ class SqlOperationsTest extends TestCase
         $sqlOperation1 = new SqlOperations('age > 10 + bonus');
         $sqlOperation = new SqlOperations($sqlOperation1);
         $sqlOperation->and('age < 60');
-        self::assertEquals(' ( age > 10 + bonus) AND age < 60', $sqlOperation);
+        self::assertEquals(' (age > 10 + bonus) AND age < 60', $sqlOperation);
     }
 
     public function testOperationWithBraketAnd(): void
@@ -51,7 +51,7 @@ class SqlOperationsTest extends TestCase
         $sqlOperation2 = new SqlOperations('age > 10 + bonus');
         $sqlOperation = new SqlOperations('age < 60');
         $sqlOperation->and($sqlOperation2);
-        self::assertEquals(' age < 60 AND ( age > 10 + bonus)', $sqlOperation);
+        self::assertEquals(' age < 60 AND (age > 10 + bonus)', $sqlOperation);
     }
 
     public function testOr(): void

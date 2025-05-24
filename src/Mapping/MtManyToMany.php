@@ -24,6 +24,6 @@ class MtManyToMany
         public string|null $mappedBy = null,
         public string|null $joinProperty = null,
         public string|null $inverseJoinProperty = null,
-    )
-    {}
+    ) {
+    }
 }

@@ -11,7 +11,6 @@ use PDO;
  */
 interface PhpDatabaseInterface
 {
-
     /**
      * @param string $query
      * @param array $options

@@ -12,11 +12,34 @@ use MulerTech\Database\Relational\Sql\SqlQuery;
  */
 class IndexDefinition
 {
+    /**
+     * @var array<int, string>
+     */
     private array $columns = [];
-    private IndexType $type = IndexType::INDEX; // INDEX, UNIQUE, FULLTEXT
-    private ?string $algorithm = null; // BTREE, HASH, etc.
+
+    /**
+     * @var IndexType
+     */
+    private IndexType $type = IndexType::INDEX;
+
+    /**
+     * @var string|null
+     */
+    private ?string $algorithm = null;
+
+    /**
+     * @var int|null
+     */
     private ?int $keyBlockSize = null;
+
+    /**
+     * @var string|null
+     */
     private ?string $comment = null;
+
+    /**
+     * @var bool
+     */
     private bool $visible = true;
 
     /**
@@ -24,7 +47,8 @@ class IndexDefinition
      * @param string $table
      */
     public function __construct(private readonly string $name, private readonly string $table)
-    {}
+    {
+    }
 
     /**
      * @return string
@@ -43,7 +67,7 @@ class IndexDefinition
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getColumns(): array
     {
@@ -91,8 +115,8 @@ class IndexDefinition
     }
 
     /**
-     * @param string|array $columns
-     * @return $this
+     * @param string|array<int, string> $columns
+     * @return self
      */
     public function columns(string|array $columns): self
     {
@@ -101,7 +125,7 @@ class IndexDefinition
     }
 
     /**
-     * @return $this
+     * @return self
      */
     public function unique(): self
     {
@@ -110,7 +134,7 @@ class IndexDefinition
     }
 
     /**
-     * @return $this
+     * @return self
      */
     public function fullText(): self
     {
@@ -119,8 +143,8 @@ class IndexDefinition
     }
 
     /**
-     * @param string $algorithm BTREE, HASH, etc.
-     * @return $this
+     * @param string $algorithm
+     * @return self
      */
     public function algorithm(string $algorithm): self
     {
@@ -129,8 +153,8 @@ class IndexDefinition
     }
 
     /**
-     * @param int $size Size in bytes
-     * @return $this
+     * @param int $size
+     * @return self
      */
     public function keyBlockSize(int $size): self
     {
@@ -140,7 +164,7 @@ class IndexDefinition
 
     /**
      * @param string $comment
-     * @return $this
+     * @return self
      */
     public function comment(string $comment): self
     {
@@ -150,7 +174,7 @@ class IndexDefinition
 
     /**
      * @param bool $visible
-     * @return $this
+     * @return self
      */
     public function visible(bool $visible = true): self
     {
@@ -168,7 +192,7 @@ class IndexDefinition
             throw new InvalidArgumentException("The index must have at least one column.");
         }
 
-        $columnList = implode(', ', array_map(function($col) {
+        $columnList = implode(', ', array_map(function ($col) {
             return SqlQuery::escape($col);
         }, $this->columns));
 
@@ -206,4 +230,3 @@ class IndexDefinition
         return $sql;
     }
 }
-

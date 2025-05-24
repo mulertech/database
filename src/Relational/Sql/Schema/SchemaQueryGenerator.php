@@ -45,12 +45,12 @@ class SchemaQueryGenerator
     }
 
     /**
-     * @param string $tableName
-     * @param array $columns
-     * @param array $indexes
-     * @param array $foreignKeys
-     * @param array $options
-     * @return string
+     * @param string $tableName The escaped table name
+     * @param array<string, ColumnDefinition|array{drop: bool}> $columns Column definitions
+     * @param array<string, array{type?: string, columns: array<int, string>}> $indexes Index definitions
+     * @param array<string, ForeignKeyDefinition> $foreignKeys Foreign key definitions
+     * @param array<string, string> $options Table options
+     * @return string The generated CREATE TABLE SQL statement
      */
     private function generateCreateTable(
         string $tableName,
@@ -95,11 +95,11 @@ class SchemaQueryGenerator
     }
 
     /**
-     * @param string $tableName
-     * @param array $columns
-     * @param array $indexes
-     * @param array $foreignKeys
-     * @return string
+     * @param string $tableName The escaped table name
+     * @param array<string, object|array{drop: bool}> $columns Column definitions or drop specifications
+     * @param array<string, array{type?: string, columns: array<int, string>, drop?: bool}> $indexes Index definitions
+     * @param array<string, ForeignKeyDefinition> $foreignKeys Foreign key definitions
+     * @return string The generated ALTER TABLE SQL statement, empty string if no alterations
      */
     private function generateAlterTable(
         string $tableName,
@@ -111,7 +111,7 @@ class SchemaQueryGenerator
 
         // Columns - add modify or drop
         foreach ($columns as $name => $column) {
-            if (is_array($column) && isset($column['drop'])) {
+            if (is_array($column)) {
                 $alterParts[] = "DROP COLUMN " . SqlQuery::escape($name);
             } else {
                 // Utiliser une méthode isModify si disponible
@@ -228,10 +228,10 @@ class SchemaQueryGenerator
     }
 
     /**
-     * @param mixed $foreignKey
-     * @return string
+     * @param ForeignKeyDefinition $foreignKey The foreign key definition object
+     * @return string The SQL fragment for the foreign key constraint
      */
-    private function generateForeignKey(mixed $foreignKey): string
+    private function generateForeignKey(ForeignKeyDefinition $foreignKey): string
     {
         $name = $foreignKey->getName();
         $columns = $foreignKey->getColumns();
@@ -252,9 +252,9 @@ class SchemaQueryGenerator
 
     /**
      * @param mixed $value
-     * @return string
+     * @return string|float|int
      */
-    private function quoteValue(mixed $value): string
+    private function quoteValue(mixed $value): string|float|int
     {
         if (is_numeric($value)) {
             return $value;
@@ -267,4 +267,3 @@ class SchemaQueryGenerator
         }
     }
 }
-

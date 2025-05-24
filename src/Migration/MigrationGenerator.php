@@ -10,7 +10,7 @@ use RuntimeException;
 
 /**
  * Generate migrations based on schema differences
- * 
+ *
  * @package MulerTech\Database\Migration
  * @author Sébastien Muler
  */
@@ -95,10 +95,10 @@ EOT;
 
         $fileName = $this->migrationsDirectory . DIRECTORY_SEPARATOR . 'Migration' . $date . '.php';
         file_put_contents($fileName, $migrationContent);
-        
+
         return $fileName;
     }
-    
+
     /**
      * Validate schema differences to ensure all prerequisites are met
      *
@@ -149,21 +149,21 @@ EOT;
     private function generateUpCode(SchemaDifference $diff): string
     {
         $code = [];
-        
+
         // Drop foreign keys first to avoid constraint issues
         foreach ($diff->getForeignKeysToDrop() as $tableName => $constraintNames) {
             foreach ($constraintNames as $constraintName) {
                 $code[] = $this->generateDropForeignKeyStatement($tableName, $constraintName);
             }
         }
-        
+
         // Drop columns
         foreach ($diff->getColumnsToDrop() as $tableName => $columnNames) {
             foreach ($columnNames as $columnName) {
                 $code[] = $this->generateDropColumnStatement($tableName, $columnName);
             }
         }
-        
+
         // Create new tables
         $columnsToAdd = $diff->getColumnsToAdd();
         foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
@@ -175,36 +175,36 @@ EOT;
             $code[] = $this->generateCreateTableStatement($tableName, $tableColumns);
             unset($columnsToAdd[$tableName]);
         }
-        
+
         // Add new columns
         foreach ($columnsToAdd as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
                 $code[] = $this->generateAddColumnStatement($tableName, $columnName, $columnDefinition);
             }
         }
-        
+
         // Modify columns
         foreach ($diff->getColumnsToModify() as $tableName => $columns) {
             foreach ($columns as $columnName => $differences) {
                 $code[] = $this->generateModifyColumnStatement($tableName, $columnName, $differences);
             }
         }
-        
+
         // Add foreign keys
         foreach ($diff->getForeignKeysToAdd() as $tableName => $foreignKeys) {
             foreach ($foreignKeys as $constraintName => $foreignKeyInfo) {
                 $code[] = $this->generateAddForeignKeyStatement($tableName, $constraintName, $foreignKeyInfo);
             }
         }
-        
+
         // Drop tables (last to avoid foreign key issues)
         foreach ($diff->getTablesToDrop() as $tableName) {
             $code[] = $this->generateDropTableStatement($tableName);
         }
-        
-        return implode("\n\n", array_map(fn($line) => "        $line", $code));
+
+        return implode("\n\n", array_map(fn ($line) => "        $line", $code));
     }
-    
+
     /**
      * Generate code for the down() method
      *
@@ -249,7 +249,7 @@ EOT;
 
         return empty($code)
             ? '        // No rollback operations defined'
-            : implode("\n\n", array_map(fn($line) => "        $line", $code));
+            : implode("\n\n", array_map(fn ($line) => "        $line", $code));
     }
 
     /**

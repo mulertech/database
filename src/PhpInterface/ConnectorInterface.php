@@ -9,7 +9,6 @@ namespace MulerTech\Database\PhpInterface;
  */
 interface ConnectorInterface
 {
-
     /**
      * @param array $dsnOptions
      * @param string $username

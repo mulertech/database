@@ -49,18 +49,18 @@ class MigrationRollbackCommand extends AbstractCommand
             // Get executed migrations
             $executedMigrations = array_filter(
                 $migrations,
-                fn($migration) => $this->migrationManager->isMigrationExecuted($migration->getVersion()),
+                fn ($migration) => $this->migrationManager->isMigrationExecuted($migration->getVersion()),
             );
 
             if (empty($executedMigrations)) {
                 $this->terminal->writeLine('No executed migrations to rollback.', 'yellow');
                 return 0;
             }
-            
+
             // Get the last executed migration
             end($executedMigrations);
             $lastVersion = key($executedMigrations);
-            
+
             $this->terminal->writeLine('Last executed migration: ' . $lastVersion, 'white');
 
             // Option to run in dry-run mode
@@ -68,15 +68,15 @@ class MigrationRollbackCommand extends AbstractCommand
                 $this->terminal->writeLine('Dry-run mode completed. Use without --dry-run to rollback the migration.', 'yellow');
                 return 0;
             }
-            
+
             // Ask for confirmation
             $confirmation = $this->terminal->readChar('Do you want to rollback this migration? (y/n): ');
-            
+
             if (strtolower($confirmation) !== 'y') {
                 $this->terminal->writeLine('Rollback aborted.', 'yellow');
                 return 0;
             }
-            
+
             // Rollback the migration
             if ($this->migrationManager->rollback()) {
                 $this->terminal->writeLine('Migration ' . $lastVersion . ' successfully rolled back.', 'green');

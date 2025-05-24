@@ -32,7 +32,6 @@ class MtColumn
         public string|null     $extra = null,
         public string|null     $columnDefault = null,
         public ColumnKey|null  $columnKey = null
-    )
-    {
+    ) {
     }
 }

@@ -21,6 +21,6 @@ class MtEntity
         public string|null $repository = null,
         public string|null $tableName = null,
         public int|null $autoIncrement = null
-    )
-    {}
+    ) {
+    }
 }

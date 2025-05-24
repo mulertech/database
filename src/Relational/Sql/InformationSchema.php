@@ -27,7 +27,9 @@ class InformationSchema
      */
     public array $foreignKeys;
 
-    public function __construct(private EmEngine $emEngine) {}
+    public function __construct(private EmEngine $emEngine)
+    {
+    }
 
     /**
      * @param string $database

@@ -12,7 +12,6 @@ use MulerTech\EventManager\Event;
  */
 class PostFlushEvent extends Event
 {
-
     /**
      * @var EntityManagerInterface $entityManager
      */
@@ -21,7 +20,8 @@ class PostFlushEvent extends Event
     /**
      * @param EntityManagerInterface $entityManager
      */
-    public function __construct(EntityManagerInterface $entityManager) {
+    public function __construct(EntityManagerInterface $entityManager)
+    {
         $this->setName(DbEvents::postFlush->value);
         $this->entityManager = $entityManager;
     }

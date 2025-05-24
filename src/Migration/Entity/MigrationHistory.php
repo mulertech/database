@@ -9,7 +9,7 @@ use MulerTech\Database\Mapping\MtEntity;
 
 /**
  * MigrationHistory entity for tracking executed migrations
- * 
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -28,25 +28,25 @@ class MigrationHistory
         columnKey: ColumnKey::PRIMARY_KEY
     )]
     private ?int $id = null;
-    
+
     /**
      * @var string|null $version Migration version (YYYYMMDD-HHMM)
      */
     #[MtColumn(columnName: 'version', columnType: ColumnType::VARCHAR, length: 13, isNullable: false, columnKey: ColumnKey::UNIQUE_KEY)]
     private ?string $version = null;
-    
+
     /**
      * @var string|null $executed_at When the migration was executed
      */
     #[MtColumn(columnName: 'executed_at', columnType: ColumnType::DATETIME, isNullable: false, columnDefault: 'CURRENT_TIMESTAMP')]
     private ?string $executed_at = null;
-    
+
     /**
      * @var int $execution_time Execution time in milliseconds
      */
     #[MtColumn(columnName: 'execution_time', columnType: ColumnType::INT, unsigned: true, isNullable: false, columnDefault: '0')]
     private int $execution_time = 0;
-    
+
     /**
      * @return int|null
      */
@@ -54,7 +54,7 @@ class MigrationHistory
     {
         return $this->id;
     }
-    
+
     /**
      * @param int|null $id
      * @return $this
@@ -64,7 +64,7 @@ class MigrationHistory
         $this->id = $id;
         return $this;
     }
-    
+
     /**
      * @return string
      */
@@ -72,7 +72,7 @@ class MigrationHistory
     {
         return $this->version;
     }
-    
+
     /**
      * @param string $version
      * @return $this
@@ -100,7 +100,7 @@ class MigrationHistory
         $this->executed_at = $executed_at;
         return $this;
     }
-    
+
     /**
      * @return int
      */
@@ -108,7 +108,7 @@ class MigrationHistory
     {
         return $this->execution_time;
     }
-    
+
     /**
      * @param int $execution_time
      * @return $this

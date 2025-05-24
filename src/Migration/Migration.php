@@ -8,7 +8,7 @@ use RuntimeException;
 
 /**
  * Abstract Migration class that all migrations must extend
- * 
+ *
  * @package MulerTech\Database\Migration
  * @author Sébastien Muler
  */
@@ -18,7 +18,7 @@ abstract class Migration
      * @var string Migration version in format YYYYMMDD-HHMM
      */
     protected string $version;
-    
+
     /**
      * @param EntityManagerInterface $entityManager
      */
@@ -27,10 +27,10 @@ abstract class Migration
     ) {
         $this->initializeMetadata();
     }
-    
+
     /**
      * Initialize migration metadata from class name
-     * 
+     *
      * @return void
      */
     private function initializeMetadata(): void
@@ -44,7 +44,7 @@ abstract class Migration
 
         $this->version = $matches[1] . '-' . $matches[2];
     }
-    
+
     /**
      * Get migration version number
      *
@@ -54,7 +54,7 @@ abstract class Migration
     {
         return $this->version;
     }
-    
+
     /**
      * Create a new QueryBuilder instance
      *
@@ -64,14 +64,14 @@ abstract class Migration
     {
         return new QueryBuilder($this->entityManager->getEmEngine());
     }
-    
+
     /**
      * Execute migration up (make changes to database)
      *
      * @return void
      */
     abstract public function up(): void;
-    
+
     /**
      * Execute migration down (revert changes from database)
      *

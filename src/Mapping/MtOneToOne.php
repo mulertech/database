@@ -15,5 +15,7 @@ class MtOneToOne
     /**
      * @param class-string|null $targetEntity Target entity class name
      */
-    public function __construct(public string|null $targetEntity = null) {}
+    public function __construct(public string|null $targetEntity = null)
+    {
+    }
 }

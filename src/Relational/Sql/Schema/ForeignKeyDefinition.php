@@ -12,11 +12,34 @@ use RuntimeException;
  */
 class ForeignKeyDefinition
 {
+    /**
+     * @var array<int, string>
+     */
     private array $columns = [];
+
+    /**
+     * @var string
+     */
     private string $referencedTable;
+
+    /**
+     * @var array<int, string>
+     */
     private array $referencedColumns = [];
+
+    /**
+     * @var ReferentialAction
+     */
     private ReferentialAction $onUpdate = ReferentialAction::RESTRICT;
+
+    /**
+     * @var ReferentialAction
+     */
     private ReferentialAction $onDelete = ReferentialAction::RESTRICT;
+
+    /**
+     * @var bool
+     */
     private bool $isDrop = false;
 
     /**
@@ -34,7 +57,7 @@ class ForeignKeyDefinition
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getColumns(): array
     {
@@ -50,7 +73,7 @@ class ForeignKeyDefinition
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getReferencedColumns(): array
     {
@@ -92,7 +115,7 @@ class ForeignKeyDefinition
     }
 
     /**
-     * @param string|array $columns
+     * @param string|array<int, string> $columns
      * @return self
      */
     public function columns(string|array $columns): self
@@ -103,7 +126,7 @@ class ForeignKeyDefinition
 
     /**
      * @param string $table
-     * @param string|array $columns
+     * @param string|array<int, string> $columns
      * @return self
      */
     public function references(string $table, string|array $columns): self
