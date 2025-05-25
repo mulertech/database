@@ -2,15 +2,21 @@
 
 namespace MulerTech\Database\ORM;
 
-use _config\UpdateDatabaseMysql;
+use InvalidArgumentException;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManager;
-use PDOStatement;
 use ReflectionException;
 
+/**
+ * Class EntityManager
+ *
+ * @package MainPackageName
+ * @author Sébastien Muler
+ */
 class EntityManager implements EntityManagerInterface
 {
     /**
@@ -19,6 +25,8 @@ class EntityManager implements EntityManagerInterface
     private EmEngine $emEngine;
 
     /**
+     * EntityManager constructor.
+     *
      * @param PhpDatabaseInterface $pdm
      * @param DbMappingInterface $dbMapping
      * @param EventManager|null $eventManager
@@ -40,9 +48,9 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @return PhpDatabaseManager
+     * @return PhpDatabaseInterface
      */
-    public function getPdm(): PhpDatabaseManager
+    public function getPdm(): PhpDatabaseInterface
     {
         return $this->pdm;
     }
@@ -75,11 +83,11 @@ class EntityManager implements EntityManagerInterface
 
     /**
      * @param class-string $entity
-     * @param string|int|null $idOrWhere
-     * @return Object|null
+     * @param string|int|SqlOperations $idOrWhere
+     * @return object|null
      * @throws ReflectionException
      */
-    public function find(string $entity, string|int|null $idOrWhere = null): ?Object
+    public function find(string $entity, string|int|SqlOperations $idOrWhere): ?object
     {
         return $this->emEngine->find($entity, $idOrWhere);
     }
@@ -120,9 +128,13 @@ class EntityManager implements EntityManagerInterface
         $whereCondition = $matchCase ? "BINARY $column = $searchValue" : "$column = $searchValue";
 
         // Create and execute query
+        $tableName = $this->dbMapping->getTableName($entity);
+        if ($tableName === null) {
+            throw new InvalidArgumentException("Entity '$entity' does not have a valid table mapping.");
+        }
         $queryBuilder = new QueryBuilder($this->emEngine);
         $queryBuilder->select('*')
-                    ->from($this->dbMapping->getTableName($entity))
+                    ->from($tableName)
                     ->where($whereCondition);
 
         $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
@@ -150,26 +162,32 @@ class EntityManager implements EntityManagerInterface
         }
 
         // One match with the same ID is still considered unique (update case)
+        if (!method_exists(current($matchingResults), 'getId')) {
+            return false; // No ID method means we can't check uniqueness by ID
+        }
         return !($id === null) && current($matchingResults)->getId() == $id;
     }
 
     /**
-     * @param Object $entity
+     * @param object $entity
+     * @return void
      */
-    public function persist(Object $entity): void
+    public function persist(object $entity): void
     {
         $this->emEngine->persist($entity);
     }
 
     /**
-     * @param Object $entity
+     * @param object $entity
+     * @return void
      */
-    public function remove(Object $entity): void
+    public function remove(object $entity): void
     {
         $this->emEngine->remove($entity);
     }
 
     /**
+     * @return void
      * @throws ReflectionException
      */
     public function flush(): void

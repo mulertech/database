@@ -6,14 +6,14 @@ use PDO;
 
 /**
  * Interface PhpDatabaseInterface
- * @package MulerTech\Database\PhpInterface
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface PhpDatabaseInterface
 {
     /**
      * @param string $query
-     * @param array $options
+     * @param array<int|string, mixed> $options
      * @return Statement
      */
     public function prepare(string $query, array $options = []): Statement;
@@ -40,10 +40,10 @@ interface PhpDatabaseInterface
 
     /**
      * @param int $attribute
-     * @param $value
+     * @param mixed $value
      * @return bool
      */
-    public function setAttribute(int $attribute, $value): bool;
+    public function setAttribute(int $attribute, mixed $value): bool;
 
     /**
      * @param string $statement
@@ -54,8 +54,8 @@ interface PhpDatabaseInterface
     /**
      * @param string $query
      * @param int $fetchMode
-     * @param null $arg3
-     * @param array $ctorargs
+     * @param int|string|object|null $arg3
+     * @param array<int, mixed>|null $constructorArgs
      * @return Statement
      */
     public function query(
@@ -72,12 +72,12 @@ interface PhpDatabaseInterface
     public function lastInsertId(?string $name = null): string;
 
     /**
-     * @return mixed
+     * @return string|int|false
      */
-    public function errorCode();
+    public function errorCode(): string|int|false;
 
     /**
-     * @return array
+     * @return array<int, string|null>
      */
     public function errorInfo(): array;
 
@@ -85,7 +85,7 @@ interface PhpDatabaseInterface
      * @param int $attribute
      * @return mixed
      */
-    public function getAttribute(int $attribute);
+    public function getAttribute(int $attribute): mixed;
 
     /**
      * @param string $string

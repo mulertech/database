@@ -7,17 +7,20 @@ use PDOException;
 use RuntimeException;
 
 /**
- * Class PhpDatabaseManager represent PDO connection.
+ * Class PhpDatabaseManager
+ *
  * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
 class PhpDatabaseManager implements PhpDatabaseInterface
 {
     public const string DATABASE_URL = 'DATABASE_URL';
+
     /**
-     * @var PDO PDO connection.
+     * @var PDO
      */
     private PDO $connection;
+
     /**
      * @var int $transactionLevel The transaction level is for prevent a beginTransaction when a transaction is up.
      */
@@ -25,15 +28,16 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
     /**
      * PhpDatabaseManager constructor.
+     *
      * @param ConnectorInterface $connector
-     * @param array $parameters
+     * @param array<string, mixed> $parameters
      */
     public function __construct(private readonly ConnectorInterface $connector, private readonly array $parameters)
     {
     }
 
     /**
-     * @return PDO Connection to database (PDO)
+     * @return PDO
      * @throws RuntimeException
      */
     public function getConnection(): PDO
@@ -48,7 +52,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
     /**
      * @param string $query
-     * @param array $options
+     * @param array<int|string, mixed> $options
      * @return Statement
      */
     public function prepare(string $query, array $options = []): Statement
@@ -77,7 +81,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 throw new PDOException($exception);
             }
         }
-        //Transaction is up, increase the transaction level.
+        // Transaction is up, increase the transaction level.
         ++$this->transactionLevel;
         return true;
     }
@@ -94,7 +98,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 throw new PDOException($exception);
             }
         }
-        //If the transaction level is greater than 1, there is a decrease but no commit yet.
+        // If the transaction level is greater than 1, there is a decrease but no commit yet.
         if ($this->transactionLevel !== 0) {
             --$this->transactionLevel;
         }
@@ -126,7 +130,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      * @param mixed $value
      * @return bool
      */
-    public function setAttribute(int $attribute, $value): bool
+    public function setAttribute(int $attribute, mixed $value): bool
     {
         return $this->getConnection()->setAttribute($attribute, $value);
     }
@@ -137,21 +141,25 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     public function exec(string $statement): int
     {
-        return $this->getConnection()->exec($statement);
+        $result = $this->getConnection()->exec($statement);
+        if ($result === false) {
+            throw new RuntimeException('Class : PhpDatabaseManager, function : exec. The function exec failed.');
+        }
+        return $result;
     }
 
     /**
      * @param string $query
      * @param int $fetchMode
      * @param int|string|object|null $arg3
-     * @param array|null $constructorArgs
+     * @param array<int, mixed>|null $constructorArgs
      * @return Statement
      */
     public function query(
         string $query,
         int $fetchMode = PDO::ATTR_DEFAULT_FETCH_MODE,
         int|string|object|null $arg3 = null,
-        array|null $constructorArgs = null
+        ?array $constructorArgs = null
     ): Statement {
         $pdo = $this->getConnection();
         $result = $pdo->query(...func_get_args());
@@ -173,19 +181,23 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     public function lastInsertId(?string $name = null): string
     {
-        return $this->getConnection()->lastInsertId($name);
+        $result = $this->getConnection()->lastInsertId($name);
+        if ($result === false) {
+            throw new RuntimeException('Class : PhpDatabaseManager, function : lastInsertId. The function lastInsertId failed.');
+        }
+        return $result;
     }
 
     /**
-     * @return mixed
+     * @return string|int|false
      */
-    public function errorCode(): mixed
+    public function errorCode(): string|int|false
     {
         return $this->getConnection()->errorCode();
     }
 
     /**
-     * @return array
+     * @return array<int, string|null>
      */
     public function errorInfo(): array
     {
@@ -202,7 +214,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @return array
+     * @return array<int, string>
      */
     public function getAvailableDrivers(): array
     {
@@ -216,22 +228,25 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     public function quote(string $string, int $type = PDO::PARAM_STR): string
     {
-        if (false === $quoteString = $this->getConnection()->quote(...func_get_args())) {
-            throw new RuntimeException('Class : PhpDatabaseManager, function : quote. The function quote is not supported by the database driver used.');
-        }
-        return $quoteString;
+        return $this->getConnection()->quote(...func_get_args());
     }
 
     /**
      * Add the URL parameters parsed into the parameters variable.
-     * @param array $parameters
-     * @return array
+     *
+     * @param array<string, mixed> $parameters
+     * @return array<int|string, mixed>
      */
     public static function populateParameters(array $parameters = []): array
     {
         if (!empty($parameters[self::DATABASE_URL])) {
             $url = $parameters[self::DATABASE_URL];
-            $parsedParams = self::decodeUrl(parse_url($url));
+            $parsedUrl = parse_url($url);
+            if ($parsedUrl === false) {
+                throw new RuntimeException('Invalid DATABASE_URL format.');
+            }
+
+            $parsedParams = self::decodeUrl($parsedUrl);
             if (isset($parsedParams['path'])) {
                 $parsedParams['dbname'] = substr($parsedParams['path'], 1);
             }
@@ -241,14 +256,16 @@ class PhpDatabaseManager implements PhpDatabaseInterface
             }
             return $parsedParams;
         }
+
         return self::populateEnvParameters($parameters);
     }
 
     /**
      * The database parameters can be defined individually in the env file with for each key name :
      * DATABASE_ with the name of the component (in uppercase)
-     * @param array $parameters
-     * @return array
+     *
+     * @param array<string, mixed> $parameters
+     * @return array<string, mixed>
      */
     private static function populateEnvParameters(array $parameters = []): array
     {
@@ -283,8 +300,8 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param array $url
-     * @return array
+     * @param array<string, mixed> $url
+     * @return array<string, mixed>
      */
     private static function decodeUrl(array $url): array
     {

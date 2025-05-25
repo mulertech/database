@@ -6,16 +6,20 @@ use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use RuntimeException;
 
 /**
- * Class Import
- * @package MulerTech\Database\MySql
+ * Class DatabaseBackupManager
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class DatabaseBackupManager
 {
+    /**
+     * @var array<int|string, mixed> $dbParameters
+     */
     private array $dbParameters;
 
     /**
-     * Backup constructor.
+     * DatabaseBackupManager constructor.
      */
     public function __construct()
     {
@@ -23,10 +27,10 @@ class DatabaseBackupManager
     }
 
     /**
-     * @param string $pathMysqldump Put '' if the mysqldump is into the path environment variable of the OS.
-     * @param string $pathBackup
-     * @param array|null $tableList
-     * @return bool|string True if backup ok, false if backup ok but save nok or return this message : Error number : 'Number of Mysqldump error'.
+     * @param string $pathMysqldump Path to mysqldump binary, or '' if in OS PATH.
+     * @param string $pathBackup Path to save the backup file.
+     * @param array<int, string>|null $tableList List of tables to backup, or null for all.
+     * @return bool|string True if backup ok, false if backup ok but save nok, or error message as string.
      */
     public function createBackup(string $pathMysqldump, string $pathBackup, ?array $tableList = null)
     {
@@ -47,10 +51,10 @@ class DatabaseBackupManager
     }
 
     /**
-     * @param string $pathFile
-     * @return mixed
+     * @param string $pathFile Path to the SQL backup file to restore.
+     * @return int Result code from exec (0 if success).
      */
-    public function restoreBackup(string $pathFile)
+    public function restoreBackup(string $pathFile): int
     {
         $output = [];
         $this->checkPasswordQuotes();

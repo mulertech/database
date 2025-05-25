@@ -2,6 +2,14 @@
 
 namespace MulerTech\Database\Relational\Sql;
 
+/**
+ * Class InformationSchemaTables
+ *
+ * Enum representing all available tables in the MySQL information schema.
+ *
+ * @package MulerTech\Database\Relational\Sql
+ * @author Sébastien Muler
+ */
 enum InformationSchemaTables: string
 {
     case ADMINISTRABLE_ROLE_AUTHORIZATIONS = 'ADMINISTRABLE_ROLE_AUTHORIZATIONS';

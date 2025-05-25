@@ -18,18 +18,20 @@ use ReflectionProperty;
  *
  * This class handles the conversion of database results into entity objects
  * with proper typing and sanitization.
+ * @package Mulertech\Database
+ * @author Sébastien Muler
  */
 class EntityHydrator
 {
     /**
-     * @var DbMappingInterface|null Database mapping service
+     * @var DbMappingInterface|null
      */
     private ?DbMappingInterface $dbMapping;
 
     /**
-     * EntityHydrator constructor
+     * EntityHydrator constructor.
      *
-     * @param DbMappingInterface|null $dbMapping Database mapping service
+     * @param DbMappingInterface|null $dbMapping
      */
     public function __construct(?DbMappingInterface $dbMapping = null)
     {
@@ -37,11 +39,11 @@ class EntityHydrator
     }
 
     /**
-     * Hydrate an entity with data from database result
+     * Hydrate an entity with data from database result.
      *
-     * @param array $data Data from database (PDO::FETCH_ASSOC)
-     * @param class-string $entityName The entity object to populate
-     * @return object The hydrated entity
+     * @param array<string, mixed> $data
+     * @param class-string $entityName
+     * @return object
      * @throws ReflectionException
      */
     public function hydrate(array $data, string $entityName): object
@@ -85,11 +87,11 @@ class EntityHydrator
     }
 
     /**
-     * Check if a property has a relational mapping (MtOneToOne or MtManyToOne)
+     * Check if a property has a relational mapping (MtOneToOne or MtManyToOne).
      *
-     * @param string $entityClass The entity class name
-     * @param string $propertyName The property name
-     * @return bool True if the property has a relational mapping
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @return bool
      */
     private function isRelationMapping(string $entityClass, string $propertyName): bool
     {
@@ -114,12 +116,12 @@ class EntityHydrator
     }
 
     /**
-     * Process a value based on property mapping and type information
+     * Process a value based on property mapping and type information.
      *
-     * @param string $entityClass The entity class name
-     * @param string $propertyName The property name
-     * @param mixed $value The raw value from database
-     * @return mixed The processed value
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @param mixed $value
+     * @return mixed
      */
     private function processValue(string $entityClass, string $propertyName, mixed $value): mixed
     {
@@ -167,10 +169,10 @@ class EntityHydrator
     }
 
     /**
-     * Convert snake_case to camelCase
+     * Convert snake_case to camelCase.
      *
-     * @param string $input Snake case string (e.g. first_name)
-     * @return string Camel case string (e.g. firstName)
+     * @param string $input
+     * @return string
      */
     private function snakeToCamelCase(string $input): string
     {
@@ -178,11 +180,11 @@ class EntityHydrator
     }
 
     /**
-     * Process a value based on property type
+     * Process a value based on property type.
      *
-     * @param mixed $value The raw value from database
-     * @param ReflectionProperty $property The property to set
-     * @return mixed The processed value
+     * @param mixed $value
+     * @param ReflectionProperty $property
+     * @return mixed
      */
     private function processValueByType(mixed $value, ReflectionProperty $property): mixed
     {
@@ -196,6 +198,9 @@ class EntityHydrator
             return $this->sanitizeText($value); // Default to text
         }
 
+        if (!method_exists($type, 'getName')) {
+            return $this->sanitizeText($value); // Fallback for non-standard types
+        }
         $typeName = $type->getName();
 
         switch ($typeName) {
@@ -221,11 +226,11 @@ class EntityHydrator
     }
 
     /**
-     * Process a value based on MySQL column type
+     * Process a value based on MySQL column type.
      *
-     * @param mixed $value The raw value from database
-     * @param ColumnType $columnType MySQL column type
-     * @return mixed The processed value
+     * @param mixed $value
+     * @param ColumnType $columnType
+     * @return mixed
      */
     private function processValueByColumnType(mixed $value, ColumnType $columnType): mixed
     {
@@ -283,10 +288,10 @@ class EntityHydrator
     }
 
     /**
-     * Check if a value is likely intended to be a boolean
+     * Check if a value is likely intended to be a boolean.
      *
-     * @param mixed $value Value to check
-     * @return bool True if value is likely a boolean
+     * @param mixed $value
+     * @return bool
      */
     private function isBoolean(mixed $value): bool
     {
@@ -295,10 +300,10 @@ class EntityHydrator
     }
 
     /**
-     * Sanitize text to prevent XSS attacks
+     * Sanitize text to prevent XSS attacks.
      *
-     * @param mixed $value Text to sanitize
-     * @return string Sanitized text
+     * @param mixed $value
+     * @return string
      */
     private function sanitizeText(mixed $value): string
     {
@@ -310,10 +315,10 @@ class EntityHydrator
     }
 
     /**
-     * Process a value into DateTime object
+     * Process a value into DateTime object.
      *
-     * @param mixed $value Date string or timestamp
-     * @return DateTime Processed DateTime object
+     * @param mixed $value
+     * @return DateTime
      */
     private function processDateTime(mixed $value): DateTime
     {
@@ -330,10 +335,10 @@ class EntityHydrator
     }
 
     /**
-     * Process a JSON string into an array
+     * Process a JSON string into an array.
      *
-     * @param mixed $value JSON string
-     * @return array Decoded array
+     * @param mixed $value
+     * @return array<mixed>
      */
     private function processJson(mixed $value): array
     {
@@ -352,11 +357,11 @@ class EntityHydrator
     }
 
     /**
-     * Process a value into an object of specified class
+     * Process a value into an object of specified class.
      *
-     * @param mixed $value Object data (typically array or stdClass)
-     * @param class-string $className Class name to instantiate
-     * @return object Instance of the requested class
+     * @param mixed $value
+     * @param class-string $className
+     * @return object
      * @throws ReflectionException
      */
     private function processObject(mixed $value, string $className): object

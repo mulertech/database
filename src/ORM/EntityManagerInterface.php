@@ -3,10 +3,9 @@
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
+use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManager;
-use PDOStatement;
 use ReflectionException;
 
 /**
@@ -23,9 +22,9 @@ interface EntityManagerInterface
     public function getEmEngine(): EmEngine;
 
     /**
-     * @return PhpDatabaseManager
+     * @return PhpDatabaseInterface
      */
-    public function getPdm(): PhpDatabaseManager;
+    public function getPdm(): PhpDatabaseInterface;
 
     /**
      * @param class-string $entity
@@ -45,10 +44,10 @@ interface EntityManagerInterface
 
     /**
      * @param class-string $entity
-     * @param string|int|null $idOrWhere
+     * @param string|int|SqlOperations $idOrWhere
      * @return Object|null
      */
-    public function find(string $entity, string|int|null $idOrWhere = null): ?Object;
+    public function find(string $entity, string|int|SqlOperations $idOrWhere): ?Object;
 
     /**
      * Checks if a property value is unique for an entity type, with option to exclude one entity by ID.

@@ -15,25 +15,30 @@ class InformationSchema
     public const string INFORMATION_SCHEMA = 'information_schema';
 
     /**
-     * @var array $tables
+     * @var array<int|string, mixed>
      */
     public array $tables;
+
     /**
-     * @var array $columns
+     * @var array<int|string, mixed>
      */
     public array $columns;
+
     /**
-     * @var array $foreignKeys
+     * @var array<int|string, mixed>
      */
     public array $foreignKeys;
 
+    /**
+     * @param EmEngine $emEngine
+     */
     public function __construct(private EmEngine $emEngine)
     {
     }
 
     /**
      * @param string $database
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function getTables(string $database): array
     {
@@ -46,7 +51,7 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function getColumns(string $database): array
     {
@@ -59,7 +64,7 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function getForeignKeys(string $database): array
     {

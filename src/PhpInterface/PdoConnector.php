@@ -8,30 +8,31 @@ use RuntimeException;
 
 /**
  * Class PdoConnector
- * @package MulerTech\Database\PhpInterface
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PdoConnector implements ConnectorInterface
 {
     /**
-     * @var DriverInterface
-     */
-    protected $driver;
-
-    /**
      * PdoConnector constructor.
+     *
      * @param DriverInterface $driver
      */
-    public function __construct(DriverInterface $driver)
-    {
-        $this->driver = $driver;
-    }
+    public function __construct(protected DriverInterface $driver)
+    {}
 
     /**
-     * @param array $dsnOptions
+     * @param array{
+     *     host?: string,
+     *     port?: int|string,
+     *     dbname?: string,
+     *     unix_socket?: string,
+     *     charset?: string
+     * } $dsnOptions
      * @param string $username
      * @param string $password
-     * @param array|null $options
+     * @param array<int|string, mixed>|null $options
      * @return PDO
      */
     public function connect(array $dsnOptions, string $username, string $password, ?array $options = null): PDO

@@ -6,13 +6,22 @@ use MulerTech\Database\PhpInterface\DriverInterface;
 
 /**
  * Class Driver
- * @package MulerTech\Database\PhpInterface\PdoMysql
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class Driver implements DriverInterface
 {
     /**
-     * @param array $dsnOptions
+     * Generates a DSN string for MySQL PDO connection.
+     *
+     * @param array{
+     *     host?: string,
+     *     port?: int|string,
+     *     dbname?: string,
+     *     unix_socket?: string,
+     *     charset?: string
+     * } $dsnOptions
      * @return string
      */
     public function generateDsn(array $dsnOptions): string

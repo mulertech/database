@@ -13,10 +13,21 @@ use MulerTech\Database\Relational\Sql\SqlOperations;
 use ReflectionException;
 use RuntimeException;
 
+/**
+ * Class EntityRelationLoader
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 class EntityRelationLoader
 {
     private DbMappingInterface $dbMapping;
 
+    /**
+     * EntityRelationLoader constructor.
+     *
+     * @param EntityManagerInterface $entityManager
+     */
     public function __construct(private EntityManagerInterface $entityManager)
     {
         $this->dbMapping = $entityManager->getDbMapping();
@@ -24,8 +35,8 @@ class EntityRelationLoader
 
     /**
      * @param object $entity
-     * @param array $entityData
-     * @return array
+     * @param array<string, mixed> $entityData
+     * @return array<int, object|Collection|null>
      * @throws ReflectionException
      */
     public function loadRelations(object $entity, array $entityData): array
@@ -77,6 +88,7 @@ class EntityRelationLoader
      * @param object $entity
      * @param MtOneToOne|MtManyToOne $relation
      * @param string $property
+     * @param array<string, mixed> $entityData
      * @return object|null
      */
     private function loadSingleRelation(
@@ -109,7 +121,7 @@ class EntityRelationLoader
      * @param object $entity
      * @param MtOneToMany $oneToMany
      * @param string $property
-     * @return Collection|null
+     * @return Collection<int, object>|null
      * @throws ReflectionException
      */
     private function loadOneToMany(object $entity, MtOneToMany $oneToMany, string $property): ?Collection
@@ -198,7 +210,7 @@ class EntityRelationLoader
      * @param object $entity
      * @param MtManyToMany $relation
      * @param string $property
-     * @return Collection|null
+     * @return Collection<int, object>|null
      * @throws ReflectionException
      */
     private function loadManyToMany(object $entity, MtManyToMany $relation, string $property): ?Collection

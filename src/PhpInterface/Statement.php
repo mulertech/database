@@ -7,22 +7,31 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use RuntimeException;
+use Traversable;
 
+/**
+ * Class Statement
+ *
+ * A wrapper around PDOStatement providing type-safe operations and error handling.
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 class Statement
 {
-    private PDOStatement $statement;
-
     /**
-     * @param PDOStatement $statement
+     * @param PDOStatement $statement The PDO statement to wrap
      */
-    public function __construct(PDOStatement $statement)
+    public function __construct(private PDOStatement $statement)
     {
-        $this->statement = $statement;
     }
 
     /**
-     * @param array|null $params
-     * @return bool
+     * Executes a prepared statement.
+     *
+     * @param array<int|string, mixed>|null $params An array of values with as many elements as there are bound parameters
+     * @return bool True on success
+     * @throws PDOException|RuntimeException If execution fails
      */
     public function execute(?array $params = null): bool
     {
@@ -37,10 +46,12 @@ class Statement
     }
 
     /**
-     * @param int $mode
-     * @param int $cursorOrientation
-     * @param int $cursorOffset
-     * @return mixed
+     * Fetches the next row from a result set.
+     *
+     * @param int $mode Controls how the next row will be returned
+     * @param int $cursorOrientation The cursor orientation
+     * @param int $cursorOffset The cursor offset
+     * @return mixed The fetched row or false if no more rows
      */
     public function fetch(
         int $mode = PDO::FETCH_DEFAULT,
@@ -51,12 +62,15 @@ class Statement
     }
 
     /**
-     * @param string|int $param
-     * @param mixed $var
-     * @param int $type
-     * @param int $maxLength
-     * @param mixed|null $driverOptions
-     * @return bool
+     * Binds a parameter to the specified variable name.
+     *
+     * @param string|int $param Parameter identifier
+     * @param mixed $var Variable to bind
+     * @param int $type Data type
+     * @param int $maxLength Length of the data type
+     * @param mixed|null $driverOptions Driver options
+     * @return bool True on success
+     * @throws RuntimeException If binding fails
      */
     public function bindParam(
         string|int $param,
@@ -75,12 +89,15 @@ class Statement
     }
 
     /**
-     * @param string|int $column
-     * @param mixed $var
-     * @param int $type
-     * @param int $maxLength
-     * @param mixed|null $driverOptions
-     * @return bool
+     * Binds a column to a PHP variable.
+     *
+     * @param string|int $column Column identifier
+     * @param mixed $var Variable to bind
+     * @param int $type Data type
+     * @param int $maxLength Length of the data type
+     * @param mixed|null $driverOptions Driver options
+     * @return bool True on success
+     * @throws RuntimeException If binding fails
      */
     public function bindColumn(
         string|int $column,
@@ -96,10 +113,13 @@ class Statement
     }
 
     /**
-     * @param int|string $param
-     * @param mixed $value
-     * @param int $type
-     * @return bool
+     * Binds a value to a parameter.
+     *
+     * @param int|string $param Parameter identifier
+     * @param mixed $value The value to bind
+     * @param int $type Data type
+     * @return bool True on success
+     * @throws RuntimeException If binding fails
      */
     public function bindValue(int|string $param, mixed $value, int $type = PDO::PARAM_STR): bool
     {
@@ -110,7 +130,9 @@ class Statement
     }
 
     /**
-     * @return int
+     * Returns the number of rows affected by the last executed statement.
+     *
+     * @return int Row count
      */
     public function rowCount(): int
     {
@@ -118,8 +140,10 @@ class Statement
     }
 
     /**
-     * @param int $column
-     * @return mixed|false False if no more rows.
+     * Returns a single column from the next row of a result set.
+     *
+     * @param int $column The 0-indexed column number to retrieve
+     * @return mixed Returns a single column or false if no more rows
      */
     public function fetchColumn(int $column = 0): mixed
     {
@@ -127,24 +151,27 @@ class Statement
     }
 
     /**
-     * @param int $mode
-     * @param mixed ...$args
-     * @return array
+     * Returns an array containing all of the result set rows.
+     *
+     * @param int $mode The fetch mode
+     * @param mixed ...$args Additional mode-specific arguments
+     * @return array<int|string, mixed> An array containing all of the remaining rows in the result set
+     * @throws RuntimeException If fetch fails
      */
-    public function fetchAll(int $mode = PDO::FETCH_DEFAULT, ...$args): array
+    public function fetchAll(int $mode = PDO::FETCH_DEFAULT, mixed ...$args): array
     {
-        if (false === $result = $this->statement->fetchAll(...func_get_args())) {
-            throw new RuntimeException('Class : Statement, function : fetchAll. The fetchAll action was failed');
-        }
-        return $result;
+        return $this->statement->fetchAll(...func_get_args());
     }
 
     /**
-     * @param string|null $class
-     * @param array $constructorArgs
-     * @return object|false
+     * Fetches the next row and returns it as an object.
+     *
+     * @param class-string $class Name of the created class
+     * @param array<int|string, mixed> $constructorArgs Elements of this array are passed to the constructor
+     * @return object|false The instance of the required class or false on failure
+     * @throws RuntimeException If fetch fails
      */
-    public function fetchObject(?string $class = "stdClass", array $constructorArgs = []): object|false
+    public function fetchObject(string $class = "stdClass", array $constructorArgs = []): object|false
     {
         if (false === $result = $this->statement->fetchObject($class, $constructorArgs)) {
             throw new RuntimeException('Class : Statement, function : fetchObject. The fetchObject action was failed');
@@ -153,15 +180,19 @@ class Statement
     }
 
     /**
-     * @return string|null
+     * Fetch the SQLSTATE error code.
+     *
+     * @return string|null The error code as a string, or null if no error occurred
      */
-    public function errorCode(): string|null
+    public function errorCode(): ?string
     {
         return $this->statement->errorCode();
     }
 
     /**
-     * @return array
+     * Fetch extended error information.
+     *
+     * @return array<int, string|int|null> Error information array
      */
     public function errorInfo(): array
     {
@@ -169,9 +200,12 @@ class Statement
     }
 
     /**
-     * @param int $attribute
-     * @param mixed $value
-     * @return bool
+     * Set an attribute.
+     *
+     * @param int $attribute The attribute identifier
+     * @param mixed $value The value for the attribute
+     * @return bool True on success
+     * @throws RuntimeException If setting attribute fails
      */
     public function setAttribute(int $attribute, mixed $value): bool
     {
@@ -185,8 +219,10 @@ class Statement
     }
 
     /**
-     * @param int $name
-     * @return mixed
+     * Get an attribute.
+     *
+     * @param int $name The attribute identifier
+     * @return mixed The attribute value
      */
     public function getAttribute(int $name): mixed
     {
@@ -194,7 +230,9 @@ class Statement
     }
 
     /**
-     * @return int
+     * Returns the number of columns in the result set.
+     *
+     * @return int The number of columns
      */
     public function columnCount(): int
     {
@@ -202,26 +240,33 @@ class Statement
     }
 
     /**
-     * @param int $column
-     * @return array|false
+     * Returns metadata for a column in a result set.
+     *
+     * @param int $column The 0-indexed column number
+     * @return array<string, mixed>|false An associative array or false if the column doesn't exist
      */
-    public function getColumnMeta(int $column): false|array
+    public function getColumnMeta(int $column): array|false
     {
         return $this->statement->getColumnMeta($column);
     }
 
     /**
-     * @return Iterator
+     * Returns an iterator for traversing the result set.
+     *
+     * @return Traversable<mixed, array<int|string, mixed>> The iterator
      */
-    public function getIterator(): Iterator
+    public function getIterator(): Traversable
     {
         return $this->statement->getIterator();
     }
 
     /**
-     * @param int $mode
-     * @param mixed ...$params
-     * @return bool
+     * Sets the default fetch mode for this statement.
+     *
+     * @param int $mode The fetch mode
+     * @param mixed ...$params Additional parameters for the fetch mode
+     * @return bool True on success
+     * @throws RuntimeException If setting fetch mode fails
      */
     public function setFetchMode(int $mode = PDO::FETCH_DEFAULT, mixed ...$params): bool
     {
@@ -234,7 +279,9 @@ class Statement
     }
 
     /**
-     * @return bool
+     * Advances to the next rowset in a multi-rowset statement handle.
+     *
+     * @return bool True on success or false if there are no more rowsets
      */
     public function nextRowset(): bool
     {
@@ -242,7 +289,9 @@ class Statement
     }
 
     /**
-     * @return bool
+     * Closes the cursor, enabling the statement to be executed again.
+     *
+     * @return bool True on success
      */
     public function closeCursor(): bool
     {
@@ -250,15 +299,19 @@ class Statement
     }
 
     /**
-     * @return bool|null
+     * Dumps the information contained by a prepared statement directly on the output.
+     *
+     * @return void
      */
-    public function debugDumpParams(): ?bool
+    public function debugDumpParams(): void
     {
-        return $this->statement->debugDumpParams();
+        $this->statement->debugDumpParams();
     }
 
     /**
-     * @return string
+     * Returns the query string that was prepared.
+     *
+     * @return string The query string
      */
     public function getQueryString(): string
     {

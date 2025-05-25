@@ -46,7 +46,8 @@ class ForeignKeyDefinition
      * @param string $name
      */
     public function __construct(private string $name)
-    {}
+    {
+    }
 
     /**
      * @return string
@@ -156,4 +157,3 @@ class ForeignKeyDefinition
         return $this;
     }
 }
-

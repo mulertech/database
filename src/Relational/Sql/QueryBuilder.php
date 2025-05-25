@@ -129,7 +129,8 @@ class QueryBuilder
      * @param EmEngine|null $emEngine
      */
     public function __construct(private ?EmEngine $emEngine = null)
-    {}
+    {
+    }
 
     /**
      * @return string|null
