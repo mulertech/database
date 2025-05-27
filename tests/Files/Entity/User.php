@@ -30,6 +30,9 @@ class User
     #[MtColumn(columnName: "size", columnType: ColumnType::INT, isNullable: true)]
     private ?int $size = null;
 
+    #[MtColumn(columnName: "account_balance", columnType: ColumnType::FLOAT, length: 10, scale: "2", isNullable: true)]
+    private ?float $accountBalance = null;
+
     /**
      * @var null|Unit $unit
      */

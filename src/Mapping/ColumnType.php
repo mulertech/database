@@ -110,17 +110,17 @@ enum ColumnType: string
      * Generates SQL representation of the column type with its length if necessary
      *
      * @param int|null $length Column length
-     * @param int|null $precision Precision for decimal types
+     * @param int|null $scale Scale for decimal types
      * @param bool $unsigned Whether the type is unsigned
      * @return string
      */
-    public function toSqlDefinition(?int $length = null, ?int $precision = null, bool $unsigned = false): string
+    public function toSqlDefinition(?int $length = null, ?int $scale = null, bool $unsigned = false): string
     {
         $sql = $this->value;
 
         if ($this->requiresPrecision() && $length !== null) {
-            $precision = $precision ?? 0;
-            $sql .= "($length,$precision)";
+            $scale = $scale ?? 0;
+            $sql .= "($length,$scale)";
         } elseif ($this->requiresLength() && $length !== null) {
             $sql .= "($length)";
         }
@@ -130,67 +130,5 @@ enum ColumnType: string
         }
 
         return $sql;
-    }
-
-    /**
-     * Creates a ColumnType instance from a MySQL string
-     *
-     * @param string $sqlType SQL type (e.g: "varchar(255)", "int(11)", etc.)
-     * @return self|null
-     */
-    public static function fromSqlDefinition(string $sqlType): ?self
-    {
-        // Extract base type (before parentheses and 'unsigned')
-        $baseTypeRaw = preg_replace('/\s+unsigned|\(.*\)/', '', $sqlType);
-        $baseType = $baseTypeRaw !== null ? strtolower($baseTypeRaw) : '';
-
-        foreach (self::cases() as $case) {
-            if ($case->value === $baseType) {
-                return $case;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Checks if the SQL type definition contains 'unsigned'
-     *
-     * @param string $sqlType SQL type (e.g: "int unsigned", "int(11) unsigned")
-     * @return bool
-     */
-    public static function isUnsigned(string $sqlType): bool
-    {
-        return str_contains(strtolower($sqlType), 'unsigned');
-    }
-
-    /**
-     * Extracts length from an SQL type definition
-     *
-     * @param string $sqlType SQL type (e.g: "varchar(255)", "int(11)", etc.)
-     * @return int|null
-     */
-    public static function extractLengthFromSqlDefinition(string $sqlType): ?int
-    {
-        if (preg_match('/\((\d+)(?:,\d+)?\)/', $sqlType, $matches)) {
-            return (int)$matches[1];
-        }
-
-        return null;
-    }
-
-    /**
-     * Extracts precision from an SQL type definition
-     *
-     * @param string $sqlType SQL type (e.g: "decimal(10,2)")
-     * @return int|null
-     */
-    public static function extractPrecisionFromSqlDefinition(string $sqlType): ?int
-    {
-        if (preg_match('/\(\d+,(\d+)\)/', $sqlType, $matches)) {
-            return (int)$matches[1];
-        }
-
-        return null;
     }
 }

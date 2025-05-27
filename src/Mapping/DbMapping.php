@@ -151,17 +151,11 @@ class DbMapping implements DbMappingInterface
     {
         $mtColumn = $this->getMtColumns($entityName)[$property] ?? null;
 
-        if (!$mtColumn || !$mtColumn->columnType) {
-            return null;
-        }
-
-        // Si c'est un type DECIMAL, on utilise la valeur de extra comme précision
-        $precision = null;
-        if ($mtColumn->columnType === ColumnType::DECIMAL && $mtColumn->extra) {
-            $precision = (int) $mtColumn->extra;
-        }
-
-        return $mtColumn->columnType->toSqlDefinition($mtColumn->length, $precision, $mtColumn->unsigned);
+        return $mtColumn?->columnType?->toSqlDefinition(
+            $mtColumn?->length,
+            $mtColumn?->scale,
+            $mtColumn->unsigned ?? false
+        );
     }
 
     /**

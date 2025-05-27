@@ -214,6 +214,17 @@ class ColumnDefinition
     /**
      * @return self
      */
+    public function float(int $precision = 8, int $scale = 2): self
+    {
+        $this->type = DataType::FLOAT;
+        $this->precision = $precision;
+        $this->scale = $scale;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
     public function datetime(): self
     {
         $this->type = DataType::DATETIME;

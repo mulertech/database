@@ -323,6 +323,8 @@ EOT;
             $code .= '->string(' . $matches[1] . ')';
         } elseif (preg_match('/^decimal\((\d+),(\d+)\)/i', $columnType, $matches)) {
             $code .= '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
+        } elseif (preg_match('/^float\((\d+),(\d+)\)/i', $columnType, $matches)) {
+            $code .= '->float(' . $matches[1] . ', ' . $matches[2] . ')';
         } elseif (preg_match('/^text/i', $columnType)) {
             $code .= '->text()';
         } elseif (preg_match('/^datetime/i', $columnType)) {

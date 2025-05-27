@@ -9,6 +9,7 @@ use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PrePersistEvent;
+use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
@@ -997,6 +998,7 @@ class EmEngine
     private function executeDeletions(): void
     {
         if (!empty($this->entityDeletions)) {
+            $eventManager = $this->eventManager;
             $entitiesEvent = [];
             foreach ($this->entityDeletions as $uio => $entity) {
                 $queryBuilder = new QueryBuilder($this);
@@ -1004,6 +1006,12 @@ class EmEngine
                 $queryBuilder->where(
                     SqlOperations::equal('id', $queryBuilder->addNamedParameter($this->getId($entity)))
                 );
+
+                // Pre remove Event
+                if ($eventManager !== null && !$this->isEventCalled($entity::class, DbEvents::preRemove->value)) {
+                    $this->eventCalled($entity::class, DbEvents::preRemove->value);
+                    $eventManager->dispatch(new PreRemoveEvent($entity, $this->entityManager));
+                }
 
                 // prepare request
                 $pdoStatement = $queryBuilder->getResult();
@@ -1016,9 +1024,9 @@ class EmEngine
             }
 
             //Event Post remove
-            if ($this->eventManager !== null && !$this->isFlushInProgress) {
+            if ($eventManager !== null) {
                 foreach ($entitiesEvent as $entity) {
-                    $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
+                    $eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
                 }
             }
         }

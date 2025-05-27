@@ -17,6 +17,7 @@ use MulerTech\Database\Tests\Files\Entity\SubDirectory\GroupSub;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\WithoutMapping;
+use MulerTech\Database\Tests\Files\EntityNotMapped\User as UserWithoutMapping;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
@@ -182,7 +183,10 @@ class MappingTest extends TestCase
      */
     public function testGetColumns(): void
     {
-        $this->assertEquals(['id', 'username', 'size', 'unit_id', 'manager'], $this->getDbMapping()->getColumns(User::class));
+        $this->assertEquals(
+            ['id', 'username', 'size', 'account_balance', 'unit_id', 'manager'],
+            $this->getDbMapping()->getColumns(User::class)
+        );
     }
 
     /**
@@ -201,7 +205,14 @@ class MappingTest extends TestCase
     public function testGetPropertiesColumns(): void
     {
         $propertiesColumns = $this->getDbMapping()->getPropertiesColumns(User::class);
-        $this->assertEquals(['id' => 'id', 'username' => 'username', 'unit' => 'unit_id', 'size' => 'size', 'manager' => 'manager'], $propertiesColumns);
+        $this->assertEquals([
+            'id' => 'id',
+            'username' => 'username',
+            'unit' => 'unit_id',
+            'size' => 'size',
+            'accountBalance' => 'account_balance',
+            'manager' => 'manager'
+        ], $propertiesColumns);
     }
 
     /**
@@ -261,6 +272,14 @@ class MappingTest extends TestCase
         );
     }
 
+    public function testGetColumnLengthOfUsername(): void
+    {
+        $this->assertEquals(
+            255,
+            $this->getDbMapping()->getColumnLength(User::class, 'username')
+        );
+    }
+
     /**
      * @return void
      * @throws ReflectionException
@@ -270,6 +289,18 @@ class MappingTest extends TestCase
         $this->assertEquals(
             null,
             $this->getDbMapping()->getColumnType(User::class, 'group')
+        );
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfFloat(): void
+    {
+        $this->assertEquals(
+            ColumnType::FLOAT,
+            $this->getDbMapping()->getColumnType(User::class, 'accountBalance')
         );
     }
 
@@ -422,7 +453,10 @@ class MappingTest extends TestCase
      */
     public function testGetNullConstraintName(): void
     {
-        $this->assertEquals(null, $this->getDbMapping()->getConstraintName(User::class, 'id'));
+        $this->assertNull($this->getDbMapping()->getConstraintName(User::class, 'id'));
+        $this->assertNull(
+            $this->getDbMapping()->getConstraintName(UserWithoutMapping::class, 'accountBalance')
+        );
     }
 
     /**
@@ -601,5 +635,15 @@ class MappingTest extends TestCase
     public function testGetNoManyToMany(): void
     {
         $this->assertEquals([], $this->getDbMapping()->getManyToMany(Unit::class));
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    public function testIsUnsigned(): void
+    {
+        $this->assertTrue($this->getDbMapping()->isUnsigned(User::class, 'id'));
+        $this->assertFalse($this->getDbMapping()->isUnsigned(User::class, 'username'));
     }
 }

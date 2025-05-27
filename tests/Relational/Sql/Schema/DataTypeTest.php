@@ -18,6 +18,7 @@ class DataTypeTest extends TestCase
         $this->assertEquals('VARCHAR', DataType::VARCHAR->value);
         $this->assertEquals('TEXT', DataType::TEXT->value);
         $this->assertEquals('DECIMAL', DataType::DECIMAL->value);
+        $this->assertEquals('FLOAT', DataType::FLOAT->value);
         $this->assertEquals('DATETIME', DataType::DATETIME->value);
         $this->assertEquals('DATE', DataType::DATE->value);
         $this->assertEquals('BOOLEAN', DataType::BOOLEAN->value);
@@ -48,6 +49,7 @@ class DataTypeTest extends TestCase
         $this->assertSame(DataType::VARCHAR, DataType::from('VARCHAR'));
         $this->assertSame(DataType::TEXT, DataType::from('TEXT'));
         $this->assertSame(DataType::DECIMAL, DataType::from('DECIMAL'));
+        $this->assertSame(DataType::FLOAT, DataType::from('FLOAT'));
         $this->assertSame(DataType::DATETIME, DataType::from('DATETIME'));
         $this->assertSame(DataType::DATE, DataType::from('DATE'));
         $this->assertSame(DataType::BOOLEAN, DataType::from('BOOLEAN'));
@@ -73,6 +75,7 @@ class DataTypeTest extends TestCase
         $this->assertEquals('VARCHAR', DataType::VARCHAR->name);
         $this->assertEquals('TEXT', DataType::TEXT->name);
         $this->assertEquals('DECIMAL', DataType::DECIMAL->name);
+        $this->assertEquals('FLOAT', DataType::FLOAT->name);
         $this->assertEquals('DATETIME', DataType::DATETIME->name);
         $this->assertEquals('DATE', DataType::DATE->name);
         $this->assertEquals('BOOLEAN', DataType::BOOLEAN->name);
@@ -86,12 +89,13 @@ class DataTypeTest extends TestCase
     {
         $cases = DataType::cases();
         
-        $this->assertCount(9, $cases);
+        $this->assertCount(10, $cases);
         $this->assertContains(DataType::INT, $cases);
         $this->assertContains(DataType::BIGINT, $cases);
         $this->assertContains(DataType::VARCHAR, $cases);
         $this->assertContains(DataType::TEXT, $cases);
         $this->assertContains(DataType::DECIMAL, $cases);
+        $this->assertContains(DataType::FLOAT, $cases);
         $this->assertContains(DataType::DATETIME, $cases);
         $this->assertContains(DataType::DATE, $cases);
         $this->assertContains(DataType::BOOLEAN, $cases);

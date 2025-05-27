@@ -5,7 +5,9 @@ namespace MulerTech\Database\Tests\ORM;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
+use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
+use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\EntityManager;
@@ -293,7 +295,10 @@ class EntityManagerTest extends TestCase
         $user = $em->find(User::class, 1);
         $this->eventManager->addListener(DbEvents::preUpdate->value, static function (PreUpdateEvent $event) {
             $user = $event->getEntity();
-            $user->setUsername('BeforeUpdate' . $user->getUsername());
+            $update = $event->getEntityChanges();
+            $updateTag = implode('->', $update['username']);
+            $user->setUsername('BeforeUpdate' . $updateTag . $user->getUsername());
+//            $user->setUsername('BeforeUpdate' . $user->getUsername());
             $event->getEntityManager()->flush();
         });
         $this->eventManager->addListener(DbEvents::postUpdate->value, static function (PostUpdateEvent $event) {
@@ -303,28 +308,65 @@ class EntityManagerTest extends TestCase
         });
         $user->setUsername('JohnUpdated');
         $em->flush();
-        $newUser = $em->find(User::class, 'username=\'BeforeUpdateJohnUpdatedAfterUpdate\'');
+        $newUser = $em->find(User::class, 1);
         $unit = $em->find(Unit::class, 'name=\'Unit\'');
-        self::assertEquals('BeforeUpdateJohnUpdatedAfterUpdate', $newUser->getUsername());
+        self::assertEquals('BeforeUpdateJohn->JohnUpdatedJohnUpdatedAfterUpdate', $newUser->getUsername());
         self::assertEquals('Unit', $newUser->getUnit()->getName());
         self::assertEquals('Unit', $unit->getName());
     }
 
-    public function testExecuteDeletions(): void
+    public function testExecuteDeletionsAndPreRemoveEvent(): void
     {
         $this->createUserTestTable();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
-        $pdo = $this->entityManager->getPdm();
-        $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
-        $statement->execute(['username' => 'John']);
-        $user = $em->find(User::class, 1);
-        $em->remove($user);
+        $manager = new User()->setUsername('Manager');
+        $otherManager = new User()->setUsername('OtherManager');
+        $user = new User()->setUsername('John')->setManager($manager);
+        $em->persist($manager);
+        $em->persist($otherManager);
+        $em->persist($user);
         $em->flush();
-        $statement = $pdo->prepare('SELECT * FROM users_test');
-        $statement->execute();
-        self::assertFalse($statement->fetch());
+        $this->eventManager->addListener(DbEvents::preRemove->value, static function (PreRemoveEvent $event) {
+            $manager = $event->getEntity();
+            $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
+            $user = $event->getEntityManager()->find(User::class, 'manager=' . $manager->getId());
+            $user->setManager($otherManager);
+            $event->getEntityManager()->persist($user);
+            $event->getEntityManager()->flush();
+        });
+        $em->remove($manager);
+        $em->flush();
+        $user = $em->find(User::class, 'username=\'John\'');
+        self::assertEquals('OtherManager', $user->getManager()->getUsername());
+    }
+
+    public function testExecuteDeletionsAndPostRemoveEvent(): void
+    {
+        $this->createUserTestTable();
+        $this->createGroupTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->entityManager;
+        $manager = new User()->setUsername('Manager');
+        $otherManager = new User()->setUsername('OtherManager');
+        $user = new User()->setUsername('John')->setManager($manager);
+        $em->persist($manager);
+        $em->persist($otherManager);
+        $em->persist($user);
+        $em->flush();
+        $this->eventManager->addListener(DbEvents::postRemove->value, static function (PostRemoveEvent $event) {
+            $manager = $event->getEntity();
+            $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
+            $user = $event->getEntityManager()->find(User::class, 'manager=' . $manager->getId());
+            $user->setManager($otherManager);
+            $event->getEntityManager()->persist($user);
+            $event->getEntityManager()->flush();
+        });
+        $em->remove($manager);
+        $em->flush();
+        $user = $em->find(User::class, 'username=\'John\'');
+        self::assertEquals('OtherManager', $user->getManager()->getUsername());
     }
 
     public function testIsUnique(): void

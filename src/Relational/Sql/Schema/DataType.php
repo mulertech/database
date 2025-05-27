@@ -9,6 +9,7 @@ enum DataType: string
     case VARCHAR = 'VARCHAR';
     case TEXT = 'TEXT';
     case DECIMAL = 'DECIMAL';
+    case FLOAT = 'FLOAT';
     case DATETIME = 'DATETIME';
     case DATE = 'DATE';
     case BOOLEAN = 'BOOLEAN';

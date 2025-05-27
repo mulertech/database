@@ -56,6 +56,7 @@ class SchemaComparerTest extends TestCase
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(255) NOT NULL default "John",
                 size INT,
+                account_balance FLOAT(10,2),
                 unit_id INT UNSIGNED NOT NULL,
                 manager INT UNSIGNED,
                 CONSTRAINT fk_users_test_unit_id_units_test FOREIGN KEY (unit_id) REFERENCES units_test(id),
