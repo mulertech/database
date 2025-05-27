@@ -32,6 +32,7 @@ class MigrationManager
 
     /**
      * @param EntityManagerInterface $entityManager
+     * @param class-string $migrationHistory
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -115,8 +116,17 @@ class MigrationManager
                 $this->migrationHistory,
             );
 
-            if (!is_null($results)) {
-                $this->executedMigrations = $results;
+            // Correction : extraire les versions (string) depuis les objets
+            if (is_iterable($results)) {
+                $versions = [];
+                foreach ($results as $row) {
+                    if (isset($row->version) && is_string($row->version)) {
+                        $versions[] = $row->version;
+                    }
+                }
+                $this->executedMigrations = $versions;
+            } else {
+                $this->executedMigrations = [];
             }
         } catch (Exception $e) {
             // Table might not exist yet
@@ -158,7 +168,7 @@ class MigrationManager
             throw new RuntimeException("Migration directory does not exist: $directory");
         }
 
-        $files = glob($directory . DIRECTORY_SEPARATOR . 'Migration*.php');
+        $files = glob($directory . DIRECTORY_SEPARATOR . 'Migration*.php') ?: [];
 
         foreach ($files as $file) {
             $className = pathinfo($file, PATHINFO_FILENAME);
@@ -293,10 +303,17 @@ class MigrationManager
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $history = new $this->migrationHistory();
-        $history->setVersion($migration->getVersion());
-        $history->setExecutedAt(new DateTime()->format('Y-m-d H:i:s'));
-        $history->setExecutionTime((int)($executionTime * 1000)); // Convert to milliseconds
+        $historyClass = $this->migrationHistory;
+        $history = new $historyClass();
+        if (method_exists($history, 'setVersion')) {
+            $history->setVersion($migration->getVersion());
+        }
+        if (method_exists($history, 'setExecutedAt')) {
+            $history->setExecutedAt((new DateTime())->format('Y-m-d H:i:s'));
+        }
+        if (method_exists($history, 'setExecutionTime')) {
+            $history->setExecutionTime((int)($executionTime * 1000)); // Convert to ms
+        }
 
         $this->entityManager->persist($history);
         $this->entityManager->flush();

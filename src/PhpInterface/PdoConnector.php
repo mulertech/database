@@ -20,7 +20,8 @@ class PdoConnector implements ConnectorInterface
      * @param DriverInterface $driver
      */
     public function __construct(protected DriverInterface $driver)
-    {}
+    {
+    }
 
     /**
      * @param array{

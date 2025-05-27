@@ -14,9 +14,6 @@ use InvalidArgumentException;
 
 class DatabaseCollectionTest extends TestCase
 {
-    private EntityManagerInterface $entityManager;
-    private MtOneToMany $oneToManyMapping;
-    private MtManyToMany $manyToManyMapping;
     private array $testEntities;
 
     protected function setUp(): void
@@ -57,8 +54,6 @@ class DatabaseCollectionTest extends TestCase
     public function testConstructorWithOneToManyMapping(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->oneToManyMapping,
             $this->testEntities
         );
         
@@ -69,8 +64,6 @@ class DatabaseCollectionTest extends TestCase
     public function testConstructorWithManyToManyMapping(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->manyToManyMappingWithMappedBy,
             $this->testEntities
         );
         
@@ -78,26 +71,9 @@ class DatabaseCollectionTest extends TestCase
         $this->assertFalse($collection->hasChanges());
     }
     
-    public function testConstructorThrowsExceptionWhenEntityIsNull(): void
-    {
-        $invalidMapping = $this->createMock(MtOneToMany::class);
-        $invalidMapping->entity = null;
-        
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('The entity class name must be set in the relationalMapping.');
-        
-        new DatabaseCollection(
-            $this->entityManager,
-            $invalidMapping,
-            $this->testEntities
-        );
-    }
-    
     public function testGetAddedEntities(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->oneToManyMapping,
             $this->testEntities
         );
         
@@ -113,8 +89,6 @@ class DatabaseCollectionTest extends TestCase
     public function testGetAddedEntitiesWithEmptyCollection(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->oneToManyMapping,
             []
         );
 
@@ -130,8 +104,6 @@ class DatabaseCollectionTest extends TestCase
     public function testGetRemovedEntities(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->oneToManyMapping,
             $this->testEntities
         );
         
@@ -146,8 +118,6 @@ class DatabaseCollectionTest extends TestCase
     public function testHasChangesWithMultipleOperations(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->manyToManyMappingWithMappedBy,
             $this->testEntities
         );
         
@@ -172,8 +142,6 @@ class DatabaseCollectionTest extends TestCase
     public function testNoChangesAfterAddAndRemoveSameEntity(): void
     {
         $collection = new DatabaseCollection(
-            $this->entityManager,
-            $this->manyToManyMappingWithJoinTable,
             $this->testEntities
         );
         

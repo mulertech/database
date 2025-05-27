@@ -2,11 +2,7 @@
 
 namespace MulerTech\Database\ORM;
 
-use InvalidArgumentException;
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\MtManyToMany;
-use MulerTech\Database\Mapping\MtOneToMany;
-use ReflectionException;
 
 /**
  * Class DatabaseCollection
@@ -27,20 +23,8 @@ class DatabaseCollection extends Collection
      * @param array<TKey, TValue> $items
      */
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private readonly MtManyToMany|MtOneToMany $relationalMapping,
         array $items = []
     ) {
-        if ($relationalMapping->entity === null) {
-            throw new InvalidArgumentException('The entity class name must be set in the relationalMapping.');
-        }
-
-        if ($relationalMapping->targetEntity === null) {
-            throw new InvalidArgumentException(
-                'The targetEntity class name must be set in the relationalMapping.'
-            );
-        }
-
         parent::__construct($items);
         $this->saveInitialState();
     }
@@ -80,65 +64,6 @@ class DatabaseCollection extends Collection
     public function hasChanges(): bool
     {
         return !empty($this->getAddedEntities()) || !empty($this->getRemovedEntities());
-    }
-
-    /**
-     * @throws ReflectionException
-     */
-    public function persist(object $entity): void
-    {
-        if ($this->relationalMapping instanceof MtManyToMany) {
-            $this->persistManyToManyRelations($entity);
-        }
-        if ($this->relationalMapping instanceof MtOneToMany) {
-            $this->persistOneToManyRelations($entity);
-        }
-
-        // Todo: Delete the pivot entity for the removed entities
-    }
-
-    private function persistOneToManyRelations(object $entity): void
-    {
-        $mapedBy = $this->relationalMapping->inverseJoinProperty;
-        if ($mapedBy === null) {
-            throw new InvalidArgumentException(
-                'The mappedBy property must be set in the relationalMapping.'
-            );
-        }
-
-        foreach ($this->getAddedEntities() as $relatedEntity) {
-            $setter = 'set' . ucfirst($mapedBy);
-            if (is_a($entity, $this->relationalMapping->targetEntity)) {
-                $relatedEntity->$setter($entity);
-            }
-            $this->entityManager->persist($relatedEntity);
-        }
-    }
-
-    private function persistManyToManyRelations(object $entity): void
-    {
-        $mapedBy = $this->relationalMapping->inverseJoinProperty;
-        if ($mapedBy === null) {
-            throw new InvalidArgumentException(
-                'The mappedBy property must be set in the relationalMapping.'
-            );
-        }
-
-        foreach ($this->getAddedEntities() as $relatedEntity) {
-            $pivotEntity = new $this->relationalMapping->inverseJoinProperty();
-            foreach ($this->entityManager->getDbMapping()->getOneToMany($this->relationalMapping->inverseJoinProperty) as $property => $manyToOne) {
-                $setter = 'set' . ucfirst($property);
-                if (is_a($entity, $manyToOne->targetEntity)) {
-                    $pivotEntity->$setter($entity);
-                    continue;
-                }
-
-                if (is_a($relatedEntity, $manyToOne->targetEntity)) {
-                    $pivotEntity->$setter($relatedEntity);
-                }
-            }
-            $this->entityManager->persist($pivotEntity);
-        }
     }
 
     /**

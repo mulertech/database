@@ -8,7 +8,7 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\MTerm\Command\AbstractCommand;
-use MulerTech\Mterm\Core\Terminal;
+use MulerTech\MTerm\Core\Terminal;
 use RuntimeException;
 
 /**
@@ -37,7 +37,7 @@ class MigrationGenerateCommand extends AbstractCommand
     /**
      * Executes the command
      *
-     * @param array $args Command arguments
+     * @param array<int, string> $args Command arguments
      * @return int Return code
      */
     public function execute(array $args = []): int
@@ -52,7 +52,7 @@ class MigrationGenerateCommand extends AbstractCommand
             $informationSchema = new InformationSchema($this->entityManager->getEmEngine());
             $dbParameters = PhpDatabaseManager::populateParameters();
             $schemaComparer = new SchemaComparer($informationSchema, $dbMapping, $dbParameters['dbname']);
-            $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory, $dbMapping);
+            $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
             // Generating the migration
             $migrationFile = $migrationGenerator->generateMigration($date);

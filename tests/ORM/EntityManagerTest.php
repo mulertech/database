@@ -121,15 +121,23 @@ class EntityManagerTest extends TestCase
         $group2->setParent($group1);
         $group3 = new Group();
         $group3->setName('Group3');
+        $group3->setParent($group1);
         $group1->addChild($group3);
         $em->persist($group1);
         $em->persist($group2);
         $em->persist($group3);
         $em->flush();
-        $group = $em->find(Group::class, 'name=\'Group1\'');
-        self::assertInstanceOf(Group::class, $group);
-        self::assertEquals('Group1', $group->getName());
-        self::assertEquals(2, $group->getChildren()->count());
+        $group1 = $em->find(Group::class, 'name=\'Group1\'');
+        self::assertInstanceOf(Group::class, $group1);
+        self::assertEquals('Group1', $group1->getName());
+        self::assertEquals(2, $group1->getChildren()->count());
+        $group3 = $em->find(Group::class, 'name=\'Group3\'');
+        self::assertEquals('Group1', $group3->getParent()->getName());
+        $group3->setParent(null);
+        $em->persist($group3);
+        $em->flush();
+        $group3 = $em->find(Group::class, 'name=\'Group3\'');
+        self::assertNull($group3->getParent());
     }
 
     public function testFindEntityWithManyToOneRelation(): void
@@ -163,6 +171,48 @@ class EntityManagerTest extends TestCase
         $em = $this->entityManager;
         $group1 = new Group();
         $group1->setName('Group1');
+        $user1 = new User();
+        $user1->setUsername('User1');
+        $user1->addGroup($group1);
+        $em->persist($group1);
+        $em->persist($user1);
+        $em->flush();
+        $newUser1 = $em->find(User::class, 'username=\'User1\'');
+        self::assertEquals('Group1', $newUser1->getGroups()->reset()->getName());
+    }
+    public function testFindEntityWithManyToManyRelations(): void
+    {
+        $this->createUserTestTable();
+        $this->createGroupTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->entityManager;
+        $group1 = new Group();
+        $group1->setName('Group1');
+        $group2 = new Group();
+        $group2->setName('Group2');
+        $user1 = new User();
+        $user1->setUsername('User1');
+        $user1->addGroup($group1);
+        $user1->addGroup($group2);
+        $em->persist($group1);
+        $em->persist($group2);
+        $em->persist($user1);
+        $em->flush();
+        $newUser1 = $em->find(User::class, 'username=\'User1\'');
+        self::assertEquals(
+            2,
+            count($newUser1->getGroups())
+        );
+    }
+
+    public function testFindEntitiesWithManyToManyRelationAndRemoveOne(): void
+    {
+        $this->createUserTestTable();
+        $this->createGroupTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->entityManager;
+        $group1 = new Group();
+        $group1->setName('Group1');
         $group2 = new Group();
         $group2->setName('Group2');
         $user1 = new User();
@@ -178,10 +228,13 @@ class EntityManagerTest extends TestCase
         $em->persist($user2);
         $em->flush();
         $newUser1 = $em->find(User::class, 'username=\'User1\'');
-        self::assertEquals(
-            2,
-            count($em->find(User::class, 'username=\'User1\'')->getGroups())
-        );
+        self::assertEquals(2, count($newUser1->getGroups()));
+        $newUser2 = $em->find(User::class, 'username=\'User2\'');
+        $newUser2->addGroup($group2);
+        $newUser2->removeGroup($group1);
+        $em->persist($newUser2);
+        $em->flush();
+        self::assertEquals('Group2', $newUser2->getGroups()->reset()->getName());
     }
 
     public function testExecuteInsertionsAndPostPersistEvent(): void
@@ -260,6 +313,7 @@ class EntityManagerTest extends TestCase
     public function testExecuteDeletions(): void
     {
         $this->createUserTestTable();
+        $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
         $pdo = $this->entityManager->getPdm();

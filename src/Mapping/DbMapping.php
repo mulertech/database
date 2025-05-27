@@ -319,7 +319,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array|null
+     * @return array<string, mixed>|null
      * @throws ReflectionException
      */
     public function getOneToOne(string $entityName): ?array
@@ -329,7 +329,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array|null
+     * @return array<string, mixed>|null
      * @throws ReflectionException
      */
     public function getOneToMany(string $entityName): ?array
@@ -339,7 +339,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array|null
+     * @return array<string, mixed>|null
      * @throws ReflectionException
      */
     public function getManyToOne(string $entityName): ?array
@@ -349,7 +349,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array|null
+     * @return array<string, mixed>|null
      * @throws ReflectionException
      */
     public function getManyToMany(string $entityName): ?array

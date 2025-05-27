@@ -85,6 +85,11 @@ class Group
     public function setParent(?Group $parent): self
     {
         $this->parent = $parent;
+        if ($parent !== null && !$parent->getChildren()->contains($this)) {
+            $parent->addChild($this);
+        } elseif ($parent === null && $this->getParent() !== null) {
+            $this->getParent()->removeChild($this);
+        }
 
         return $this;
     }

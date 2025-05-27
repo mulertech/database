@@ -70,7 +70,7 @@ class MigrationHistory
      */
     public function getVersion(): string
     {
-        return $this->version;
+        return $this->version ?? '';
     }
 
     /**
@@ -88,7 +88,7 @@ class MigrationHistory
      */
     public function getExecutedAt(): string
     {
-        return $this->executed_at;
+        return $this->executed_at ?? '';
     }
 
     /**

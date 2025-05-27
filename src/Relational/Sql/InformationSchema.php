@@ -15,17 +15,17 @@ class InformationSchema
     public const string INFORMATION_SCHEMA = 'information_schema';
 
     /**
-     * @var array<int|string, mixed>
+     * @var array<int, array<string, mixed>>
      */
     public array $tables;
 
     /**
-     * @var array<int|string, mixed>
+     * @var array<int, array<string, mixed>>
      */
     public array $columns;
 
     /**
-     * @var array<int|string, mixed>
+     * @var array<int, array<string, mixed>>
      */
     public array $foreignKeys;
 
@@ -38,7 +38,7 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array<int|string, mixed>
+     * @return array<int, array<string, mixed>>
      */
     public function getTables(string $database): array
     {
@@ -51,7 +51,7 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array<int|string, mixed>
+     * @return array<int, array<string, mixed>>
      */
     public function getColumns(string $database): array
     {
@@ -64,7 +64,7 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array<int|string, mixed>
+     * @return array<int, array<string, mixed>>
      */
     public function getForeignKeys(string $database): array
     {

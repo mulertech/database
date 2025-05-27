@@ -16,17 +16,17 @@ use RuntimeException;
 class SchemaComparer
 {
     /**
-     * @var array Database tables
+     * @var array<int, array<string, mixed>> Database tables
      */
     private array $databaseTables = [];
 
     /**
-     * @var array Database columns
+     * @var array<int, array<string, mixed>> Database columns
      */
     private array $databaseColumns = [];
 
     /**
-     * @var array Database foreign keys
+     * @var array<int, array<string, mixed>> Database foreign keys
      */
     private array $databaseForeignKeys = [];
 
@@ -59,7 +59,7 @@ class SchemaComparer
      * Get database table info by table name
      *
      * @param string $tableName
-     * @return array|null
+     * @return array<string, mixed>|null
      */
     private function getTableInfo(string $tableName): ?array
     {
@@ -70,7 +70,7 @@ class SchemaComparer
      * Get columns for a specific table
      *
      * @param string $tableName
-     * @return array
+     * @return array<string, array<string, mixed>>
      */
     private function getTableColumns(string $tableName): array
     {
@@ -88,7 +88,7 @@ class SchemaComparer
      * Get foreign keys for a specific table
      *
      * @param string $tableName
-     * @return array
+     * @return array<string, array<string, mixed>>
      */
     private function getTableForeignKeys(string $tableName): array
     {

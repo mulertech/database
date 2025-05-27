@@ -2,11 +2,6 @@
 
 namespace MulerTech\Database\ORM;
 
-use _config\UpdateDatabaseMysql;
-use App\Entity\Version;
-use DateTime;
-use Exception;
-use MulerTech\ArrayManipulation\ArrayManipulation;
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
@@ -15,13 +10,10 @@ use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PrePersistEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
-use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Mapping\MtManyToMany;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManager;
-use MulerTech\FileManipulation\FileType\Json;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
@@ -35,79 +27,95 @@ use RuntimeException;
 class EmEngine
 {
     /**
-     * @deprecated use DbMapping
-     * @var string
-     */
-    private const string DB_STRUCTURE_PATH = ".." . DIRECTORY_SEPARATOR . "_config" . DIRECTORY_SEPARATOR;
-    /**
-     * @deprecated use DbMapping
-     * @var string
-     */
-    private const string DB_STRUCTURE_NAME = 'dbstructure.json';
-
-    /**
-     * @var array<int, object> The list of managed entities for example :
-     * [$objectId => $entity]
+     * The list of managed entities
+     *
+     * @var array<int, object> Format: [$objectId => $entity]
      */
     private array $managedEntities = [];
+
     /**
-     * @var array<int, object> The list of entities to be inserted for example :
-     * [$objectId => $entity]
+     * The list of entities to be inserted
+     *
+     * @var array<int, object> Format: [$objectId => $entity]
      */
     private array $entityInsertions = [];
+
     /**
-     * @var array<int, object> The list of entities to be updated for example :
-     * [$objectId => $entity]
+     * The list of entities to be updated
+     *
+     * @var array<int, object> Format: [$objectId => $entity]
      */
     private array $entityUpdates = [];
+
     /**
-     * @var array<int, object> The list of entities to be deleted for example :
-     * [$objectId => $entity]
+     * The list of entities to be deleted
+     *
+     * @var array<int, object> Format: [$objectId => $entity]
      */
     private array $entityDeletions = [];
+
     /**
-     * @var array<object> The list of MtManyToMany objects to be inserted.
+     * The list of MtManyToMany objects to be inserted
+     *
+     * @var array<int, array{entity: object, related: object, manyToMany: MtManyToMany, action?: string}>
      */
     private array $manyToManyInsertions = [];
+
     /**
-     * @var array<int, array<string, array<int, string>>> Save all the entity changes example :
-     * [$objectId => [$property => [$oldValue, $newValue]]]
+     * Save all the entity changes
+     *
+     * @var array<int, array<string, array<int, mixed>>> Format: [$objectId => [$property => [$oldValue, $newValue]]]
      */
     private array $entityChanges = [];
+
     /**
-     * @var array<int, array<string, mixed>> Save the original entity before update example :
-     * [$objectId => [$column => $value]]
+     * Save the original entity data before update
+     *
+     * @var array<int, array<string, mixed>> Format: [$objectId => [$column => $value]]
      */
     private array $originalEntityData = [];
+
     /**
-     * @var array<int, array<int>> $entityInsertionOrder
-     * * [$objectId1 => [$objectId2, $objectId3]] $objectId1 must be inserted after $objectId2 and $objectId3
+     * Entity insertion order dependencies
+     *
+     * @var array<int, array<int>> Format: [$objectId1 => [$objectId2, $objectId3]]
+     *                             $objectId1 must be inserted after $objectId2 and $objectId3
      */
     private array $entityInsertionOrder = [];
+
     /**
-     * @var array<class-string, array<int, string>> Save the entity and this event when updated example :
-     * [$entityName => $eventCalled]
+     * Save the entity and its event when updated
+     *
+     * @var array<class-string, array<int, string>> Format: [$entityName => $eventCalled]
      */
     private array $eventCalled = [];
+
     /**
-     * @deprecated
-     * @var array
-     */
-    private array $tablesLinked = [];
-    /**
-     * @deprecated
-     * @var string
-     */
-    private string $join = '';
-    /**
-     * @var EventManager|null $eventManager
+     * Event manager instance
+     *
+     * @var EventManager|null
      */
     private ?EventManager $eventManager;
+
     /**
-     * @var EntityRelationLoader $entityRelationLoader
+     * Entity relation loader instance
+     *
+     * @var EntityRelationLoader
      */
     private EntityRelationLoader $entityRelationLoader;
+
+    /**
+     * Entity hydrator instance
+     *
+     * @var EntityHydrator
+     */
     private EntityHydrator $hydrator;
+
+    /**
+     * Indicates if flush is in progress
+     *
+     * @var bool
+     */
     private bool $isFlushInProgress = false;
 
     /**
@@ -130,10 +138,72 @@ class EmEngine
     }
 
     /**
-     * @param QueryBuilder $queryBuilder
+     * Retourne l'entité déjà managed si elle existe, sinon null.
+     *
      * @param class-string $entityName
-     * @param bool $loadRelations
+     * @param int|string $id
      * @return object|null
+     */
+    private function getManagedEntity(string $entityName, int|string $id): ?object
+    {
+        foreach ($this->managedEntities as $entity) {
+            if (
+                $entity instanceof $entityName &&
+                method_exists($entity, 'getId') &&
+                $entity->getId() == $id
+            ) {
+                return $entity;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find an entity by its ID or a WHERE clause
+     *
+     * @param class-string $entityName The entity class name
+     * @param int|string|SqlOperations $idOrWhere ID value or WHERE clause
+     * @return object|null The found entity or null
+     * @throws ReflectionException
+     */
+    public function find(string $entityName, int|string|SqlOperations $idOrWhere): ?object
+    {
+        $queryBuilder = new QueryBuilder($this);
+        $queryBuilder->select('*')->from($this->getTableName($entityName));
+
+        // If it's a numeric ID, check if the entity is already managed
+        if (is_numeric($idOrWhere)) {
+            $managed = $this->getManagedEntity($entityName, $idOrWhere);
+            if ($managed !== null) {
+                return $managed;
+            }
+            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($idOrWhere));
+
+            return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
+        }
+
+        $queryBuilder->where($idOrWhere);
+
+        $entity = $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
+
+        // If the entity is not null, check if it is already managed
+        if ($entity !== null && method_exists($entity, 'getId')) {
+            $managed = $this->getManagedEntity($entityName, $entity->getId());
+            if ($managed !== null) {
+                return $managed;
+            }
+        }
+
+        return $entity;
+    }
+
+    /**
+     * Get a single object result from a query builder
+     *
+     * @param QueryBuilder $queryBuilder The query builder instance
+     * @param class-string $entityName The entity class name
+     * @param bool $loadRelations Whether to load relations
+     * @return object|null The fetched entity or null if not found
      * @throws ReflectionException
      */
     public function getQueryBuilderObjectResult(
@@ -151,14 +221,24 @@ class EmEngine
             return null;
         }
 
+        // Vérifie si l'entité est déjà managed avant de l'hydrater
+        if (isset($fetch['id'])) {
+            $managed = $this->getManagedEntity($entityName, $fetch['id']);
+            if ($managed !== null) {
+                return $managed;
+            }
+        }
+
         return $this->manageNewEntity($fetch, $entityName, $loadRelations);
     }
 
     /**
-     * @param QueryBuilder $queryBuilder
-     * @param class-string $entityName
-     * @param bool $loadRelations
-     * @return array<object>|null
+     * Get a list of objects from a query builder
+     *
+     * @param QueryBuilder $queryBuilder The query builder instance
+     * @param class-string $entityName The entity class name
+     * @param bool $loadRelations Whether to load relations
+     * @return array<object>|null List of fetched entities or null if none found
      * @throws ReflectionException
      */
     public function getQueryBuilderListResult(
@@ -176,19 +256,37 @@ class EmEngine
             return null;
         }
 
-        return array_map(
-            function ($entityData) use ($entityName, $loadRelations) {
-                return $this->manageNewEntity($entityData, $entityName, $loadRelations);
-            },
-            $fetchAll
-        );
+        // Index temporaire des entités managées de ce type par id
+        $managedEntitiesOfType = [];
+        foreach ($this->managedEntities as $entity) {
+            if (
+                $entity instanceof $entityName &&
+                method_exists($entity, 'getId') &&
+                $entity->getId() !== null
+            ) {
+                $managedEntitiesOfType[$entity->getId()] = $entity;
+            }
+        }
+
+        $entities = [];
+        foreach ($fetchAll as $entityData) {
+            if (isset($entityData['id']) && isset($managedEntitiesOfType[$entityData['id']])) {
+                $entities[] = $managedEntitiesOfType[$entityData['id']];
+            } else {
+                $entities[] = $this->manageNewEntity($entityData, $entityName, $loadRelations);
+            }
+        }
+
+        return $entities;
     }
 
     /**
-     * @param QueryBuilder $queryBuilder
-     * @param class-string $entityName
-     * @param bool $loadRelations
-     * @return array|null
+     * Get a list of objects from a query builder, indexed by their ID
+     *
+     * @param QueryBuilder $queryBuilder The query builder instance
+     * @param class-string $entityName The entity class name
+     * @param bool $loadRelations Whether to load relations
+     * @return array<int, object>|null List of fetched entities indexed by ID or null if none found
      * @throws ReflectionException
      */
     public function getQueryBuilderListKeyByIdResult(
@@ -206,20 +304,49 @@ class EmEngine
             return null;
         }
 
+        // Index temporaire des entités managées de ce type par id
+        $managedEntitiesOfType = [];
+        foreach ($this->managedEntities as $entity) {
+            if (
+                $entity instanceof $entityName &&
+                method_exists($entity, 'getId') &&
+                $entity->getId() !== null
+            ) {
+                $managedEntitiesOfType[$entity->getId()] = $entity;
+            }
+        }
+
         $entities = [];
         foreach ($fetchAll as $entityData) {
-            $entity = $this->manageNewEntity($entityData, $entityName, $loadRelations);
-            $entities[$entity->getId()] = $entity;
+            if (!isset($entityData['id'])) {
+                throw new RuntimeException(
+                    sprintf('The entity %s must have an ID column', $entityName)
+                );
+            }
+
+            if (isset($managedEntitiesOfType[$entityData['id']])) {
+                $entities[$entityData['id']] = $managedEntitiesOfType[$entityData['id']];
+            } else {
+                $entity = $this->manageNewEntity($entityData, $entityName, $loadRelations);
+                if (!method_exists($entity, 'getId')) {
+                    throw new RuntimeException(
+                        sprintf('The entity %s must have a getId method', $entity::class)
+                    );
+                }
+                $entities[$entity->getId()] = $entity;
+            }
         }
 
         return $entities;
     }
 
     /**
-     * @param array $entityData
-     * @param class-string $entityName
-     * @param bool $loadRelations
-     * @return object
+     * Manage new entity creation and relation loading
+     *
+     * @param array<string, mixed> $entityData The entity data from database
+     * @param class-string $entityName The entity class name
+     * @param bool $loadRelations Whether to load relations
+     * @return object The created and managed entity
      * @throws ReflectionException
      */
     private function manageNewEntity(array $entityData, string $entityName, bool $loadRelations): object
@@ -234,6 +361,8 @@ class EmEngine
     }
 
     /**
+     * Execute entity insertions
+     *
      * @return void
      * @throws ReflectionException
      */
@@ -277,7 +406,9 @@ class EmEngine
     }
 
     /**
-     * @return array<int, object>
+     * Get entity insertions with correct insertion order
+     *
+     * @return array<int, object> Ordered list of entities to be inserted
      */
     private function getEntityInsertions(): array
     {
@@ -310,11 +441,13 @@ class EmEngine
     }
 
     /**
-     * @param Object $entity
-     * @return QueryBuilder
+     * Generate insert query builder for entity
+     *
+     * @param object $entity The entity to insert
+     * @return QueryBuilder The insert query builder
      * @throws ReflectionException
      */
-    private function generateInsertQueryBuilder(Object $entity): QueryBuilder
+    private function generateInsertQueryBuilder(object $entity): QueryBuilder
     {
         $queryBuilder = new QueryBuilder($this);
         $queryBuilder->insert($this->getTableName(get_class($entity)));
@@ -337,8 +470,10 @@ class EmEngine
     }
 
     /**
-     * @param class-string $entityName
-     * @return string
+     * Get table name for entity
+     *
+     * @param class-string $entityName The entity class name
+     * @return string The table name
      * @throws ReflectionException
      */
     private function getTableName(string $entityName): string
@@ -355,18 +490,22 @@ class EmEngine
     }
 
     /**
-     * @param Object $entity
-     * @return array<string, array<int, string>>
+     * Get entity changes
+     *
+     * @param object $entity The entity to check for changes
+     * @return array<string, array<int, mixed>> The changes as [property => [oldValue, newValue]]
      */
-    private function getEntityChanges(Object $entity): array
+    private function getEntityChanges(object $entity): array
     {
         return $this->entityChanges[spl_object_id($entity)] ?? [];
     }
 
     /**
-     * @param class-string $entityName
-     * @param bool $keepId
-     * @return array
+     * Get properties columns mapping for entity
+     *
+     * @param class-string $entityName The entity class name
+     * @param bool $keepId Whether to keep ID in the result
+     * @return array<string, string> Property to column mapping
      * @throws ReflectionException
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
@@ -385,33 +524,20 @@ class EmEngine
     }
 
     /**
-     * Find an entity by its ID or a WHERE clause.
-     * @param class-string $entityName
-     * @param int|string|SqlOperations $idOrWhere
-     * @return Object|null Entity filled or null
-     * @throws ReflectionException
-     */
-    public function find(string $entityName, int|string|SqlOperations $idOrWhere): ?Object
-    {
-        $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->select('*')->from($this->getTableName($entityName));
-
-        if (is_numeric($idOrWhere)) {
-            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($idOrWhere));
-        } else {
-            $queryBuilder->where($idOrWhere);
-        }
-
-        return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
-    }
-
-    /**
-     * Manage new entity for creation, if this entity must be deleted, it will be removed from the entityInsertions.
-     * @param Object $entity
+     * Manage new entity for creation
+     *
+     * @param object $entity The entity to persist
      * @return void
      */
-    public function persist(Object $entity): void
+    public function persist(object $entity): void
     {
+        // Check if the entity is already managed
+        if (!isset($this->managedEntities[spl_object_id($entity)])) {
+            // Add the entity to managed entities
+            $this->managedEntities[spl_object_id($entity)] = $entity;
+        }
+
+        // If the entity is already in insertions, do not add it again
         if ($this->getId($entity) === null && !isset($this->entityInsertions[spl_object_id($entity)])) {
             //Event Pre persist
             if ($this->eventManager !== null && !$this->isFlushInProgress) {
@@ -422,10 +548,13 @@ class EmEngine
     }
 
     /**
-     * @param Object $entity
-     * @return int|null
+     * Get entity ID
+     *
+     * @param object $entity The entity
+     * @return int|null The entity ID or null if not set
+     * @throws RuntimeException If entity doesn't have getId method
      */
-    private function getId(Object $entity): ?int
+    private function getId(object $entity): ?int
     {
         if (!method_exists($entity, 'getId')) {
             throw new RuntimeException(
@@ -437,6 +566,8 @@ class EmEngine
     }
 
     /**
+     * Flush all changes to database
+     *
      * @return void
      * @throws ReflectionException
      */
@@ -472,13 +603,15 @@ class EmEngine
         $this->entityManager->getPdm()->commit();
 
         //Event Post flush
-        if ($this->eventManager !== null  && !$this->isFlushInProgress) {
+        if ($this->eventManager !== null && !$this->isFlushInProgress) {
             $this->isFlushInProgress = true;
             $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
         }
     }
 
     /**
+     * Remove deleted entities from updates list
+     *
      * @return void
      */
     private function removeDeleteEntitiesFromUpdates(): void
@@ -491,7 +624,9 @@ class EmEngine
     }
 
     /**
-     * @param object $entity
+     * Detach entity from entity manager
+     *
+     * @param object $entity The entity to detach
      * @return void
      */
     public function detach(object $entity): void
@@ -509,6 +644,8 @@ class EmEngine
     }
 
     /**
+     * Compute changes for all managed entities
+     *
      * @return void
      * @throws ReflectionException
      */
@@ -528,9 +665,11 @@ class EmEngine
     }
 
     /**
-     * @param array $entityData
-     * @param class-string $entityName
-     * @return object
+     * Compute entity from original data
+     *
+     * @param array<string, mixed> $entityData The entity data
+     * @param class-string $entityName The entity class name
+     * @return object The created entity
      * @throws ReflectionException
      */
     private function computeOriginalEntity(array $entityData, string $entityName): object
@@ -544,10 +683,13 @@ class EmEngine
     }
 
     /**
+     * Compute entity changes
+     *
+     * @param object $entity The entity to compute changes for
+     * @return void
      * @throws ReflectionException
-     * Todo : set field_id if $property is a relational property into originalEntityData setter
      */
-    private function computeEntityChanges(Object $entity): void
+    private function computeEntityChanges(object $entity): void
     {
         $originalEntityData = $this->originalEntityData[spl_object_id($entity)] ?? null;
 
@@ -593,15 +735,23 @@ class EmEngine
     }
 
     /**
-     * This method is used to manage the related entities not persisted yet
-     * @param Object $entity
-     * @param ReflectionClass $entityReflection
+     * Manage one-to-many relations for entity
+     *
+     * @param object $entity The entity with relations
+     * @param ReflectionClass<object> $entityReflection The entity reflection
+     * @return void
      * @throws ReflectionException
      */
-    private function manageOneToManyRelations(Object $entity, ReflectionClass $entityReflection): void
+    private function manageOneToManyRelations(object $entity, ReflectionClass $entityReflection): void
     {
         $entityName = get_class($entity);
-        foreach ($this->entityManager->getDbMapping()->getOneToMany($entityName) as $property => $oneToMany) {
+        $oneToManyList = $this->entityManager->getDbMapping()->getOneToMany($entityName);
+
+        if (!is_array($oneToManyList)) {
+            return;
+        }
+
+        foreach ($oneToManyList as $property => $oneToMany) {
             $entities = $entityReflection->getProperty($property)->getValue($entity);
 
             if (!$entities instanceof Collection) {
@@ -619,13 +769,53 @@ class EmEngine
     }
 
     /**
+     * Manage many-to-many relations for entity
+     *
+     * @param object $entity The entity with relations
+     * @param ReflectionClass<object> $entityReflection The entity reflection
+     * @return void
      * @throws ReflectionException
      */
-    private function manageManyToManyRelations(Object $entity, ReflectionClass $entityReflection): void
+    private function manageManyToManyRelations(object $entity, ReflectionClass $entityReflection): void
     {
         $entityName = get_class($entity);
-        foreach ($this->entityManager->getDbMapping()->getManyToMany($entityName) as $property => $manyToMany) {
+        $manyToManyList = $this->entityManager->getDbMapping()->getManyToMany($entityName);
+        if (!is_array($manyToManyList)) {
+            return;
+        }
+        foreach ($manyToManyList as $property => $manyToMany) {
             $entities = $entityReflection->getProperty($property)->getValue($entity);
+
+            if ($entities instanceof DatabaseCollection) {
+                // Check for any changes in the collection
+                $addedEntities = $entities->getAddedEntities();
+                if (!empty($addedEntities)) {
+                    // Process added entities
+                    foreach ($addedEntities as $relatedEntity) {
+                        $this->manyToManyInsertions[] = [
+                            'entity' => $entity,
+                            'related' => $relatedEntity,
+                            'manyToMany' => $manyToMany,
+                        ];
+                    }
+                }
+
+                // Check for any deletions
+                $removedEntities = $entities->getRemovedEntities();
+                if (!empty($removedEntities)) {
+                    // Process deleted entities
+                    foreach ($removedEntities as $relatedEntity) {
+                        $this->manyToManyInsertions[] = [
+                            'entity' => $entity,
+                            'related' => $relatedEntity,
+                            'manyToMany' => $manyToMany,
+                            'action' => 'delete'
+                        ];
+                    }
+                }
+
+                continue;
+            }
 
             if ($entities instanceof Collection) {
                 if (count($entities) === 0) {
@@ -640,65 +830,59 @@ class EmEngine
                         'manyToMany' => $manyToMany,
                     ];
                 }
-                continue;
-            }
-
-            // Check for any changes in the collection
-            $addedEntities = $entities->getAddedEntities();
-            if (!empty($addedEntities)) {
-                // Process added entities
-                foreach ($entities->getAddedEntities() as $relatedEntity) {
-                    $this->manyToManyInsertions[] = [
-                        'entity' => $entity,
-                        'related' => $relatedEntity,
-                        'manyToMany' => $manyToMany,
-                    ];
-                }
-            }
-
-            // Check for any deletions
-            $deletedEntities = $entities->getDeletedEntities();
-            if (!empty($deletedEntities)) {
-                // Process deleted entities
-                foreach ($deletedEntities as $relatedEntity) {
-                    $this->manyToManyInsertions[] = [
-                        'entity' => $entity,
-                        'related' => $relatedEntity,
-                        'manyToMany' => $manyToMany,
-                        'action' => 'delete'
-                    ];
-                }
             }
         }
     }
 
+    /**
+     * Create link entity for many-to-many relation
+     *
+     * @param MtManyToMany $manyToMany The many-to-many relation configuration
+     * @param object $entity The owner entity
+     * @param object $relatedEntity The related entity
+     * @return object The created link entity
+     */
     private function createLinkEntity(
         MtManyToMany $manyToMany,
-        Object $entity,
-        Object $relatedEntity
+        object $entity,
+        object $relatedEntity
     ): object {
         $linkEntity = new $manyToMany->mappedBy();
-        $setEntity = 'set' . ucfirst($manyToMany->joinProperty);
-        $setRelatedEntity = 'set' . ucfirst($manyToMany->inverseJoinProperty);
+        $joinProperty = $manyToMany->joinProperty ?? '';
+        $inverseJoinProperty = $manyToMany->inverseJoinProperty ?? '';
+        if ($joinProperty === '' || $inverseJoinProperty === '') {
+            throw new RuntimeException(
+                sprintf(
+                    'The many-to-many relation %s must have joinProperty and inverseJoinProperty defined',
+                    $manyToMany->mappedBy ?? 'unknown'
+                )
+            );
+        }
+        $setEntity = 'set' . ucfirst($joinProperty);
+        $setRelatedEntity = 'set' . ucfirst($inverseJoinProperty);
         $linkEntity->$setEntity($entity);
         $linkEntity->$setRelatedEntity($relatedEntity);
         return $linkEntity;
     }
 
     /**
+     * Execute updates for entities
      *
+     * @return void
      * @throws ReflectionException
      */
     private function executeUpdates(): void
     {
         if (!empty($this->entityUpdates)) {
+            $eventManager = $this->eventManager;
+
             foreach ($this->entityUpdates as $uio => $entity) {
                 $entityChanges = $this->getEntityChanges($entity);
 
                 //Pre update Event
-                if ($this->eventManager !== null && !$this->isEventCalled($entity::class, DbEvents::preUpdate->value)) {
+                if ($eventManager !== null && !$this->isEventCalled($entity::class, DbEvents::preUpdate->value)) {
                     $this->eventCalled($entity::class, DbEvents::preUpdate->value);
-                    $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $entityChanges));
+                    $eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $entityChanges));
                 }
 
                 $queryBuilder = $this->generateUpdateQueryBuilder($entity);
@@ -712,17 +896,19 @@ class EmEngine
                 unset($this->entityUpdates[$uio]);
 
                 //Post update Event
-                if ($this->eventManager && !$this->isEventCalled($entity::class, DbEvents::postUpdate->value)) {
+                if ($eventManager !== null && !$this->isEventCalled($entity::class, DbEvents::postUpdate->value)) {
                     $this->eventCalled($entity::class, DbEvents::postUpdate->value);
-                    $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
+                    $eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
                 }
             }
         }
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $event
+     * Track that an event has been called for an entity
+     *
+     * @param class-string $entityName The entity class name
+     * @param string $event The event name
      * @return void
      */
     private function eventCalled(string $entityName, string $event): void
@@ -736,9 +922,11 @@ class EmEngine
     }
 
     /**
-     * @param string $entityName
-     * @param string $event
-     * @return bool
+     * Check if an event has been called for an entity
+     *
+     * @param string $entityName The entity class name
+     * @param string $event The event name
+     * @return bool True if event has been called
      */
     private function isEventCalled(string $entityName, string $event): bool
     {
@@ -750,11 +938,13 @@ class EmEngine
     }
 
     /**
-     * @param Object $entity
-     * @return QueryBuilder
+     * Generate update query builder for entity
+     *
+     * @param object $entity The entity to update
+     * @return QueryBuilder The query builder
      * @throws ReflectionException
      */
-    private function generateUpdateQueryBuilder(Object $entity): QueryBuilder
+    private function generateUpdateQueryBuilder(object $entity): QueryBuilder
     {
         $queryBuilder = new QueryBuilder($this);
         $queryBuilder->update($this->getTableName($entity::class));
@@ -778,9 +968,12 @@ class EmEngine
     }
 
     /**
-     * @param Object $entity
+     * Mark entity for removal
+     *
+     * @param object $entity The entity to remove
+     * @return void
      */
-    public function remove(Object $entity): void
+    public function remove(object $entity): void
     {
         if (isset($this->entityUpdates[spl_object_id($entity)])) {
             unset($this->entityUpdates[spl_object_id($entity)]);
@@ -796,6 +989,8 @@ class EmEngine
     }
 
     /**
+     * Execute entity deletions
+     *
      * @return void
      * @throws ReflectionException
      */
@@ -831,7 +1026,8 @@ class EmEngine
 
     /**
      * Process many-to-many relationship changes in database
-     * This method should be called during flush
+     *
+     * @return void
      * @throws ReflectionException
      */
     private function executeManyToManyRelations(): void
@@ -869,6 +1065,14 @@ class EmEngine
         $this->flush();
     }
 
+    /**
+     * Get link relation entity for many-to-many relation
+     *
+     * @param MtManyToMany $manyToMany The many-to-many relation configuration
+     * @param object $entity The owner entity
+     * @param object $relatedEntity The related entity
+     * @return object|null The link entity if found
+     */
     private function getLinkRelation(MtManyToMany $manyToMany, object $entity, object $relatedEntity): ?object
     {
         if ($manyToMany->entity === null) {
@@ -890,11 +1094,18 @@ class EmEngine
                 continue;
             }
 
-            $getEntity = 'get' . ucfirst($manyToMany->joinProperty);
-            $getRelatedEntity = 'get' . ucfirst($manyToMany->inverseJoinProperty);
+            $getEntity = 'get' . ucfirst($manyToMany->joinProperty ?? '');
+            $getRelatedEntity = 'get' . ucfirst($manyToMany->inverseJoinProperty ?? '');
 
-            if ($managedEntity->$getEntity() === $entity->id
-                && $managedEntity->$getRelatedEntity() === $relatedEntity->id
+            if (
+                method_exists($managedEntity, $getEntity) &&
+                method_exists($managedEntity, $getRelatedEntity) &&
+                $managedEntity->$getEntity() !== null &&
+                $managedEntity->$getRelatedEntity() !== null &&
+                method_exists($entity, 'getId') &&
+                method_exists($relatedEntity, 'getId') &&
+                $managedEntity->$getEntity()->getId() === $entity->getId() &&
+                $managedEntity->$getRelatedEntity()->getId() === $relatedEntity->getId()
             ) {
                 return $managedEntity;
             }
@@ -904,10 +1115,11 @@ class EmEngine
     }
 
     /**
-     * Count the result of the request with the table $table and the $where conditions
-     * @param class-string $entityName
-     * @param string|null $where
-     * @return int
+     * Count the result of the request
+     *
+     * @param class-string $entityName The entity class name
+     * @param string|null $where WHERE condition
+     * @return int Number of matching rows
      * @throws ReflectionException
      */
     public function rowCount(string $entityName, ?string $where = null): int

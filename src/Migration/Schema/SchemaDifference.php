@@ -21,12 +21,12 @@ class SchemaDifference
     private array $tablesToDrop = [];
 
     /**
-     * @var array<string, array<string, array>> Columns to add [tableName => [columnName => columnDefinition]]
+     * @var array<string, array<string, array<string, mixed>>> Columns to add [tableName => [columnName => columnDefinition]]
      */
     private array $columnsToAdd = [];
 
     /**
-     * @var array<string, array<string, array>> Columns to modify [tableName => [columnName => differences]]
+     * @var array<string, array<string, array<string, mixed>>> Columns to modify [tableName => [columnName => differences]]
      */
     private array $columnsToModify = [];
 
@@ -36,7 +36,7 @@ class SchemaDifference
     private array $columnsToDrop = [];
 
     /**
-     * @var array<string, array<string, array>> Foreign keys to add [tableName => [constraintName => definition]]
+     * @var array<string, array<string, array<string, mixed>>> Foreign keys to add [tableName => [constraintName => definition]]
      */
     private array $foreignKeysToAdd = [];
 
@@ -75,7 +75,7 @@ class SchemaDifference
      *
      * @param string $tableName
      * @param string $columnName
-     * @param array $columnDefinition
+     * @param array<string, mixed> $columnDefinition
      * @return $this
      */
     public function addColumnToAdd(string $tableName, string $columnName, array $columnDefinition): self
@@ -93,7 +93,7 @@ class SchemaDifference
      *
      * @param string $tableName
      * @param string $columnName
-     * @param array $differences
+     * @param array<string, mixed> $differences
      * @return $this
      */
     public function addColumnToModify(string $tableName, string $columnName, array $differences): self
@@ -128,7 +128,7 @@ class SchemaDifference
      *
      * @param string $tableName
      * @param string $constraintName
-     * @param array $foreignKeyDefinition
+     * @param array<string, mixed> $foreignKeyDefinition
      * @return $this
      */
     public function addForeignKeyToAdd(string $tableName, string $constraintName, array $foreignKeyDefinition): self
@@ -181,7 +181,7 @@ class SchemaDifference
     /**
      * Get columns to add
      *
-     * @return array<string, array<string, array>>
+     * @return array<string, array<string, array<string, mixed>>>
      */
     public function getColumnsToAdd(): array
     {
@@ -191,7 +191,7 @@ class SchemaDifference
     /**
      * Get columns to modify
      *
-     * @return array<string, array<string, array>>
+     * @return array<string, array<string, array<string, mixed>>>
      */
     public function getColumnsToModify(): array
     {
@@ -211,7 +211,7 @@ class SchemaDifference
     /**
      * Get foreign keys to add
      *
-     * @return array<string, array<string, array>>
+     * @return array<string, array<string, array<string, mixed>>>
      */
     public function getForeignKeysToAdd(): array
     {

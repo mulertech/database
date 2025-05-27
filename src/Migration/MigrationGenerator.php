@@ -254,6 +254,10 @@ EOT;
 
     /**
      * Generate code to create a table with all its columns
+     *
+     * @param string $tableName
+     * @param array<string, array<string, mixed>> $columnsToAdd
+     * @return string
      */
     private function generateCreateTableStatement(string $tableName, array $columnsToAdd): string
     {
@@ -291,8 +295,15 @@ EOT;
 
     /**
      * Parse column type and generate appropriate column definition code
+     *
+     * @param string|null $columnType
+     * @param string $columnName
+     * @param bool $isNullable
+     * @param mixed $columnDefault
+     * @param string|null $columnExtra
+     * @return string
      */
-    private function parseColumnType(?string $columnType, string $columnName, bool $isNullable, $columnDefault, ?string $columnExtra): string
+    private function parseColumnType(?string $columnType, string $columnName, bool $isNullable, mixed $columnDefault, ?string $columnExtra): string
     {
         $code = '    $tableDefinition->column("' . $columnName . '")';
 
@@ -348,6 +359,11 @@ EOT;
 
     /**
      * Generate code to add a column
+     *
+     * @param string $tableName
+     * @param string $columnName
+     * @param array<string, mixed> $columnDefinition
+     * @return string
      */
     private function generateAddColumnStatement(string $tableName, string $columnName, array $columnDefinition): string
     {
@@ -377,6 +393,11 @@ EOT;
 
     /**
      * Generate code to modify a column
+     *
+     * @param string $tableName
+     * @param string $columnName
+     * @param array<string, array<string, mixed>|mixed> $differences
+     * @return string
      */
     private function generateModifyColumnStatement(string $tableName, string $columnName, array $differences): string
     {
@@ -412,6 +433,11 @@ EOT;
 
     /**
      * Generate code to restore a column to its previous state
+     *
+     * @param string $tableName
+     * @param string $columnName
+     * @param array<string, array<string, mixed>|mixed> $differences
+     * @return string
      */
     private function generateRestoreColumnStatement(string $tableName, string $columnName, array $differences): string
     {
@@ -462,6 +488,11 @@ EOT;
 
     /**
      * Generate code to add a foreign key
+     *
+     * @param string $tableName
+     * @param string $constraintName
+     * @param array<string, mixed> $foreignKeyInfo
+     * @return string
      */
     private function generateAddForeignKeyStatement(string $tableName, string $constraintName, array $foreignKeyInfo): string
     {

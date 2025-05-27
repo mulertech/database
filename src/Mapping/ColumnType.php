@@ -141,7 +141,8 @@ enum ColumnType: string
     public static function fromSqlDefinition(string $sqlType): ?self
     {
         // Extract base type (before parentheses and 'unsigned')
-        $baseType = strtolower(preg_replace('/\s+unsigned|\(.*\)/', '', $sqlType));
+        $baseTypeRaw = preg_replace('/\s+unsigned|\(.*\)/', '', $sqlType);
+        $baseType = $baseTypeRaw !== null ? strtolower($baseTypeRaw) : '';
 
         foreach (self::cases() as $case) {
             if ($case->value === $baseType) {

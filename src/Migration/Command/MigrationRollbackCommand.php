@@ -5,7 +5,7 @@ namespace MulerTech\Database\Migration\Command;
 use Exception;
 use MulerTech\Database\Migration\MigrationManager;
 use MulerTech\MTerm\Command\AbstractCommand;
-use MulerTech\Mterm\Core\Terminal;
+use MulerTech\MTerm\Core\Terminal;
 
 /**
  * Command to rollback the last executed migration
@@ -31,7 +31,7 @@ class MigrationRollbackCommand extends AbstractCommand
     /**
      * Executes the command
      *
-     * @param array $args Command arguments
+     * @param array<int, string> $args Command arguments
      * @return int Return code
      */
     public function execute(array $args = []): int

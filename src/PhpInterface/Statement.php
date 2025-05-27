@@ -155,7 +155,7 @@ class Statement
      *
      * @param int $mode The fetch mode
      * @param mixed ...$args Additional mode-specific arguments
-     * @return array<int|string, mixed> An array containing all of the remaining rows in the result set
+     * @return array<int, array<string, mixed>> An array containing all of the remaining rows in the result set
      * @throws RuntimeException If fetch fails
      */
     public function fetchAll(int $mode = PDO::FETCH_DEFAULT, mixed ...$args): array
