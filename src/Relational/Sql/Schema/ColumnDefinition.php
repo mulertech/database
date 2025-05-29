@@ -2,6 +2,8 @@
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
+use MulerTech\Database\Mapping\ColumnType;
+
 /**
  * Class ColumnDefinition
  * @package MulerTech\Database
@@ -15,9 +17,9 @@ class ColumnDefinition
     private string $name;
 
     /**
-     * @var DataType
+     * @var ColumnType
      */
-    private DataType $type;
+    private ColumnType $type = ColumnType::VARCHAR;
 
     /**
      * @var int|null
@@ -65,6 +67,16 @@ class ColumnDefinition
     private ?string $after = null;
 
     /**
+     * @var bool
+     */
+    private bool $first = false;
+
+    /**
+     * @var array<string>
+     */
+    private array $choiceValues = [];
+
+    /**
      * @param string $name
      */
     public function __construct(string $name)
@@ -81,9 +93,9 @@ class ColumnDefinition
     }
 
     /**
-     * @return DataType
+     * @return ColumnType
      */
-    public function getType(): DataType
+    public function getType(): ColumnType
     {
         return $this->type;
     }
@@ -161,11 +173,27 @@ class ColumnDefinition
     }
 
     /**
+     * @return bool
+     */
+    public function isFirst(): bool
+    {
+        return $this->first;
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getChoiceValues(): array
+    {
+        return $this->choiceValues;
+    }
+
+    /**
      * @return self
      */
     public function integer(): self
     {
-        $this->type = DataType::INT;
+        $this->type = ColumnType::INT;
         return $this;
     }
 
@@ -174,7 +202,7 @@ class ColumnDefinition
      */
     public function bigInteger(): self
     {
-        $this->type = DataType::BIGINT;
+        $this->type = ColumnType::BIGINT;
         return $this;
     }
 
@@ -184,7 +212,7 @@ class ColumnDefinition
      */
     public function string(int $length = 255): self
     {
-        $this->type = DataType::VARCHAR;
+        $this->type = ColumnType::VARCHAR;
         $this->length = $length;
         return $this;
     }
@@ -194,7 +222,7 @@ class ColumnDefinition
      */
     public function text(): self
     {
-        $this->type = DataType::TEXT;
+        $this->type = ColumnType::TEXT;
         return $this;
     }
 
@@ -205,7 +233,7 @@ class ColumnDefinition
      */
     public function decimal(int $precision = 8, int $scale = 2): self
     {
-        $this->type = DataType::DECIMAL;
+        $this->type = ColumnType::DECIMAL;
         $this->precision = $precision;
         $this->scale = $scale;
         return $this;
@@ -216,7 +244,7 @@ class ColumnDefinition
      */
     public function float(int $precision = 8, int $scale = 2): self
     {
-        $this->type = DataType::FLOAT;
+        $this->type = ColumnType::FLOAT;
         $this->precision = $precision;
         $this->scale = $scale;
         return $this;
@@ -227,7 +255,7 @@ class ColumnDefinition
      */
     public function datetime(): self
     {
-        $this->type = DataType::DATETIME;
+        $this->type = ColumnType::DATETIME;
         return $this;
     }
 
@@ -285,6 +313,250 @@ class ColumnDefinition
     public function after(string $columnName): self
     {
         $this->after = $columnName;
+        $this->first = false; // Reset first if after is set
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function first(): self
+    {
+        $this->first = true;
+        $this->after = null; // Reset after if first is set
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function tinyInt(): self
+    {
+        $this->type = ColumnType::TINYINT;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function smallInt(): self
+    {
+        $this->type = ColumnType::SMALLINT;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function mediumInt(): self
+    {
+        $this->type = ColumnType::MEDIUMINT;
+        return $this;
+    }
+
+    /**
+     * @param int $length
+     * @return self
+     */
+    public function char(int $length = 1): self
+    {
+        $this->type = ColumnType::CHAR;
+        $this->length = $length;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function double(): self
+    {
+        $this->type = ColumnType::DOUBLE;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function tinyText(): self
+    {
+        $this->type = ColumnType::TINYTEXT;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function mediumText(): self
+    {
+        $this->type = ColumnType::MEDIUMTEXT;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function longText(): self
+    {
+        $this->type = ColumnType::LONGTEXT;
+        return $this;
+    }
+
+    /**
+     * @param int $length
+     * @return self
+     */
+    public function binary(int $length): self
+    {
+        $this->type = ColumnType::BINARY;
+        $this->length = $length;
+        return $this;
+    }
+
+    /**
+     * @param int $length
+     * @return self
+     */
+    public function varbinary(int $length): self
+    {
+        $this->type = ColumnType::VARBINARY;
+        $this->length = $length;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function blob(): self
+    {
+        $this->type = ColumnType::BLOB;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function tinyBlob(): self
+    {
+        $this->type = ColumnType::TINYBLOB;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function mediumBlob(): self
+    {
+        $this->type = ColumnType::MEDIUMBLOB;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function longBlob(): self
+    {
+        $this->type = ColumnType::LONGBLOB;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function date(): self
+    {
+        $this->type = ColumnType::DATE;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function timestamp(): self
+    {
+        $this->type = ColumnType::TIMESTAMP;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function time(): self
+    {
+        $this->type = ColumnType::TIME;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function year(): self
+    {
+        $this->type = ColumnType::YEAR;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function enum(array $values): self
+    {
+        $this->type = ColumnType::ENUM;
+        $this->choiceValues = $values;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function set(array $values): self
+    {
+        $this->type = ColumnType::SET;
+        $this->choiceValues = $values;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function json(): self
+    {
+        $this->type = ColumnType::JSON;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function geometry(): self
+    {
+        $this->type = ColumnType::GEOMETRY;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function point(): self
+    {
+        $this->type = ColumnType::POINT;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function linestring(): self
+    {
+        $this->type = ColumnType::LINESTRING;
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function polygon(): self
+    {
+        $this->type = ColumnType::POLYGON;
         return $this;
     }
 }

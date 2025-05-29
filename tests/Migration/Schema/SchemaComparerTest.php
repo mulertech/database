@@ -5,6 +5,7 @@ namespace MulerTech\Database\Tests\Migration\Schema;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\MtFk;
+use MulerTech\Database\Migration\MigrationManager;
 use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\PhpInterface\PdoConnector;
@@ -41,6 +42,13 @@ class SchemaComparerTest extends TestCase
 
     private function createSameTables(): void
     {
+        // Replace by a migration script
+        $migrationManager = new MigrationManager($this->entityManager);
+        $migrationManager->registerMigrations(
+            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'OriginalMigration'
+        );
+        $migrationManager->migrate();
+        /**
         $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS units_test (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL
@@ -81,6 +89,7 @@ class SchemaComparerTest extends TestCase
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );
+        */
     }
 
     protected function tearDown(): void
@@ -208,7 +217,7 @@ class SchemaComparerTest extends TestCase
         $this->assertContains('extra_column', $columnsToDrop['users_test']);
 
         $this->assertArrayHasKey('groups_test', $columnsToDrop);
-        $this->assertContains('description', $columnsToDrop['groups_test']);
+        $this->assertContains('descriptions', $columnsToDrop['groups_test']);
     }
 
     public function testCompareFindsNewForeignKeys(): void
@@ -364,7 +373,7 @@ class SchemaComparerTest extends TestCase
     {
         $this->createSameTables();
         $this->entityManager->getPdm()->exec('ALTER TABLE users_test ADD COLUMN extra_column VARCHAR(255)');
-        $this->entityManager->getPdm()->exec('ALTER TABLE groups_test ADD COLUMN description TEXT');
+        $this->entityManager->getPdm()->exec('ALTER TABLE groups_test ADD COLUMN descriptions TEXT');
     }
 
     private function createTablesWithoutForeignKeys(): void

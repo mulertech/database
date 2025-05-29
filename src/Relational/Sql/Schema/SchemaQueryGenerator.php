@@ -3,6 +3,7 @@
 namespace MulerTech\Database\Relational\Sql\Schema;
 
 use MulerTech\Database\Relational\Sql\SqlQuery;
+use MulerTech\Database\Mapping\ColumnType;
 
 /**
  * Class SchemaQueryGenerator
@@ -20,27 +21,14 @@ class SchemaQueryGenerator
         $tableName = $tableDefinition->getTableName();
         $isCreate = $tableDefinition->isCreate();
         $columns = $tableDefinition->getColumns();
-        $indexes = $tableDefinition->getIndexes();
-        $foreignKeys = $tableDefinition->getForeignKeys();
         $options = $tableDefinition->getOptions();
-
-        $escapedTableName = SqlQuery::escape($tableName);
+        $foreignKeys = $tableDefinition->getForeignKeys();
+        $indexes = $tableDefinition->getIndexes();
 
         if ($isCreate) {
-            return $this->generateCreateTable(
-                $escapedTableName,
-                $columns,
-                $indexes,
-                $foreignKeys,
-                $options
-            );
+            return $this->generateCreateTable($tableName, $columns, $indexes, $foreignKeys, $options);
         } else {
-            return $this->generateAlterTable(
-                $escapedTableName,
-                $columns,
-                $indexes,
-                $foreignKeys
-            );
+            return $this->generateAlterTable($tableName, $columns, $options, $foreignKeys);
         }
     }
 
@@ -62,31 +50,39 @@ class SchemaQueryGenerator
         $parts = [];
 
         foreach ($columns as $column) {
-            $parts[] = "  " . $this->generateColumnDefinition($column);
+            if (!is_array($column)) { // Skip dropped columns in CREATE
+                $parts[] = "    " . $this->generateColumnDefinition($column);
+            }
         }
 
         foreach ($indexes as $name => $index) {
             if ($name === 'PRIMARY') {
-                $columns = array_map([SqlQuery::class, 'escape'], $index['columns']);
-                $parts[] = "  PRIMARY KEY (" . implode(', ', $columns) . ")";
+                $columnsList = array_map([SqlQuery::class, 'escape'], $index['columns']);
+                $parts[] = "    PRIMARY KEY (" . implode(', ', $columnsList) . ")";
             } else {
                 $type = $index['type'] ?? 'INDEX';
-                $name = SqlQuery::escape($name);
-                $columns = array_map([SqlQuery::class, 'escape'], $index['columns']);
-                $parts[] = "  $type $name (" . implode(', ', $columns) . ")";
+                $escapedName = SqlQuery::escape($name);
+                $columnsList = array_map([SqlQuery::class, 'escape'], $index['columns']);
+                $parts[] = "    $type $escapedName (" . implode(', ', $columnsList) . ")";
             }
         }
 
         foreach ($foreignKeys as $foreignKey) {
-            $parts[] = "  " . $this->generateForeignKey($foreignKey);
+            if (!$foreignKey->isDrop()) { // Only add non-dropped foreign keys
+                $parts[] = "    " . $this->generateForeignKey($foreignKey);
+            }
         }
 
-        $sql = "CREATE TABLE $tableName (" . PHP_EOL . implode("," . PHP_EOL, $parts) . PHP_EOL . ")";
+        $sql = "CREATE TABLE `$tableName` (" . PHP_EOL . implode("," . PHP_EOL, $parts) . PHP_EOL . ")";
 
         if (!empty($options)) {
             $optionParts = [];
             foreach ($options as $key => $value) {
-                $optionParts[] = "$key=$value";
+                if ($key === 'CHARSET') {
+                    $optionParts[] = "DEFAULT CHARSET=$value";
+                } else {
+                    $optionParts[] = "$key=$value";
+                }
             }
             $sql .= " " . implode(" ", $optionParts);
         }
@@ -95,157 +91,135 @@ class SchemaQueryGenerator
     }
 
     /**
-     * @param string $tableName The escaped table name
-     * @param array<string, object|array{drop: bool}> $columns Column definitions or drop specifications
-     * @param array<string, array{type?: string, columns: array<int, string>, drop?: bool}> $indexes Index definitions
-     * @param array<string, ForeignKeyDefinition> $foreignKeys Foreign key definitions
-     * @return string The generated ALTER TABLE SQL statement, empty string if no alterations
+     * @param string $tableName
+     * @param array<string, ColumnDefinition|array{drop: bool}> $columns
+     * @param array<string, mixed> $options
+     * @param array<string, ForeignKeyDefinition> $foreignKeys
+     * @return string
      */
-    private function generateAlterTable(
-        string $tableName,
-        array $columns,
-        array $indexes,
-        array $foreignKeys
-    ): string {
-        $alterParts = [];
+    private function generateAlterTable(string $tableName, array $columns, array $options, array $foreignKeys): string
+    {
+        $alterations = [];
 
-        // Columns - add modify or drop
+        // Add or modify columns
         foreach ($columns as $name => $column) {
             if (is_array($column)) {
-                $alterParts[] = "DROP COLUMN " . SqlQuery::escape($name);
+                // Handle drop column
+                if (isset($column['drop']) && $column['drop']) {
+                    $alterations[] = "DROP COLUMN `$name`";
+                }
             } else {
-                // Utiliser une méthode isModify si disponible
-                $isModify = method_exists($column, 'isModify') && $column->isModify();
-
-                $action = $isModify ? "MODIFY COLUMN" : "ADD COLUMN";
-                $alterParts[] = "$action " . $this->generateColumnDefinition($column);
+                // Handle add/modify column
+                $alterations[] = "ADD COLUMN " . $this->generateColumnDefinition($column);
             }
         }
 
-        // Index - add or drop
-        foreach ($indexes as $name => $index) {
-            if (isset($index['drop']) && $index['drop']) {
-                if ($name === 'PRIMARY') {
-                    $alterParts[] = "DROP PRIMARY KEY";
-                } else {
-                    $alterParts[] = "DROP INDEX " . SqlQuery::escape($name);
-                }
-            } else {
-                $name = SqlQuery::escape($name);
-                $type = $index['type'] ?? 'INDEX';
-                $columns = array_map([SqlQuery::class, 'escape'], $index['columns']);
-
-                if ($name === 'PRIMARY') {
-                    $alterParts[] = "ADD PRIMARY KEY (" . implode(', ', $columns) . ")";
-                } else {
-                    $alterParts[] = "ADD $type $name (" . implode(', ', $columns) . ")";
-                }
-            }
-        }
-
-        // Foreign keys - add or drop
-        foreach ($foreignKeys as $name => $foreignKey) {
+        // Add foreign keys
+        foreach ($foreignKeys as $foreignKey) {
             if ($foreignKey->isDrop()) {
-                $alterParts[] = "DROP FOREIGN KEY " . SqlQuery::escape($name);
+                $alterations[] = "DROP FOREIGN KEY `" . $foreignKey->getName() . "`";
             } else {
-                $alterParts[] = "ADD " . $this->generateForeignKey($foreignKey);
+                $alterations[] = "ADD " . $this->generateForeignKey($foreignKey);
             }
         }
 
-        if (empty($alterParts)) {
+        if (empty($alterations)) {
             return "";
         }
 
-        return "ALTER TABLE $tableName " . PHP_EOL . "  " . implode("," . PHP_EOL . "  ", $alterParts) . ";";
+        return "ALTER TABLE `$tableName`" . PHP_EOL . "    " . implode("," . PHP_EOL . "    ", $alterations) . ";";
     }
 
     /**
-     * @param mixed $column
+     * @param ColumnDefinition $column
      * @return string
      */
-    private function generateColumnDefinition(mixed $column): string
+    private function generateColumnDefinition(ColumnDefinition $column): string
     {
-        if (is_array($column)) {
-            return ""; // If it's an array, we assume it's a drop column
-        }
-
-        $name = $column->getName();
+        $sql = '`' . $column->getName() . '` ';
+        
+        // Add type
         $type = $column->getType();
-        $length = $column->getLength();
-        $precision = $column->getPrecision();
-        $scale = $column->getScale();
-        $nullable = $column->isNullable();
-        $default = $column->getDefault();
-        $autoIncrement = $column->isAutoIncrement();
-        $unsigned = $column->isUnsigned();
-        $comment = $column->getComment();
-        $after = $column->getAfter();
-
-        $parts = [SqlQuery::escape($name)];
-
-        // Type and length/precision
-        $typeDef = $type->value;
-        if ($length !== null) {
-            $typeDef .= "($length)";
-        } elseif ($precision !== null && $scale !== null) {
-            $typeDef .= "($precision,$scale)";
-        }
-        $parts[] = $typeDef;
-
-        // Unsigned
-        if ($unsigned) {
-            $parts[] = "UNSIGNED";
+        $sql .= strtoupper($type->value);
+        
+        // Add length/precision/set values
+        if ($column->getPrecision() !== null && $column->getScale() !== null) {
+            // For DECIMAL, NUMERIC, FLOAT types that use precision and scale
+            $sql .= '(' . $column->getPrecision() . ',' . $column->getScale() . ')';
+        } elseif ($column->getType()->isTypeWithLength() && $column->getLength() !== null) {
+            // For VARCHAR, CHAR and other types that use length
+            $sql .= '(' . $column->getLength() . ')';
+        } elseif ($type === ColumnType::SET || $type === ColumnType::ENUM) {
+            // For SET and ENUM type, we need to handle the set values
+            $choiceValues = array_map([SqlQuery::class, 'escape'], $column->getChoiceValues());
+            $sql .= "('" . implode("', '", $choiceValues) . "')";
         }
 
-        // Nullable
-        $parts[] = $nullable ? "NULL" : "NOT NULL";
+        // Add unsigned
+        if ($column->isUnsigned()) {
+            $sql .= ' UNSIGNED';
+        }
 
-        // Default
-        if ($default !== null) {
-            if ($default === 'CURRENT_TIMESTAMP') {
-                $parts[] = "DEFAULT CURRENT_TIMESTAMP";
+        // Add nullable
+        if (!$column->isNullable()) {
+            $sql .= ' NOT NULL';
+        }
+
+        // Add default
+        if ($column->getDefault() !== null) {
+            if ($column->getDefault() === 'CURRENT_TIMESTAMP') {
+                $sql .= ' DEFAULT CURRENT_TIMESTAMP';
             } else {
-                $parts[] = "DEFAULT " . $this->quoteValue($default);
+                $sql .= ' DEFAULT ' . $this->quoteValue($column->getDefault());
             }
         }
 
-        // Auto increment
-        if ($autoIncrement) {
-            $parts[] = "AUTO_INCREMENT";
+        // Add auto increment
+        if ($column->isAutoIncrement()) {
+            $sql .= ' AUTO_INCREMENT';
         }
 
-        // Comment
-        if ($comment !== null) {
-            $parts[] = "COMMENT " . $this->quoteValue($comment);
+        // Add comment
+        if ($column->getComment() !== null) {
+            $sql .= ' COMMENT ' . $this->quoteValue($column->getComment());
         }
 
-        // After
-        if ($after !== null) {
-            $parts[] = "AFTER " . SqlQuery::escape($after);
+        // Add position (AFTER clause)
+        if ($column->getAfter() !== null) {
+            $sql .= ' AFTER `' . $column->getAfter() . '`';
+        } elseif ($column->isFirst()) {
+            $sql .= ' FIRST';
         }
 
-        return implode(" ", $parts);
+        return $sql;
     }
 
     /**
-     * @param ForeignKeyDefinition $foreignKey The foreign key definition object
-     * @return string The SQL fragment for the foreign key constraint
+     * @param ForeignKeyDefinition $foreignKey
+     * @return string
      */
     private function generateForeignKey(ForeignKeyDefinition $foreignKey): string
     {
         $name = $foreignKey->getName();
         $columns = $foreignKey->getColumns();
-        $referencedTable = SqlQuery::escape($foreignKey->getReferencedTable());
+        $referencedTable = $foreignKey->getReferencedTable();
         $referencedColumns = $foreignKey->getReferencedColumns();
-        $onUpdate = $foreignKey->getOnUpdate()->value;
-        $onDelete = $foreignKey->getOnDelete()->value;
+        $onUpdate = $foreignKey->getOnUpdate();
+        $onDelete = $foreignKey->getOnDelete();
 
         $columnsList = implode(', ', array_map([SqlQuery::class, 'escape'], $columns));
         $refColumnsList = implode(', ', array_map([SqlQuery::class, 'escape'], $referencedColumns));
 
-        $constraint = "CONSTRAINT " . SqlQuery::escape($name) . " ";
-        $fkDef = "FOREIGN KEY ($columnsList) REFERENCES $referencedTable ($refColumnsList)";
-        $actions = " ON DELETE $onDelete ON UPDATE $onUpdate";
+        $constraint = "CONSTRAINT `$name` ";
+        $fkDef = "FOREIGN KEY ($columnsList) REFERENCES `$referencedTable` ($refColumnsList)";
+        
+        $actions = "";
+        if ($onDelete !== null) {
+            $actions .= " ON DELETE " . $onDelete->value;
+        }
+        if ($onUpdate !== null) {
+            $actions .= " ON UPDATE " . $onUpdate->value;
+        }
 
         return $constraint . $fkDef . $actions;
     }

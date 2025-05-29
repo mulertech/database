@@ -74,8 +74,8 @@ class ForeignKeyDefinitionTest extends TestCase
     {
         $foreignKey = new ForeignKeyDefinition('test_fk');
         
-        $this->assertEquals(ReferentialAction::RESTRICT, $foreignKey->getOnUpdate());
-        $this->assertEquals(ReferentialAction::RESTRICT, $foreignKey->getOnDelete());
+        $this->assertNull($foreignKey->getOnUpdate());
+        $this->assertNull($foreignKey->getOnDelete());
     }
 
     public function testForeignKeyChaining(): void

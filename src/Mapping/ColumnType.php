@@ -15,11 +15,9 @@ enum ColumnType: string
     case BIGINT = 'bigint';
 
     // Decimal numeric types
-    case DECIMAL = 'decimal';
-    case NUMERIC = 'numeric';
+    case DECIMAL = 'decimal'; // or NUMERIC
     case FLOAT = 'float';
-    case DOUBLE = 'double';
-    case REAL = 'real';
+    case DOUBLE = 'double'; // (synonym for REAL in MySQL)
 
     // Fixed-length character types
     case CHAR = 'char';
@@ -46,9 +44,7 @@ enum ColumnType: string
     case TIME = 'time';
     case YEAR = 'year';
 
-    // Boolean types
-    case BOOLEAN = 'boolean';
-    case BOOL = 'bool';
+    // Boolean types are often represented as TINYINT(1) in MySQL
 
     // Enumeration and set types
     case ENUM = 'enum';
@@ -72,7 +68,7 @@ enum ColumnType: string
     {
         return match($this) {
             self::INT, self::TINYINT, self::SMALLINT, self::MEDIUMINT, self::BIGINT,
-            self::DECIMAL, self::NUMERIC, self::FLOAT, self::DOUBLE, self::REAL => true,
+            self::DECIMAL, self::FLOAT, self::DOUBLE => true,
             default => false
         };
     }
@@ -82,13 +78,11 @@ enum ColumnType: string
      *
      * @return bool
      */
-    public function requiresLength(): bool
+    public function isTypeWithLength(): bool
     {
         return match($this) {
-            self::CHAR, self::VARCHAR, self::BINARY, self::VARBINARY => true,
-            self::INT, self::TINYINT, self::SMALLINT, self::MEDIUMINT, self::BIGINT => true,
-            self::DECIMAL, self::NUMERIC, self::FLOAT, self::DOUBLE, self::REAL => true,
-            self::ENUM, self::SET => true,
+            self::CHAR, self::VARCHAR => true,
+            self::BINARY, self::VARBINARY => true,
             default => false
         };
     }
@@ -101,10 +95,24 @@ enum ColumnType: string
     public function requiresPrecision(): bool
     {
         return match($this) {
-            self::DECIMAL, self::NUMERIC, self::FLOAT, self::DOUBLE, self::REAL => true,
+            self::DECIMAL, self::FLOAT, self::DOUBLE => true,
             default => false
         };
     }
+
+    /**
+     * Determines if the column type requires choices (for ENUM and SET types)
+     *
+     * @return bool
+     */
+    public function requiresChoices(): bool
+    {
+        return match($this) {
+            self::ENUM, self::SET => true,
+            default => false
+        };
+    }
+
 
     /**
      * Generates SQL representation of the column type with its length if necessary
@@ -114,15 +122,17 @@ enum ColumnType: string
      * @param bool $unsigned Whether the type is unsigned
      * @return string
      */
-    public function toSqlDefinition(?int $length = null, ?int $scale = null, bool $unsigned = false): string
+    public function toSqlDefinition(?int $length = null, ?int $scale = null, bool $unsigned = false, array $choices = []): string
     {
         $sql = $this->value;
 
         if ($this->requiresPrecision() && $length !== null) {
             $scale = $scale ?? 0;
             $sql .= "($length,$scale)";
-        } elseif ($this->requiresLength() && $length !== null) {
+        } elseif ($this->isTypeWithLength() && $length !== null) {
             $sql .= "($length)";
+        } elseif ($this->requiresChoices() && !empty($choices)) {
+            $sql .= "('`" . implode("`','`", $choices) . "`')";
         }
 
         if ($unsigned && $this->canBeUnsigned()) {

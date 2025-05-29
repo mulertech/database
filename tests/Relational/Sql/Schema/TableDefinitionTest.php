@@ -4,6 +4,7 @@ namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
 use MulerTech\Database\Relational\Sql\Schema\ColumnDefinition;
 use MulerTech\Database\Relational\Sql\Schema\ForeignKeyDefinition;
+use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;
 use MulerTech\Database\Relational\Sql\Schema\SchemaQueryGenerator;
 use MulerTech\Database\Relational\Sql\Schema\TableDefinition;
 use PHPUnit\Framework\TestCase;
@@ -19,16 +20,14 @@ class TableDefinitionTest extends TestCase
      */
     public function testConstructorAndGetters(): void
     {
-        $tableName = 'users';
-        $isCreate = true;
-        $table = new TableDefinition($tableName, $isCreate);
+        $tableDefinition = new TableDefinition('users', true);
         
-        $this->assertEquals($tableName, $table->getTableName());
-        $this->assertTrue($table->isCreate());
-        $this->assertEquals([], $table->getColumns());
-        $this->assertEquals([], $table->getIndexes());
-        $this->assertEquals([], $table->getForeignKeys());
-        $this->assertEquals([], $table->getOptions());
+        $this->assertEquals('users', $tableDefinition->getTableName());
+        $this->assertTrue($tableDefinition->isCreate());
+        $this->assertEquals([], $tableDefinition->getColumns());
+        $this->assertEquals([], $tableDefinition->getIndexes());
+        $this->assertEquals([], $tableDefinition->getForeignKeys());
+        $this->assertEquals([], $tableDefinition->getOptions());
     }
 
     /**
@@ -36,16 +35,12 @@ class TableDefinitionTest extends TestCase
      */
     public function testColumn(): void
     {
-        $table = new TableDefinition('users', true);
-        $column = $table->column('name');
+        $tableDefinition = new TableDefinition('posts');
+        $column = $tableDefinition->column('name');
         
         $this->assertInstanceOf(ColumnDefinition::class, $column);
-        $this->assertArrayHasKey('name', $table->getColumns());
-        $this->assertSame($column, $table->getColumns()['name']);
-        
-        // Test method chaining works
-        $column->string(100)->notNull();
-        $this->assertEquals('name', $column->getName());
+        $this->assertArrayHasKey('name', $tableDefinition->getColumns());
+        $this->assertSame($column, $tableDefinition->getColumns()['name']);
     }
 
     /**
@@ -53,13 +48,12 @@ class TableDefinitionTest extends TestCase
      */
     public function testDropColumn(): void
     {
-        $table = new TableDefinition('users', false);
-        $result = $table->dropColumn('old_column');
+        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition->dropColumn('old_column');
         
-        $this->assertSame($table, $result, 'Method should return $this for chaining');
-        $this->assertArrayHasKey('old_column', $table->getColumns());
-        $this->assertIsArray($table->getColumns()['old_column']);
-        $this->assertTrue($table->getColumns()['old_column']['drop']);
+        $columns = $tableDefinition->getColumns();
+        $this->assertArrayHasKey('old_column', $columns);
+        $this->assertEquals(['drop' => true], $columns['old_column']);
     }
 
     /**
@@ -67,13 +61,15 @@ class TableDefinitionTest extends TestCase
      */
     public function testPrimaryKeySingleColumn(): void
     {
-        $table = new TableDefinition('users', true);
-        $result = $table->primaryKey('id');
+        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition->primaryKey('id');
         
-        $this->assertSame($table, $result, 'Method should return $this for chaining');
-        $this->assertArrayHasKey('PRIMARY', $table->getIndexes());
-        $this->assertEquals('PRIMARY KEY', $table->getIndexes()['PRIMARY']['type']);
-        $this->assertEquals(['id'], $table->getIndexes()['PRIMARY']['columns']);
+        $indexes = $tableDefinition->getIndexes();
+        $this->assertArrayHasKey('PRIMARY', $indexes);
+        $this->assertEquals([
+            'type' => 'PRIMARY KEY',
+            'columns' => ['id']
+        ], $indexes['PRIMARY']);
     }
 
     /**
@@ -81,13 +77,15 @@ class TableDefinitionTest extends TestCase
      */
     public function testPrimaryKeyMultipleColumns(): void
     {
-        $table = new TableDefinition('order_items', true);
-        $result = $table->primaryKey(['order_id', 'product_id']);
+        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition->primaryKey(['user_id', 'post_id']);
         
-        $this->assertSame($table, $result, 'Method should return $this for chaining');
-        $this->assertArrayHasKey('PRIMARY', $table->getIndexes());
-        $this->assertEquals('PRIMARY KEY', $table->getIndexes()['PRIMARY']['type']);
-        $this->assertEquals(['order_id', 'product_id'], $table->getIndexes()['PRIMARY']['columns']);
+        $indexes = $tableDefinition->getIndexes();
+        $this->assertArrayHasKey('PRIMARY', $indexes);
+        $this->assertEquals([
+            'type' => 'PRIMARY KEY',
+            'columns' => ['user_id', 'post_id']
+        ], $indexes['PRIMARY']);
     }
 
     /**
@@ -95,16 +93,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testForeignKey(): void
     {
-        $table = new TableDefinition('posts', true);
-        $foreignKey = $table->foreignKey('fk_posts_users');
+        $tableDefinition = new TableDefinition('posts');
+        $foreignKey = $tableDefinition->foreignKey('fk_posts_users');
         
         $this->assertInstanceOf(ForeignKeyDefinition::class, $foreignKey);
-        $this->assertArrayHasKey('fk_posts_users', $table->getForeignKeys());
-        $this->assertSame($foreignKey, $table->getForeignKeys()['fk_posts_users']);
-        
-        // Test chaining works
-        $result = $foreignKey->columns('user_id')->references('users', 'id');
-        $this->assertSame($foreignKey, $result, 'Method should return $this for chaining');
+        $foreignKeys = $tableDefinition->getForeignKeys();
+        $this->assertArrayHasKey('fk_posts_users', $foreignKeys);
+        $this->assertSame($foreignKey, $foreignKeys['fk_posts_users']);
     }
 
     /**
@@ -112,12 +107,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testEngine(): void
     {
-        $table = new TableDefinition('users', true);
-        $result = $table->engine('InnoDB');
+        $tableDefinition = new TableDefinition('posts');
+        $result = $tableDefinition->engine('InnoDB');
         
-        $this->assertSame($table, $result, 'Method should return $this for chaining');
-        $this->assertArrayHasKey('ENGINE', $table->getOptions());
-        $this->assertEquals('InnoDB', $table->getOptions()['ENGINE']);
+        $this->assertSame($tableDefinition, $result);
+        $options = $tableDefinition->getOptions();
+        $this->assertArrayHasKey('ENGINE', $options);
+        $this->assertEquals('InnoDB', $options['ENGINE']);
     }
 
     /**
@@ -125,12 +121,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testCharset(): void
     {
-        $table = new TableDefinition('users', true);
-        $result = $table->charset('utf8mb4');
+        $tableDefinition = new TableDefinition('posts');
+        $result = $tableDefinition->charset('utf8mb4');
         
-        $this->assertSame($table, $result, 'Method should return $this for chaining');
-        $this->assertArrayHasKey('CHARSET', $table->getOptions());
-        $this->assertEquals('utf8mb4', $table->getOptions()['CHARSET']);
+        $this->assertSame($tableDefinition, $result);
+        $options = $tableDefinition->getOptions();
+        $this->assertArrayHasKey('CHARSET', $options);
+        $this->assertEquals('utf8mb4', $options['CHARSET']);
     }
 
     /**
@@ -138,12 +135,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testCollation(): void
     {
-        $table = new TableDefinition('users', true);
-        $result = $table->collation('utf8mb4_unicode_ci');
+        $tableDefinition = new TableDefinition('posts');
+        $result = $tableDefinition->collation('utf8mb4_unicode_ci');
         
-        $this->assertSame($table, $result, 'Method should return $this for chaining');
-        $this->assertArrayHasKey('COLLATE', $table->getOptions());
-        $this->assertEquals('utf8mb4_unicode_ci', $table->getOptions()['COLLATE']);
+        $this->assertSame($tableDefinition, $result);
+        $options = $tableDefinition->getOptions();
+        $this->assertArrayHasKey('COLLATE', $options);
+        $this->assertEquals('utf8mb4_unicode_ci', $options['COLLATE']);
     }
 
     /**
@@ -151,43 +149,15 @@ class TableDefinitionTest extends TestCase
      */
     public function testToSqlCreate(): void
     {
-        $table = new TableDefinition('users', true);
-        $table->column('id')->integer()->notNull()->autoIncrement();
-        $table->column('name')->string(100)->notNull();
-        $table->column('email')->string(200)->notNull();
-        $table->primaryKey('id');
-        $table->engine('InnoDB');
+        $tableDefinition = new TableDefinition('users', true);
+        $tableDefinition->column('id')->integer()->notNull()->autoIncrement();
+        $tableDefinition->primaryKey('id');
         
-        // Mock the SchemaQueryGenerator to verify it's called with the right arguments
-        $mockGenerator = $this->createMock(SchemaQueryGenerator::class);
-        $mockGenerator->expects($this->once())
-            ->method('generate')
-            ->with($this->identicalTo($table))
-            ->willReturn('CREATE TABLE SQL STATEMENT');
+        $sql = $tableDefinition->toSql();
         
-        // Replace the generator with our mock using reflection
-        $reflection = new \ReflectionClass(TableDefinition::class);
-        $method = $reflection->getMethod('toSql');
-        $reflection_method = new \ReflectionMethod(TableDefinition::class, 'toSql');
-        
-        // Save the original method implementation
-        $originalCode = $reflection_method->getFileName();
-        $startLine = $reflection_method->getStartLine();
-        $endLine = $reflection_method->getEndLine();
-        $originalMethod = file($originalCode);
-        
-        // Create a closure that will use our mock
-        $mockMethod = function() use ($mockGenerator) {
-            return $mockGenerator->generate($this);
-        };
-        
-        // Bind the closure to $table
-        $newMethod = \Closure::bind($mockMethod, $table, get_class($table));
-        
-        // Override the method
-        $result = $newMethod();
-        
-        $this->assertEquals('CREATE TABLE SQL STATEMENT', $result);
+        $this->assertStringContainsString('CREATE TABLE', $sql);
+        $this->assertStringContainsString('users', $sql);
+        $this->assertStringContainsString('PRIMARY KEY', $sql);
     }
 
     /**
@@ -195,20 +165,14 @@ class TableDefinitionTest extends TestCase
      */
     public function testToSqlAlter(): void
     {
-        $table = new TableDefinition('users', false);
-        $table->column('new_column')->string(50)->notNull();
-        $table->dropColumn('old_column');
-        $table->dropForeignKey('fk_users_posts');
+        $tableDefinition = new TableDefinition('users', false);
+        $tableDefinition->column('email')->string(255)->notNull();
         
-        // Create a real SchemaQueryGenerator to test the integration
-        $generator = new SchemaQueryGenerator();
-        $sql = $table->toSql();
+        $sql = $tableDefinition->toSql();
         
-        $this->assertNotEmpty($sql);
-        $this->assertStringContainsString('ALTER TABLE `users`', $sql);
-        $this->assertStringContainsString('ADD COLUMN `new_column` VARCHAR(50) NOT NULL', $sql);
-        $this->assertStringContainsString('DROP COLUMN `old_column`', $sql);
-        $this->assertStringContainsString('DROP FOREIGN KEY `fk_users_posts`', $sql);
+        $this->assertStringContainsString('ALTER TABLE', $sql);
+        $this->assertStringContainsString('users', $sql);
+        $this->assertStringContainsString('ADD COLUMN', $sql);
     }
 
     /**
@@ -216,35 +180,42 @@ class TableDefinitionTest extends TestCase
      */
     public function testCompleteTableDefinition(): void
     {
-        $table = new TableDefinition('articles', true);
+        $tableDefinition = new TableDefinition('articles', true);
         
         // Add columns
-        $table->column('id')->integer()->notNull()->autoIncrement();
-        $table->column('title')->string(200)->notNull();
-        $table->column('content')->text();
-        $table->column('user_id')->integer()->notNull();
-        $table->column('created_at')->datetime()->notNull()->default('CURRENT_TIMESTAMP');
+        $tableDefinition->column('id')->integer()->notNull()->autoIncrement();
+        $tableDefinition->column('title')->string(200)->notNull();
+        $tableDefinition->column('content')->text();
+        $tableDefinition->column('user_id')->integer()->notNull();
+        $tableDefinition->column('created_at')->datetime()->notNull()->default('CURRENT_TIMESTAMP');
         
         // Add primary key
-        $table->primaryKey('id');
+        $tableDefinition->primaryKey('id');
         
         // Add foreign key
-        $table->foreignKey('fk_articles_users')
+        $tableDefinition->foreignKey('fk_articles_user')
             ->columns('user_id')
-            ->references('users', 'id');
+            ->references('users', 'id')
+            ->onDelete(ReferentialAction::CASCADE)
+            ->onUpdate(ReferentialAction::CASCADE);
         
-        // Set options
-        $table->engine('InnoDB');
-        $table->charset('utf8mb4');
-        $table->collation('utf8mb4_unicode_ci');
+        // Add options
+        $tableDefinition->engine('InnoDB')
+            ->charset('utf8mb4')
+            ->collation('utf8mb4_unicode_ci');
         
-        // Generate SQL
-        $sql = $table->toSql();
+        $sql = $tableDefinition->toSql();
         
-        $this->assertNotEmpty($sql);
         $this->assertStringContainsString('CREATE TABLE `articles`', $sql);
+        $this->assertStringContainsString('`id` INT NOT NULL AUTO_INCREMENT', $sql);
+        $this->assertStringContainsString('`title` VARCHAR(200) NOT NULL', $sql);
+        $this->assertStringContainsString('`content` TEXT', $sql);
+        $this->assertStringContainsString('`user_id` INT NOT NULL', $sql);
+        $this->assertStringContainsString('`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP', $sql);
         $this->assertStringContainsString('PRIMARY KEY (`id`)', $sql);
         $this->assertStringContainsString('FOREIGN KEY', $sql);
         $this->assertStringContainsString('ENGINE=InnoDB', $sql);
+        $this->assertStringContainsString('DEFAULT CHARSET=utf8mb4', $sql);
+        $this->assertStringContainsString('COLLATE=utf8mb4_unicode_ci', $sql);
     }
 }

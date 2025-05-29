@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
 use MulerTech\Database\Relational\Sql\Schema\ColumnDefinition;
-use MulerTech\Database\Relational\Sql\Schema\DataType;
+use MulerTech\Database\Mapping\ColumnType;
 use PHPUnit\Framework\TestCase;
 
 class ColumnDefinitionTest extends TestCase
@@ -25,7 +25,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->integer();
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::INT, $column->getType());
+        $this->assertEquals(ColumnType::INT, $column->getType());
     }
     
     /**
@@ -36,7 +36,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->bigInteger();
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::BIGINT, $column->getType());
+        $this->assertEquals(ColumnType::BIGINT, $column->getType());
     }
     
     /**
@@ -47,7 +47,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->string();
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::VARCHAR, $column->getType());
+        $this->assertEquals(ColumnType::VARCHAR, $column->getType());
         $this->assertEquals(255, $column->getLength());
     }
     
@@ -59,7 +59,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->string(100);
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::VARCHAR, $column->getType());
+        $this->assertEquals(ColumnType::VARCHAR, $column->getType());
         $this->assertEquals(100, $column->getLength());
     }
     
@@ -71,7 +71,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->text();
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::TEXT, $column->getType());
+        $this->assertEquals(ColumnType::TEXT, $column->getType());
     }
     
     /**
@@ -82,7 +82,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->decimal();
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::DECIMAL, $column->getType());
+        $this->assertEquals(ColumnType::DECIMAL, $column->getType());
         $this->assertEquals(8, $column->getPrecision());
         $this->assertEquals(2, $column->getScale());
     }
@@ -95,7 +95,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->decimal(10, 4);
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::DECIMAL, $column->getType());
+        $this->assertEquals(ColumnType::DECIMAL, $column->getType());
         $this->assertEquals(10, $column->getPrecision());
         $this->assertEquals(4, $column->getScale());
     }
@@ -108,7 +108,7 @@ class ColumnDefinitionTest extends TestCase
         $column = new ColumnDefinition('test_column');
         $result = $column->datetime();
         $this->assertSame($column, $result, 'Method should return $this for chaining');
-        $this->assertEquals(DataType::DATETIME, $column->getType());
+        $this->assertEquals(ColumnType::DATETIME, $column->getType());
     }
     
     /**

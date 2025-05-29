@@ -50,7 +50,7 @@ class EntityHydratorTest extends TestCase
             ->willReturnMap([
                 ['TestEntity', 'id', ColumnType::INT],
                 ['TestEntity', 'userName', ColumnType::VARCHAR],
-                ['TestEntity', 'isActive', ColumnType::BOOLEAN],
+                ['TestEntity', 'isActive', ColumnType::TINYINT],
                 ['TestEntity', 'accountBalance', ColumnType::DECIMAL],
             ]);
 

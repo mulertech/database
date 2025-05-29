@@ -309,8 +309,18 @@ EOT;
 
         if ($columnType === null || $columnType === '') {
             $code .= '->string()';
-        } elseif (preg_match('/^int/i', $columnType)) {
-            $code .= '->integer()';
+        } elseif (preg_match('/^tinyint/i', $columnType)) {
+            $code .= '->tinyInt()';
+            if (str_contains($columnType, 'unsigned')) {
+                $code .= '->unsigned()';
+            }
+        } elseif (preg_match('/^smallint/i', $columnType)) {
+            $code .= '->smallInt()';
+            if (str_contains($columnType, 'unsigned')) {
+                $code .= '->unsigned()';
+            }
+        } elseif (preg_match('/^mediumint/i', $columnType)) {
+            $code .= '->mediumInt()';
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
@@ -319,23 +329,85 @@ EOT;
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
+        } elseif (preg_match('/^int/i', $columnType)) {
+            $code .= '->integer()';
+            if (str_contains($columnType, 'unsigned')) {
+                $code .= '->unsigned()';
+            }
         } elseif (preg_match('/^varchar\((\d+)\)/i', $columnType, $matches)) {
             $code .= '->string(' . $matches[1] . ')';
+        } elseif (preg_match('/^char\((\d+)\)/i', $columnType, $matches)) {
+            $code .= '->char(' . $matches[1] . ')';
         } elseif (preg_match('/^decimal\((\d+),(\d+)\)/i', $columnType, $matches)) {
             $code .= '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
+        } elseif (preg_match('/^numeric\((\d+),(\d+)\)/i', $columnType, $matches)) {
+            $code .= '->numeric(' . $matches[1] . ', ' . $matches[2] . ')';
         } elseif (preg_match('/^float\((\d+),(\d+)\)/i', $columnType, $matches)) {
             $code .= '->float(' . $matches[1] . ', ' . $matches[2] . ')';
+        } elseif (preg_match('/^double/i', $columnType)) {
+            $code .= '->double()';
+        } elseif (preg_match('/^real/i', $columnType)) {
+            $code .= '->real()';
         } elseif (preg_match('/^text/i', $columnType)) {
             $code .= '->text()';
+        } elseif (preg_match('/^tinytext/i', $columnType)) {
+            $code .= '->tinyText()';
+        } elseif (preg_match('/^mediumtext/i', $columnType)) {
+            $code .= '->mediumText()';
+        } elseif (preg_match('/^longtext/i', $columnType)) {
+            $code .= '->longText()';
+        } elseif (preg_match('/^binary\((\d+)\)/i', $columnType, $matches)) {
+            $code .= '->binary(' . $matches[1] . ')';
+        } elseif (preg_match('/^varbinary\((\d+)\)/i', $columnType, $matches)) {
+            $code .= '->varbinary(' . $matches[1] . ')';
+        } elseif (preg_match('/^blob/i', $columnType)) {
+            $code .= '->blob()';
+        } elseif (preg_match('/^tinyblob/i', $columnType)) {
+            $code .= '->tinyBlob()';
+        } elseif (preg_match('/^mediumblob/i', $columnType)) {
+            $code .= '->mediumBlob()';
+        } elseif (preg_match('/^longblob/i', $columnType)) {
+            $code .= '->longBlob()';
         } elseif (preg_match('/^datetime/i', $columnType)) {
             $code .= '->datetime()';
+        } elseif (preg_match('/^date/i', $columnType)) {
+            $code .= '->date()';
+        } elseif (preg_match('/^timestamp/i', $columnType)) {
+            $code .= '->timestamp()';
+        } elseif (preg_match('/^time/i', $columnType)) {
+            $code .= '->time()';
+        } elseif (preg_match('/^year/i', $columnType)) {
+            $code .= '->year()';
+        } elseif (preg_match('/^(boolean|bool)/i', $columnType)) {
+            $code .= '->boolean()';
+        } elseif (preg_match('/^enum\((.*)\)/i', $columnType, $matches)) {
+            // Parse ENUM values from the string
+            $enumValues = $this->parseEnumSetValues($matches[1]);
+            $code .= '->enum([' . implode(', ', array_map(fn($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
+        } elseif (preg_match('/^set\((.*)\)/i', $columnType, $matches)) {
+            // Parse SET values from the string
+            $setValues = $this->parseEnumSetValues($matches[1]);
+            $code .= '->set([' . implode(', ', array_map(fn($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
+        } elseif (preg_match('/^json/i', $columnType)) {
+            $code .= '->json()';
+        } elseif (preg_match('/^geometry/i', $columnType)) {
+            $code .= '->geometry()';
+        } elseif (preg_match('/^point/i', $columnType)) {
+            $code .= '->point()';
+        } elseif (preg_match('/^linestring/i', $columnType)) {
+            $code .= '->linestring()';
+        } elseif (preg_match('/^polygon/i', $columnType)) {
+            $code .= '->polygon()';
+        } else {
+            // Default fallback
+            $code .= '->string()';
         }
 
         if (!$isNullable) {
             $code .= '->notNull()';
         }
 
-        if ($columnDefault !== null) {
+        if ($columnDefault !== null && $columnDefault !== '') {
             $code .= '->default("' . addslashes($columnDefault) . '")';
         }
 
@@ -344,6 +416,29 @@ EOT;
         }
 
         return $code . ';';
+    }
+
+    /**
+     * Parse ENUM/SET values from MySQL column definition
+     *
+     * @param string $valueString The content inside parentheses (e.g., "'value1','value2','value3'")
+     * @return array<string>
+     */
+    private function parseEnumSetValues(string $valueString): array
+    {
+        $values = [];
+        $valueString = trim($valueString);
+        
+        // Split on commas but handle escaped quotes properly
+        preg_match_all("/'([^'\\\\]*(\\\\.[^'\\\\]*)*)'/", $valueString, $matches);
+        
+        foreach ($matches[1] as $match) {
+            // Unescape MySQL escaped characters
+            $value = str_replace(['\\\'', '\\\\'], ["'", '\\'], $match);
+            $values[] = $value;
+        }
+        
+        return $values;
     }
 
     /**

@@ -249,10 +249,8 @@ class EntityHydrator
 
                 // Decimal types
             case ColumnType::DECIMAL:
-            case ColumnType::NUMERIC:
             case ColumnType::FLOAT:
             case ColumnType::DOUBLE:
-            case ColumnType::REAL:
                 return (float)$value;
 
                 // String, text, enum and set types
@@ -271,11 +269,6 @@ class EntityHydrator
             case ColumnType::DATETIME:
             case ColumnType::TIMESTAMP:
                 return $this->processDateTime($value);
-
-                // Boolean types
-            case ColumnType::BOOLEAN:
-            case ColumnType::BOOL:
-                return (bool)$value;
 
                 // JSON type
             case ColumnType::JSON:

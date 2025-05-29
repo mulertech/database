@@ -10,21 +10,43 @@ namespace MulerTech\Database\Relational\Sql\Schema;
 class TableDefinition
 {
     /**
-     * @param string $tableName The name of the table
-     * @param bool $isCreate Whether this is a create operation
-     * @param array<string, ColumnDefinition|array{drop: bool}> $columns Table columns
-     * @param array<string, array{type: string, columns: array<int, string>}> $indexes Table indexes
-     * @param array<string, ForeignKeyDefinition> $foreignKeys Table foreign keys
-     * @param array<string, string> $options Table options
+     * @var string
      */
-    public function __construct(
-        private string $tableName,
-        private bool $isCreate,
-        private array $columns = [],
-        private array $indexes = [],
-        private array $foreignKeys = [],
-        private array $options = []
-    ) {
+    private string $tableName;
+
+    /**
+     * @var bool
+     */
+    private bool $isCreate;
+
+    /**
+     * @var array<string, ColumnDefinition|array{drop: bool}>
+     */
+    private array $columns = [];
+
+    /**
+     * @var array<string, array{type: string, columns: array<int, string>}>
+     */
+    private array $indexes = [];
+
+    /**
+     * @var array<string, ForeignKeyDefinition>
+     */
+    private array $foreignKeys = [];
+
+    /**
+     * @var array<string, string>
+     */
+    private array $options = [];
+
+    /**
+     * @param string $tableName
+     * @param bool $isCreate
+     */
+    public function __construct(string $tableName, bool $isCreate = true)
+    {
+        $this->tableName = $tableName;
+        $this->isCreate = $isCreate;
     }
 
     /**
@@ -87,12 +109,39 @@ class TableDefinition
     }
 
     /**
+     * Add a column after another column
      * @param string $name
+     * @param string $afterColumn
+     * @return ColumnDefinition
+     */
+    public function columnAfter(string $name, string $afterColumn): ColumnDefinition
+    {
+        $column = new ColumnDefinition($name);
+        $column->after($afterColumn);
+        $this->columns[$name] = $column;
+        return $column;
+    }
+
+    /**
+     * Add a column as the first column
+     * @param string $name
+     * @return ColumnDefinition
+     */
+    public function columnFirst(string $name): ColumnDefinition
+    {
+        $column = new ColumnDefinition($name);
+        $column->first();
+        $this->columns[$name] = $column;
+        return $column;
+    }
+
+    /**
+     * @param string $columnName
      * @return self
      */
-    public function dropColumn(string $name): self
+    public function dropColumn(string $columnName): self
     {
-        $this->columns[$name] = ['drop' => true];
+        $this->columns[$columnName] = ['drop' => true];
         return $this;
     }
 
@@ -121,16 +170,15 @@ class TableDefinition
     }
 
     /**
-     * @param string $name
+     * @param string $constraintName
      * @return self
      */
-    public function dropForeignKey(string $name): self
+    public function dropForeignKey(string $constraintName): self
     {
-        if (!isset($this->foreignKeys[$name])) {
-            $this->foreignKeys[$name] = new ForeignKeyDefinition($name);
+        if (!isset($this->foreignKeys[$constraintName])) {
+            $this->foreignKeys[$constraintName] = new ForeignKeyDefinition($constraintName);
         }
-
-        $this->foreignKeys[$name]->setDrop();
+        $this->foreignKeys[$constraintName]->setDrop();
         return $this;
     }
 
@@ -169,7 +217,7 @@ class TableDefinition
      */
     public function toSql(): string
     {
-        $schemaGenerator = new SchemaQueryGenerator();
-        return $schemaGenerator->generate($this);
+        $generator = new SchemaQueryGenerator();
+        return $generator->generate($this);
     }
 }

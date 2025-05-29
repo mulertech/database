@@ -23,6 +23,7 @@ class MtColumn
      * @param string|null $extra
      * @param string|null $columnDefault
      * @param ColumnKey|null $columnKey
+     * @param array<string> $choices
      */
     public function __construct(
         public string|null     $columnName = null,
@@ -33,7 +34,8 @@ class MtColumn
         public bool            $isNullable = true,
         public string|null     $extra = null,
         public string|null     $columnDefault = null,
-        public ColumnKey|null  $columnKey = null
+        public ColumnKey|null  $columnKey = null,
+        public array           $choices = []
     ) {
     }
 }

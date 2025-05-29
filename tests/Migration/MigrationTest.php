@@ -49,12 +49,6 @@ class MigrationTest extends TestCase
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
 
-        $this->command = new MigrationGenerateCommand(
-            $terminal,
-            $this->entityManager,
-            $this->migrationsDirectory
-        );
-
         if (!is_dir($this->migrationsDirectory)) {
             mkdir($this->migrationsDirectory, 0777, true);
         }
@@ -707,5 +701,203 @@ class MigrationTest extends TestCase
         $method = $reflection->getMethod('createMigrationHistoryTable');
 
         $method->invoke($manager, 'migration_history');
+    }
+
+    /**
+     * Test parseColumnType with various column types to improve coverage
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithAllTypes(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        // Test bigint column type
+        $result = $method->invoke($generator, 'bigint(20) unsigned', 'test_column', false, null, null);
+        $this->assertStringContainsString('->bigInteger()', $result);
+        $this->assertStringContainsString('->unsigned()', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+
+        // Test decimal column type
+        $result = $method->invoke($generator, 'decimal(10,2)', 'price', true, '0.00', null);
+        $this->assertStringContainsString('->decimal(10, 2)', $result);
+        $this->assertStringContainsString('->default("0.00")', $result);
+        $this->assertStringNotContainsString('->notNull()', $result);
+
+        // Test float column type
+        $result = $method->invoke($generator, 'float(8,2)', 'rating', false, null, null);
+        $this->assertStringContainsString('->float(8, 2)', $result);
+
+        // Test datetime column type
+        $result = $method->invoke($generator, 'datetime', 'created_at', false, null, null);
+        $this->assertStringContainsString('->datetime()', $result);
+
+        // Test text column type
+        $result = $method->invoke($generator, 'text', 'description', true, null, null);
+        $this->assertStringContainsString('->text()', $result);
+
+        // Test empty/null column type (should default to string)
+        $result = $method->invoke($generator, '', 'test_empty', false, null, null);
+        $this->assertStringContainsString('->string()', $result);
+
+        $result = $method->invoke($generator, null, 'test_null', false, null, null);
+        $this->assertStringContainsString('->string()', $result);
+    }
+
+    /**
+     * Test generateDownCode method with foreign keys to cover missing lines
+     * @throws ReflectionException
+     */
+    public function testGenerateDownCodeWithForeignKeys(): void
+    {
+        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['compare'])
+            ->getMock();
+
+        $schemaDifference = new SchemaDifference();
+        
+        // Add foreign key to be added (so it gets dropped in down code)
+        $schemaDifference->addForeignKeyToAdd('users_test', 'fk_test_constraint', [
+            'COLUMN_NAME' => 'category_id',
+            'REFERENCED_TABLE_NAME' => 'categories',
+            'REFERENCED_COLUMN_NAME' => 'id',
+            'DELETE_RULE' => 'CASCADE',
+            'UPDATE_RULE' => 'RESTRICT'
+        ]);
+
+        $schemaComparer->method('compare')->willReturn($schemaDifference);
+
+        $generator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateDownCode');
+
+        $downCode = $method->invoke($generator, $schemaDifference);
+
+        $this->assertStringContainsString('$schema = new SchemaBuilder();', $downCode);
+        $this->assertStringContainsString('->dropForeignKey("fk_test_constraint");', $downCode);
+    }
+
+    /**
+     * Test generateDownCode with empty differences to cover "No rollback operations" branch
+     * @throws ReflectionException
+     */
+    public function testGenerateDownCodeWithNoDifferences(): void
+    {
+        $schemaDifference = new SchemaDifference();
+        
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateDownCode');
+
+        $downCode = $method->invoke($generator, $schemaDifference);
+
+        $this->assertStringContainsString('// No rollback operations defined', $downCode);
+    }
+
+    /**
+     * Test generateRestoreColumnStatement method to improve coverage
+     * @throws ReflectionException
+     */
+    public function testGenerateRestoreColumnStatement(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateRestoreColumnStatement');
+
+        $differences = [
+            'COLUMN_TYPE' => [
+                'from' => 'varchar(100)',
+                'to' => 'varchar(255)'
+            ],
+            'IS_NULLABLE' => [
+                'from' => 'NO',
+                'to' => 'YES'
+            ],
+            'COLUMN_DEFAULT' => [
+                'from' => 'old_default',
+                'to' => 'new_default'
+            ]
+        ];
+
+        $result = $method->invoke($generator, 'test_table', 'test_column', $differences);
+
+        $this->assertStringContainsString('$schema = new SchemaBuilder();', $result);
+        $this->assertStringContainsString('$tableDefinition = $schema->alterTable("test_table");', $result);
+        $this->assertStringContainsString('->column("test_column")', $result);
+        $this->assertStringContainsString('->string(100)', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+        $this->assertStringContainsString('->default("old_default")', $result);
+    }
+
+    /**
+     * Test generateModifyColumnStatement with edge cases to improve coverage
+     * @throws ReflectionException
+     */
+    public function testGenerateModifyColumnStatementEdgeCases(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateModifyColumnStatement');
+
+        // Test with minimal differences (no IS_NULLABLE change)
+        $differences = [
+            'COLUMN_TYPE' => [
+                'from' => 'varchar(100)',
+                'to' => 'varchar(255)'
+            ]
+        ];
+
+        $result = $method->invoke($generator, 'test_table', 'test_column', $differences);
+
+        $this->assertStringContainsString('$schema = new SchemaBuilder();', $result);
+        $this->assertStringContainsString('$tableDefinition = $schema->alterTable("test_table");', $result);
+        $this->assertStringContainsString('->column("test_column")', $result);
+    }
+
+    /**
+     * Test column type parsing with auto_increment to cover EXTRA handling
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithAutoIncrement(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'int(11)', 'id', false, null, 'auto_increment');
+        
+        $this->assertStringContainsString('->integer()', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+        $this->assertStringContainsString('->autoIncrement()', $result);
+    }
+
+    /**
+     * Test generateRestoreColumnStatement without IS_NULLABLE differences
+     * @throws ReflectionException
+     */
+    public function testGenerateRestoreColumnStatementWithoutNullableChange(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateRestoreColumnStatement');
+
+        $differences = [
+            'COLUMN_TYPE' => [
+                'from' => 'varchar(100)',
+                'to' => 'varchar(255)'
+            ],
+            'COLUMN_DEFAULT' => [
+                'from' => null,
+                'to' => 'new_default'
+            ]
+        ];
+
+        $result = $method->invoke($generator, 'test_table', 'test_column', $differences);
+
+        $this->assertStringContainsString('$schema = new SchemaBuilder();', $result);
+        $this->assertStringContainsString('$tableDefinition = $schema->alterTable("test_table");', $result);
+        $this->assertStringContainsString('->column("test_column")', $result);
     }
 }

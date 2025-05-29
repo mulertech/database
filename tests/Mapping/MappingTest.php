@@ -184,7 +184,45 @@ class MappingTest extends TestCase
     public function testGetColumns(): void
     {
         $this->assertEquals(
-            ['id', 'username', 'size', 'account_balance', 'unit_id', 'manager'],
+            [
+                'id',
+                'username',
+                'size',
+                'account_balance',
+                'unit_id',
+                'age',
+                'score',
+                'views',
+                'big_number',
+                'decimal_value',
+                'double_value',
+                'char_code',
+                'description',
+                'tiny_text',
+                'medium_text',
+                'long_text',
+                'binary_data',
+                'varbinary_data',
+                'blob_data',
+                'tiny_blob',
+                'medium_blob',
+                'long_blob',
+                'birth_date',
+                'created_at',
+                'updated_at',
+                'work_time',
+                'birth_year',
+                'is_active',
+                'is_verified',
+                'status',
+                'permissions',
+                'metadata',
+                'location',
+                'coordinates',
+                'path',
+                'area',
+                'manager'
+            ],
             $this->getDbMapping()->getColumns(User::class)
         );
     }
@@ -208,9 +246,40 @@ class MappingTest extends TestCase
         $this->assertEquals([
             'id' => 'id',
             'username' => 'username',
-            'unit' => 'unit_id',
             'size' => 'size',
             'accountBalance' => 'account_balance',
+            'unit' => 'unit_id',
+            'age' => 'age',
+            'score' => 'score',
+            'views' => 'views',
+            'bigNumber' => 'big_number',
+            'decimalValue' => 'decimal_value',
+            'doubleValue' => 'double_value',
+            'charCode' => 'char_code',
+            'description' => 'description',
+            'tinyText' => 'tiny_text',
+            'mediumText' => 'medium_text',
+            'longText' => 'long_text',
+            'binaryData' => 'binary_data',
+            'varbinaryData' => 'varbinary_data',
+            'blobData' => 'blob_data',
+            'tinyBlob' => 'tiny_blob',
+            'mediumBlob' => 'medium_blob',
+            'longBlob' => 'long_blob',
+            'birthDate' => 'birth_date',
+            'createdAt' => 'created_at',
+            'updatedAt' => 'updated_at',
+            'workTime' => 'work_time',
+            'birthYear' => 'birth_year',
+            'isActive' => 'is_active',
+            'isVerified' => 'is_verified',
+            'status' => 'status',
+            'permissions' => 'permissions',
+            'metadata' => 'metadata',
+            'location' => 'location',
+            'coordinates' => 'coordinates',
+            'path' => 'path',
+            'area' => 'area',
             'manager' => 'manager'
         ], $propertiesColumns);
     }
@@ -617,9 +686,9 @@ class MappingTest extends TestCase
     public function testGetManyToMany(): void
     {
         $manyToMany = new MtManyToMany(
-            targetEntity:      Group::class,
-            mappedBy:        GroupUser::class,
-            joinProperty:        'user',
+            targetEntity: Group::class,
+            mappedBy: GroupUser::class,
+            joinProperty: 'user',
             inverseJoinProperty: 'group'
         );
         $this->assertEquals(
@@ -645,5 +714,325 @@ class MappingTest extends TestCase
     {
         $this->assertTrue($this->getDbMapping()->isUnsigned(User::class, 'id'));
         $this->assertFalse($this->getDbMapping()->isUnsigned(User::class, 'username'));
+    }
+
+    /**
+     * Test des nouveaux types de colonnes ajoutés
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfTinyInt(): void
+    {
+        $this->assertEquals(
+            ColumnType::TINYINT,
+            $this->getDbMapping()->getColumnType(User::class, 'age')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfSmallInt(): void
+    {
+        $this->assertEquals(
+            ColumnType::SMALLINT,
+            $this->getDbMapping()->getColumnType(User::class, 'score')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfMediumInt(): void
+    {
+        $this->assertEquals(
+            ColumnType::MEDIUMINT,
+            $this->getDbMapping()->getColumnType(User::class, 'views')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfBigInt(): void
+    {
+        $this->assertEquals(
+            ColumnType::BIGINT,
+            $this->getDbMapping()->getColumnType(User::class, 'bigNumber')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfDecimal(): void
+    {
+        $this->assertEquals(
+            ColumnType::DECIMAL,
+            $this->getDbMapping()->getColumnType(User::class, 'decimalValue')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfDouble(): void
+    {
+        $this->assertEquals(
+            ColumnType::DOUBLE,
+            $this->getDbMapping()->getColumnType(User::class, 'doubleValue')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfChar(): void
+    {
+        $this->assertEquals(
+            ColumnType::CHAR,
+            $this->getDbMapping()->getColumnType(User::class, 'charCode')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfText(): void
+    {
+        $this->assertEquals(
+            ColumnType::TEXT,
+            $this->getDbMapping()->getColumnType(User::class, 'description')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfTinyText(): void
+    {
+        $this->assertEquals(
+            ColumnType::TINYTEXT,
+            $this->getDbMapping()->getColumnType(User::class, 'tinyText')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfMediumText(): void
+    {
+        $this->assertEquals(
+            ColumnType::MEDIUMTEXT,
+            $this->getDbMapping()->getColumnType(User::class, 'mediumText')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfLongText(): void
+    {
+        $this->assertEquals(
+            ColumnType::LONGTEXT,
+            $this->getDbMapping()->getColumnType(User::class, 'longText')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfBinary(): void
+    {
+        $this->assertEquals(
+            ColumnType::BINARY,
+            $this->getDbMapping()->getColumnType(User::class, 'binaryData')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfVarBinary(): void
+    {
+        $this->assertEquals(
+            ColumnType::VARBINARY,
+            $this->getDbMapping()->getColumnType(User::class, 'varbinaryData')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfBlob(): void
+    {
+        $this->assertEquals(
+            ColumnType::BLOB,
+            $this->getDbMapping()->getColumnType(User::class, 'blobData')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfTinyBlob(): void
+    {
+        $this->assertEquals(
+            ColumnType::TINYBLOB,
+            $this->getDbMapping()->getColumnType(User::class, 'tinyBlob')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfMediumBlob(): void
+    {
+        $this->assertEquals(
+            ColumnType::MEDIUMBLOB,
+            $this->getDbMapping()->getColumnType(User::class, 'mediumBlob')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfLongBlob(): void
+    {
+        $this->assertEquals(
+            ColumnType::LONGBLOB,
+            $this->getDbMapping()->getColumnType(User::class, 'longBlob')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfDate(): void
+    {
+        $this->assertEquals(
+            ColumnType::DATE,
+            $this->getDbMapping()->getColumnType(User::class, 'birthDate')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfDateTime(): void
+    {
+        $this->assertEquals(
+            ColumnType::DATETIME,
+            $this->getDbMapping()->getColumnType(User::class, 'createdAt')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfTimestamp(): void
+    {
+        $this->assertEquals(
+            ColumnType::TIMESTAMP,
+            $this->getDbMapping()->getColumnType(User::class, 'updatedAt')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfTime(): void
+    {
+        $this->assertEquals(
+            ColumnType::TIME,
+            $this->getDbMapping()->getColumnType(User::class, 'workTime')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfYear(): void
+    {
+        $this->assertEquals(
+            ColumnType::YEAR,
+            $this->getDbMapping()->getColumnType(User::class, 'birthYear')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfEnum(): void
+    {
+        $this->assertEquals(
+            ColumnType::ENUM,
+            $this->getDbMapping()->getColumnType(User::class, 'status')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfSet(): void
+    {
+        $this->assertEquals(
+            ColumnType::SET,
+            $this->getDbMapping()->getColumnType(User::class, 'permissions')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfJson(): void
+    {
+        $this->assertEquals(
+            ColumnType::JSON,
+            $this->getDbMapping()->getColumnType(User::class, 'metadata')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfGeometry(): void
+    {
+        $this->assertEquals(
+            ColumnType::GEOMETRY,
+            $this->getDbMapping()->getColumnType(User::class, 'location')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfPoint(): void
+    {
+        $this->assertEquals(
+            ColumnType::POINT,
+            $this->getDbMapping()->getColumnType(User::class, 'coordinates')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfLineString(): void
+    {
+        $this->assertEquals(
+            ColumnType::LINESTRING,
+            $this->getDbMapping()->getColumnType(User::class, 'path')
+        );
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testGetColumnTypeOfPolygon(): void
+    {
+        $this->assertEquals(
+            ColumnType::POLYGON,
+            $this->getDbMapping()->getColumnType(User::class, 'area')
+        );
     }
 }

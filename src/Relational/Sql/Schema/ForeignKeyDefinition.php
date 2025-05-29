@@ -2,9 +2,6 @@
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\SqlQuery;
-use RuntimeException;
-
 /**
  * Class ForeignKeyDefinition
  * @package MulerTech\Database
@@ -13,14 +10,19 @@ use RuntimeException;
 class ForeignKeyDefinition
 {
     /**
+     * @var string
+     */
+    private string $name;
+
+    /**
      * @var array<int, string>
      */
     private array $columns = [];
 
     /**
-     * @var string
+     * @var string|null
      */
-    private string $referencedTable;
+    private ?string $referencedTable = null;
 
     /**
      * @var array<int, string>
@@ -28,25 +30,26 @@ class ForeignKeyDefinition
     private array $referencedColumns = [];
 
     /**
-     * @var ReferentialAction
+     * @var ReferentialAction|null
      */
-    private ReferentialAction $onUpdate = ReferentialAction::RESTRICT;
+    private ?ReferentialAction $onDelete = null;
 
     /**
-     * @var ReferentialAction
+     * @var ReferentialAction|null
      */
-    private ReferentialAction $onDelete = ReferentialAction::RESTRICT;
+    private ?ReferentialAction $onUpdate = null;
 
     /**
      * @var bool
      */
-    private bool $isDrop = false;
+    private bool $drop = false;
 
     /**
      * @param string $name
      */
-    public function __construct(private string $name)
+    public function __construct(string $name)
     {
+        $this->name = $name;
     }
 
     /**
@@ -66,9 +69,9 @@ class ForeignKeyDefinition
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getReferencedTable(): string
+    public function getReferencedTable(): ?string
     {
         return $this->referencedTable;
     }
@@ -82,19 +85,19 @@ class ForeignKeyDefinition
     }
 
     /**
-     * @return ReferentialAction
+     * @return ReferentialAction|null
      */
-    public function getOnUpdate(): ReferentialAction
+    public function getOnDelete(): ?ReferentialAction
     {
-        return $this->onUpdate;
+        return $this->onDelete;
     }
 
     /**
-     * @return ReferentialAction
+     * @return ReferentialAction|null
      */
-    public function getOnDelete(): ReferentialAction
+    public function getOnUpdate(): ?ReferentialAction
     {
-        return $this->onDelete;
+        return $this->onUpdate;
     }
 
     /**
@@ -102,17 +105,7 @@ class ForeignKeyDefinition
      */
     public function isDrop(): bool
     {
-        return $this->isDrop;
-    }
-
-    /**
-     * @param bool $isDrop
-     * @return self
-     */
-    public function setDrop(bool $isDrop = true): self
-    {
-        $this->isDrop = $isDrop;
-        return $this;
+        return $this->drop;
     }
 
     /**
@@ -154,6 +147,16 @@ class ForeignKeyDefinition
     public function onUpdate(ReferentialAction $action): self
     {
         $this->onUpdate = $action;
+        return $this;
+    }
+
+    /**
+     * Mark this foreign key for dropping
+     * @return self
+     */
+    public function setDrop(): self
+    {
+        $this->drop = true;
         return $this;
     }
 }

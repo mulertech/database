@@ -27,6 +27,15 @@ class Group
     #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false)]
     private ?string $name = null;
 
+    #[MtColumn(columnName: "description", columnType: ColumnType::TEXT, isNullable: true)]
+    private ?string $description = null;
+
+    #[MtColumn(columnName: "created_at", columnType: ColumnType::TIMESTAMP, isNullable: true)]
+    private ?string $createdAt = null;
+
+    #[MtColumn(columnName: "member_count", columnType: ColumnType::MEDIUMINT, unsigned: true, isNullable: true, columnDefault: "0")]
+    private ?int $memberCount = null;
+
     #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Group::class, referencedColumn: "id")]
     #[MtManyToOne(targetEntity: Group::class)]
@@ -74,6 +83,39 @@ class Group
     {
         $this->name = $name;
 
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): self
+    {
+        $this->description = $description;
+        return $this;
+    }
+
+    public function getCreatedAt(): ?string
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(?string $createdAt): self
+    {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
+
+    public function getMemberCount(): ?int
+    {
+        return $this->memberCount;
+    }
+
+    public function setMemberCount(?int $memberCount): self
+    {
+        $this->memberCount = $memberCount;
         return $this;
     }
 

@@ -17,10 +17,11 @@ class ReferentialActionTest extends TestCase
      */
     public function testEnumCasesExist(): void
     {
-        $this->assertInstanceOf(ReferentialAction::class, ReferentialAction::RESTRICT);
         $this->assertInstanceOf(ReferentialAction::class, ReferentialAction::CASCADE);
         $this->assertInstanceOf(ReferentialAction::class, ReferentialAction::SET_NULL);
+        $this->assertInstanceOf(ReferentialAction::class, ReferentialAction::RESTRICT);
         $this->assertInstanceOf(ReferentialAction::class, ReferentialAction::NO_ACTION);
+        $this->assertInstanceOf(ReferentialAction::class, ReferentialAction::SET_DEFAULT);
     }
 
     /**
@@ -28,10 +29,11 @@ class ReferentialActionTest extends TestCase
      */
     public function testEnumValues(): void
     {
-        $this->assertEquals('RESTRICT', ReferentialAction::RESTRICT->value);
         $this->assertEquals('CASCADE', ReferentialAction::CASCADE->value);
         $this->assertEquals('SET NULL', ReferentialAction::SET_NULL->value);
+        $this->assertEquals('RESTRICT', ReferentialAction::RESTRICT->value);
         $this->assertEquals('NO ACTION', ReferentialAction::NO_ACTION->value);
+        $this->assertEquals('SET DEFAULT', ReferentialAction::SET_DEFAULT->value);
     }
 
     /**
@@ -39,10 +41,11 @@ class ReferentialActionTest extends TestCase
      */
     public function testFromString(): void
     {
-        $this->assertSame(ReferentialAction::RESTRICT, ReferentialAction::from('RESTRICT'));
         $this->assertSame(ReferentialAction::CASCADE, ReferentialAction::from('CASCADE'));
         $this->assertSame(ReferentialAction::SET_NULL, ReferentialAction::from('SET NULL'));
+        $this->assertSame(ReferentialAction::RESTRICT, ReferentialAction::from('RESTRICT'));
         $this->assertSame(ReferentialAction::NO_ACTION, ReferentialAction::from('NO ACTION'));
+        $this->assertSame(ReferentialAction::SET_DEFAULT, ReferentialAction::from('SET DEFAULT'));
     }
     
     /**
@@ -59,10 +62,11 @@ class ReferentialActionTest extends TestCase
      */
     public function testTryFromWithValidValues(): void
     {
-        $this->assertSame(ReferentialAction::RESTRICT, ReferentialAction::tryFrom('RESTRICT'));
         $this->assertSame(ReferentialAction::CASCADE, ReferentialAction::tryFrom('CASCADE'));
         $this->assertSame(ReferentialAction::SET_NULL, ReferentialAction::tryFrom('SET NULL'));
+        $this->assertSame(ReferentialAction::RESTRICT, ReferentialAction::tryFrom('RESTRICT'));
         $this->assertSame(ReferentialAction::NO_ACTION, ReferentialAction::tryFrom('NO ACTION'));
+        $this->assertSame(ReferentialAction::SET_DEFAULT, ReferentialAction::tryFrom('SET DEFAULT'));
     }
     
     /**
@@ -79,11 +83,12 @@ class ReferentialActionTest extends TestCase
     public function testCases(): void
     {
         $cases = ReferentialAction::cases();
-        $this->assertCount(4, $cases);
-        $this->assertContains(ReferentialAction::RESTRICT, $cases);
+        $this->assertCount(5, $cases);
         $this->assertContains(ReferentialAction::CASCADE, $cases);
         $this->assertContains(ReferentialAction::SET_NULL, $cases);
+        $this->assertContains(ReferentialAction::RESTRICT, $cases);
         $this->assertContains(ReferentialAction::NO_ACTION, $cases);
+        $this->assertContains(ReferentialAction::SET_DEFAULT, $cases);
     }
 
     /**
@@ -91,9 +96,10 @@ class ReferentialActionTest extends TestCase
      */
     public function testToEnumCallString(): void
     {
-        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::RESTRICT', ReferentialAction::RESTRICT->toEnumCallString());
         $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE', ReferentialAction::CASCADE->toEnumCallString());
         $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_NULL', ReferentialAction::SET_NULL->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::RESTRICT', ReferentialAction::RESTRICT->toEnumCallString());
         $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::NO_ACTION', ReferentialAction::NO_ACTION->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_DEFAULT', ReferentialAction::SET_DEFAULT->toEnumCallString());
     }
 }
