@@ -60,7 +60,7 @@ abstract class Migration
      *
      * @return QueryBuilder
      */
-    protected function createQueryBuilder(): QueryBuilder
+    public function createQueryBuilder(): QueryBuilder
     {
         return new QueryBuilder($this->entityManager->getEmEngine());
     }

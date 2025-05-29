@@ -146,12 +146,10 @@ class SchemaComparer
         // Compare columns for existing tables
         foreach ($entityTables as $tableName => $entityClass) {
             // Skip tables that need to be created
-            if (in_array($tableName, $diff->getTablesToCreate(), true)) {
-                continue;
+            if (!in_array($tableName, $diff->getTablesToCreate(), true)) {
+                $this->compareColumns($tableName, $entityClass, $diff);
+                $this->compareForeignKeys($tableName, $entityClass, $diff);
             }
-
-            $this->compareColumns($tableName, $entityClass, $diff);
-            $this->compareForeignKeys($tableName, $entityClass, $diff);
         }
 
         return $diff;

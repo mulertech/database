@@ -52,7 +52,7 @@ class MigrationGenerateCommand extends AbstractCommand
             $informationSchema = new InformationSchema($this->entityManager->getEmEngine());
             $dbParameters = PhpDatabaseManager::populateParameters();
             $schemaComparer = new SchemaComparer($informationSchema, $dbMapping, $dbParameters['dbname']);
-            $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+            $migrationGenerator = $this->createMigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
             // Generating the migration
             $migrationFile = $migrationGenerator->generateMigration($date);
@@ -68,5 +68,17 @@ class MigrationGenerateCommand extends AbstractCommand
             $this->terminal->writeLine('Error: ' . $e->getMessage(), 'red');
             return 1;
         }
+    }
+
+    /**
+     * Creates a MigrationGenerator instance
+     *
+     * @param SchemaComparer $schemaComparer
+     * @param string $migrationsDirectory
+     * @return MigrationGenerator
+     */
+    protected function createMigrationGenerator(SchemaComparer $schemaComparer, string $migrationsDirectory): MigrationGenerator
+    {
+        return new MigrationGenerator($schemaComparer, $migrationsDirectory);
     }
 }

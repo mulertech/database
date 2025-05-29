@@ -311,12 +311,12 @@ EOT;
             $code .= '->string()';
         } elseif (preg_match('/^int/i', $columnType)) {
             $code .= '->integer()';
-            if (strpos($columnType, 'unsigned') !== false) {
+            if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
         } elseif (preg_match('/^bigint/i', $columnType)) {
             $code .= '->bigInteger()';
-            if (strpos($columnType, 'unsigned') !== false) {
+            if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
         } elseif (preg_match('/^varchar\((\d+)\)/i', $columnType, $matches)) {
@@ -339,7 +339,7 @@ EOT;
             $code .= '->default("' . addslashes($columnDefault) . '")';
         }
 
-        if ($columnExtra !== null && strpos($columnExtra, 'auto_increment') !== false) {
+        if ($columnExtra !== null && str_contains($columnExtra, 'auto_increment')) {
             $code .= '->autoIncrement()';
         }
 
@@ -404,9 +404,7 @@ EOT;
     private function generateModifyColumnStatement(string $tableName, string $columnName, array $differences): string
     {
         $columnType = $differences['COLUMN_TYPE']['to'] ?? 'VARCHAR(255)';
-        $isNullable = isset($differences['IS_NULLABLE'])
-            ? ($differences['IS_NULLABLE']['to'] === 'YES')
-            : true;
+        $isNullable = !isset($differences['IS_NULLABLE']) || $differences['IS_NULLABLE']['to'] === 'YES';
         $columnDefault = isset($differences['COLUMN_DEFAULT'])
             ? $differences['COLUMN_DEFAULT']['to']
             : null;
@@ -444,9 +442,8 @@ EOT;
     private function generateRestoreColumnStatement(string $tableName, string $columnName, array $differences): string
     {
         $columnType = $differences['COLUMN_TYPE']['from'] ?? 'VARCHAR(255)';
-        $isNullable = isset($differences['IS_NULLABLE'])
-            ? ($differences['IS_NULLABLE']['from'] === 'YES')
-            : true;
+        $isNullable = !isset($differences['IS_NULLABLE'])
+            || (isset($differences['IS_NULLABLE']['from']) && $differences['IS_NULLABLE']['from'] === 'YES');
         $columnDefault = isset($differences['COLUMN_DEFAULT'])
             ? $differences['COLUMN_DEFAULT']['from']
             : null;
