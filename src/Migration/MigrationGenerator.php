@@ -383,11 +383,11 @@ EOT;
         } elseif (preg_match('/^enum\((.*)\)/i', $columnType, $matches)) {
             // Parse ENUM values from the string
             $enumValues = $this->parseEnumSetValues($matches[1]);
-            $code .= '->enum([' . implode(', ', array_map(fn($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
+            $code .= '->enum([' . implode(', ', array_map(fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
         } elseif (preg_match('/^set\((.*)\)/i', $columnType, $matches)) {
             // Parse SET values from the string
             $setValues = $this->parseEnumSetValues($matches[1]);
-            $code .= '->set([' . implode(', ', array_map(fn($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
+            $code .= '->set([' . implode(', ', array_map(fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
         } elseif (preg_match('/^json/i', $columnType)) {
             $code .= '->json()';
         } elseif (preg_match('/^geometry/i', $columnType)) {
@@ -428,16 +428,16 @@ EOT;
     {
         $values = [];
         $valueString = trim($valueString);
-        
+
         // Split on commas but handle escaped quotes properly
         preg_match_all("/'([^'\\\\]*(\\\\.[^'\\\\]*)*)'/", $valueString, $matches);
-        
+
         foreach ($matches[1] as $match) {
             // Unescape MySQL escaped characters
             $value = str_replace(['\\\'', '\\\\'], ["'", '\\'], $match);
             $values[] = $value;
         }
-        
+
         return $values;
     }
 

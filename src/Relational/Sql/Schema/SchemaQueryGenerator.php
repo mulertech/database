@@ -105,9 +105,7 @@ class SchemaQueryGenerator
         foreach ($columns as $name => $column) {
             if (is_array($column)) {
                 // Handle drop column
-                if (isset($column['drop']) && $column['drop']) {
-                    $alterations[] = "DROP COLUMN `$name`";
-                }
+                $alterations[] = "DROP COLUMN `$name`";
             } else {
                 // Handle add/modify column
                 $alterations[] = "ADD COLUMN " . $this->generateColumnDefinition($column);
@@ -137,11 +135,11 @@ class SchemaQueryGenerator
     private function generateColumnDefinition(ColumnDefinition $column): string
     {
         $sql = '`' . $column->getName() . '` ';
-        
+
         // Add type
         $type = $column->getType();
         $sql .= strtoupper($type->value);
-        
+
         // Add length/precision/set values
         if ($column->getPrecision() !== null && $column->getScale() !== null) {
             // For DECIMAL, NUMERIC, FLOAT types that use precision and scale
@@ -151,8 +149,7 @@ class SchemaQueryGenerator
             $sql .= '(' . $column->getLength() . ')';
         } elseif ($type === ColumnType::SET || $type === ColumnType::ENUM) {
             // For SET and ENUM type, we need to handle the set values
-            $choiceValues = array_map([SqlQuery::class, 'escape'], $column->getChoiceValues());
-            $sql .= "('" . implode("', '", $choiceValues) . "')";
+            $sql .= "('" . implode("', '", $column->getChoiceValues()) . "')";
         }
 
         // Add unsigned
@@ -212,7 +209,7 @@ class SchemaQueryGenerator
 
         $constraint = "CONSTRAINT `$name` ";
         $fkDef = "FOREIGN KEY ($columnsList) REFERENCES `$referencedTable` ($refColumnsList)";
-        
+
         $actions = "";
         if ($onDelete !== null) {
             $actions .= " ON DELETE " . $onDelete->value;

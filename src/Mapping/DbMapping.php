@@ -151,7 +151,11 @@ class DbMapping implements DbMappingInterface
     {
         $mtColumn = $this->getMtColumns($entityName)[$property] ?? null;
 
-        return $mtColumn?->columnType?->toSqlDefinition(
+        if (!$mtColumn || !$mtColumn->columnType) {
+            return null;
+        }
+
+        return $mtColumn->columnType->toSqlDefinition(
             $mtColumn->length,
             $mtColumn->scale,
             $mtColumn->unsigned ?? false,

@@ -496,6 +496,7 @@ class ColumnDefinition
     }
 
     /**
+     * @param array<string> $values
      * @return self
      */
     public function enum(array $values): self
@@ -506,6 +507,7 @@ class ColumnDefinition
     }
 
     /**
+     * @param array<string> $values
      * @return self
      */
     public function set(array $values): self
