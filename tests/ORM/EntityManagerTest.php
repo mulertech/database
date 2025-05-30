@@ -11,7 +11,6 @@ use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
@@ -27,7 +26,7 @@ use PHPUnit\Framework\TestCase;
 class EntityManagerTest extends TestCase
 {
     private EventManagerInterface $eventManager;
-    private EntityManagerInterface $entityManager;
+    private EntityManager $entityManager;
 
     protected function setUp(): void
     {
