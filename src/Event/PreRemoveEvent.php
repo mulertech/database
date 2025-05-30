@@ -5,11 +5,10 @@ namespace MulerTech\Database\Event;
 use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
- * Class PreRemoveEvent
- * @package MulerTech\Database\Event
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PreRemoveEvent extends EntityEvent
+class PreRemoveEvent extends AbstractEntityEvent
 {
     /**
      * @param Object $entity
@@ -17,7 +16,6 @@ class PreRemoveEvent extends EntityEvent
      */
     public function __construct(Object $entity, EntityManagerInterface $em)
     {
-        $this->setName(DbEvents::preRemove->value);
-        parent::__construct($entity, $em);
+        parent::__construct($entity, $em, DbEvents::preRemove);
     }
 }

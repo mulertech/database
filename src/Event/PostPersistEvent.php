@@ -5,19 +5,17 @@ namespace MulerTech\Database\Event;
 use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
- * Class PostPersistEvent
- * @package MulerTech\Database\Event
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PostPersistEvent extends EntityEvent
+class PostPersistEvent extends AbstractEntityEvent
 {
     /**
-     * @param Object $entity
+     * @param object $entity
      * @param EntityManagerInterface $entityManager
      */
-    public function __construct(Object $entity, EntityManagerInterface $entityManager)
+    public function __construct(object $entity, EntityManagerInterface $entityManager)
     {
-        $this->setName(DbEvents::postPersist->value);
-        parent::__construct($entity, $entityManager);
+        parent::__construct($entity, $entityManager, DbEvents::postPersist);
     }
 }

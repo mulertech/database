@@ -5,11 +5,10 @@ namespace MulerTech\Database\Event;
 use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
- * Class PostUpdateEvent
- * @package MulerTech\Database\Event
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PostUpdateEvent extends EntityEvent
+class PostUpdateEvent extends AbstractEntityEvent
 {
     /**
      * @param Object $entity
@@ -17,7 +16,6 @@ class PostUpdateEvent extends EntityEvent
      */
     public function __construct(Object $entity, EntityManagerInterface $entityManager)
     {
-        $this->setName(DbEvents::postUpdate->value);
-        parent::__construct($entity, $entityManager);
+        parent::__construct($entity, $entityManager, DbEvents::postUpdate);
     }
 }

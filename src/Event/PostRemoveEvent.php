@@ -5,11 +5,10 @@ namespace MulerTech\Database\Event;
 use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
- * Class PostRemoveEvent
- * @package MulerTech\Database\Event
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PostRemoveEvent extends EntityEvent
+class PostRemoveEvent extends AbstractEntityEvent
 {
     /**
      * @param Object $entity
@@ -17,7 +16,6 @@ class PostRemoveEvent extends EntityEvent
      */
     public function __construct(Object $entity, EntityManagerInterface $entityManager)
     {
-        $this->setName(DbEvents::postRemove->value);
-        parent::__construct($entity, $entityManager);
+        parent::__construct($entity, $entityManager, DbEvents::postRemove);
     }
 }

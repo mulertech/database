@@ -5,11 +5,10 @@ namespace MulerTech\Database\Event;
 use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
- * Class PreUpdateEvent
- * @package MulerTech\Database\Event
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PreUpdateEvent extends EntityEvent
+class PreUpdateEvent extends AbstractEntityEvent
 {
     /**
      * @param Object $entity
@@ -21,8 +20,7 @@ class PreUpdateEvent extends EntityEvent
         EntityManagerInterface $entityManager,
         private readonly array $entityChanges
     ) {
-        $this->setName(DbEvents::preUpdate->value);
-        parent::__construct($entity, $entityManager);
+        parent::__construct($entity, $entityManager, DbEvents::preUpdate);
     }
 
     /**
