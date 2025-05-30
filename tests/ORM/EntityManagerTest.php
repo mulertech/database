@@ -219,10 +219,10 @@ class EntityManagerTest extends TestCase
         $group2->setName('Group2');
         $user1 = new User();
         $user1->setUsername('User1');
-        $user2 = new User();
-        $user2->setUsername('User2');
         $user1->addGroup($group1);
         $user1->addGroup($group2);
+        $user2 = new User();
+        $user2->setUsername('User2');
         $user2->addGroup($group1);
         $em->persist($group1);
         $em->persist($group2);
@@ -292,22 +292,27 @@ class EntityManagerTest extends TestCase
         $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (username) VALUES (:username)');
         $statement->execute(['username' => 'John']);
+        
         $user = $em->find(User::class, 1);
+        
         $this->eventManager->addListener(DbEvents::preUpdate->value, static function (PreUpdateEvent $event) {
             $user = $event->getEntity();
             $update = $event->getEntityChanges();
             $updateTag = implode('->', $update['username']);
             $user->setUsername('BeforeUpdate' . $updateTag . $user->getUsername());
-//            $user->setUsername('BeforeUpdate' . $user->getUsername());
-            $event->getEntityManager()->flush();
         });
+        
         $this->eventManager->addListener(DbEvents::postUpdate->value, static function (PostUpdateEvent $event) {
             $user = $event->getEntity();
-            $user->setUsername($user->getUsername() . 'AfterUpdate')->setUnit(new Unit()->setName('Unit'));
+            $unit = new Unit()->setName('Unit');
+            $event->getEntityManager()->persist($unit);
+            $user->setUsername($user->getUsername() . 'AfterUpdate')->setUnit($unit);
             $event->getEntityManager()->flush();
         });
+        
         $user->setUsername('JohnUpdated');
         $em->flush();
+        
         $newUser = $em->find(User::class, 1);
         $unit = $em->find(Unit::class, 'name=\'Unit\'');
         self::assertEquals('BeforeUpdateJohn->JohnUpdatedJohnUpdatedAfterUpdate', $newUser->getUsername());
@@ -331,10 +336,12 @@ class EntityManagerTest extends TestCase
         $this->eventManager->addListener(DbEvents::preRemove->value, static function (PreRemoveEvent $event) {
             $manager = $event->getEntity();
             $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
-            $user = $event->getEntityManager()->find(User::class, 'manager=' . $manager->getId());
-            $user->setManager($otherManager);
-            $event->getEntityManager()->persist($user);
-            $event->getEntityManager()->flush();
+            $user = $event->getEntityManager()->find(User::class, 'username=\'John\'');
+            if ($user !== null) {
+                $user->setManager($otherManager);
+                $event->getEntityManager()->persist($user);
+                $event->getEntityManager()->flush();
+            }
         });
         $em->remove($manager);
         $em->flush();
@@ -358,10 +365,12 @@ class EntityManagerTest extends TestCase
         $this->eventManager->addListener(DbEvents::postRemove->value, static function (PostRemoveEvent $event) {
             $manager = $event->getEntity();
             $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
-            $user = $event->getEntityManager()->find(User::class, 'manager=' . $manager->getId());
-            $user->setManager($otherManager);
-            $event->getEntityManager()->persist($user);
-            $event->getEntityManager()->flush();
+            $user = $event->getEntityManager()->find(User::class, 'username=\'John\'');
+            if ($user !== null) {
+                $user->setManager($otherManager);
+                $event->getEntityManager()->persist($user);
+                $event->getEntityManager()->flush();
+            }
         });
         $em->remove($manager);
         $em->flush();

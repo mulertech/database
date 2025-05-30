@@ -63,6 +63,11 @@ class EntityChangeTracker
                 ? $originalData[$column]
                 : null;
 
+            // Convert object values to their ID for comparison
+            if (is_object($newValue) && method_exists($newValue, 'getId')) {
+                $newValue = $newValue->getId();
+            }
+
             if ($oldValue === $newValue && $originalData !== null) {
                 continue;
             }
@@ -72,6 +77,9 @@ class EntityChangeTracker
 
         if (!empty($changes)) {
             $this->entityChanges[$objectId] = $changes;
+        } else {
+            // Clear changes if no changes detected
+            unset($this->entityChanges[$objectId]);
         }
     }
 
@@ -107,12 +115,19 @@ class EntityChangeTracker
     /**
      * @param object $entity
      * @param string $property
-     * @return array{0: mixed, 1: mixed}|null
+     * @return array{mixed, mixed}|null
      */
     public function getPropertyChange(object $entity, string $property): ?array
     {
         $changes = $this->getChanges($entity);
-        return $changes[$property] ?? null;
+        $change = $changes[$property] ?? null;
+
+        if ($change === null) {
+            return null;
+        }
+
+        // Ensure we return exactly two elements
+        return [$change[0] ?? null, $change[1] ?? null];
     }
 
     /**
@@ -171,7 +186,12 @@ class EntityChangeTracker
 
         $currentData = [];
         foreach ($properties as $property => $column) {
-            $currentData[$column] = $entityReflection->getProperty($property)->getValue($entity);
+            $value = $entityReflection->getProperty($property)->getValue($entity);
+            // Convert object values to their ID for storage
+            if (is_object($value) && method_exists($value, 'getId')) {
+                $value = $value->getId();
+            }
+            $currentData[$column] = $value;
         }
 
         $this->originalEntityData[$objectId] = $currentData;

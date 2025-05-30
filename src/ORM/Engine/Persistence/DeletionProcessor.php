@@ -149,7 +149,9 @@ class DeletionProcessor
     private function executeBatchForType(string $entityClass, array $entities): void
     {
         $ids = array_map(fn ($entity) => $this->getId($entity), $entities);
-        $this->deleteByIds($entityClass, $ids);
+        // Filter out null IDs
+        $validIds = array_filter($ids, static fn ($id) => $id !== null);
+        $this->deleteByIds($entityClass, $validIds);
     }
 
     /**
@@ -270,7 +272,6 @@ class DeletionProcessor
     /**
      * @param object $entity
      * @return array<string>
-     * @throws ReflectionException
      */
     public function getDeletionWarnings(object $entity): array
     {

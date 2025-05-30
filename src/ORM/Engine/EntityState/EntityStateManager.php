@@ -50,7 +50,8 @@ class EntityStateManager
      */
     public function manage(object $entity): void
     {
-        $this->managedEntities[spl_object_id($entity)] = $entity;
+        $objectId = spl_object_id($entity);
+        $this->managedEntities[$objectId] = $entity;
     }
 
     /**
@@ -225,6 +226,17 @@ class EntityStateManager
     }
 
     /**
+     * Remove any null entities from the collections
+     * @return void
+     */
+    public function cleanupNullEntities(): void
+    {
+        // Since we've fixed the null entity issues upstream,
+        // this method can be simplified or removed entirely
+        // For now, we'll keep it as a no-op for backward compatibility
+    }
+
+    /**
      * @return array<int, object>
      */
     private function getOrderedInsertions(): array
@@ -234,6 +246,11 @@ class EntityStateManager
 
         foreach ($this->entityInsertionOrder as $childEntities) {
             foreach ($childEntities as $childEntityId) {
+                // Vérifier que l'entité existe dans entityInsertions
+                if (!isset($this->entityInsertions[$childEntityId])) {
+                    continue;
+                }
+
                 if (!isset($this->entityInsertionOrder[$childEntityId])) {
                     $first[$childEntityId] = $this->entityInsertions[$childEntityId];
                 } else {

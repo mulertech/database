@@ -41,6 +41,11 @@ class UpdateProcessor
 
         $queryBuilder = $this->buildUpdateQuery($entity, $changes);
 
+        // Verify that the query has actual SET clauses
+        if (!$this->hasValidValues($queryBuilder, $entity, $changes)) {
+            return;
+        }
+
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
         $pdoStatement->closeCursor();
@@ -301,5 +306,27 @@ class UpdateProcessor
         }
 
         return $entity->getId();
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param object $entity
+     * @param array<string, array<int, mixed>> $changes
+     * @return bool
+     * @throws ReflectionException
+     */
+    private function hasValidValues(QueryBuilder $queryBuilder, object $entity, array $changes): bool
+    {
+        $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
+        $hasValues = false;
+
+        foreach ($propertiesColumns as $property => $column) {
+            if (isset($changes[$property][1])) {
+                $hasValues = true;
+                break;
+            }
+        }
+
+        return $hasValues;
     }
 }

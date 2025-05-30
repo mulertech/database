@@ -124,7 +124,7 @@ class RelationManager
             }
 
             foreach ($entities->items() as $relatedEntity) {
-                if (is_object($relatedEntity) && $this->getId($relatedEntity) === null) {
+                if ($relatedEntity !== null && is_object($relatedEntity) && $this->getId($relatedEntity) === null) {
                     $this->stateManager->scheduleForInsertion($relatedEntity);
                     $this->stateManager->addInsertionDependency($relatedEntity, $entity);
                 }
@@ -160,7 +160,7 @@ class RelationManager
 
     /**
      * @param object $entity
-     * @param DatabaseCollection $entities
+     * @param DatabaseCollection<int|string, object> $entities
      * @param MtManyToMany $manyToMany
      * @return void
      */
@@ -197,7 +197,7 @@ class RelationManager
 
     /**
      * @param object $entity
-     * @param Collection $entities
+     * @param Collection<int|string, object> $entities
      * @param MtManyToMany $manyToMany
      * @return void
      */

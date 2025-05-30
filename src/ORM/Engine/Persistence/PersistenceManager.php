@@ -25,9 +25,19 @@ class PersistenceManager
     private bool $isFlushInProgress = false;
 
     /**
-     * @var array<class-string, array<string>>
+     * @var array<int, array<string>>
      */
     private array $eventCalled = [];
+
+    /**
+     * @var int
+     */
+    private int $flushDepth = 0;
+
+    /**
+     * @var int
+     */
+    private const MAX_FLUSH_DEPTH = 10;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -93,27 +103,48 @@ class PersistenceManager
      */
     public function flush(): void
     {
+        // Force compute changes for managed entities before checking pending changes
+        $this->computeAllChanges();
+
         if (!$this->stateManager->hasPendingChanges()) {
             return;
         }
 
-        $this->prepareForFlush();
+        // Prevent infinite recursion
+        if ($this->flushDepth >= self::MAX_FLUSH_DEPTH) {
+            throw new \RuntimeException('Maximum flush depth exceeded. This usually indicates a circular dependency in event listeners.');
+        }
 
-        $this->entityManager->getPdm()->beginTransaction();
+        $this->flushDepth++;
+        $wasFlushInProgress = $this->isFlushInProgress;
+        $this->isFlushInProgress = true;
 
         try {
-            $this->executeInsertions();
-            $this->executeUpdates();
-            $this->executeDeletions();
-            $this->executeRelationChanges();
+            $this->prepareForFlush();
 
-            $this->entityManager->getPdm()->commit();
-            $this->dispatchPostFlushEvent();
-        } catch (\Exception $e) {
-            if ($this->entityManager->getPdm()->inTransaction()) {
-                $this->entityManager->getPdm()->rollBack();
+            if ($this->flushDepth === 1) {
+                $this->entityManager->getPdm()->beginTransaction();
             }
-            throw $e;
+
+            try {
+                $this->executeInsertions();
+                $this->executeUpdates();
+                $this->executeDeletions();
+                $this->executeRelationChanges();
+
+                if ($this->flushDepth === 1) {
+                    $this->entityManager->getPdm()->commit();
+                    $this->dispatchPostFlushEvent();
+                }
+            } catch (\Exception $e) {
+                if ($this->flushDepth === 1 && $this->entityManager->getPdm()->inTransaction()) {
+                    $this->entityManager->getPdm()->rollBack();
+                }
+                throw $e;
+            }
+        } finally {
+            $this->flushDepth--;
+            $this->isFlushInProgress = $wasFlushInProgress;
         }
     }
 
@@ -155,6 +186,9 @@ class PersistenceManager
      */
     private function computeAllChanges(): void
     {
+        // Clean up any null entities first
+        $this->stateManager->cleanupNullEntities();
+
         // Compute changes for insertions
         foreach ($this->stateManager->getScheduledInsertions() as $entity) {
             $this->changeTracker->computeChanges($entity);
@@ -212,11 +246,33 @@ class PersistenceManager
         foreach ($updates as $entity) {
             $changes = $this->changeTracker->getChanges($entity);
 
+            // Ensure we have changes to process
+            if (empty($changes)) {
+                $this->stateManager->markAsProcessed($entity);
+                continue;
+            }
+
             $this->dispatchPreUpdateEvent($entity, $changes);
-            $this->updateProcessor->execute($entity, $changes);
+
+            // Recompute changes after PreUpdate event as it might have modified the entity
+            $this->changeTracker->computeChanges($entity);
+            $updatedChanges = $this->changeTracker->getChanges($entity);
+
+            // If no changes after PreUpdate event, skip the database update
+            if (!empty($updatedChanges) && $this->hasValidUpdateChanges($entity, $updatedChanges)) {
+                $this->updateProcessor->execute($entity, $updatedChanges);
+            }
+
             $this->stateManager->markAsProcessed($entity);
             $this->changeTracker->refreshOriginalData($entity);
+
             $this->dispatchPostUpdateEvent($entity);
+        }
+
+        // After processing all updates, check if there are new pending changes
+        // and flush them in a new cycle
+        if ($this->stateManager->hasPendingChanges()) {
+            $this->flush();
         }
     }
 
@@ -279,7 +335,7 @@ class PersistenceManager
      */
     private function dispatchPrePersistEvent(object $entity): void
     {
-        if ($this->eventManager && !$this->isFlushInProgress) {
+        if ($this->eventManager) {
             $this->eventManager->dispatch(
                 new \MulerTech\Database\Event\PrePersistEvent($entity, $this->entityManager)
             );
@@ -292,7 +348,7 @@ class PersistenceManager
      */
     private function dispatchPostPersistEvents(array $entities): void
     {
-        if ($this->eventManager && !$this->isFlushInProgress) {
+        if ($this->eventManager) {
             foreach ($entities as $entity) {
                 $this->eventManager->dispatch(
                     new \MulerTech\Database\Event\PostPersistEvent($entity, $this->entityManager)
@@ -308,11 +364,11 @@ class PersistenceManager
      */
     private function dispatchPreUpdateEvent(object $entity, array $changes): void
     {
-        if ($this->eventManager && !$this->isFlushInProgress) {
+        if ($this->eventManager && !$this->isEventCalled($entity, DbEvents::preUpdate->value)) {
+            $this->markEventCalled($entity, DbEvents::preUpdate->value);
             $this->eventManager->dispatch(
                 new \MulerTech\Database\Event\PreUpdateEvent($entity, $this->entityManager, $changes)
             );
-            $this->markEventCalled($entity::class, DbEvents::preUpdate->value);
         }
     }
 
@@ -322,11 +378,11 @@ class PersistenceManager
      */
     private function dispatchPostUpdateEvent(object $entity): void
     {
-        if ($this->eventManager && !$this->isFlushInProgress) {
+        if ($this->eventManager && !$this->isEventCalled($entity, DbEvents::postUpdate->value)) {
+            $this->markEventCalled($entity, DbEvents::postUpdate->value);
             $this->eventManager->dispatch(
                 new \MulerTech\Database\Event\PostUpdateEvent($entity, $this->entityManager)
             );
-            $this->markEventCalled($entity::class, DbEvents::postUpdate->value);
         }
     }
 
@@ -336,8 +392,8 @@ class PersistenceManager
      */
     private function dispatchPreRemoveEvent(object $entity): void
     {
-        if ($this->eventManager && !$this->isEventCalled($entity::class, DbEvents::preRemove->value)) {
-            $this->markEventCalled($entity::class, DbEvents::preRemove->value);
+        if ($this->eventManager && !$this->isEventCalled($entity, DbEvents::preRemove->value)) {
+            $this->markEventCalled($entity, DbEvents::preRemove->value);
             $this->eventManager->dispatch(
                 new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager)
             );
@@ -364,37 +420,69 @@ class PersistenceManager
      */
     private function dispatchPostFlushEvent(): void
     {
-        if ($this->eventManager && !$this->isFlushInProgress) {
-            $this->isFlushInProgress = true;
+        if ($this->eventManager && $this->flushDepth === 1) {
             $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
-            $this->isFlushInProgress = false;
-
             $this->eventCalled = [];
+
+            // Check if PostFlush event created new changes
+            if ($this->stateManager->hasPendingChanges()) {
+                $this->flush();
+            }
         }
     }
 
     /**
-     * @param class-string $entityName
+     * @param object $entity
      * @param string $event
      * @return void
      */
-    private function markEventCalled(string $entityName, string $event): void
+    private function markEventCalled(object $entity, string $event): void
     {
-        if (isset($this->eventCalled[$entityName])) {
-            $this->eventCalled[$entityName][] = $event;
+        $objectId = spl_object_id($entity);
+        if (isset($this->eventCalled[$objectId])) {
+            $this->eventCalled[$objectId][] = $event;
         } else {
-            $this->eventCalled[$entityName] = [$event];
+            $this->eventCalled[$objectId] = [$event];
         }
     }
 
     /**
-     * @param class-string $entityName
+     * @param object $entity
      * @param string $event
      * @return bool
      */
-    private function isEventCalled(string $entityName, string $event): bool
+    private function isEventCalled(object $entity, string $event): bool
     {
-        return isset($this->eventCalled[$entityName])
-            && in_array($event, $this->eventCalled[$entityName], true);
+        $objectId = spl_object_id($entity);
+        return isset($this->eventCalled[$objectId])
+            && in_array($event, $this->eventCalled[$objectId], true);
+    }
+
+    /**
+     * @param object $entity
+     * @param array<string, array<int, mixed>> $changes
+     * @return bool
+     * @throws ReflectionException
+     */
+    private function hasValidUpdateChanges(object $entity, array $changes): bool
+    {
+        if (empty($changes)) {
+            return false;
+        }
+
+        // Check if there are any actual value changes (not just ID changes)
+        $propertiesColumns = $this->entityManager->getDbMapping()->getPropertiesColumns($entity::class);
+
+        foreach ($propertiesColumns as $property => $column) {
+            if ($property === 'id') {
+                continue; // Skip ID property
+            }
+
+            if (isset($changes[$property]) && $changes[$property][1] !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
