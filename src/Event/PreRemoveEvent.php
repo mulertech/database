@@ -12,10 +12,10 @@ class PreRemoveEvent extends AbstractEntityEvent
 {
     /**
      * @param Object $entity
-     * @param EntityManagerInterface $em
+     * @param EntityManagerInterface $entityManager
      */
-    public function __construct(Object $entity, EntityManagerInterface $em)
+    public function __construct(Object $entity, EntityManagerInterface $entityManager)
     {
-        parent::__construct($entity, $em, DbEvents::preRemove);
+        parent::__construct($entity, $entityManager, DbEvents::preRemove);
     }
 }
