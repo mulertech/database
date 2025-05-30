@@ -1,0 +1,25 @@
+<?php
+
+namespace MulerTech\Database\PhpInterface;
+
+/**
+ * Interface DriverInterface
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
+interface DriverInterface
+{
+    /**
+     * @param array{
+     *     host?: string,
+     *     port?: int|string,
+     *     dbname?: string,
+     *     unix_socket?: string,
+     *     charset?: string
+     * } $dsnOptions
+     * @return string
+     */
+    public function generateDsn(array $dsnOptions): string;
+
+}
