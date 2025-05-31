@@ -53,15 +53,15 @@ interface PhpDatabaseInterface
 
     /**
      * @param string $query
-     * @param int $fetchMode
-     * @param int|string|object|null $arg3
+     * @param int|null $fetchMode
+     * @param int|string|object $arg3
      * @param array<int, mixed>|null $constructorArgs
      * @return Statement
      */
     public function query(
         string $query,
-        int $fetchMode = PDO::ATTR_DEFAULT_FETCH_MODE,
-        int|string|object|null $arg3 = null,
+        int|null $fetchMode = null,
+        int|string|object $arg3 = '',
         array|null $constructorArgs = null
     ): Statement;
 

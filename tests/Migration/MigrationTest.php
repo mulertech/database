@@ -12,8 +12,6 @@ use MulerTech\Database\Migration\Schema\SchemaDifference;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
@@ -42,7 +40,7 @@ class MigrationTest extends TestCase
     {
         $terminal = $this->createMock(Terminal::class);
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager([]),
             new DbMapping(
                 dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
             )
