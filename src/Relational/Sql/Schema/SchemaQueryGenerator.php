@@ -27,9 +27,9 @@ class SchemaQueryGenerator
 
         if ($isCreate) {
             return $this->generateCreateTable($tableName, $columns, $indexes, $foreignKeys, $options);
-        } else {
-            return $this->generateAlterTable($tableName, $columns, $options, $foreignKeys);
         }
+
+        return $this->generateAlterTable($tableName, $columns, $options, $foreignKeys);
     }
 
     /**
@@ -229,12 +229,16 @@ class SchemaQueryGenerator
     {
         if (is_numeric($value)) {
             return $value;
-        } elseif (is_bool($value)) {
-            return $value ? '1' : '0';
-        } elseif (is_null($value)) {
-            return 'NULL';
-        } else {
-            return "'" . str_replace("'", "''", $value) . "'";
         }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_null($value)) {
+            return 'NULL';
+        }
+
+        return "'" . str_replace("'", "''", $value) . "'";
     }
 }

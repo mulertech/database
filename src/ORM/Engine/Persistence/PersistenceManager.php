@@ -161,10 +161,10 @@ class PersistenceManager
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $originalData
+     * @param array<string, mixed>|null $originalData
      * @return void
      */
-    public function manageNewEntity(object $entity, array $originalData): void
+    public function manageNewEntity(object $entity, ?array $originalData): void
     {
         $this->stateManager->manage($entity);
         $this->changeTracker->trackOriginalData($entity, $originalData);

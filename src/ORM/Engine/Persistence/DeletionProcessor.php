@@ -94,12 +94,22 @@ class DeletionProcessor
         }
 
         $tableName = $this->getTableName($entityClass);
-        $idsPlaceholder = str_repeat('?,', count($ids) - 1) . '?';
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
 
-        $sql = sprintf('DELETE FROM `%s` WHERE id IN (%s)', $tableName, $idsPlaceholder);
+        $idParams = [];
+        foreach ($ids as $index => $id) {
+            $idParams[] = $queryBuilder->addNamedParameter($id, "id_{$index}");
+        }
+
+        $sql = sprintf('DELETE FROM `%s` WHERE id IN (%s)', $tableName, implode(', ', $idParams));
 
         $statement = $this->entityManager->getPdm()->prepare($sql);
-        $statement->execute($ids);
+
+        foreach ($queryBuilder->getNamedParameters() as $name => $value) {
+            $statement->bindValue(":$name", $value);
+        }
+
+        $statement->execute();
         $rowCount = $statement->rowCount();
         $statement->closeCursor();
 
@@ -133,8 +143,16 @@ class DeletionProcessor
         $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
 
         $queryBuilder->delete($tableName);
+
+        $entityId = $this->getId($entity);
+        if ($entityId === null) {
+            throw new RuntimeException(
+                sprintf('Cannot delete entity %s without a valid ID', $entity::class)
+            );
+        }
+
         $queryBuilder->where(
-            SqlOperations::equal('id', $queryBuilder->addNamedParameter($this->getId($entity)))
+            SqlOperations::equal('id', $queryBuilder->addNamedParameter($entityId))
         );
 
         return $queryBuilder;
@@ -186,7 +204,7 @@ class DeletionProcessor
 
         foreach ($criteria as $property => $value) {
             $column = $this->getColumnName($entityClass, $property);
-            $condition = SqlOperations::equal($column, $queryBuilder->addDynamicParameter($value));
+            $condition = SqlOperations::equal($column, $queryBuilder->addNamedParameter($value));
 
             if ($first) {
                 $queryBuilder->where($condition);

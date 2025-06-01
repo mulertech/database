@@ -82,7 +82,7 @@ class EmEngine
             if ($managed !== null) {
                 return $managed;
             }
-            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($idOrWhere));
+            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($idOrWhere, 'find_id'));
         } else {
             $queryBuilder->where($idOrWhere);
         }
@@ -247,7 +247,7 @@ class EmEngine
         $queryBuilder->select('*')->from($this->getTableName($entityName));
 
         if (is_numeric($where)) {
-            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($where));
+            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($where, 'count_id'));
         } elseif (is_string($where)) {
             $queryBuilder->where($where);
         }
