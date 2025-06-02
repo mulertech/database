@@ -25,7 +25,7 @@ class SelectBuilder extends AbstractQueryBuilder
     private bool $distinct = false;
 
     /**
-     * @var array<int, array{table: string, alias: string|null}>
+     * @var array<int, array{table: string|SelectBuilder, alias: string|null}>
      */
     private array $from = [];
 
@@ -101,7 +101,7 @@ class SelectBuilder extends AbstractQueryBuilder
             $columns[0] = substr($columns[0], 9);
         }
 
-        $this->select = array_values(array_map(fn ($col) => $this->escapeIdentifier($col), $columns));
+        $this->select = array_values(array_map([self::class, 'escapeIdentifier'], $columns));
         return $this;
     }
 
@@ -299,7 +299,7 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function groupBy(string ...$columns): self
     {
-        $this->groupBy = array_values(array_map(fn ($col) => $this->escapeIdentifier($col), $columns));
+        $this->groupBy = array_values(array_map([self::class, 'escapeIdentifier'], $columns));
         return $this;
     }
 
@@ -391,7 +391,7 @@ class SelectBuilder extends AbstractQueryBuilder
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
         $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $this->orderBy[] = $this->escapeIdentifier($column) . ' ' . $direction;
+        $this->orderBy[] = self::escapeIdentifier($column) . ' ' . $direction;
         return $this;
     }
 
@@ -414,7 +414,8 @@ class SelectBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param int $offset
+     * @param int|null $page
+     * @param int $manuallyOffset
      * @return self
      */
     public function offset(?int $page = 1, int $manuallyOffset = 0): self
@@ -569,7 +570,7 @@ class SelectBuilder extends AbstractQueryBuilder
         $fromParts = [];
 
         foreach ($this->from as $table) {
-            if ($table['table'] instanceof SelectBuilder || $table['table'] instanceof QueryBuilder) {
+            if ($table['table'] instanceof SelectBuilder) {
                 // Handle subquery
                 $subQuery = '(' . $table['table']->toSql() . ')';
                 $part = $subQuery . ' AS ' . $table['alias'];
@@ -580,7 +581,7 @@ class SelectBuilder extends AbstractQueryBuilder
                     $this->namedParameters[$key] = $value;
                 }
             } else {
-                $part = $this->escapeIdentifier($table['table']);
+                $part = self::escapeIdentifier($table['table']);
                 if ($table['alias'] !== null) {
                     $part .= ' AS ' . $table['alias'];
                 }
@@ -599,7 +600,7 @@ class SelectBuilder extends AbstractQueryBuilder
         $joinParts = [];
 
         foreach ($this->joins as $join) {
-            $part = $join['type'] . ' ' . $this->escapeIdentifier($join['table']);
+            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
 
             if ($join['alias'] !== null) {
                 $part .= ' AS ' . $join['alias'];
@@ -607,7 +608,7 @@ class SelectBuilder extends AbstractQueryBuilder
 
             if ($join['condition'] !== null) {
                 $explodeString = str_contains($join['condition'], ' = ') ? ' = ' : '=';
-                $conditionParts = array_map([$this, 'escapeIdentifier'], explode($explodeString, $join['condition']));
+                $conditionParts = array_map([self::class, 'escapeIdentifier'], explode($explodeString, $join['condition']));
                 $part .= ' ON ' . $conditionParts[0] . '=' . $conditionParts[1];
             }
 

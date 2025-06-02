@@ -98,7 +98,7 @@ class DeletionProcessor
 
         $idParams = [];
         foreach ($ids as $index => $id) {
-            $idParams[] = $queryBuilder->addNamedParameter($id, "id_{$index}");
+            $idParams[] = $queryBuilder->addNamedParameter($id);
         }
 
         $sql = sprintf('DELETE FROM `%s` WHERE id IN (%s)', $tableName, implode(', ', $idParams));

@@ -134,7 +134,6 @@ class InformationSchema
             )
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value, 'k')
             ->leftJoin(
-                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value . ' k',
                 self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value . ' r',
                 'k.CONSTRAINT_NAME=r.CONSTRAINT_NAME'
             )

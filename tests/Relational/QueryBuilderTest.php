@@ -2,9 +2,9 @@
 
 namespace MulerTech\Database\Tests\Relational;
 
+use MulerTech\Database\Query\AbstractQueryBuilder;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\Database\Relational\Sql\SqlQuery;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -638,10 +638,14 @@ class QueryBuilderTest extends TestCase
         $queryBuilder
             ->update('employees')
             ->setValue('lastname', 'Hill')
-            ->where(SqlOperations::equal('id', 1));
+            ->where(SqlOperations::equal('id', $queryBuilder->addNamedParameter(33806, PDO::PARAM_INT)));
         self::assertEquals(
             'UPDATE `employees` SET `lastname` = :namedParam1 WHERE id=:namedParam2',
             $queryBuilder->getQuery()
+        );
+        self::assertEquals(
+            [':namedParam1' => ['Hill', 2], ':namedParam2' => [33806, 1]],
+            $queryBuilder->getNamedParameters()
         );
     }
 
@@ -674,7 +678,7 @@ class QueryBuilderTest extends TestCase
             ->leftJoin('failures', 'aux_repairs.id_failures = failures.id')
             ->leftJoin('aux_kits', 'aux_repairs.idequipment = aux_kits.id')
             ->leftJoin('units', 'aux_kits.id_units = units.id')
-            ->where(SqlOperations::equal(SqlQuery::escape('aux_repairs.equipment_table'), "'aux_kits'"));
+            ->where(SqlOperations::equal(AbstractQueryBuilder::escapeIdentifier('aux_repairs.equipment_table'), "'aux_kits'"));
         $phonerepairs = new QueryBuilder()
             ->select(
                 'aux_repairs.id AS id',
@@ -691,7 +695,7 @@ class QueryBuilderTest extends TestCase
             ->leftJoin('failures', 'aux_repairs.id_failures = failures.id')
             ->leftJoin('aux_phones', 'aux_repairs.idequipment = aux_phones.id')
             ->leftJoin('units', 'aux_phones.id_units = units.id')
-            ->where(SqlOperations::equal(SqlQuery::escape('aux_repairs.equipment_table'), "'aux_phones'"));
+            ->where(SqlOperations::equal(AbstractQueryBuilder::escapeIdentifier('aux_repairs.equipment_table'), "'aux_phones'"));
         $subQuery = new QueryBuilder()->union($kitrepairs, $phonerepairs);
         $queryBuilder = new QueryBuilder()->select('*')->from($subQuery, 'aux_repairs');
         self::assertEquals(

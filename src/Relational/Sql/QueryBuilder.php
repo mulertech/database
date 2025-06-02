@@ -204,7 +204,6 @@ class QueryBuilder
     }
 
     /**
-     * @param string $from
      * @param string $to
      * @return self
      */

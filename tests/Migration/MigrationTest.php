@@ -898,4 +898,400 @@ class MigrationTest extends TestCase
         $this->assertStringContainsString('$tableDefinition = $schema->alterTable("test_table");', $result);
         $this->assertStringContainsString('->column("test_column")', $result);
     }
+
+    /**
+     * Test that migration generation handles complex column types correctly
+     * @throws ReflectionException
+     */
+    public function testGenerateMigrationWithComplexColumnTypes(): void
+    {
+        // Create table with various complex column types
+        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS users_test');
+        $this->entityManager->getPdm()->exec(
+            'CREATE TABLE users_test (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                score DECIMAL(8,2) DEFAULT 0.00,
+                rating FLOAT(6,2) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                data LONGTEXT NULL
+            )'
+        );
+
+        $filename = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory)
+            ->generateMigration('202505011030');
+
+        $fileContent = file_get_contents($filename);
+        
+        // Test that complex types are handled correctly
+        $this->assertStringContainsString('->column("username")', $fileContent);
+        $this->assertStringContainsString('->string(255)', $fileContent);
+        $this->assertStringContainsString('->default("John")', $fileContent);
+    }
+
+    /**
+     * Test migration validation with missing referenced table
+     * @throws ReflectionException
+     */
+    public function testValidationWithMissingReferencedTable(): void
+    {
+        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['compare'])
+            ->getMock();
+
+        $schemaDifference = new SchemaDifference();
+        $schemaDifference->addForeignKeyToAdd('users_test', 'fk_missing_ref', [
+            'COLUMN_NAME' => 'category_id',
+            'REFERENCED_TABLE_NAME' => null, // Missing referenced table
+            'REFERENCED_COLUMN_NAME' => 'id'
+        ]);
+        $schemaComparer->method('compare')->willReturn($schemaDifference);
+
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Foreign key 'fk_missing_ref' has incomplete definition.");
+
+        $migrationGenerator->generateMigration($this->migrationDatetime);
+    }
+
+    /**
+     * Test migration with foreign key having missing column name
+     * @throws ReflectionException
+     */
+    public function testValidationWithMissingColumnName(): void
+    {
+        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['compare'])
+            ->getMock();
+
+        $schemaDifference = new SchemaDifference();
+        $schemaDifference->addForeignKeyToAdd('users_test', 'fk_missing_col', [
+            'COLUMN_NAME' => null, // Missing column name
+            'REFERENCED_TABLE_NAME' => 'categories',
+            'REFERENCED_COLUMN_NAME' => 'id'
+        ]);
+        $schemaComparer->method('compare')->willReturn($schemaDifference);
+
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Foreign key 'fk_missing_col' has incomplete definition.");
+
+        $migrationGenerator->generateMigration($this->migrationDatetime);
+    }
+
+    /**
+     * Test parseColumnType with unsigned bigint
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithUnsignedBigint(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'bigint(20) unsigned', 'large_id', false, null, null);
+        
+        $this->assertStringContainsString('->bigInteger()', $result);
+        $this->assertStringContainsString('->unsigned()', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test parseColumnType with double precision
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithDouble(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'double', 'precision_value', true, null, null);
+        
+        $this->assertStringContainsString('->double()', $result);
+        $this->assertStringNotContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test parseColumnType with timestamp
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithTimestamp(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'timestamp', 'created_at', false, 'CURRENT_TIMESTAMP', null);
+        
+        $this->assertStringContainsString('->timestamp()', $result);
+        $this->assertStringContainsString('->default("CURRENT_TIMESTAMP")', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test parseColumnType with longtext
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithLongtext(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'longtext', 'content', true, null, null);
+        
+        $this->assertStringContainsString('->longText()', $result);
+        $this->assertStringNotContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test parseColumnType with tinyint (boolean)
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithTinyint(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'tinyint(1)', 'is_active', false, '0', null);
+        
+        $this->assertStringContainsString('->tinyInt()', $result);
+        $this->assertStringContainsString('->default("0")', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test migration manager with invalid migration file
+     */
+    public function testRegisterMigrationsSkipsInvalidFiles(): void
+    {
+        // Create invalid migration file
+        $invalidFile = $this->migrationsDirectory . DIRECTORY_SEPARATOR . 'InvalidMigration.php';
+        file_put_contents($invalidFile, '<?php class InvalidMigration {}');
+
+        // Should not throw exception, just skip invalid files
+        $this->migrationManager->registerMigrations($this->migrationsDirectory);
+        
+        // Verify that no migrations were registered from invalid file
+        $this->assertEmpty($this->migrationManager->getMigrations());
+    }
+
+    /**
+     * Test migration manager with empty migrations directory
+     */
+    public function testRegisterMigrationsWithEmptyDirectory(): void
+    {
+        $emptyDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'empty_migrations';
+        if (!is_dir($emptyDir)) {
+            mkdir($emptyDir, 0777, true);
+        }
+
+        $this->migrationManager->registerMigrations($emptyDir);
+        
+        $this->assertEmpty($this->migrationManager->getMigrations());
+        
+        rmdir($emptyDir);
+    }
+
+    /**
+     * Test migration execution with successful migration
+     * @throws Exception
+     */
+    public function testExecuteMigrationSuccess(): void
+    {
+        $migration = $this->createMock(Migration::class);
+        $migration->method('getVersion')->willReturn('20230101-0001');
+        $migration->expects($this->once())->method('up');
+
+        $this->migrationManager->registerMigration($migration);
+        
+        $this->migrationManager->executeMigration($migration);
+        
+        $this->assertTrue($this->migrationManager->isMigrationExecuted('20230101-0001'));
+    }
+
+    /**
+     * Test rollback failure when migration down() throws exception
+     * @throws Exception
+     */
+    public function testRollbackFailureInDownMethod(): void
+    {
+        $reflectionClass = new ReflectionClass($this->migrationManager);
+        $executedMigrationsProperty = $reflectionClass->getProperty('executedMigrations');
+        $executedMigrationsProperty->setValue($this->migrationManager, ['20230101-0001']);
+
+        $migration = $this->createMock(Migration::class);
+        $migration->method('getVersion')->willReturn('20230101-0001');
+        $migration->expects($this->once())
+            ->method('down')
+            ->willThrowException(new \Exception('Rollback failed'));
+
+        $this->migrationManager->registerMigration($migration);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Migration rollback 20230101-0001 failed: Rollback failed');
+
+        $this->migrationManager->rollback();
+    }
+
+    /**
+     * Test column modification with null default value changes
+     * @throws ReflectionException
+     */
+    public function testGenerateModifyColumnStatementWithNullDefaults(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateModifyColumnStatement');
+
+        $differences = [
+            'COLUMN_TYPE' => [
+                'from' => 'varchar(100)',
+                'to' => 'varchar(255)'
+            ],
+            'COLUMN_DEFAULT' => [
+                'from' => 'old_value',
+                'to' => null
+            ]
+        ];
+
+        $result = $method->invoke($generator, 'test_table', 'test_column', $differences);
+
+        $this->assertStringContainsString('$schema = new SchemaBuilder();', $result);
+        $this->assertStringContainsString('$tableDefinition = $schema->alterTable("test_table");', $result);
+        $this->assertStringContainsString('->column("test_column")', $result);
+    }
+
+    /**
+     * Test generateRestoreColumnStatement with complex changes
+     * @throws ReflectionException
+     */
+    public function testGenerateRestoreColumnStatementComplex(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('generateRestoreColumnStatement');
+
+        $differences = [
+            'COLUMN_TYPE' => [
+                'from' => 'int(11)',
+                'to' => 'bigint(20)'
+            ],
+            'IS_NULLABLE' => [
+                'from' => 'YES',
+                'to' => 'NO'
+            ],
+            'COLUMN_DEFAULT' => [
+                'from' => null,
+                'to' => '0'
+            ]
+        ];
+
+        $result = $method->invoke($generator, 'test_table', 'test_column', $differences);
+
+        $this->assertStringContainsString('$schema = new SchemaBuilder();', $result);
+        $this->assertStringContainsString('$tableDefinition = $schema->alterTable("test_table");', $result);
+        $this->assertStringContainsString('->column("test_column")', $result);
+        $this->assertStringContainsString('->integer()', $result);
+    }
+
+    /**
+     * Test foreign key generation with all constraint rules
+     * @throws ReflectionException
+     */
+    public function testGenerateForeignKeyWithAllRules(): void
+    {
+        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['compare'])
+            ->getMock();
+
+        $schemaDifference = new SchemaDifference();
+        $schemaDifference->addForeignKeyToAdd('users_test', 'fk_complete', [
+            'COLUMN_NAME' => 'category_id',
+            'REFERENCED_TABLE_NAME' => 'categories',
+            'REFERENCED_COLUMN_NAME' => 'id',
+            'DELETE_RULE' => 'SET NULL',
+            'UPDATE_RULE' => 'CASCADE'
+        ]);
+        $schemaComparer->method('compare')->willReturn($schemaDifference);
+
+        $generator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $filename = $generator->generateMigration($this->migrationDatetime);
+
+        $fileContent = file_get_contents($filename);
+        $this->assertStringContainsString('->foreignKey("fk_complete")', $fileContent);
+        $this->assertStringContainsString('->references("categories", "id")', $fileContent);
+        $this->assertStringContainsString(
+            '->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_NULL)',
+            $fileContent
+        );
+        $this->assertStringContainsString(
+            '->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE)',
+            $fileContent
+        );
+    }
+
+    /**
+     * Test column type parsing with json type
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithJson(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, 'json', 'metadata', true, null, null);
+        
+        $this->assertStringContainsString('->json()', $result);
+        $this->assertStringNotContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test column type parsing with enum
+     * @throws ReflectionException
+     */
+    public function testParseColumnTypeWithEnum(): void
+    {
+        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $reflection = new ReflectionClass($generator);
+        $method = $reflection->getMethod('parseColumnType');
+
+        $result = $method->invoke($generator, "enum('active','inactive')", 'status', false, 'active', null);
+        $this->assertStringContainsString("->enum(['active', 'inactive'])", $result);
+        $this->assertStringContainsString('->default("active")', $result);
+        $this->assertStringContainsString('->notNull()', $result);
+    }
+
+    /**
+     * Test that schema comparer handles non-existent database gracefully
+     */
+    public function testSchemaComparerWithNonExistentDatabase(): void
+    {
+        $informationSchema = $this->getMockBuilder(InformationSchema::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        
+        // Mock empty results for non-existent database
+        $informationSchema->method('getTables')->willReturn([]);
+        $informationSchema->method('getColumns')->willReturn([]);
+        $informationSchema->method('getForeignKeys')->willReturn([]);
+
+        $schemaComparer = new SchemaComparer(
+            $informationSchema,
+            $this->entityManager->getDbMapping(),
+            'non_existent_db'
+        );
+
+        $diff = $schemaComparer->compare();
+        
+        // Should suggest creating all entity tables since database is empty
+        $this->assertNotEmpty($diff->getTablesToCreate());
+    }
 }

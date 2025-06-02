@@ -160,6 +160,36 @@ class DeleteBuilder extends AbstractQueryBuilder
     }
 
     /**
+     * @param SqlOperations|string $condition
+     * @return self
+     */
+    public function andNotWhere(SqlOperations|string $condition): self
+    {
+        if ($this->where !== null) {
+            $this->where->addOperation($condition, LinkOperator::AND_NOT);
+        } else {
+            $this->where($condition);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param SqlOperations|string $condition
+     * @return self
+     */
+    public function orNotWhere(SqlOperations|string $condition): self
+    {
+        if ($this->where !== null) {
+            $this->where->addOperation($condition, LinkOperator::OR_NOT);
+        } else {
+            $this->where($condition);
+        }
+
+        return $this;
+    }
+
+    /**
      * @param string $column
      * @param array<mixed> $values
      * @return self
@@ -175,7 +205,7 @@ class DeleteBuilder extends AbstractQueryBuilder
             $placeholders[] = $this->addNamedParameter($value);
         }
 
-        $condition = $this->escapeIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
+        $condition = self::escapeIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
         return $this->andWhere($condition);
     }
 
@@ -195,7 +225,7 @@ class DeleteBuilder extends AbstractQueryBuilder
             $placeholders[] = $this->addNamedParameter($value);
         }
 
-        $condition = $this->escapeIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
+        $condition = self::escapeIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
         return $this->andWhere($condition);
     }
 
@@ -207,7 +237,7 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function whereBetween(string $column, mixed $min, mixed $max): self
     {
-        $condition = $this->escapeIdentifier($column) . ' BETWEEN ' .
+        $condition = self::escapeIdentifier($column) . ' BETWEEN ' .
             $this->addNamedParameter($min) . ' AND ' .
             $this->addNamedParameter($max);
         return $this->andWhere($condition);
@@ -219,7 +249,7 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function whereNull(string $column): self
     {
-        $condition = $this->escapeIdentifier($column) . ' IS NULL';
+        $condition = self::escapeIdentifier($column) . ' IS NULL';
         return $this->andWhere($condition);
     }
 
@@ -229,7 +259,7 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function whereNotNull(string $column): self
     {
-        $condition = $this->escapeIdentifier($column) . ' IS NOT NULL';
+        $condition = self::escapeIdentifier($column) . ' IS NOT NULL';
         return $this->andWhere($condition);
     }
 
@@ -241,7 +271,7 @@ class DeleteBuilder extends AbstractQueryBuilder
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
         $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $this->orderBy[] = $this->escapeIdentifier($column) . ' ' . $direction;
+        $this->orderBy[] = self::escapeIdentifier($column) . ' ' . $direction;
         return $this;
     }
 
@@ -309,7 +339,7 @@ class DeleteBuilder extends AbstractQueryBuilder
 
         // DELETE FROM specific tables (for multi-table deletes)
         if (!empty($this->deleteFrom)) {
-            $sql .= ' ' . implode(', ', array_map([$this, 'escapeIdentifier'], $this->deleteFrom));
+            $sql .= ' ' . implode(', ', array_map([self::class, 'escapeIdentifier'], $this->deleteFrom));
         }
 
         // FROM clause
@@ -383,7 +413,7 @@ class DeleteBuilder extends AbstractQueryBuilder
         $fromParts = [];
 
         foreach ($this->from as $table) {
-            $part = $this->escapeIdentifier($table['table']);
+            $part = self::escapeIdentifier($table['table']);
             if ($table['alias'] !== null) {
                 $part .= ' AS ' . $table['alias'];
             }
@@ -401,7 +431,7 @@ class DeleteBuilder extends AbstractQueryBuilder
         $joinParts = [];
 
         foreach ($this->joins as $join) {
-            $part = $join['type'] . ' ' . $this->escapeIdentifier($join['table']);
+            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
 
             if ($join['alias'] !== null) {
                 $part .= ' AS ' . $join['alias'];

@@ -123,33 +123,33 @@ abstract class AbstractQueryBuilder
     }
 
     /**
-     * @param string $column
+     * @param string $identifier
      * @return string
      */
-    protected function escapeIdentifier(string $column): string
+    public static function escapeIdentifier(string $identifier): string
     {
-        if ($column === '*' || str_contains($column, '(')) {
-            return $column;
+        if ($identifier === '*' || str_contains($identifier, '(')) {
+            return $identifier;
         }
 
-        if (str_contains($column, '.')) {
-            if (str_contains($column, ' ')) {
-                $spaceParts = explode(' ', $column, 2);
-                return $this->escapeIdentifier($spaceParts[0]) . ' ' . $spaceParts[1];
+        if (str_contains($identifier, '.')) {
+            if (str_contains($identifier, ' ')) {
+                $spaceParts = explode(' ', $identifier, 2);
+                return self::escapeIdentifier($spaceParts[0]) . ' ' . $spaceParts[1];
             }
 
-            $parts = explode('.', $column, 2);
+            $parts = explode('.', $identifier, 2);
 
-            return '`' . str_replace('`', '``', $parts[0]) . '`.`' . str_replace('`', '``', $parts[1]) . '`';
+            return self::escapeIdentifier($parts[0]) . '.' . self::escapeIdentifier($parts[1]);
         }
 
-        if (str_contains($column, ' ')) {
-            $as = str_contains(strtolower($column), ' as ') ? ' ' : ' AS ';
-            $parts = explode(' ', $column, 2);
-            return $this->escapeIdentifier($parts[0]) . $as . $parts[1];
+        if (str_contains($identifier, ' ')) {
+            $as = str_contains(strtolower($identifier), ' as ') ? ' ' : ' AS ';
+            $parts = explode(' ', $identifier, 2);
+            return self::escapeIdentifier($parts[0]) . $as . $parts[1];
         }
 
-        return '`' . str_replace('`', '``', $column) . '`';
+        return '`' . str_replace('`', '``', $identifier) . '`';
     }
 
     /**

@@ -6,7 +6,6 @@ use MulerTech\Database\ORM\Engine\EntityState\EntityChangeTracker;
 use MulerTech\Database\ORM\Engine\EntityState\EntityStateManager;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
@@ -38,6 +37,17 @@ class PersistenceManager
      * @var int
      */
     private const MAX_FLUSH_DEPTH = 10;
+
+
+    /**
+     * @var bool
+     */
+    private bool $hasPostEventChanges = false;
+
+    /**
+     * @var bool
+     */
+    private bool $isInPostUpdateEvent = false;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -117,13 +127,14 @@ class PersistenceManager
 
         $this->flushDepth++;
         $wasFlushInProgress = $this->isFlushInProgress;
-        $this->isFlushInProgress = true;
 
         try {
             $this->prepareForFlush();
 
             if ($this->flushDepth === 1) {
                 $this->entityManager->getPdm()->beginTransaction();
+                // Only clear event tracking at the very start of the flush process
+                $this->eventCalled = [];
             }
 
             try {
@@ -132,8 +143,8 @@ class PersistenceManager
                 $this->executeDeletions();
                 $this->executeRelationChanges();
 
-                if ($this->flushDepth === 1) {
-                    $this->entityManager->getPdm()->commit();
+                if ($this->flushDepth === 1 && !$this->isFlushInProgress) {
+                    $this->isFlushInProgress = true;
                     $this->dispatchPostFlushEvent();
                 }
             } catch (\Exception $e) {
@@ -145,6 +156,12 @@ class PersistenceManager
         } finally {
             $this->flushDepth--;
             $this->isFlushInProgress = $wasFlushInProgress;
+
+            // Process any changes made during events - but only if we're at the top level
+            if ($this->flushDepth === 0 && $this->hasPostEventChanges) {
+                $this->hasPostEventChanges = false;
+                $this->flush();
+            }
         }
     }
 
@@ -199,7 +216,8 @@ class PersistenceManager
             if (!$this->stateManager->isScheduledForDeletion($entity)) {
                 $this->changeTracker->computeChanges($entity);
 
-                if ($this->changeTracker->hasNonIdChanges($entity)) {
+                // Don't schedule for update if we're in a PostUpdate event to prevent recursive updates
+                if ($this->changeTracker->hasNonIdChanges($entity) && !$this->isInPostUpdateEvent) {
                     $this->stateManager->scheduleForUpdate($entity);
                 }
             }
@@ -243,36 +261,46 @@ class PersistenceManager
             return;
         }
 
-        foreach ($updates as $entity) {
-            $changes = $this->changeTracker->getChanges($entity);
+        try {
+            foreach ($updates as $entity) {
+                $changes = $this->changeTracker->getChanges($entity);
 
-            // Ensure we have changes to process
-            if (empty($changes)) {
+                // Ensure we have changes to process
+                if (empty($changes)) {
+                    $this->stateManager->markAsProcessed($entity);
+                    continue;
+                }
+
+                // Check if this entity has already been processed in this entire flush operation
+                $entityId = spl_object_id($entity);
+                $processedKey = 'processed_update_' . $entityId;
+                if ($this->isEventCalled($entity, $processedKey)) {
+                    $this->stateManager->markAsProcessed($entity);
+                    $this->changeTracker->refreshOriginalData($entity);
+                    continue;
+                }
+
+                // Mark as processed BEFORE events to prevent recursive processing
+                $this->markEventCalled($entity, $processedKey);
+
+                $this->dispatchPreUpdateEvent($entity, $changes);
+
+                // Recompute changes after PreUpdate event as it might have modified the entity
+                $this->changeTracker->computeChanges($entity);
+                $updatedChanges = $this->changeTracker->getChanges($entity);
+
+                // If no changes after PreUpdate event, skip the database update
+                if (!empty($updatedChanges) && $this->hasValidUpdateChanges($entity, $updatedChanges)) {
+                    $this->updateProcessor->execute($entity, $updatedChanges);
+                }
+
                 $this->stateManager->markAsProcessed($entity);
-                continue;
+                $this->changeTracker->refreshOriginalData($entity);
+
+                $this->dispatchPostUpdateEvent($entity);
             }
-
-            $this->dispatchPreUpdateEvent($entity, $changes);
-
-            // Recompute changes after PreUpdate event as it might have modified the entity
-            $this->changeTracker->computeChanges($entity);
-            $updatedChanges = $this->changeTracker->getChanges($entity);
-
-            // If no changes after PreUpdate event, skip the database update
-            if (!empty($updatedChanges) && $this->hasValidUpdateChanges($entity, $updatedChanges)) {
-                $this->updateProcessor->execute($entity, $updatedChanges);
-            }
-
-            $this->stateManager->markAsProcessed($entity);
-            $this->changeTracker->refreshOriginalData($entity);
-
-            $this->dispatchPostUpdateEvent($entity);
-        }
-
-        // After processing all updates, check if there are new pending changes
-        // and flush them in a new cycle
-        if ($this->stateManager->hasPendingChanges()) {
-            $this->flush();
+        } catch (\Exception $e) {
+            throw $e;
         }
     }
 
@@ -290,15 +318,19 @@ class PersistenceManager
 
         $processedEntities = [];
 
-        foreach ($deletions as $entity) {
-            $this->dispatchPreRemoveEvent($entity);
-            $this->deletionProcessor->execute($entity);
-            $this->stateManager->markAsProcessed($entity);
+        try {
+            foreach ($deletions as $entity) {
+                $this->dispatchPreRemoveEvent($entity);
+                $this->deletionProcessor->execute($entity);
+                $this->stateManager->markAsProcessed($entity);
 
-            $processedEntities[] = $entity;
+                $processedEntities[] = $entity;
+            }
+
+            $this->dispatchPostRemoveEvents($processedEntities);
+        } catch (\Exception $e) {
+            throw $e;
         }
-
-        $this->dispatchPostRemoveEvents($processedEntities);
     }
 
     /**
@@ -335,7 +367,7 @@ class PersistenceManager
      */
     private function dispatchPrePersistEvent(object $entity): void
     {
-        if ($this->eventManager) {
+        if ($this->eventManager && !$this->isFlushInProgress) {
             $this->eventManager->dispatch(
                 new \MulerTech\Database\Event\PrePersistEvent($entity, $this->entityManager)
             );
@@ -348,7 +380,7 @@ class PersistenceManager
      */
     private function dispatchPostPersistEvents(array $entities): void
     {
-        if ($this->eventManager) {
+        if ($this->eventManager && !$this->isFlushInProgress) {
             foreach ($entities as $entity) {
                 $this->eventManager->dispatch(
                     new \MulerTech\Database\Event\PostPersistEvent($entity, $this->entityManager)
@@ -364,11 +396,14 @@ class PersistenceManager
      */
     private function dispatchPreUpdateEvent(object $entity, array $changes): void
     {
-        if ($this->eventManager && !$this->isEventCalled($entity, DbEvents::preUpdate->value)) {
-            $this->markEventCalled($entity, DbEvents::preUpdate->value);
-            $this->eventManager->dispatch(
-                new \MulerTech\Database\Event\PreUpdateEvent($entity, $this->entityManager, $changes)
-            );
+        if ($this->eventManager && !$this->isFlushInProgress) {
+            $eventKey = 'preUpdate_' . spl_object_id($entity);
+            if (!$this->isEventCalled($entity, $eventKey)) {
+                $this->markEventCalled($entity, $eventKey);
+                $this->eventManager->dispatch(
+                    new \MulerTech\Database\Event\PreUpdateEvent($entity, $this->entityManager, $changes)
+                );
+            }
         }
     }
 
@@ -378,11 +413,14 @@ class PersistenceManager
      */
     private function dispatchPostUpdateEvent(object $entity): void
     {
-        if ($this->eventManager && !$this->isEventCalled($entity, DbEvents::postUpdate->value)) {
-            $this->markEventCalled($entity, DbEvents::postUpdate->value);
-            $this->eventManager->dispatch(
-                new \MulerTech\Database\Event\PostUpdateEvent($entity, $this->entityManager)
-            );
+        if ($this->eventManager && !$this->isFlushInProgress) {
+            $eventKey = 'postUpdate_' . spl_object_id($entity);
+            if (!$this->isEventCalled($entity, $eventKey)) {
+                $this->markEventCalled($entity, $eventKey);
+                $this->eventManager->dispatch(
+                    new \MulerTech\Database\Event\PostUpdateEvent($entity, $this->entityManager)
+                );
+            }
         }
     }
 
@@ -392,11 +430,14 @@ class PersistenceManager
      */
     private function dispatchPreRemoveEvent(object $entity): void
     {
-        if ($this->eventManager && !$this->isEventCalled($entity, DbEvents::preRemove->value)) {
-            $this->markEventCalled($entity, DbEvents::preRemove->value);
-            $this->eventManager->dispatch(
-                new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager)
-            );
+        if ($this->eventManager && !$this->isFlushInProgress) {
+            $eventKey = 'preRemove_' . spl_object_id($entity);
+            if (!$this->isEventCalled($entity, $eventKey)) {
+                $this->markEventCalled($entity, $eventKey);
+                $this->eventManager->dispatch(
+                    new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager)
+                );
+            }
         }
     }
 
@@ -406,7 +447,7 @@ class PersistenceManager
      */
     private function dispatchPostRemoveEvents(array $entities): void
     {
-        if ($this->eventManager) {
+        if ($this->eventManager && !$this->isFlushInProgress) {
             foreach ($entities as $entity) {
                 $this->eventManager->dispatch(
                     new \MulerTech\Database\Event\PostRemoveEvent($entity, $this->entityManager)
@@ -420,14 +461,8 @@ class PersistenceManager
      */
     private function dispatchPostFlushEvent(): void
     {
-        if ($this->eventManager && $this->flushDepth === 1) {
+        if ($this->eventManager !== null) {
             $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
-            $this->eventCalled = [];
-
-            // Check if PostFlush event created new changes
-            if ($this->stateManager->hasPendingChanges()) {
-                $this->flush();
-            }
         }
     }
 

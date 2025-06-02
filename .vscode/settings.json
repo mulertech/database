@@ -1,3 +1,9 @@
 {
-    "phpunit.command": "docker exec -it docker-database-8.4"
+    "phpunit.command": "docker exec -it docker-database-8.4",
+    "phpunit.phpunit": "./vendor/bin/phpunit",
+    "phpunit.testExplorer.include": "**/tests/**/*Test.php",
+    "phpunit.paths": {
+      "${workspaceFolder}/src": "src",
+      "${workspaceFolder}/tests": "tests"
+    }
 }

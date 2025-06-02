@@ -65,12 +65,13 @@ class InsertBuilder extends AbstractQueryBuilder
      * @param int $type
      * @return self
      */
-    public function set(string $column, mixed $value, int $type = PDO::PARAM_STR): self
+    public function set(string $column, mixed $value, ?int $type = PDO::PARAM_STR): self
     {
         if ($value instanceof Raw) {
             $this->values[$column] = $value->getValue();
         } else {
-            $this->values[$column] = $this->addNamedParameter($value, $type);
+            $this->values[$column] = $type !== null
+                ? $this->addNamedParameter($value, $type) : $this->addNamedParameter($value);
         }
         return $this;
     }
@@ -178,7 +179,7 @@ class InsertBuilder extends AbstractQueryBuilder
             throw new RuntimeException('Table name must be specified');
         }
 
-        $sql = $this->getInsertKeyword() . ' INTO ' . $this->escapeIdentifier($this->table);
+        $sql = $this->getInsertKeyword() . ' INTO ' . self::escapeIdentifier($this->table);
 
         if ($this->selectQuery !== null) {
             return $this->buildInsertFromSelect($sql);
@@ -227,7 +228,7 @@ class InsertBuilder extends AbstractQueryBuilder
     private function buildSingleInsert(string $sql): string
     {
         $columns = array_keys($this->values);
-        $sql .= ' (' . implode(', ', array_map([$this, 'escapeIdentifier'], $columns)) . ')';
+        $sql .= ' (' . implode(', ', array_map([self::class, 'escapeIdentifier'], $columns)) . ')';
         $sql .= ' VALUES (';
 
         $sql .= implode(', ', array_values($this->values)) . ')';
@@ -246,7 +247,7 @@ class InsertBuilder extends AbstractQueryBuilder
         }
 
         $columns = array_keys($this->batchValues[0]);
-        $sql .= ' (' . implode(', ', array_map([$this, 'escapeIdentifier'], $columns)) . ')';
+        $sql .= ' (' . implode(', ', array_map([self::class, 'escapeIdentifier'], $columns)) . ')';
         $sql .= ' VALUES ';
 
         $valueGroups = [];
@@ -274,7 +275,7 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         if (!empty($this->values)) {
             $columns = array_keys($this->values);
-            $sql .= ' (' . implode(', ', array_map([$this, 'escapeIdentifier'], $columns)) . ')';
+            $sql .= ' (' . implode(', ', array_map([self::class, 'escapeIdentifier'], $columns)) . ')';
         }
 
         // Vérification de nullité avant d'appeler les méthodes
@@ -305,7 +306,7 @@ class InsertBuilder extends AbstractQueryBuilder
 
         $updateParts = [];
         foreach ($this->onDuplicateUpdate as $column => $value) {
-            $escapedColumn = $this->escapeIdentifier($column);
+            $escapedColumn = self::escapeIdentifier($column);
 
             if ($value === 'VALUES') {
                 $updateParts[] = "$escapedColumn = VALUES($escapedColumn)";

@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Relational\Sql\Schema;
 
 use InvalidArgumentException;
-use MulerTech\Database\Relational\Sql\SqlQuery;
+use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
  * Class IndexDefinition
@@ -193,12 +193,12 @@ class IndexDefinition
         }
 
         $columnList = implode(', ', array_map(function ($col) {
-            return SqlQuery::escape($col);
+            return AbstractQueryBuilder::escapeIdentifier($col);
         }, $this->columns));
 
         // Fix: avoid repeating INDEX keyword for standard indexes
-        $name = SqlQuery::escape($this->name);
-        $table = SqlQuery::escape($this->table);
+        $name = AbstractQueryBuilder::escapeIdentifier($this->name);
+        $table = AbstractQueryBuilder::escapeIdentifier($this->table);
         if ($this->type === IndexType::INDEX) {
             $sql = "CREATE INDEX $name ON $table ($columnList)";
         } else {

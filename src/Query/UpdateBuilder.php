@@ -5,6 +5,7 @@ namespace MulerTech\Database\Query;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\Database\Relational\Sql\Raw;
+use PDO;
 use RuntimeException;
 
 /**
@@ -68,46 +69,21 @@ class UpdateBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param array<string, mixed>|string $column
-     * @param mixed $value
-     * @return self
-     */
-    public function set(array|string $column, mixed $value = null): self
-    {
-        if (is_array($column)) {
-            foreach ($column as $col => $val) {
-                $this->setSingleValue($col, $val);
-            }
-        } else {
-            $this->setSingleValue($column, $value);
-        }
-
-        return $this;
-    }
-
-    /**
      * @param string $column
      * @param mixed $value
-     * @return void
+     * @param int|null $type
+     * @return self
      */
-    private function setSingleValue(string $column, mixed $value): void
+    public function set(string $column, mixed $value = null, ?int $type = PDO::PARAM_STR): self
     {
         if ($value instanceof Raw) {
             $this->setValues[$column] = $value->getValue();
         } else {
-            $this->setValues[$column] = $value; // Will be processed in buildSetClause
+            $this->setValues[$column] = $type !== null
+                ? $this->addNamedParameter($value, $type) : $this->addNamedParameter($value);
         }
-    }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param string|null $type
-     * @return self
-     */
-    public function setValue(string $column, mixed $value, ?string $type = null): self
-    {
-        return $this->set($column, $value);
+        return $this;
     }
 
     /**
@@ -117,7 +93,7 @@ class UpdateBuilder extends AbstractQueryBuilder
      */
     public function increment(string $column, int|float $value = 1): self
     {
-        $escapedColumn = $this->escapeIdentifier($column);
+        $escapedColumn = self::escapeIdentifier($column);
         $paramValue = $this->addNamedParameter($value);
         $this->setValues[$column] = "$escapedColumn + $paramValue";
         return $this;
@@ -130,7 +106,7 @@ class UpdateBuilder extends AbstractQueryBuilder
      */
     public function decrement(string $column, int|float $value = 1): self
     {
-        $escapedColumn = $this->escapeIdentifier($column);
+        $escapedColumn = self::escapeIdentifier($column);
         $paramValue = $this->addNamedParameter($value);
         $this->setValues[$column] = "$escapedColumn - $paramValue";
         return $this;
@@ -210,6 +186,36 @@ class UpdateBuilder extends AbstractQueryBuilder
     }
 
     /**
+     * @param SqlOperations|string $condition
+     * @return self
+     */
+    public function andNotWhere(SqlOperations|string $condition): self
+    {
+        if ($this->where !== null) {
+            $this->where->addOperation($condition, LinkOperator::AND_NOT);
+        } else {
+            $this->where($condition);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param SqlOperations|string $condition
+     * @return self
+     */
+    public function orNotWhere(SqlOperations|string $condition): self
+    {
+        if ($this->where !== null) {
+            $this->where->addOperation($condition, LinkOperator::OR_NOT);
+        } else {
+            $this->where($condition);
+        }
+
+        return $this;
+    }
+
+    /**
      * @param string $column
      * @param array<mixed> $values
      * @return self
@@ -225,7 +231,7 @@ class UpdateBuilder extends AbstractQueryBuilder
             $placeholders[] = $this->addNamedParameter($value);
         }
 
-        $condition = $this->escapeIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
+        $condition = self::escapeIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
         return $this->andWhere($condition);
     }
 
@@ -245,7 +251,7 @@ class UpdateBuilder extends AbstractQueryBuilder
             $placeholders[] = $this->addNamedParameter($value);
         }
 
-        $condition = $this->escapeIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
+        $condition = self::escapeIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
         return $this->andWhere($condition);
     }
 
@@ -257,7 +263,7 @@ class UpdateBuilder extends AbstractQueryBuilder
      */
     public function whereBetween(string $column, mixed $min, mixed $max): self
     {
-        $condition = $this->escapeIdentifier($column) . ' BETWEEN ' .
+        $condition = self::escapeIdentifier($column) . ' BETWEEN ' .
             $this->addNamedParameter($min) . ' AND ' .
             $this->addNamedParameter($max);
         return $this->andWhere($condition);
@@ -269,7 +275,7 @@ class UpdateBuilder extends AbstractQueryBuilder
      */
     public function whereNull(string $column): self
     {
-        $condition = $this->escapeIdentifier($column) . ' IS NULL';
+        $condition = self::escapeIdentifier($column) . ' IS NULL';
         return $this->andWhere($condition);
     }
 
@@ -279,7 +285,7 @@ class UpdateBuilder extends AbstractQueryBuilder
      */
     public function whereNotNull(string $column): self
     {
-        $condition = $this->escapeIdentifier($column) . ' IS NOT NULL';
+        $condition = self::escapeIdentifier($column) . ' IS NOT NULL';
         return $this->andWhere($condition);
     }
 
@@ -291,7 +297,7 @@ class UpdateBuilder extends AbstractQueryBuilder
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
         $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $this->orderBy[] = $this->escapeIdentifier($column) . ' ' . $direction;
+        $this->orderBy[] = self::escapeIdentifier($column) . ' ' . $direction;
         return $this;
     }
 
@@ -408,7 +414,7 @@ class UpdateBuilder extends AbstractQueryBuilder
         $tableParts = [];
 
         foreach ($this->tables as $table) {
-            $part = $this->escapeIdentifier($table['table']);
+            $part = self::escapeIdentifier($table['table']);
             if ($table['alias'] !== null) {
                 $part .= ' AS ' . $table['alias'];
             }
@@ -426,7 +432,7 @@ class UpdateBuilder extends AbstractQueryBuilder
         $joinParts = [];
 
         foreach ($this->joins as $join) {
-            $part = $join['type'] . ' ' . $this->escapeIdentifier($join['table']);
+            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
 
             if ($join['alias'] !== null) {
                 $part .= ' AS ' . $join['alias'];
@@ -450,15 +456,8 @@ class UpdateBuilder extends AbstractQueryBuilder
         $setParts = [];
 
         foreach ($this->setValues as $column => $value) {
-            $escapedColumn = $this->escapeIdentifier($column);
-
-            if (is_string($value) && (str_contains($value, $escapedColumn) || str_contains($value, '('))) {
-                // Raw expression (like increment/decrement or function calls)
-                $setParts[] = "$escapedColumn = $value";
-            } else {
-                // Regular value - parameterize it
-                $setParts[] = "$escapedColumn = " . $this->addNamedParameter($value);
-            }
+            $escapedColumn = self::escapeIdentifier($column);
+            $setParts[] = "$escapedColumn = $value";
         }
 
         return implode(', ', $setParts);

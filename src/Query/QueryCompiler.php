@@ -74,18 +74,6 @@ class QueryCompiler
     }
 
     /**
-     * @param AbstractQueryBuilder $builder
-     * @return array{sql: string, parameters: array<string|int, mixed>}
-     */
-    public function compileWithParameters(AbstractQueryBuilder $builder): array
-    {
-        return [
-            'sql' => $this->compile($builder),
-            'parameters' => $builder->getExecuteParameters()
-        ];
-    }
-
-    /**
      * @param string $queryType
      * @return void
      */

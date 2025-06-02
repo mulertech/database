@@ -137,15 +137,6 @@ class QueryFactory
 
     /**
      * @param AbstractQueryBuilder $builder
-     * @return array{sql: string, parameters: array<string|int, mixed>}
-     */
-    public function compileWithParameters(AbstractQueryBuilder $builder): array
-    {
-        return $this->compiler->compileWithParameters($builder);
-    }
-
-    /**
-     * @param AbstractQueryBuilder $builder
      * @return AbstractQueryBuilder
      */
     public function optimize(AbstractQueryBuilder $builder): AbstractQueryBuilder
