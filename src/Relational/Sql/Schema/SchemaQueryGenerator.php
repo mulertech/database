@@ -2,8 +2,8 @@
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\SqlQuery;
 use MulerTech\Database\Mapping\ColumnType;
+use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
  * Class SchemaQueryGenerator
@@ -27,9 +27,9 @@ class SchemaQueryGenerator
 
         if ($isCreate) {
             return $this->generateCreateTable($tableName, $columns, $indexes, $foreignKeys, $options);
-        } else {
-            return $this->generateAlterTable($tableName, $columns, $options, $foreignKeys);
         }
+
+        return $this->generateAlterTable($tableName, $columns, $options, $foreignKeys);
     }
 
     /**
@@ -57,12 +57,12 @@ class SchemaQueryGenerator
 
         foreach ($indexes as $name => $index) {
             if ($name === 'PRIMARY') {
-                $columnsList = array_map([SqlQuery::class, 'escape'], $index['columns']);
+                $columnsList = array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $index['columns']);
                 $parts[] = "    PRIMARY KEY (" . implode(', ', $columnsList) . ")";
             } else {
                 $type = $index['type'] ?? 'INDEX';
-                $escapedName = SqlQuery::escape($name);
-                $columnsList = array_map([SqlQuery::class, 'escape'], $index['columns']);
+                $escapedName = AbstractQueryBuilder::escapeIdentifier($name);
+                $columnsList = array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $index['columns']);
                 $parts[] = "    $type $escapedName (" . implode(', ', $columnsList) . ")";
             }
         }
@@ -204,8 +204,8 @@ class SchemaQueryGenerator
         $onUpdate = $foreignKey->getOnUpdate();
         $onDelete = $foreignKey->getOnDelete();
 
-        $columnsList = implode(', ', array_map([SqlQuery::class, 'escape'], $columns));
-        $refColumnsList = implode(', ', array_map([SqlQuery::class, 'escape'], $referencedColumns));
+        $columnsList = implode(', ', array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $columns));
+        $refColumnsList = implode(', ', array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $referencedColumns));
 
         $constraint = "CONSTRAINT `$name` ";
         $fkDef = "FOREIGN KEY ($columnsList) REFERENCES `$referencedTable` ($refColumnsList)";
@@ -229,12 +229,16 @@ class SchemaQueryGenerator
     {
         if (is_numeric($value)) {
             return $value;
-        } elseif (is_bool($value)) {
-            return $value ? '1' : '0';
-        } elseif (is_null($value)) {
-            return 'NULL';
-        } else {
-            return "'" . str_replace("'", "''", $value) . "'";
         }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_null($value)) {
+            return 'NULL';
+        }
+
+        return "'" . str_replace("'", "''", $value) . "'";
     }
 }

@@ -1,13 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\PhpInterface;
 
+use InvalidArgumentException;
+use MulerTech\Database\Connection\ConnectionManager;
 use PDO;
 use PDOException;
 use RuntimeException;
 
 /**
- * Class PhpDatabaseManager
+ * Enhanced PhpDatabaseManager with connection pooling and caching
  *
  * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
@@ -16,55 +20,50 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 {
     public const string DATABASE_URL = 'DATABASE_URL';
 
-    /**
-     * @var PDO
-     */
-    private PDO $connection;
+    /** @var array<int|string, mixed> */
+    private readonly array $parameters;
 
-    /**
-     * @var int $transactionLevel The transaction level is for prevent a beginTransaction when a transaction is up.
-     */
+    /** @var string */
+    private readonly string $connectionName;
+
+    /** @var int */
     private int $transactionLevel = 0;
 
     /**
-     * PhpDatabaseManager constructor.
-     *
-     * @param ConnectorInterface $connector
-     * @param array<string, mixed> $parameters
+     * @param array<string, mixed> $parameters Connection parameters
+     * @param string $connectionName Connection pool name
      */
-    public function __construct(private readonly ConnectorInterface $connector, private readonly array $parameters)
-    {
+    public function __construct(
+        array $parameters,
+        string $connectionName = 'default'
+    ) {
+        $this->parameters = self::populateParameters($parameters);
+        $this->connectionName = $connectionName;
+        $this->initializeConnection();
     }
 
     /**
      * @return PDO
-     * @throws RuntimeException
      */
     public function getConnection(): PDO
     {
-        if (!isset($this->connection)) {
-            $parameters = self::populateParameters($this->parameters);
-            $this->connection = $this->connector->connect($parameters, $parameters['user'], $parameters['pass']);
-        }
-
-        return $this->connection;
+        return ConnectionManager::getConnection($this->connectionName);
     }
 
     /**
-     * @param string $query
-     * @param array<int|string, mixed> $options
+     * @param string $query SQL query
+     * @param array<int|string, mixed> $options PDO options
      * @return Statement
      */
     public function prepare(string $query, array $options = []): Statement
     {
         try {
-            if (false === $statement = $this->getConnection()->prepare(...func_get_args())) {
-                throw new RuntimeException($this->getConnection()->errorInfo()[2]);
-            }
-
+            // Use connection pool's prepared statement cache
+            $statement = ConnectionManager::prepare($query, $this->connectionName);
             return new Statement($statement);
+
         } catch (PDOException $exception) {
-            throw new PDOException($exception);
+            throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
         }
     }
 
@@ -78,10 +77,11 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 $this->transactionLevel = 1;
                 return $this->getConnection()->beginTransaction();
             } catch (PDOException $exception) {
-                throw new PDOException($exception);
+                throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
             }
         }
-        // Transaction is up, increase the transaction level.
+
+        // Nested transaction - just increment level
         ++$this->transactionLevel;
         return true;
     }
@@ -93,15 +93,19 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     {
         if ($this->transactionLevel === 1) {
             try {
-                return $this->getConnection()->commit();
+                $result = $this->getConnection()->commit();
+                $this->transactionLevel = 0;
+                return $result;
             } catch (PDOException $exception) {
-                throw new PDOException($exception);
+                throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
             }
         }
-        // If the transaction level is greater than 1, there is a decrease but no commit yet.
-        if ($this->transactionLevel !== 0) {
+
+        // Nested transaction - just decrement level
+        if ($this->transactionLevel > 0) {
             --$this->transactionLevel;
         }
+
         return true;
     }
 
@@ -111,9 +115,11 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     public function rollBack(): bool
     {
         try {
-            return $this->getConnection()->rollBack();
+            $result = $this->getConnection()->rollBack();
+            $this->transactionLevel = 0;
+            return $result;
         } catch (PDOException $exception) {
-            throw new PDOException($exception);
+            throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
         }
     }
 
@@ -126,8 +132,8 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param int $attribute
-     * @param mixed $value
+     * @param int $attribute PDO attribute
+     * @param mixed $value Attribute value
      * @return bool
      */
     public function setAttribute(int $attribute, mixed $value): bool
@@ -136,54 +142,76 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param string $statement
+     * @param string $statement SQL statement
      * @return int
      */
     public function exec(string $statement): int
     {
         $result = $this->getConnection()->exec($statement);
         if ($result === false) {
-            throw new RuntimeException('Class : PhpDatabaseManager, function : exec. The function exec failed.');
+            throw new RuntimeException('Class: PhpDatabaseManager, function: exec. The function exec failed.');
         }
         return $result;
     }
 
     /**
-     * @param string $query
-     * @param int $fetchMode
-     * @param int|string|object|null $arg3
-     * @param array<int, mixed>|null $constructorArgs
+     * @param string $query SQL query
+     * @param int|null $fetchMode Fetch mode
+     * @param int|string|object $arg3 Additional argument
+     * @param array<int, mixed>|null $constructorArgs Constructor arguments
      * @return Statement
      */
     public function query(
         string $query,
-        int $fetchMode = PDO::ATTR_DEFAULT_FETCH_MODE,
-        int|string|object|null $arg3 = null,
+        ?int $fetchMode = null,
+        int|string|object $arg3 = '',
         ?array $constructorArgs = null
     ): Statement {
         $pdo = $this->getConnection();
-        $result = $pdo->query(...func_get_args());
-        if (false === $result) {
+
+        if ($fetchMode === null) {
+            $result = $pdo->query($query);
+        } elseif ($fetchMode === PDO::FETCH_CLASS) {
+            $result = $pdo->query(
+                $query,
+                $fetchMode,
+                is_string($arg3) ? $arg3 : '',
+                is_array($constructorArgs) ? $constructorArgs : []
+            );
+        } elseif ($fetchMode === PDO::FETCH_INTO) {
+            if (!is_object($arg3)) {
+                throw new InvalidArgumentException(
+                    'When using FETCH_INTO, the third argument must be an object.'
+                );
+            }
+
+            $result = $pdo->query($query, $fetchMode, $arg3);
+        } else {
+            $result = $pdo->query($query, $fetchMode);
+        }
+
+        if ($result === false) {
             throw new RuntimeException(
                 sprintf(
-                    'Class : PhpDatabaseManager, function : query. The query was failed. Message : %s. Statement : %s.',
-                    $this->getConnection()->errorInfo()[2],
+                    'Class: PhpDatabaseManager, function: query. The query failed. Message: %s. Statement: %s.',
+                    $this->getConnection()->errorInfo()[2] ?? 'Unknown error',
                     $query
                 )
             );
         }
+
         return new Statement($result);
     }
 
     /**
-     * @param string|null $name
+     * @param string|null $name Sequence name
      * @return string
      */
     public function lastInsertId(?string $name = null): string
     {
         $result = $this->getConnection()->lastInsertId($name);
         if ($result === false) {
-            throw new RuntimeException('Class : PhpDatabaseManager, function : lastInsertId. The function lastInsertId failed.');
+            throw new RuntimeException('Class: PhpDatabaseManager, function: lastInsertId. The function lastInsertId failed.');
         }
         return $result;
     }
@@ -205,7 +233,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param int $attribute
+     * @param int $attribute PDO attribute
      * @return mixed
      */
     public function getAttribute(int $attribute): mixed
@@ -218,23 +246,86 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     public function getAvailableDrivers(): array
     {
-        return $this->getConnection()::getAvailableDrivers();
+        return PDO::getAvailableDrivers();
     }
 
     /**
-     * @param string $string
-     * @param int $type
+     * @param string $string String to quote
+     * @param int $type Parameter type
      * @return string
      */
     public function quote(string $string, int $type = PDO::PARAM_STR): string
     {
-        return $this->getConnection()->quote(...func_get_args());
+        return $this->getConnection()->quote($string, $type);
     }
 
     /**
-     * Add the URL parameters parsed into the parameters variable.
+     * @return array{pool: array<string, mixed>, connection: string, parameters: array<string, mixed>}
+     */
+    public function getStats(): array
+    {
+        // Filtrer pour ne garder que les clés string
+        $filteredParameters = array_filter(
+            $this->parameters,
+            fn ($key) => is_string($key) && !in_array($key, ['password', 'pass']),
+            ARRAY_FILTER_USE_KEY
+        );
+        /** @var array<string, mixed> $filteredParameters */
+        return [
+            'pool' => ConnectionManager::getPool()->getStats(),
+            'connection' => $this->connectionName,
+            'parameters' => $filteredParameters
+        ];
+    }
+
+    /**
+     * Initialize connection in the pool
      *
-     * @param array<string, mixed> $parameters
+     * @return void
+     */
+    private function initializeConnection(): void
+    {
+        if (!isset($this->parameters['scheme'])) {
+            throw new RuntimeException('Database scheme is required');
+        }
+
+        $dsn = $this->parameters['scheme'] . ':';
+        $dsnParts = [];
+
+        foreach (['host', 'port', 'dbname', 'unix_socket', 'charset'] as $key) {
+            if (isset($this->parameters[$key]) && $this->parameters[$key] !== '') {
+                $dsnParts[] = $key . '=' . $this->parameters[$key];
+            }
+        }
+
+        $dsn .= implode(';', $dsnParts);
+
+        ConnectionManager::addConnection(
+            $this->connectionName,
+            $dsn,
+            $this->parameters['user'] ?? '',
+            $this->parameters['pass'] ?? '',
+            $this->getDefaultOptions()
+        );
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function getDefaultOptions(): array
+    {
+        return [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_STRINGIFY_FETCHES => false,
+        ];
+    }
+
+    /**
+     * Parse DATABASE_URL or individual environment variables
+     *
+     * @param array<string, mixed> $parameters Input parameters
      * @return array<int|string, mixed>
      */
     public static function populateParameters(array $parameters = []): array
@@ -261,54 +352,65 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * The database parameters can be defined individually in the env file with for each key name :
-     * DATABASE_ with the name of the component (in uppercase)
-     *
-     * @param array<string, mixed> $parameters
+     * @param array<string, mixed> $parameters Input parameters
      * @return array<string, mixed>
      */
     private static function populateEnvParameters(array $parameters = []): array
     {
-        if (false !== $scheme = getenv('DATABASE_SCHEME')) {
-            $parameters['scheme'] = $scheme;
+        $envMappings = [
+            'DATABASE_SCHEME' => 'scheme',
+            'DATABASE_HOST' => 'host',
+            'DATABASE_PORT' => 'port',
+            'DATABASE_USER' => 'user',
+            'DATABASE_PASS' => 'pass',
+            'DATABASE_PATH' => 'path',
+            'DATABASE_QUERY' => 'query',
+            'DATABASE_FRAGMENT' => 'fragment',
+        ];
+
+        foreach ($envMappings as $envKey => $paramKey) {
+            $value = getenv($envKey);
+            if ($value !== false) {
+                if ($paramKey === 'port') {
+                    $parameters[$paramKey] = (int)$value;
+                } else {
+                    $parameters[$paramKey] = $value;
+                }
+            }
         }
-        if (false !== $host = getenv('DATABASE_HOST')) {
-            $parameters['host'] = $host;
-        }
-        if (false !== $port = getenv('DATABASE_PORT')) {
-            $parameters['port'] = (int)$port;
-        }
-        if (false !== $user = getenv('DATABASE_USER')) {
-            $parameters['user'] = $user;
-        }
-        if (false !== $pass = getenv('DATABASE_PASS')) {
-            $parameters['pass'] = $pass;
-        }
-        if (false !== $path = getenv('DATABASE_PATH')) {
-            $parameters['path'] = $path;
+
+        // Special handling for database name from path
+        if (isset($parameters['path'])) {
             $parameters['dbname'] = substr($parameters['path'], 1);
         }
-        if (false !== $query = getenv('DATABASE_QUERY')) {
-            $parameters['query'] = $query;
+
+        // Parse query string
+        if (isset($parameters['query'])) {
             parse_str($parameters['query'], $parsedQuery);
             $parameters = array_merge($parameters, $parsedQuery);
         }
-        if (false !== $fragment = getenv('DATABASE_FRAGMENT')) {
-            $parameters['fragment'] = $fragment;
-        }
+
+        // Forcer toutes les clés à être string
+        $parameters = array_combine(
+            array_map('strval', array_keys($parameters)),
+            array_values($parameters)
+        );
+
+        /** @var array<string, mixed> $parameters */
         return $parameters;
     }
 
     /**
-     * @param array<string, mixed> $url
+     * @param array<string, mixed> $url Parsed URL components
      * @return array<string, mixed>
      */
     private static function decodeUrl(array $url): array
     {
         array_walk_recursive($url, static function (&$urlPart) {
-            $urlPart = urldecode($urlPart);
+            if (is_string($urlPart)) {
+                $urlPart = urldecode($urlPart);
+            }
         });
         return $url;
     }
-
 }

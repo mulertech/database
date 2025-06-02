@@ -34,12 +34,20 @@ class EntityChangeTracker
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $originalData
+     * @param array<string, mixed>|null $originalData
      * @return void
      */
-    public function trackOriginalData(object $entity, array $originalData): void
+    public function trackOriginalData(object $entity, ?array $originalData): void
     {
-        $this->originalEntityData[spl_object_id($entity)] = $originalData;
+        $objectId = spl_object_id($entity);
+
+        // Only track if we have actual data to track
+        if ($originalData !== null) {
+            $this->originalEntityData[$objectId] = $originalData;
+        } elseif (!isset($this->originalEntityData[$objectId])) {
+            // Initialize with empty array if no data exists yet
+            $this->originalEntityData[$objectId] = [];
+        }
     }
 
     /**
@@ -65,7 +73,15 @@ class EntityChangeTracker
 
             // Convert object values to their ID for comparison
             if (is_object($newValue) && method_exists($newValue, 'getId')) {
-                $newValue = $newValue->getId();
+                $newValueId = $newValue->getId();
+
+                if ($newValueId === null) {
+                    // Only track original data if we have valid data to track
+                    if ($originalData !== null) {
+                        $this->trackOriginalData($entity, $originalData);
+                    }
+                    $this->computeChanges($newValue);
+                }
             }
 
             if ($oldValue === $newValue && $originalData !== null) {

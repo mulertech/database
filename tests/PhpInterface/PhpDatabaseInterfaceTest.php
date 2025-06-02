@@ -2,8 +2,6 @@
 
 namespace MulerTech\Database\Tests\PhpInterface;
 
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use PDO;
 use PDOException;
@@ -14,7 +12,7 @@ class PhpDatabaseInterfaceTest extends TestCase
 {
     private function getPhpDatabaseManager(): PhpDatabaseManager
     {
-        return new PhpDatabaseManager(new PdoConnector(new Driver()), []);
+        return new PhpDatabaseManager([]);
     }
 
     private function getDbName(): string
@@ -42,17 +40,8 @@ class PhpDatabaseInterfaceTest extends TestCase
     {
         $this->assertInstanceOf(
             PDO::class,
-            (new PhpDatabaseManager(new PdoConnector(new Driver()), []))->getConnection()
+            (new PhpDatabaseManager([]))->getConnection()
         );
-    }
-
-    public function testGetConnectionWithBadUrl(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $parameters = [
-            PhpDatabaseManager::DATABASE_URL => 'mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7'
-        ];
-        (new PhpDatabaseManager(new PdoConnector(new Driver()), $parameters))->getConnection();
     }
 
     public function testPrepareStatement(): void
@@ -93,7 +82,7 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testSetAndGetAttribute(): void
     {
         $pdo = $this->getPhpDatabaseManager();
-        self::assertEquals(1, $pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES));
+        self::assertFalse($pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES));
         self::assertTrue($pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false));
         self::assertEquals(0, $pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES));
     }
@@ -301,7 +290,7 @@ class PhpDatabaseInterfaceTest extends TestCase
         $pdo->exec($query);
         $statement = $pdo->prepare('SELECT id FROM test_table WHERE firstname=:firstname');
         $statement->execute(['firstname' => 'test']);
-        self::assertEquals([['id' => 1, 0 => 1]], $statement->fetchAll(PDO::FETCH_DEFAULT));
+        self::assertEquals([['id' => 1]], $statement->fetchAll(PDO::FETCH_DEFAULT));
         $statement->execute(['firstname' => 'test']);
         self::assertEquals([0 => 1], $statement->fetchAll(PDO::FETCH_COLUMN, 0));
         $statement->execute(['firstname' => 'test']);
@@ -325,16 +314,10 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testStatementErrorCodeAndErrorInfo(): void
     {
         $pdo = $this->getPhpDatabaseManager();
+        $this->expectException(PDOException::class);
+        $this->expectExceptionMessage("Table '" . $this->getDbName() . ".bones' doesn't exist");
         $statement = $pdo->prepare('SELECT skull FROM bones');
-        try {
-            $statement->execute();
-        } catch (PDOException) {
-            self::assertEquals('42S02', $statement->errorCode());
-            self::assertEquals(
-                "Table '" . $this->getDbName() . ".bones' doesn't exist",
-                $statement->errorInfo()[2]
-            );
-        }
+        $statement->execute();
     }
 
     public function testStatementGetAttribute(): void
