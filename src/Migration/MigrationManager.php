@@ -303,20 +303,20 @@ class MigrationManager
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $historyClass = $this->migrationHistory;
-        $history = new $historyClass();
-        if (method_exists($history, 'setVersion')) {
-            $history->setVersion($migration->getVersion());
-        }
-        if (method_exists($history, 'setExecutedAt')) {
-            $history->setExecutedAt((new DateTime())->format('Y-m-d H:i:s'));
-        }
-        if (method_exists($history, 'setExecutionTime')) {
-            $history->setExecutionTime((int)($executionTime * 1000)); // Convert to ms
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
+        $tableName = $this->entityManager->getDbMapping()->getTableName($this->migrationHistory);
+
+        if ($tableName === null) {
+            throw new RuntimeException("Migration history table name not found in mapping.");
         }
 
-        $this->entityManager->persist($history);
-        $this->entityManager->flush();
+        $queryBuilder
+            ->insert($tableName)
+            ->set('version', $migration->getVersion())
+            ->set('executed_at', date('Y-m-d H:i:s'))
+            ->set('execution_time', (int)($executionTime * 1000)); // Convert to milliseconds
+
+        $queryBuilder->execute();
     }
 
     /**

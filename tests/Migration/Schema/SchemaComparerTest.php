@@ -8,8 +8,6 @@ use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Migration\MigrationManager;
 use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\Tests\Files\Entity\Group;
@@ -34,7 +32,7 @@ class SchemaComparerTest extends TestCase
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager([]),
             $this->dbMapping,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());
@@ -48,48 +46,6 @@ class SchemaComparerTest extends TestCase
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'OriginalMigration'
         );
         $migrationManager->migrate();
-        /**
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS units_test (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255) NOT NULL
-            )'
-        );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS groups_test (
-                id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-                name VARCHAR(255) NOT NULL,
-                parent_id INT UNSIGNED NOT NULL,
-                CONSTRAINT fk_groups_test_parent_id_groups_test FOREIGN KEY (parent_id) REFERENCES groups_test(id)
-            )'
-        );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS users_test (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(255) NOT NULL default "John",
-                size INT,
-                account_balance FLOAT(10,2),
-                unit_id INT UNSIGNED NOT NULL,
-                manager INT UNSIGNED,
-                CONSTRAINT fk_users_test_unit_id_units_test FOREIGN KEY (unit_id) REFERENCES units_test(id),
-                CONSTRAINT fk_users_test_manager_users_test FOREIGN KEY (manager) REFERENCES users_test(id)
-            )'
-        );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS link_user_group_test (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                user_id INT UNSIGNED NOT NULL,
-                group_id INT UNSIGNED NOT NULL,
-                CONSTRAINT fk_link_user_group_test_user_id_users_test FOREIGN KEY (user_id) REFERENCES users_test(id),
-                CONSTRAINT fk_link_user_group_test_group_id_groups_test FOREIGN KEY (group_id) REFERENCES groups_test(id)
-            )'
-        );
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS sametablename');
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS sametablename (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
-            )'
-        );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS groupsub (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
-            )'
-        );
-        */
     }
 
     protected function tearDown(): void

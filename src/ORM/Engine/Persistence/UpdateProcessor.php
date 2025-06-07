@@ -56,6 +56,7 @@ class UpdateProcessor
      * @param array<int, array<string, array<int, mixed>>> $allChanges
      * @return void
      * @throws ReflectionException
+     * @todo Is this method necessary?
      */
     public function executeBatch(array $entities, array $allChanges): void
     {
@@ -96,11 +97,18 @@ class UpdateProcessor
                 $value = $this->getId($value);
             }
 
-            $queryBuilder->setValue($column, $queryBuilder->addDynamicParameter($value));
+            $queryBuilder->setValue($column, $value);
+        }
+
+        $entityId = $this->getId($entity);
+        if ($entityId === null) {
+            throw new RuntimeException(
+                sprintf('Cannot update entity %s without a valid ID', $entity::class)
+            );
         }
 
         $queryBuilder->where(
-            SqlOperations::equal('id', $queryBuilder->addDynamicParameter($this->getId($entity)))
+            SqlOperations::equal('id', $queryBuilder->addNamedParameter($entityId))
         );
 
         return $queryBuilder;
@@ -150,21 +158,30 @@ class UpdateProcessor
 
         $tableName = $this->getTableName($entityClass);
         $column = $this->getColumnName($entityClass, $property);
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
 
         $ids = array_map(fn ($entity) => $this->getId($entity), $entities);
-        $idsPlaceholder = str_repeat('?,', count($ids) - 1) . '?';
+        $idParams = [];
+
+        foreach ($ids as $index => $id) {
+            $idParams[] = $queryBuilder->addNamedParameter($id);
+        }
 
         $sql = sprintf(
-            'UPDATE `%s` SET `%s` = ? WHERE id IN (%s)',
+            'UPDATE `%s` SET `%s` = %s WHERE id IN (%s)',
             $tableName,
             $column,
-            $idsPlaceholder
+            $queryBuilder->addNamedParameter($value),
+            implode(', ', $idParams)
         );
 
-        $parameters = [$value, ...$ids];
-
         $statement = $this->entityManager->getPdm()->prepare($sql);
-        $statement->execute($parameters);
+
+        foreach ($queryBuilder->getNamedParameters() as $name => $paramValue) {
+            $statement->bindValue(":$name", $paramValue);
+        }
+
+        $statement->execute();
         $statement->closeCursor();
     }
 
@@ -183,7 +200,7 @@ class UpdateProcessor
 
         foreach ($updates as $property => $value) {
             $column = $this->getColumnName($entityClass, $property);
-            $queryBuilder->setValue($column, $queryBuilder->addDynamicParameter($value));
+            $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($value));
         }
 
         $this->applyCriteria($queryBuilder, $entityClass, $criteria);
@@ -228,7 +245,7 @@ class UpdateProcessor
 
         foreach ($criteria as $property => $value) {
             $column = $this->getColumnName($entityClass, $property);
-            $condition = SqlOperations::equal($column, $queryBuilder->addDynamicParameter($value));
+            $condition = SqlOperations::equal($column, $queryBuilder->addNamedParameter($value));
 
             if ($first) {
                 $queryBuilder->where($condition);

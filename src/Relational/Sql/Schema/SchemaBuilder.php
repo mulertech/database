@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\SqlQuery;
+use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
  * Class SchemaBuilder
@@ -35,7 +35,7 @@ class SchemaBuilder
      */
     public function dropTable(string $tableName): string
     {
-        return "DROP TABLE " . SqlQuery::escape($tableName);
+        return "DROP TABLE " . AbstractQueryBuilder::escapeIdentifier($tableName);
     }
 
     /**
@@ -55,6 +55,6 @@ class SchemaBuilder
      */
     public function dropIndex(string $indexName, string $tableName): string
     {
-        return "DROP INDEX " . SqlQuery::escape($indexName) . " ON " . SqlQuery::escape($tableName);
+        return "DROP INDEX " . AbstractQueryBuilder::escapeIdentifier($indexName) . " ON " . AbstractQueryBuilder::escapeIdentifier($tableName);
     }
 }

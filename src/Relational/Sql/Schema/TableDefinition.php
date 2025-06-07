@@ -217,7 +217,6 @@ class TableDefinition
      */
     public function toSql(): string
     {
-        $generator = new SchemaQueryGenerator();
-        return $generator->generate($this);
+        return new SchemaQueryGenerator()->generate($this);
     }
 }

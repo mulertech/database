@@ -88,7 +88,7 @@ class InsertionProcessor
                 $value = $this->getId($value);
             }
 
-            $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($value));
+            $queryBuilder->setValue($column, $value);
         }
 
         return $queryBuilder;
@@ -109,30 +109,27 @@ class InsertionProcessor
             return;
         }
 
+        $queryBuilder = new \MulerTech\Database\Query\InsertBuilder($this->entityManager->getEmEngine());
+        $queryBuilder->into($tableName);
+
         $columns = array_values($propertiesColumns);
-        $placeholders = str_repeat('?,', count($columns) - 1) . '?';
+        $batchData = [];
 
-        $sql = sprintf(
-            'INSERT INTO `%s` (`%s`) VALUES %s',
-            $tableName,
-            implode('`, `', $columns),
-            str_repeat("($placeholders),", count($entities) - 1) . "($placeholders)"
-        );
-
-        $parameters = [];
         foreach ($entities as $entity) {
+            $row = [];
             foreach ($propertiesColumns as $property => $column) {
                 $value = $this->getPropertyValue($entity, $property);
-                $parameters[] = is_object($value) ? $this->getId($value) : $value;
+                // Si la colonne est absente, on met null pour garder la correspondance
+                $row[$column] = $value;
             }
+            $batchData[] = $row;
         }
 
-        $statement = $this->entityManager->getPdm()->prepare($sql);
-        $statement->execute($parameters);
+        $queryBuilder->batchValues($batchData);
 
-        // For batch inserts, we cannot easily retrieve generated IDs
-        // This limitation is acceptable for performance optimizations
-        $statement->closeCursor();
+        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement->execute();
+        $pdoStatement->closeCursor();
     }
 
     /**
