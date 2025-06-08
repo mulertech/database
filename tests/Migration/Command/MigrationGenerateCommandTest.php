@@ -7,6 +7,8 @@ use MulerTech\Database\Migration\Command\MigrationGenerateCommand;
 use MulerTech\Database\Migration\MigrationGenerator;
 use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\ORM\EntityManager;
+use MulerTech\Database\PhpInterface\PdoConnector;
+use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\MTerm\Core\Terminal;
 use PHPUnit\Framework\MockObject\Exception;
@@ -27,7 +29,7 @@ class MigrationGenerateCommandTest extends TestCase
     {
         $this->terminal = $this->createMock(Terminal::class);
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager([]),
+            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
             new DbMapping(
                 dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
             )

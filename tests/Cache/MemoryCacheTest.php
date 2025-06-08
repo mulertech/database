@@ -133,7 +133,7 @@ class MemoryCacheTest extends TestCase
         $this->cache->set('key3', 'value3');
 
         // Access key1 and key2 to make them more recently used
-        usleep(600000); // Ensure time passes for LRU
+        sleep(1); // Ensure time passes for LRU
         $this->cache->get('key1');
         $this->cache->get('key2');
 

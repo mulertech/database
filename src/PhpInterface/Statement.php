@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\PhpInterface;
 
 use Iterator;
@@ -10,67 +12,75 @@ use RuntimeException;
 use Traversable;
 
 /**
- * Class Statement
- *
- * A wrapper around PDOStatement providing type-safe operations and error handling.
- *
- * @package MulerTech\Database
+ * A wrapper around PDOStatement providing type-safe operations and error handling
+ * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
 class Statement
 {
     /**
-     * @param PDOStatement $statement The PDO statement to wrap
+     * @param PDOStatement $statement
      */
-    public function __construct(private PDOStatement $statement)
+    public function __construct(private readonly PDOStatement $statement)
     {
     }
 
     /**
-     * Executes a prepared statement.
-     *
-     * @param array<int|string, mixed>|null $params An array of values with as many elements as there are bound parameters
-     * @return bool True on success
-     * @throws PDOException|RuntimeException If execution fails
+     * Get the underlying PDOStatement
+     * @return PDOStatement
+     */
+    public function getPdoStatement(): PDOStatement
+    {
+        return $this->statement;
+    }
+
+    /**
+     * @param array<int|string, mixed>|null $params
+     * @return bool
+     * @throws PDOException|RuntimeException
      */
     public function execute(?array $params = null): bool
     {
         try {
-            if (false === $result = $this->statement->execute($params)) {
-                throw new RuntimeException('Class : Statement, function : execute. The execute action was failed.');
+            $result = $this->statement->execute($params);
+
+            if ($result === false) {
+                throw new RuntimeException(
+                    sprintf(
+                        'Statement execution failed. Error: %s',
+                        $this->statement->errorInfo()[2] ?? 'Unknown error'
+                    )
+                );
             }
+
             return $result;
         } catch (PDOException $exception) {
-            throw new PDOException($exception);
+            throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
         }
     }
 
     /**
-     * Fetches the next row from a result set.
-     *
-     * @param int $mode Controls how the next row will be returned
-     * @param int $cursorOrientation The cursor orientation
-     * @param int $cursorOffset The cursor offset
-     * @return mixed The fetched row or false if no more rows
+     * @param int $mode
+     * @param int $cursorOrientation
+     * @param int $cursorOffset
+     * @return mixed
      */
     public function fetch(
         int $mode = PDO::FETCH_DEFAULT,
         int $cursorOrientation = PDO::FETCH_ORI_NEXT,
         int $cursorOffset = 0
     ): mixed {
-        return $this->statement->fetch(...func_get_args());
+        return $this->statement->fetch($mode, $cursorOrientation, $cursorOffset);
     }
 
     /**
-     * Binds a parameter to the specified variable name.
-     *
-     * @param string|int $param Parameter identifier
-     * @param mixed $var Variable to bind
-     * @param int $type Data type
-     * @param int $maxLength Length of the data type
-     * @param mixed|null $driverOptions Driver options
-     * @return bool True on success
-     * @throws RuntimeException If binding fails
+     * @param string|int $param
+     * @param mixed $var
+     * @param int $type
+     * @param int $maxLength
+     * @param mixed $driverOptions
+     * @return bool
+     * @throws RuntimeException
      */
     public function bindParam(
         string|int $param,
@@ -79,9 +89,15 @@ class Statement
         int $maxLength = 0,
         mixed $driverOptions = null
     ): bool {
-        if (false === $result = $this->statement->bindParam($param, $var, $type, $maxLength, $driverOptions)) {
+        $result = $this->statement->bindParam($param, $var, $type, $maxLength, $driverOptions);
+
+        if ($result === false) {
             throw new RuntimeException(
-                'Class : Statement, function : bindParam. The bindParam action was failed'
+                sprintf(
+                    'Failed to bind parameter %s. Error: %s',
+                    $param,
+                    $this->statement->errorInfo()[2] ?? 'Unknown error'
+                )
             );
         }
 
@@ -89,15 +105,13 @@ class Statement
     }
 
     /**
-     * Binds a column to a PHP variable.
-     *
-     * @param string|int $column Column identifier
-     * @param mixed $var Variable to bind
-     * @param int $type Data type
-     * @param int $maxLength Length of the data type
-     * @param mixed|null $driverOptions Driver options
-     * @return bool True on success
-     * @throws RuntimeException If binding fails
+     * @param string|int $column
+     * @param mixed $var
+     * @param int $type
+     * @param int $maxLength
+     * @param mixed $driverOptions
+     * @return bool
+     * @throws RuntimeException
      */
     public function bindColumn(
         string|int $column,
@@ -106,33 +120,47 @@ class Statement
         int $maxLength = 0,
         mixed $driverOptions = null
     ): bool {
-        if (false === $result = $this->statement->bindColumn($column, $var, $type, $maxLength, $driverOptions)) {
-            throw new RuntimeException('Class : Statement, function : bindColumn. The bindColumn action was failed');
+        $result = $this->statement->bindColumn($column, $var, $type, $maxLength, $driverOptions);
+
+        if ($result === false) {
+            throw new RuntimeException(
+                sprintf(
+                    'Failed to bind column %s. Error: %s',
+                    $column,
+                    $this->statement->errorInfo()[2] ?? 'Unknown error'
+                )
+            );
         }
+
         return $result;
     }
 
     /**
-     * Binds a value to a parameter.
-     *
-     * @param int|string $param Parameter identifier
-     * @param mixed $value The value to bind
-     * @param int $type Data type
-     * @return bool True on success
-     * @throws RuntimeException If binding fails
+     * @param string|int $param
+     * @param mixed $value
+     * @param int $type
+     * @return bool
+     * @throws RuntimeException
      */
-    public function bindValue(int|string $param, mixed $value, int $type = PDO::PARAM_STR): bool
+    public function bindValue(string|int $param, mixed $value, int $type = PDO::PARAM_STR): bool
     {
-        if (false === $result = $this->statement->bindValue(...func_get_args())) {
-            throw new RuntimeException('Class : Statement, function : bindValue. The bindValue action was failed');
+        $result = $this->statement->bindValue($param, $value, $type);
+
+        if ($result === false) {
+            throw new RuntimeException(
+                sprintf(
+                    'Failed to bind value for parameter %s. Error: %s',
+                    $param,
+                    $this->statement->errorInfo()[2] ?? 'Unknown error'
+                )
+            );
         }
+
         return $result;
     }
 
     /**
-     * Returns the number of rows affected by the last executed statement.
-     *
-     * @return int Row count
+     * @return int
      */
     public function rowCount(): int
     {
@@ -140,10 +168,8 @@ class Statement
     }
 
     /**
-     * Returns a single column from the next row of a result set.
-     *
-     * @param int $column The 0-indexed column number to retrieve
-     * @return mixed Returns a single column or false if no more rows
+     * @param int $column
+     * @return mixed
      */
     public function fetchColumn(int $column = 0): mixed
     {
@@ -151,38 +177,27 @@ class Statement
     }
 
     /**
-     * Returns an array containing all of the result set rows.
-     *
-     * @param int $mode The fetch mode
-     * @param mixed ...$args Additional mode-specific arguments
-     * @return array<int, array<string, mixed>> An array containing all of the remaining rows in the result set
-     * @throws RuntimeException If fetch fails
+     * @param int $mode
+     * @param mixed ...$args
+     * @return array<int, mixed>
      */
     public function fetchAll(int $mode = PDO::FETCH_DEFAULT, mixed ...$args): array
     {
-        return $this->statement->fetchAll(...func_get_args());
+        return $this->statement->fetchAll($mode, ...$args);
     }
 
     /**
-     * Fetches the next row and returns it as an object.
-     *
-     * @param class-string $class Name of the created class
-     * @param array<int|string, mixed> $constructorArgs Elements of this array are passed to the constructor
-     * @return object|false The instance of the required class or false on failure
-     * @throws RuntimeException If fetch fails
+     * @param class-string $class
+     * @param array<int|string, mixed> $constructorArgs
+     * @return object|false
      */
     public function fetchObject(string $class = "stdClass", array $constructorArgs = []): object|false
     {
-        if (false === $result = $this->statement->fetchObject($class, $constructorArgs)) {
-            throw new RuntimeException('Class : Statement, function : fetchObject. The fetchObject action was failed');
-        }
-        return $result;
+        return $this->statement->fetchObject($class, $constructorArgs);
     }
 
     /**
-     * Fetch the SQLSTATE error code.
-     *
-     * @return string|null The error code as a string, or null if no error occurred
+     * @return string|null
      */
     public function errorCode(): ?string
     {
@@ -190,9 +205,7 @@ class Statement
     }
 
     /**
-     * Fetch extended error information.
-     *
-     * @return array<int, string|int|null> Error information array
+     * @return array<int, string|int|null>
      */
     public function errorInfo(): array
     {
@@ -200,18 +213,22 @@ class Statement
     }
 
     /**
-     * Set an attribute.
-     *
-     * @param int $attribute The attribute identifier
-     * @param mixed $value The value for the attribute
-     * @return bool True on success
-     * @throws RuntimeException If setting attribute fails
+     * @param int $attribute
+     * @param mixed $value
+     * @return bool
+     * @throws RuntimeException
      */
     public function setAttribute(int $attribute, mixed $value): bool
     {
-        if (false === $result = $this->statement->setAttribute($attribute, $value)) {
+        $result = $this->statement->setAttribute($attribute, $value);
+
+        if ($result === false) {
             throw new RuntimeException(
-                'Class : Statement, function : setAttribute. The setAttribute action was failed'
+                sprintf(
+                    'Failed to set attribute %d. Error: %s',
+                    $attribute,
+                    $this->statement->errorInfo()[2] ?? 'Unknown error'
+                )
             );
         }
 
@@ -219,10 +236,8 @@ class Statement
     }
 
     /**
-     * Get an attribute.
-     *
-     * @param int $name The attribute identifier
-     * @return mixed The attribute value
+     * @param int $name
+     * @return mixed
      */
     public function getAttribute(int $name): mixed
     {
@@ -230,9 +245,7 @@ class Statement
     }
 
     /**
-     * Returns the number of columns in the result set.
-     *
-     * @return int The number of columns
+     * @return int
      */
     public function columnCount(): int
     {
@@ -240,10 +253,8 @@ class Statement
     }
 
     /**
-     * Returns metadata for a column in a result set.
-     *
-     * @param int $column The 0-indexed column number
-     * @return array<string, mixed>|false An associative array or false if the column doesn't exist
+     * @param int $column
+     * @return array<string, mixed>|false
      */
     public function getColumnMeta(int $column): array|false
     {
@@ -251,37 +262,30 @@ class Statement
     }
 
     /**
-     * Returns an iterator for traversing the result set.
-     *
-     * @return Traversable<mixed, array<int|string, mixed>> The iterator
-     */
-    public function getIterator(): Traversable
-    {
-        return $this->statement->getIterator();
-    }
-
-    /**
-     * Sets the default fetch mode for this statement.
-     *
-     * @param int $mode The fetch mode
-     * @param mixed ...$params Additional parameters for the fetch mode
-     * @return bool True on success
-     * @throws RuntimeException If setting fetch mode fails
+     * @param int $mode
+     * @param mixed ...$params
+     * @return bool
+     * @throws RuntimeException
      */
     public function setFetchMode(int $mode = PDO::FETCH_DEFAULT, mixed ...$params): bool
     {
-        if (false === $result = $this->statement->setFetchMode(...func_get_args())) {
+        $result = $this->statement->setFetchMode(...func_get_args());
+
+        if ($result === false) {
             throw new RuntimeException(
-                'Class : Statement, function : setFetchMode. The setFetchMode action was failed'
+                sprintf(
+                    'Failed to set fetch mode %d. Error: %s',
+                    $mode,
+                    $this->statement->errorInfo()[2] ?? 'Unknown error'
+                )
             );
         }
+
         return $result;
     }
 
     /**
-     * Advances to the next rowset in a multi-rowset statement handle.
-     *
-     * @return bool True on success or false if there are no more rowsets
+     * @return bool
      */
     public function nextRowset(): bool
     {
@@ -289,9 +293,7 @@ class Statement
     }
 
     /**
-     * Closes the cursor, enabling the statement to be executed again.
-     *
-     * @return bool True on success
+     * @return bool
      */
     public function closeCursor(): bool
     {
@@ -299,19 +301,25 @@ class Statement
     }
 
     /**
-     * Dumps the information contained by a prepared statement directly on the output.
-     *
-     * @return void
+     * @return string
      */
-    public function debugDumpParams(): void
+    public function debugDumpParams(): string
     {
+        ob_start();
         $this->statement->debugDumpParams();
+        return ob_get_clean() ?: '';
     }
 
     /**
-     * Returns the query string that was prepared.
-     *
-     * @return string The query string
+     * @return Traversable<int, mixed>
+     */
+    public function getIterator(): Traversable
+    {
+        return $this->statement;
+    }
+
+    /**
+     * @return string
      */
     public function getQueryString(): string
     {

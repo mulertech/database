@@ -26,23 +26,26 @@ class Driver implements DriverInterface
      */
     public function generateDsn(array $dsnOptions): string
     {
-        $parts = [];
-        if (!empty($dsnOptions['host'])) {
-            $parts[] = 'host=' . $dsnOptions['host'];
+        $dsn = 'mysql:';
+
+        if (isset($dsnOptions['unix_socket'])) {
+            $dsn .= 'unix_socket=' . $dsnOptions['unix_socket'];
+        } else {
+            $dsn .= 'host=' . ($dsnOptions['host'] ?? 'localhost');
+            $dsn .= ';port=' . ($dsnOptions['port'] ?? 3306);
         }
-        if (!empty($dsnOptions['port'])) {
-            $parts[] = 'port=' . $dsnOptions['port'];
+
+        if (isset($dsnOptions['dbname'])) {
+            $dsn .= ';dbname=' . $dsnOptions['dbname'];
         }
-        if (!empty($dsnOptions['dbname'])) {
-            $parts[] = 'dbname=' . $dsnOptions['dbname'];
+
+        if (isset($dsnOptions['charset'])) {
+            $dsn .= ';charset=' . $dsnOptions['charset'];
+        } else {
+            $dsn .= ';charset=utf8mb4';
         }
-        if (!empty($dsnOptions['unix_socket'])) {
-            $parts[] = 'unix_socket=' . $dsnOptions['unix_socket'];
-        }
-        if (!empty($dsnOptions['charset'])) {
-            $parts[] = 'charset=' . $dsnOptions['charset'];
-        }
-        return 'mysql:' . implode(';', $parts);
+
+        return $dsn;
     }
 
 }
