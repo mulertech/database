@@ -8,6 +8,8 @@ use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Migration\MigrationManager;
 use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\ORM\EntityManager;
+use MulerTech\Database\PhpInterface\PdoConnector;
+use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\Tests\Files\Entity\Group;
@@ -32,7 +34,7 @@ class SchemaComparerTest extends TestCase
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager([]),
+            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
             $this->dbMapping,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());

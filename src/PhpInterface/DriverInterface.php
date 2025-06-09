@@ -21,5 +21,4 @@ interface DriverInterface
      * @return string
      */
     public function generateDsn(array $dsnOptions): string;
-
 }
