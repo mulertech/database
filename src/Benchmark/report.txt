@@ -1,0 +1,94 @@
+20250609-1616:
+=== MulerTech Database Cache Benchmark ===
+Iterations: 1000
+
+1. Benchmarking Prepared Statements...
+  Cache stats: Hit rate = 99.9%
+
+2. Benchmarking Entity Hydration...
+  Cached properties: 39
+
+3. Benchmarking Query Compilation...
+4. Benchmarking Cache Eviction Policies...
+
+=== BENCHMARK RESULTS ===
+
+1. Prepared Statements:
+   Without cache: 0.1530s
+   With cache:    0.0069s
+   Improvement:   95.5%
+
+2. Entity Hydration:
+   Without cache: 0.0477s
+   With cache:    0.0459s
+   Improvement:   3.7%
+
+3. Query Compilation:
+   Without cache: 0.1757s
+   With cache:    0.0041s
+   Improvement:   97.7%
+
+4. Eviction Policies Performance:
+   LRU:
+     Time:       0.0134s
+     Evictions:  1900
+     Final size: 100
+   LFU:
+     Time:       0.0074s
+     Evictions:  1900
+     Final size: 100
+   FIFO:
+     Time:       0.0063s
+     Evictions:  1900
+     Final size: 100
+
+=== SUMMARY ===
+Average Performance Improvement: 65.6%
+🎉 Excellent! The cache system provides significant performance gains.
+20250609-1742:
+=== MulerTech Database Cache Benchmark ===
+Iterations: 1000
+
+1. Benchmarking Prepared Statements...
+  Cache stats: Hit rate = 99.9%
+
+2. Benchmarking Entity Hydration...
+  Cached properties: 40
+
+3. Benchmarking Query Compilation...
+4. Benchmarking Cache Eviction Policies...
+
+=== BENCHMARK RESULTS ===
+
+1. Prepared Statements:
+   Without cache: 0.1526s
+   With cache:    0.0069s
+   Improvement:   95.5%
+
+2. Entity Hydration:
+   Without cache: 0.0496s
+   With cache:    0.0435s
+   Improvement:   12.2%
+
+3. Query Compilation:
+   Without cache: 0.1832s
+   With cache:    0.0046s
+   Improvement:   97.5%
+
+4. Eviction Policies Performance:
+   LRU:
+     Time:       0.0148s
+     Evictions:  1900
+     Final size: 100
+   LFU:
+     Time:       0.0073s
+     Evictions:  1900
+     Final size: 100
+   FIFO:
+     Time:       0.0071s
+     Evictions:  1900
+     Final size: 100
+
+=== SUMMARY ===
+Average Performance Improvement: 68.4%
+🎉 Excellent! The cache system provides significant performance gains.

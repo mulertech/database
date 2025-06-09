@@ -1,21 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
-use MulerTech\Database\Cache\QueryCache;
+use MulerTech\Database\Cache\CacheFactory;
+use MulerTech\Database\Cache\ResultSetCache;
 
 /**
- * Query compiler with caching and optimization capabilities
- *
+ * Query compiler with unified caching system
  * @package MulerTech\Database\Query
  * @author Sébastien Muler
  */
 class QueryCompiler
 {
     /**
-     * @var QueryCache
+     * @var ResultSetCache
      */
-    private readonly QueryCache $cache;
+    private readonly ResultSetCache $cache;
 
     /**
      * @var bool
@@ -28,12 +30,17 @@ class QueryCompiler
     private array $compilationStats = [];
 
     /**
-     * @param QueryCache $cache
+     * @var array<string, string>
+     */
+    private array $queryStructureCache = [];
+
+    /**
+     * @param ResultSetCache|null $cache
      * @param bool $enableCache
      */
-    public function __construct(QueryCache $cache, bool $enableCache = true)
+    public function __construct(?ResultSetCache $cache = null, bool $enableCache = true)
     {
-        $this->cache = $cache;
+        $this->cache = $cache ?? CacheFactory::createResultSetCache('query_compiler');
         $this->enableCache = $enableCache;
     }
 
@@ -50,16 +57,25 @@ class QueryCompiler
             return $this->doCompile($builder);
         }
 
+        // Generate cache key based on query structure
         $cacheKey = $this->generateCacheKey($builder);
 
+        // Try to get from cache
         $cachedSql = $this->cache->get($cacheKey);
         if ($cachedSql !== null) {
             $this->incrementStat($queryType . '_cached');
             return $cachedSql;
         }
 
+        // Compile and cache
         $sql = $this->doCompile($builder);
+
+        // Extract tables for cache invalidation
+        $tables = $this->extractTables($builder);
+
+        // Store in cache with table tags
         $this->cache->set($cacheKey, $sql);
+        $this->cache->tag($cacheKey, array_map(fn ($table) => 'table:' . $table, $tables));
 
         return $sql;
     }
@@ -82,12 +98,31 @@ class QueryCompiler
         if ($queryType === '') {
             $this->cache->clear();
         } else {
-            $this->cache->clearByPattern($queryType . '_*');
+            // Invalidate by query type tag
+            $this->cache->invalidateTag('query_type:' . $queryType);
         }
     }
 
     /**
-     * @return array<string, int>
+     * @param string $table
+     * @return void
+     */
+    public function invalidateTable(string $table): void
+    {
+        $this->cache->invalidateTable($table);
+    }
+
+    /**
+     * @param array<string> $tables
+     * @return void
+     */
+    public function invalidateTables(array $tables): void
+    {
+        $this->cache->invalidateTables($tables);
+    }
+
+    /**
+     * @return array<string, mixed>
      */
     public function getCompilationStats(): array
     {
@@ -119,6 +154,23 @@ class QueryCompiler
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function getCacheStats(): array
+    {
+        return [
+            'enabled' => $this->enableCache,
+            'hit_rates' => [
+                'SELECT' => $this->getCacheHitRate('SELECT'),
+                'INSERT' => $this->getCacheHitRate('INSERT'),
+                'UPDATE' => $this->getCacheHitRate('UPDATE'),
+                'DELETE' => $this->getCacheHitRate('DELETE'),
+            ],
+            'compilation_stats' => $this->compilationStats,
+        ];
+    }
+
+    /**
      * @param AbstractQueryBuilder $builder
      * @return string
      */
@@ -132,6 +184,11 @@ class QueryCompiler
         // Validate SQL
         $this->validateSql($sql);
 
+        // Tag with query type for grouped invalidation
+        $queryType = $builder->getQueryType();
+        $cacheKey = $this->generateCacheKey($builder);
+        $this->cache->tag($cacheKey, ['query_type:' . $queryType]);
+
         return $sql;
     }
 
@@ -141,9 +198,16 @@ class QueryCompiler
      */
     private function generateCacheKey(AbstractQueryBuilder $builder): string
     {
-        // Create a hash based on query structure, not parameter values
-        $structure = $this->extractQueryStructure($builder);
-        return md5(serialize($structure));
+        // Get or create query structure hash
+        $builderClass = get_class($builder);
+        $builderHash = spl_object_hash($builder);
+
+        if (!isset($this->queryStructureCache[$builderHash])) {
+            $structure = $this->extractQueryStructure($builder);
+            $this->queryStructureCache[$builderHash] = md5(serialize($structure));
+        }
+
+        return 'compiled_query:' . $this->queryStructureCache[$builderHash];
     }
 
     /**
@@ -168,30 +232,45 @@ class QueryCompiler
                 continue;
             }
 
-            $structure[$property->getName()] = $this->normalizeStructureValue($value);
+            // For arrays, only store structure indicators
+            if (is_array($value)) {
+                $structure[$property->getName()] = array_keys($value);
+            } elseif (is_object($value)) {
+                $structure[$property->getName()] = get_class($value);
+            } elseif (!is_resource($value)) {
+                // Store scalar values that affect structure
+                $structure[$property->getName()] = $value;
+            }
         }
 
         return $structure;
     }
 
     /**
-     * @param mixed $value
-     * @return mixed
+     * @param AbstractQueryBuilder $builder
+     * @return array<string>
      */
-    private function normalizeStructureValue(mixed $value): mixed
+    private function extractTables(AbstractQueryBuilder $builder): array
     {
-        if (is_array($value)) {
-            return array_map([$this, 'normalizeStructureValue'], $value);
-        }
+        $tables = [];
+        $sql = $builder->toSql();
 
-        if (is_object($value)) {
-            if (method_exists($value, '__toString')) {
-                return (string) $value;
+        // Extract table names from SQL
+        $patterns = [
+            '/FROM\s+`?(\w+)`?/i',
+            '/JOIN\s+`?(\w+)`?/i',
+            '/INTO\s+`?(\w+)`?/i',
+            '/UPDATE\s+`?(\w+)`?/i',
+            '/DELETE\s+FROM\s+`?(\w+)`?/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $sql, $matches)) {
+                $tables = array_merge($tables, $matches[1]);
             }
-            return get_class($value);
         }
 
-        return $value;
+        return array_unique(array_map('strtolower', $tables));
     }
 
     /**
@@ -201,31 +280,27 @@ class QueryCompiler
      */
     private function optimizeQuery(string $sql, AbstractQueryBuilder $builder): string
     {
-        // Remove unnecessary whitespace
-        $sql = preg_replace('/\s+/', ' ', trim($sql));
-        if (!is_string($sql) || $sql === '') {
-            return '';
+        // Apply query-specific optimizations
+        if ($builder instanceof SelectBuilder) {
+            $sql = $this->optimizeSelectQuery($sql, $builder);
+        } elseif ($builder instanceof UpdateBuilder) {
+            $sql = $this->optimizeUpdateQuery($sql, $builder);
+        } elseif ($builder instanceof DeleteBuilder) {
+            $sql = $this->optimizeDeleteQuery($sql, $builder);
         }
 
-        // Apply specific optimizations based on query type
-        return match ($builder->getQueryType()) {
-            'SELECT' => $this->optimizeSelectQuery($sql, $builder),
-            'INSERT' => $this->optimizeInsertQuery($sql, $builder),
-            'UPDATE' => $this->optimizeUpdateQuery($sql, $builder),
-            'DELETE' => $this->optimizeDeleteQuery($sql, $builder),
-            default => $sql
-        };
+        return $sql;
     }
 
     /**
      * @param string $sql
-     * @param AbstractQueryBuilder $builder
+     * @param SelectBuilder $builder
      * @return string
      */
-    private function optimizeSelectQuery(string $sql, AbstractQueryBuilder $builder): string
+    private function optimizeSelectQuery(string $sql, SelectBuilder $builder): string
     {
-        // Add query hints for large datasets
-        if ($builder instanceof SelectBuilder && $this->shouldAddQueryHints($builder)) {
+        // Add query hints for complex joins
+        if ($this->shouldAddQueryHints($builder)) {
             $sql = str_replace('SELECT', 'SELECT /*+ USE_INDEX */', $sql);
         }
 
@@ -234,16 +309,14 @@ class QueryCompiler
 
     /**
      * @param string $sql
-     * @param AbstractQueryBuilder $builder
+     * @param UpdateBuilder $builder
      * @return string
      */
-    private function optimizeInsertQuery(string $sql, AbstractQueryBuilder $builder): string
+    private function optimizeUpdateQuery(string $sql, UpdateBuilder $builder): string
     {
-        // Add INSERT optimization hints for batch operations
-        if ($builder instanceof InsertBuilder && $builder->isBatchInsert()) {
-            if ($builder->getBatchSize() > 1000) {
-                $sql = str_replace('INSERT', 'INSERT /*+ DELAYED */', $sql);
-            }
+        // Add low priority for bulk updates
+        if ($this->isBulkUpdate($builder)) {
+            $sql = str_replace('UPDATE', 'UPDATE LOW_PRIORITY', $sql);
         }
 
         return $sql;
@@ -251,29 +324,14 @@ class QueryCompiler
 
     /**
      * @param string $sql
-     * @param AbstractQueryBuilder $builder
+     * @param DeleteBuilder $builder
      * @return string
      */
-    private function optimizeUpdateQuery(string $sql, AbstractQueryBuilder $builder): string
+    private function optimizeDeleteQuery(string $sql, DeleteBuilder $builder): string
     {
-        // Add optimization hints for UPDATE with JOINs
-        if ($builder instanceof UpdateBuilder && $builder->hasJoins()) {
-            $sql = str_replace('UPDATE', 'UPDATE /*+ USE_NL */', $sql);
-        }
-
-        return $sql;
-    }
-
-    /**
-     * @param string $sql
-     * @param AbstractQueryBuilder $builder
-     * @return string
-     */
-    private function optimizeDeleteQuery(string $sql, AbstractQueryBuilder $builder): string
-    {
-        // Add optimization hints for multi-table deletes
-        if ($builder instanceof DeleteBuilder && $builder->isMultiTable()) {
-            $sql = str_replace('DELETE', 'DELETE /*+ USE_INDEX */', $sql);
+        // Add quick modifier for simple deletes
+        if ($this->isSimpleDelete($builder)) {
+            $sql = str_replace('DELETE', 'DELETE QUICK', $sql);
         }
 
         return $sql;
@@ -286,13 +344,42 @@ class QueryCompiler
     private function shouldAddQueryHints(SelectBuilder $builder): bool
     {
         // Add hints for queries that might benefit from them
-        // This is a simplified heuristic - in practice, you'd want more sophisticated logic
         $reflection = new \ReflectionClass($builder);
         $property = $reflection->getProperty('joins');
         $property->setAccessible(true);
         $joins = $property->getValue($builder);
 
-        return !empty($joins);
+        return !empty($joins) && count($joins) > 2;
+    }
+
+    /**
+     * @param UpdateBuilder $builder
+     * @return bool
+     */
+    private function isBulkUpdate(UpdateBuilder $builder): bool
+    {
+        $reflection = new \ReflectionClass($builder);
+        $property = $reflection->getProperty('where');
+        $property->setAccessible(true);
+        $where = $property->getValue($builder);
+
+        // If no where clause or very simple where, consider it bulk
+        return empty($where) || count($where) <= 1;
+    }
+
+    /**
+     * @param DeleteBuilder $builder
+     * @return bool
+     */
+    private function isSimpleDelete(DeleteBuilder $builder): bool
+    {
+        $reflection = new \ReflectionClass($builder);
+        $property = $reflection->getProperty('where');
+        $property->setAccessible(true);
+        $where = $property->getValue($builder);
+
+        // Simple delete has a single WHERE condition
+        return count($where) === 1;
     }
 
     /**
@@ -311,7 +398,7 @@ class QueryCompiler
         $dangerousPatterns = [
             '/;\s*DROP\s+/i',
             '/;\s*DELETE\s+FROM\s+\w+\s*$/i',
-            '/;\s*TRUNCATE\s+/i'
+            '/;\s*TRUNCATE\s+/i',
         ];
 
         foreach ($dangerousPatterns as $pattern) {
@@ -328,23 +415,5 @@ class QueryCompiler
     private function incrementStat(string $statType): void
     {
         $this->compilationStats[$statType] = ($this->compilationStats[$statType] ?? 0) + 1;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getCacheStats(): array
-    {
-        return [
-            'enabled' => $this->enableCache,
-            'hit_rates' => [
-                'SELECT' => $this->getCacheHitRate('SELECT'),
-                'INSERT' => $this->getCacheHitRate('INSERT'),
-                'UPDATE' => $this->getCacheHitRate('UPDATE'),
-                'DELETE' => $this->getCacheHitRate('DELETE'),
-            ],
-            'compilation_stats' => $this->compilationStats,
-            'cache_size' => $this->cache->size(),
-        ];
     }
 }

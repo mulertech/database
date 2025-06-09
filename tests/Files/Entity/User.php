@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\Files\Entity;
 
+use DateTime;
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\ColumnKey;
 use MulerTech\Database\Mapping\ColumnType;
@@ -144,6 +145,8 @@ class User
         inverseJoinProperty: "group"
     )]
     private Collection $groups;
+
+    private ?DateTime $blockedAtDateTime = null;
 
     /**
      * Test of a variable which is not a column in the database
@@ -593,6 +596,17 @@ class User
     public function setArea(?string $area): self
     {
         $this->area = $area;
+        return $this;
+    }
+
+    public function getBlockedAtDateTime(): ?DateTime
+    {
+        return $this->blockedAtDateTime;
+    }
+
+    public function setBlockedAtDateTime(?DateTime $blockedAtDateTime): self
+    {
+        $this->blockedAtDateTime = $blockedAtDateTime;
         return $this;
     }
 }
