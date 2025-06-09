@@ -2,9 +2,8 @@
 
 namespace MulerTech\Database\Query;
 
-use MulerTech\Database\Cache\QueryCache;
+use MulerTech\Database\Cache\CacheFactory;
 use MulerTech\Database\ORM\EmEngine;
-use RuntimeException;
 
 /**
  * Factory for creating optimized query builders with caching support
@@ -262,7 +261,7 @@ class QueryFactory
      */
     private function createDefaultCompiler(): QueryCompiler
     {
-        $cache = new QueryCache();
+        $cache = CacheFactory::createResultSetCache();
         return new QueryCompiler($cache);
     }
 
