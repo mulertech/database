@@ -17,7 +17,8 @@
     "mulertech/mterm": "^1",
     "symfony/yaml": "^7",
     "ext-pdo": "*",
-    "ext-iconv": "*"
+    "ext-iconv": "*",
+    "ext-zlib": "*"
   }
   ,
   "require-dev": {

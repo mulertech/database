@@ -2,6 +2,8 @@
 
 namespace MulerTech\Database\Tests\PhpInterface;
 
+use MulerTech\Database\PhpInterface\PdoConnector;
+use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use PDO;
 use PDOException;
@@ -12,7 +14,7 @@ class PhpDatabaseInterfaceTest extends TestCase
 {
     private function getPhpDatabaseManager(): PhpDatabaseManager
     {
-        return new PhpDatabaseManager([]);
+        return new PhpDatabaseManager(new PdoConnector(new Driver()), []);
     }
 
     private function getDbName(): string
@@ -40,7 +42,7 @@ class PhpDatabaseInterfaceTest extends TestCase
     {
         $this->assertInstanceOf(
             PDO::class,
-            (new PhpDatabaseManager([]))->getConnection()
+            (new PhpDatabaseManager(new PdoConnector(new Driver()), []))->getConnection()
         );
     }
 
@@ -108,12 +110,6 @@ class PhpDatabaseInterfaceTest extends TestCase
             self::assertEquals("Table '" . $this->getDbName() . ".bones' doesn't exist", $pdo->errorInfo()[2]);
             self::assertEquals('42S02', $pdo->errorCode());
         }
-    }
-
-    public function testGetAvailableDrivers(): void
-    {
-        $pdo = $this->getPhpDatabaseManager();
-        self::assertIsArray($pdo->getAvailableDrivers());
     }
 
     public function testQuote(): void

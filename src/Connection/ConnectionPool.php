@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Connection;
 
+use MulerTech\Database\Cache\CacheConfig;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -33,7 +34,7 @@ class ConnectionPool
         private readonly int $maxConnections = 10,
         int $statementCacheSize = 1000
     ) {
-        $this->statementCache = new PreparedStatementCache($statementCacheSize);
+        $this->statementCache = new PreparedStatementCache(new CacheConfig($statementCacheSize));
     }
 
     /**
