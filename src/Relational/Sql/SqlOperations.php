@@ -147,7 +147,7 @@ class SqlOperations
     public function generateOperation(): string
     {
         if (!empty($this->operation)) {
-            return ' ' . $this->operation;
+            return ' ' . trim($this->operation);
         }
 
         if (empty($this->operations)) {

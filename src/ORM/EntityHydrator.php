@@ -1,9 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM;
 
 use DateTime;
 use Exception;
+use MulerTech\Database\Cache\CacheFactory;
+use MulerTech\Database\Cache\MetadataCache;
 use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\MtColumn;
@@ -11,14 +15,12 @@ use MulerTech\Database\Mapping\MtOneToOne;
 use MulerTech\Database\Mapping\MtManyToOne;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionNamedType;
 use ReflectionProperty;
 
 /**
- * EntityHydrator - Hydrates entities from database results with type handling
- *
- * This class handles the conversion of database results into entity objects
- * with proper typing and sanitization.
- * @package Mulertech\Database
+ * EntityHydrator with metadata caching for improved performance
+ * @package MulerTech\Database\ORM
  * @author Sébastien Muler
  */
 class EntityHydrator
@@ -29,18 +31,33 @@ class EntityHydrator
     private ?DbMappingInterface $dbMapping;
 
     /**
-     * EntityHydrator constructor.
-     *
-     * @param DbMappingInterface|null $dbMapping
+     * @var MetadataCache
      */
-    public function __construct(?DbMappingInterface $dbMapping = null)
-    {
+    private readonly MetadataCache $metadataCache;
+
+    /**
+     * @var array<string, array<string, ReflectionProperty>>
+     */
+    private array $reflectionCache = [];
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $setterCache = [];
+
+    /**
+     * @param DbMappingInterface|null $dbMapping
+     * @param MetadataCache|null $metadataCache
+     */
+    public function __construct(
+        ?DbMappingInterface $dbMapping = null,
+        ?MetadataCache $metadataCache = null
+    ) {
         $this->dbMapping = $dbMapping;
+        $this->metadataCache = $metadataCache ?? CacheFactory::createMetadataCache('entity_hydrator');
     }
 
     /**
-     * Hydrate an entity with data from database result.
-     *
      * @param array<string, mixed> $data
      * @param class-string $entityName
      * @return object
@@ -49,19 +66,7 @@ class EntityHydrator
     public function hydrate(array $data, string $entityName): object
     {
         $entity = new $entityName();
-        $columnToPropertyMap = [];
-
-        // If DbMapping is available, use it to create a column-to-property mapping
-        if ($this->dbMapping !== null) {
-            try {
-                $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityName);
-                foreach ($propertiesColumns as $property => $column) {
-                    $columnToPropertyMap[$column] = $property;
-                }
-            } catch (ReflectionException $e) {
-                // If mapping fails, we'll fall back to snake_case conversion
-            }
-        }
+        $columnToPropertyMap = $this->getColumnToPropertyMap($entityName);
 
         foreach ($data as $column => $value) {
             // Find the property corresponding to this column
@@ -73,8 +78,9 @@ class EntityHydrator
             }
 
             // Check if a setter method exists for this property
-            $setterMethod = 'set' . ucfirst($propertyName);
-            if (method_exists($entity, $setterMethod)) {
+            if ($this->hasSetterMethod($entityName, $propertyName)) {
+                $setterMethod = 'set' . ucfirst($propertyName);
+
                 // Process the value based on property type
                 $processedValue = $this->processValue($entityName, $propertyName, $value);
 
@@ -87,24 +93,122 @@ class EntityHydrator
     }
 
     /**
-     * Check if a property has a relational mapping (MtOneToOne or MtManyToOne).
-     *
+     * @param class-string $entityName
+     * @return void
+     */
+    public function warmUpCache(string $entityName): void
+    {
+        try {
+            // Pre-load all metadata for this entity
+            $this->getColumnToPropertyMap($entityName);
+            $this->getReflectionProperties($entityName);
+
+            // Cache property types
+            if ($this->dbMapping !== null) {
+                $properties = $this->dbMapping->getPropertiesColumns($entityName);
+                foreach (array_keys($properties) as $property) {
+                    $this->dbMapping->getColumnType($entityName, $property);
+                }
+            }
+        } catch (ReflectionException $e) {
+            // Log warning but don't fail
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getCacheStats(): array
+    {
+        $stats = $this->metadataCache->getStats();
+
+        return [
+            'metadata_cache' => $stats,
+            'reflection_cache_size' => count($this->reflectionCache),
+            'setter_cache_size' => count($this->setterCache),
+            'total_cached_properties' => array_sum(array_map('count', $this->reflectionCache)),
+        ];
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return array<string, string>
+     * @throws ReflectionException
+     */
+    private function getColumnToPropertyMap(string $entityName): array
+    {
+        $cacheKey = 'column_map:' . $entityName;
+
+        $cached = $this->metadataCache->get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $columnToPropertyMap = [];
+        // If DbMapping is available, use it to create a column-to-property mapping
+        if ($this->dbMapping !== null) {
+            try {
+                $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityName);
+                foreach ($propertiesColumns as $property => $column) {
+                    $columnToPropertyMap[$column] = $property;
+                }
+            } catch (ReflectionException $e) {
+                // If mapping fails, we'll fall back to snake_case conversion
+            }
+        }
+
+        $this->metadataCache->setEntityMetadata($cacheKey, $columnToPropertyMap);
+
+        return $columnToPropertyMap;
+    }
+
+    /**
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @return bool
+     */
+    private function hasSetterMethod(string $entityClass, string $propertyName): bool
+    {
+        $cacheKey = $entityClass . '::' . $propertyName;
+
+        if (isset($this->setterCache[$cacheKey])) {
+            return $this->setterCache[$cacheKey];
+        }
+
+        $setterMethod = 'set' . ucfirst($propertyName);
+        $hasSetter = method_exists($entityClass, $setterMethod);
+
+        $this->setterCache[$cacheKey] = $hasSetter;
+
+        return $hasSetter;
+    }
+
+    /**
      * @param class-string $entityClass
      * @param string $propertyName
      * @return bool
      */
     private function isRelationMapping(string $entityClass, string $propertyName): bool
     {
+        $cacheKey = 'relation:' . $entityClass . ':' . $propertyName;
+
+        $cached = $this->metadataCache->getPropertyMetadata($entityClass, $cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $isRelation = false;
+
         try {
-            $reflection = new ReflectionClass($entityClass);
-            if ($reflection->hasProperty($propertyName)) {
-                $property = $reflection->getProperty($propertyName);
+            $property = $this->getReflectionProperty($entityClass, $propertyName);
+            if ($property !== null) {
                 $attributes = $property->getAttributes();
 
                 foreach ($attributes as $attribute) {
                     $attributeClass = $attribute->getName();
                     if ($attributeClass === MtOneToOne::class || $attributeClass === MtManyToOne::class) {
-                        return true;
+                        $isRelation = true;
+                        break;
                     }
                 }
             }
@@ -112,12 +216,61 @@ class EntityHydrator
             // Ignore reflection errors
         }
 
-        return false;
+        $this->metadataCache->setPropertyMetadata($entityClass, $cacheKey, $isRelation);
+
+        return $isRelation;
     }
 
     /**
-     * Process a value based on property mapping and type information.
-     *
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @return ReflectionProperty|null
+     * @throws ReflectionException
+     */
+    private function getReflectionProperty(string $entityClass, string $propertyName): ?ReflectionProperty
+    {
+        if (!isset($this->reflectionCache[$entityClass])) {
+            $this->reflectionCache[$entityClass] = [];
+        }
+
+        if (isset($this->reflectionCache[$entityClass][$propertyName])) {
+            return $this->reflectionCache[$entityClass][$propertyName];
+        }
+
+        $reflection = new ReflectionClass($entityClass);
+        if ($reflection->hasProperty($propertyName)) {
+            $property = $reflection->getProperty($propertyName);
+            $this->reflectionCache[$entityClass][$propertyName] = $property;
+            return $property;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param class-string $entityClass
+     * @return array<string, ReflectionProperty>
+     * @throws ReflectionException
+     */
+    private function getReflectionProperties(string $entityClass): array
+    {
+        if (isset($this->reflectionCache[$entityClass])) {
+            return $this->reflectionCache[$entityClass];
+        }
+
+        $reflection = new ReflectionClass($entityClass);
+        $properties = [];
+
+        foreach ($reflection->getProperties() as $property) {
+            $properties[$property->getName()] = $property;
+        }
+
+        $this->reflectionCache[$entityClass] = $properties;
+
+        return $properties;
+    }
+
+    /**
      * @param class-string $entityClass
      * @param string $propertyName
      * @param mixed $value
@@ -132,7 +285,7 @@ class EntityHydrator
         // First try to use DbMapping if available
         if ($this->dbMapping !== null) {
             try {
-                $columnType = $this->dbMapping->getColumnType($entityClass, $propertyName);
+                $columnType = $this->getCachedColumnType($entityClass, $propertyName);
 
                 if ($columnType !== null) {
                     return $this->processValueByColumnType($value, $columnType);
@@ -144,172 +297,158 @@ class EntityHydrator
 
         // Fall back to attribute-based approach
         try {
-            $reflection = new ReflectionClass($entityClass);
-            if ($reflection->hasProperty($propertyName)) {
-                $property = $reflection->getProperty($propertyName);
-
+            $property = $this->getReflectionProperty($entityClass, $propertyName);
+            if ($property !== null) {
                 // Try to use MtColumn attribute if available
-                $mtColumnAttr = $property->getAttributes(MtColumn::class)[0] ?? null;
-                if ($mtColumnAttr !== null) {
+                $mtColumnAttrs = $property->getAttributes(MtColumn::class);
+                if (!empty($mtColumnAttrs)) {
+                    $mtColumnAttr = $mtColumnAttrs[0];
                     $mtColumn = $mtColumnAttr->newInstance();
                     if ($mtColumn->columnType !== null) {
                         return $this->processValueByColumnType($value, $mtColumn->columnType);
                     }
                 }
 
-                // Fall back to PHP type hints
-                return $this->processValueByType($value, $property);
+                // Use PHP's type information
+                $type = $property->getType();
+                if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
+                    $typeName = $type->getName();
+                    // If the type is a class, process it accordingly
+                    if (class_exists($typeName)) {
+                        return $this->processValueByPhpType($value, $typeName);
+                    }
+                }
             }
         } catch (ReflectionException $e) {
-            // Ignore reflection errors
+            // If reflection fails, return value as-is
         }
 
-        // Default handling: sanitize as text if all else fails
-        return $this->sanitizeText($value);
+        return $value;
     }
 
     /**
-     * Convert snake_case to camelCase.
-     *
-     * @param string $input
-     * @return string
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @return ColumnType|null
+     * @throws ReflectionException
      */
-    private function snakeToCamelCase(string $input): string
+    private function getCachedColumnType(string $entityClass, string $propertyName): ?ColumnType
     {
-        return lcfirst(str_replace('_', '', ucwords($input, '_')));
+        $cacheKey = 'column_type:' . $entityClass . ':' . $propertyName;
+
+        $cached = $this->metadataCache->getPropertyMetadata($entityClass, $cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $columnType = $this->dbMapping?->getColumnType($entityClass, $propertyName);
+
+        if ($columnType !== null) {
+            $this->metadataCache->setPropertyMetadata($entityClass, $cacheKey, $columnType);
+        }
+
+        return $columnType;
     }
 
     /**
-     * Process a value based on property type.
-     *
-     * @param mixed $value
-     * @param ReflectionProperty $property
-     * @return mixed
-     */
-    private function processValueByType(mixed $value, ReflectionProperty $property): mixed
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        // Get the property type
-        $type = $property->getType();
-        if ($type === null) {
-            return $this->sanitizeText($value); // Default to text
-        }
-
-        if (!method_exists($type, 'getName')) {
-            return $this->sanitizeText($value); // Fallback for non-standard types
-        }
-        $typeName = $type->getName();
-
-        switch ($typeName) {
-            case 'DateTime':
-                return $this->processDateTime($value);
-            case 'array':
-                return $this->processJson($value);
-            case 'int':
-                return (int)$value;
-            case 'float':
-                return (float)$value;
-            case 'bool':
-                return (bool)$value;
-            case 'string':
-                return $this->sanitizeText($value);
-            default:
-                // Check if it's a class that needs to be instantiated
-                if (class_exists($typeName)) {
-                    return $this->processObject($value, $typeName);
-                }
-                return $value;
-        }
-    }
-
-    /**
-     * Process a value based on MySQL column type.
-     *
      * @param mixed $value
      * @param ColumnType $columnType
      * @return mixed
      */
     private function processValueByColumnType(mixed $value, ColumnType $columnType): mixed
     {
-        switch ($columnType) {
-            // Integer types
-            case ColumnType::INT:
-            case ColumnType::TINYINT:
-            case ColumnType::SMALLINT:
-            case ColumnType::MEDIUMINT:
-            case ColumnType::BIGINT:
-                // Handle TINYINT(1) as boolean
-                if ($columnType === ColumnType::TINYINT && $this->isBoolean($value)) {
-                    return (bool)$value;
-                }
-                return (int)$value;
-
-                // Decimal types
-            case ColumnType::DECIMAL:
-            case ColumnType::FLOAT:
-            case ColumnType::DOUBLE:
-                return (float)$value;
-
-                // String, text, enum and set types
-            case ColumnType::CHAR:
-            case ColumnType::LONGTEXT:
-            case ColumnType::MEDIUMTEXT:
-            case ColumnType::TINYTEXT:
-            case ColumnType::TEXT:
-            case ColumnType::SET:
-            case ColumnType::ENUM:
-            case ColumnType::VARCHAR:
-                return $this->sanitizeText($value);
-
-                // Date and time types
-            case ColumnType::DATE:
-            case ColumnType::DATETIME:
-            case ColumnType::TIMESTAMP:
-                return $this->processDateTime($value);
-
-                // JSON type
-            case ColumnType::JSON:
-                return $this->processJson($value);
-
-                // Default, Binary and BLOB types : return as is, possibly handle as streams or base64
-            default:
-                return $value;
-        }
+        return match ($columnType) {
+            ColumnType::INT, ColumnType::SMALLINT, ColumnType::MEDIUMINT, ColumnType::BIGINT,
+            ColumnType::YEAR => $this->processInt($value),
+            ColumnType::TINYINT => $this->processBool($value),
+            ColumnType::DECIMAL, ColumnType::FLOAT, ColumnType::DOUBLE => $this->processFloat($value),
+            ColumnType::VARCHAR, ColumnType::CHAR, ColumnType::TEXT,
+            ColumnType::TINYTEXT, ColumnType::MEDIUMTEXT, ColumnType::LONGTEXT,
+            ColumnType::ENUM, ColumnType::SET, ColumnType::TIME => $this->processString($value),
+            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->processDateTime($value),
+            ColumnType::BLOB, ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB, ColumnType::LONGBLOB,
+            ColumnType::BINARY, ColumnType::VARBINARY => $value, // Keep as-is
+            ColumnType::JSON => $this->processJson($value),
+            default => $value,
+        };
     }
 
     /**
-     * Check if a value is likely intended to be a boolean.
-     *
+     * @param mixed $value
+     * @param class-string $className
+     * @return mixed
+     * @throws ReflectionException
+     */
+    private function processValueByPhpType(mixed $value, string $className): mixed
+    {
+        if ($className === DateTime::class || is_subclass_of($className, DateTime::class)) {
+            return $this->processDateTime($value);
+        }
+
+        // For other object types, try to instantiate
+        if (is_array($value)) {
+            return $this->processObject($value, $className);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param string $column
+     * @return string
+     */
+    private function snakeToCamelCase(string $column): string
+    {
+        $result = str_replace('_', '', ucwords($column, '_'));
+        return lcfirst($result);
+    }
+
+    /**
+     * @param mixed $value
+     * @return int
+     */
+    private function processInt(mixed $value): int
+    {
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+        return 0;
+    }
+
+    /**
      * @param mixed $value
      * @return bool
      */
-    private function isBoolean(mixed $value): bool
+    private function processBool(mixed $value): bool
     {
-        return $value === '0' || $value === '1' || $value === 0 || $value === 1 ||
-               $value === true || $value === false;
+        return (bool) $value;
     }
 
     /**
-     * Sanitize text to prevent XSS attacks.
-     *
+     * @param mixed $value
+     * @return float
+     */
+    private function processFloat(mixed $value): float
+    {
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+        return 0.0;
+    }
+
+    /**
      * @param mixed $value
      * @return string
      */
-    private function sanitizeText(mixed $value): string
+    private function processString(mixed $value): string
     {
-        if (!is_string($value)) {
-            return (string)$value;
+        if (is_string($value)) {
+            return $value;
         }
-
-        return htmlspecialchars(strip_tags($value), ENT_QUOTES, 'UTF-8');
+        return (string) $value;
     }
 
     /**
-     * Process a value into DateTime object.
-     *
      * @param mixed $value
      * @return DateTime
      */
@@ -328,8 +467,6 @@ class EntityHydrator
     }
 
     /**
-     * Process a JSON string into an array.
-     *
      * @param mixed $value
      * @return array<mixed>
      */
@@ -350,8 +487,6 @@ class EntityHydrator
     }
 
     /**
-     * Process a value into an object of specified class.
-     *
      * @param mixed $value
      * @param class-string $className
      * @return object
