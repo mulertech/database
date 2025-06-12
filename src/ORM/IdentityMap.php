@@ -327,14 +327,18 @@ final class IdentityMap
         }
 
         // Try ID properties
-        $entityReflection = new ReflectionClass($entity);
-        $publicProperties = $entityReflection->getProperties(\ReflectionProperty::IS_PUBLIC);
         foreach ($methods['properties'] as $property) {
-            // Check if property exists and is public
-            if (property_exists($entity, $property) && in_array($property, $publicProperties)) {
-                $value = $entity->$property;
-                if ($value !== null) {
-                    return $value;
+            if (property_exists($entity, $property)) {
+                try {
+                    $reflection = new ReflectionClass($entity);
+                    $prop = $reflection->getProperty($property);
+                    $prop->setAccessible(true);
+                    $value = $prop->getValue($entity);
+                    if ($value !== null) {
+                        return $value;
+                    }
+                } catch (\ReflectionException $e) {
+                    // Continue to next property
                 }
             }
         }
@@ -375,21 +379,30 @@ final class IdentityMap
             }
 
             $propertyName = $property->getName();
+            $property->setAccessible(true);
 
-            // Utiliser des getters explicites si disponibles
+            // Try getter method first
             $getterMethod = 'get' . ucfirst($propertyName);
             if (method_exists($entity, $getterMethod)) {
-                $data[$propertyName] = $entity->$getterMethod();
-                continue;
-            }
-
-            // Sinon utiliser la réflexion avec setAccessible
-            try {
-                $property->setAccessible(true);
-                $data[$propertyName] = $property->getValue($entity);
-            } catch (\Error|\Exception $e) {
-                // Handle uninitialized or inaccessible properties
-                $data[$propertyName] = null;
+                try {
+                    $data[$propertyName] = $entity->$getterMethod();
+                } catch (\Error $e) {
+                    // Getter failed, try direct property access
+                    try {
+                        $data[$propertyName] = $property->getValue($entity);
+                    } catch (\Error $e) {
+                        // Property uninitialized, store as null
+                        $data[$propertyName] = null;
+                    }
+                }
+            } else {
+                // No getter, use direct property access
+                try {
+                    $data[$propertyName] = $property->getValue($entity);
+                } catch (\Error $e) {
+                    // Property uninitialized, store as null
+                    $data[$propertyName] = null;
+                }
             }
         }
 

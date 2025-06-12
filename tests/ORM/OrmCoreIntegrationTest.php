@@ -7,6 +7,7 @@ namespace MulerTech\Database\Tests\ORM;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityFactory;
+use MulerTech\Database\ORM\EntityRegistry;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityState;
 use PHPUnit\Framework\TestCase;
@@ -27,7 +28,7 @@ class OrmCoreIntegrationTest extends TestCase
     {
         $this->identityMap = new IdentityMap();
         $this->changeDetector = new ChangeDetector();
-        $this->changeSetManager = new ChangeSetManager($this->identityMap, $this->changeDetector);
+        $this->changeSetManager = new ChangeSetManager($this->identityMap, new EntityRegistry(), $this->changeDetector);
         $this->entityFactory = new EntityFactory($this->identityMap);
     }
 

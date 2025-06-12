@@ -130,7 +130,7 @@ class ConnectionPool
         return [
             'connections' => count($this->connections),
             'configs' => count($this->configs),
-            'cache' => $this->statementCache->getStats()
+            'cache' => $this->statementCache->getStatistics()
         ];
     }
 

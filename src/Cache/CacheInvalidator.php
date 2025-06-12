@@ -84,11 +84,7 @@ class CacheInvalidator
     public function invalidateTable(string $table): void
     {
         foreach ($this->caches as $cache) {
-            if (method_exists($cache, 'invalidateTable')) {
-                $cache->invalidateTable($table);
-            } else {
-                $cache->invalidateTag('table:' . $table);
-            }
+            $cache->invalidateTag('table:' . $table);
         }
     }
 
@@ -104,72 +100,25 @@ class CacheInvalidator
     }
 
     /**
-     * @param string $entityClass
+     * @param array<string> $tags
      * @return void
      */
-    public function invalidateEntityClass(string $entityClass): void
+    public function invalidateTags(array $tags): void
     {
         foreach ($this->caches as $cache) {
-            $cache->invalidateTag('entity:' . $entityClass);
+            $cache->invalidateTags($tags);
         }
     }
 
     /**
-     * @param string $entityClass
-     * @param string|int $id
+     * @param string $tag
      * @return void
      */
-    public function invalidateEntityInstance(string $entityClass, string|int $id): void
+    public function invalidateTag(string $tag): void
     {
-        $tag = sprintf('entity:%s:%s', $entityClass, $id);
-
         foreach ($this->caches as $cache) {
             $cache->invalidateTag($tag);
         }
-    }
-
-    /**
-     * @param string $entityClass
-     * @param string $relation
-     * @return void
-     */
-    public function invalidateRelation(string $entityClass, string $relation): void
-    {
-        $tag = sprintf('relation:%s:%s', $entityClass, $relation);
-
-        foreach ($this->caches as $cache) {
-            $cache->invalidateTag($tag);
-        }
-    }
-
-    /**
-     * @return void
-     */
-    public function invalidateAll(): void
-    {
-        foreach ($this->caches as $cache) {
-            $cache->clear();
-        }
-    }
-
-    /**
-     * @return array<string, array{size: int, hitRate: float}>
-     */
-    public function getStats(): array
-    {
-        $stats = [];
-
-        foreach ($this->caches as $name => $cache) {
-            if (method_exists($cache, 'getStats')) {
-                $cacheStats = $cache->getStats();
-                $stats[$name] = [
-                    'size' => $cacheStats['size'] ?? 0,
-                    'hitRate' => $cacheStats['hitRate'] ?? 0.0,
-                ];
-            }
-        }
-
-        return $stats;
     }
 
     /**

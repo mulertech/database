@@ -128,22 +128,10 @@ class CacheManager
      */
     private function registerPatterns(): void
     {
-        // Pattern for temporary cache entries
-        $this->invalidator->registerPattern('temp:*', function ($entity, $op, $ctx, $inv) {
-            // Invalidate temporary entries older than 5 minutes
-            if (isset($ctx['created']) && (time() - $ctx['created'] > 300)) {
-                $inv->invalidateTag('temporary');
-            }
-        });
-
-        // Pattern for schema changes
-        $this->invalidator->registerPattern('schema:*', function ($entity, $op, $ctx, $inv) {
-            // Clear all metadata and statement caches
-            $inv->invalidateTags(['metadata', 'statements']);
-
-            // Log schema change
+        // Pattern for entity-based invalidation
+        $this->invalidator->registerPattern('entity:*', function ($entity, $op, $ctx, $inv) {
             if (isset($ctx['table'])) {
-                error_log("Schema change detected for table: " . $ctx['table']);
+                $inv->invalidateTable($ctx['table']);
             }
         });
 
@@ -220,23 +208,63 @@ class CacheManager
     }
 
     /**
-     * @param string|null $cacheName
+     * Warm up caches with optional context data
+     *
+     * @param string|null $cacheName Specific cache to warm up, or null for all
+     * @param array<string, mixed> $context Context data for warming up (e.g., entityClasses)
      * @return void
      */
-    public function warmUp(?string $cacheName = null): void
+    public function warmUp(?string $cacheName = null, array $context = []): void
     {
         if ($cacheName !== null) {
             // Warm up specific cache
-            if (isset($this->caches[$cacheName]) && method_exists($this->caches[$cacheName], 'warmUp')) {
-                $this->caches[$cacheName]->warmUp();
-            }
+            $this->warmUpCache($cacheName, $context);
         } else {
-            // Warm up all caches that support it
+            // Warm up all caches
             foreach ($this->caches as $name => $cache) {
-                if (method_exists($cache, 'warmUp')) {
-                    $cache->warmUp();
-                }
+                $this->warmUpCache($name, $context);
             }
+        }
+    }
+
+    /**
+     * Warm up a specific cache with context
+     *
+     * @param string $cacheName
+     * @param array<string, mixed> $context
+     * @return void
+     */
+    private function warmUpCache(string $cacheName, array $context): void
+    {
+        $cache = $this->caches[$cacheName] ?? null;
+
+        if ($cache === null) {
+            return;
+        }
+
+        // Special handling for MetadataCache
+        if ($cacheName === 'metadata' && $cache instanceof MetadataCache) {
+            $entityClasses = $context['entityClasses'] ?? [];
+            if (!empty($entityClasses)) {
+                $cache->warmUp($entityClasses);
+            }
+            return;
+        }
+
+        // Generic warmUp for other caches that support it
+        if (method_exists($cache, 'warmUp')) {
+            // Check if warmUp method accepts parameters
+            $reflection = new \ReflectionMethod($cache, 'warmUp');
+            $parameters = $reflection->getParameters();
+
+            if (count($parameters) === 0) {
+                // No parameters expected
+                $cache->warmUp();
+            } elseif (count($parameters) === 1 && $parameters[0]->isOptional()) {
+                // Optional parameter, we can call without arguments
+                $cache->warmUp();
+            }
+            // If the method requires parameters we don't know about, skip it
         }
     }
 
@@ -248,83 +276,20 @@ class CacheManager
         $stats = [];
 
         foreach ($this->caches as $name => $cache) {
-            if ($cache instanceof MemoryCache) {
-                $cacheStats = $cache->getStats();
-                $stats[$name] = [
-                    'type' => $this->cacheConfigs[$name]['type'] ?? 'unknown',
-                    'size' => $cacheStats['size'],
-                    'hits' => $cacheStats['hits'],
-                    'misses' => $cacheStats['misses'],
-                    'hitRate' => $cacheStats['hitRate'],
-                    'evictions' => $cacheStats['evictions'],
-                    'config' => $this->cacheConfigs[$name] ?? [],
-                ];
+            if (method_exists($cache, 'getStatistics')) {
+                $stats[$name] = array_merge(
+                    ['type' => $this->cacheConfigs[$name]['type'] ?? 'unknown'],
+                    $cache->getStatistics()
+                );
             } else {
                 $stats[$name] = [
                     'type' => $this->cacheConfigs[$name]['type'] ?? 'unknown',
-                    'config' => $this->cacheConfigs[$name] ?? [],
+                    'status' => 'no stats available'
                 ];
             }
         }
 
-        // Add global stats
-        $stats['_global'] = $this->calculateGlobalStats($stats);
-
         return $stats;
-    }
-
-    /**
-     * @param array<string, array<string, mixed>> $stats
-     * @return array<string, mixed>
-     */
-    private function calculateGlobalStats(array $stats): array
-    {
-        $totalHits = 0;
-        $totalMisses = 0;
-        $totalSize = 0;
-        $totalEvictions = 0;
-
-        foreach ($stats as $name => $cacheStats) {
-            if ($name === '_global') {
-                continue;
-            }
-
-            $totalHits += $cacheStats['hits'] ?? 0;
-            $totalMisses += $cacheStats['misses'] ?? 0;
-            $totalSize += $cacheStats['size'] ?? 0;
-            $totalEvictions += $cacheStats['evictions'] ?? 0;
-        }
-
-        $totalRequests = $totalHits + $totalMisses;
-
-        return [
-            'total_caches' => count($this->caches),
-            'total_hits' => $totalHits,
-            'total_misses' => $totalMisses,
-            'total_requests' => $totalRequests,
-            'global_hit_rate' => $totalRequests > 0 ? ($totalHits / $totalRequests) : 0.0,
-            'total_cached_items' => $totalSize,
-            'total_evictions' => $totalEvictions,
-            'memory_usage_estimate' => $this->estimateMemoryUsage(),
-        ];
-    }
-
-    /**
-     * @return int
-     */
-    private function estimateMemoryUsage(): int
-    {
-        // Rough estimate: assume average 1KB per cached item
-        $totalSize = 0;
-
-        foreach ($this->caches as $cache) {
-            if (method_exists($cache, 'getStats')) {
-                $stats = $cache->getStats();
-                $totalSize += ($stats['size'] ?? 0) * 1024; // 1KB average
-            }
-        }
-
-        return $totalSize;
     }
 
     /**
@@ -333,79 +298,60 @@ class CacheManager
     public function getHealthCheck(): array
     {
         $health = [
-            'status' => 'healthy',
-            'issues' => [],
-            'recommendations' => [],
+            'status' => 'ok',
+            'caches' => [],
+            'warnings' => [],
         ];
 
-        $stats = $this->getStats();
-        $globalStats = $stats['_global'];
+        foreach ($this->caches as $name => $cache) {
+            $cacheHealth = ['name' => $name, 'status' => 'ok'];
 
-        // Check global hit rate
-        if ($globalStats['global_hit_rate'] < 0.5) {
-            $health['status'] = 'warning';
-            $health['issues'][] = 'Low global hit rate: ' . round($globalStats['global_hit_rate'] * 100, 2) . '%';
-            $health['recommendations'][] = 'Consider increasing cache sizes or TTL values';
-        }
+            if (method_exists($cache, 'getStatistics')) {
+                $stats = $cache->getStatistics();
 
-        // Check individual cache health
-        foreach ($stats as $name => $cacheStats) {
-            if ($name === '_global') {
-                continue;
-            }
+                // Check hit rate
+                if (isset($stats['hit_rate'])) {
+                    $cacheHealth['hit_rate'] = $stats['hit_rate'];
+                    if ($stats['hit_rate'] < 50) {
+                        $health['warnings'][] = "Low hit rate for cache '$name': {$stats['hit_rate']}%";
+                        $cacheHealth['status'] = 'warning';
+                    }
+                }
 
-            // Check hit rate
-            if (isset($cacheStats['hitRate']) && $cacheStats['hitRate'] < 0.3) {
-                $health['issues'][] = "Cache '{$name}' has low hit rate: " . round($cacheStats['hitRate'] * 100, 2) . '%';
-            }
-
-            // Check eviction rate
-            if (isset($cacheStats['evictions']) && isset($cacheStats['size'])) {
-                $evictionRate = $cacheStats['size'] > 0 ? ($cacheStats['evictions'] / $cacheStats['size']) : 0;
-                if ($evictionRate > 0.2) {
-                    $health['issues'][] = "Cache '{$name}' has high eviction rate";
-                    $health['recommendations'][] = "Increase size limit for cache '{$name}'";
+                // Check size
+                if (isset($stats['size'], $stats['max_size'])) {
+                    $usage = ($stats['size'] / $stats['max_size']) * 100;
+                    $cacheHealth['usage'] = round($usage, 2);
+                    if ($usage > 90) {
+                        $health['warnings'][] = "Cache '$name' is nearly full: {$usage}%";
+                        $cacheHealth['status'] = 'warning';
+                    }
                 }
             }
+
+            $health['caches'][] = $cacheHealth;
         }
 
-        // Check memory usage
-        $memoryUsage = $globalStats['memory_usage_estimate'];
-        $memoryLimit = ini_get('memory_limit');
-
-        if ($memoryLimit !== '-1') {
-            $memoryLimitBytes = $this->parseMemoryLimit($memoryLimit);
-            $usagePercentage = ($memoryUsage / $memoryLimitBytes) * 100;
-
-            if ($usagePercentage > 10) {
-                $health['status'] = 'warning';
-                $health['issues'][] = 'Cache memory usage is ' . round($usagePercentage, 2) . '% of memory limit';
-            }
-        }
-
-        if (empty($health['issues'])) {
-            $health['message'] = 'All caches are operating normally';
-        } else {
-            $health['status'] = count($health['issues']) > 3 ? 'critical' : 'warning';
+        if (!empty($health['warnings'])) {
+            $health['status'] = 'warning';
         }
 
         return $health;
     }
 
     /**
-     * @param string $memoryLimit
-     * @return int
+     * @return CacheInvalidator
      */
-    private function parseMemoryLimit(string $memoryLimit): int
+    public function getInvalidator(): CacheInvalidator
     {
-        $unit = strtolower(substr($memoryLimit, -1));
-        $value = (int) substr($memoryLimit, 0, -1);
+        return $this->invalidator;
+    }
 
-        return match ($unit) {
-            'g' => $value * 1024 * 1024 * 1024,
-            'm' => $value * 1024 * 1024,
-            'k' => $value * 1024,
-            default => (int) $memoryLimit,
-        };
+    /**
+     * @return array<string>
+     */
+    public function getAvailableCaches(): array
+    {
+        return array_keys($this->caches);
     }
 }

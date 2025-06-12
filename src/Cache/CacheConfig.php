@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Cache;
 
-use InvalidArgumentException;
-
 /**
  * Configuration du cache
  * @package MulerTech\Database\Cache
  * @author Sébastien Muler
  */
-readonly class CacheConfig
+final readonly class CacheConfig
 {
     /**
      * @param int $maxSize
@@ -23,11 +21,26 @@ readonly class CacheConfig
         public int $maxSize = 10000,
         public int $ttl = 3600,
         public bool $enableStats = true,
-        public string $evictionPolicy = 'lru'
+        public string $evictionPolicy = 'lru' // lru, lfu, fifo
     ) {
-        if (!in_array($evictionPolicy, ['lru', 'lfu', 'fifo'], true)) {
-            throw new InvalidArgumentException(
-                sprintf('Invalid eviction policy: %s. Must be one of: lru, lfu, fifo', $evictionPolicy)
+        $this->validateEvictionPolicy();
+    }
+
+    /**
+     * @return void
+     * @throws \InvalidArgumentException
+     */
+    private function validateEvictionPolicy(): void
+    {
+        $validPolicies = ['lru', 'lfu', 'fifo'];
+
+        if (!in_array($this->evictionPolicy, $validPolicies, true)) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    'Invalid eviction policy "%s". Valid policies are: %s',
+                    $this->evictionPolicy,
+                    implode(', ', $validPolicies)
+                )
             );
         }
     }

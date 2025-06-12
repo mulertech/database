@@ -190,8 +190,8 @@ class CacheSystemIntegrationTest extends TestCase
         $health = $this->cacheManager->getHealthCheck();
 
         $this->assertArrayHasKey('status', $health);
-        $this->assertArrayHasKey('issues', $health);
-        $this->assertArrayHasKey('recommendations', $health);
+        $this->assertArrayHasKey('caches', $health);
+        $this->assertArrayHasKey('warnings', $health);
 
         // Status should be healthy or warning (not critical)
         $this->assertContains($health['status'], ['healthy', 'warning']);
@@ -242,7 +242,7 @@ class CacheSystemIntegrationTest extends TestCase
         }
 
         // Check that size is limited
-        $stats = $smallCache->getStats();
+        $stats = $smallCache->getStatistics();
         $this->assertEquals(5, $stats['size']);
         $this->assertGreaterThan(0, $stats['evictions']);
 
