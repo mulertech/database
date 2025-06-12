@@ -120,7 +120,7 @@ class EntityHydrator
      */
     public function getCacheStats(): array
     {
-        $stats = $this->metadataCache->getStats();
+        $stats = $this->metadataCache->getStatistics();
 
         return [
             'metadata_cache' => $stats,

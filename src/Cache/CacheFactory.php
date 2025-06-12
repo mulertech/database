@@ -152,8 +152,9 @@ class CacheFactory
                 'size' => 0,
             ];
 
-            if (method_exists($cache, 'getStats')) {
-                $stats = $cache->getStats();
+            if (method_exists($cache, 'getStatistics')) {
+                /** @var MemoryCache $cache */
+                $stats = $cache->getStatistics();
                 $data['size'] = $stats['size'] ?? 0;
                 $data['stats'] = $stats;
             }

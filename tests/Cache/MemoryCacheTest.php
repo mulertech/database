@@ -180,11 +180,11 @@ class MemoryCacheTest extends TestCase
         $this->cache->get('key1'); // Hit
         $this->cache->get('key3'); // Miss
 
-        $stats = $this->cache->getStats();
+        $stats = $this->cache->getStatistics();
 
         $this->assertEquals(2, $stats['hits']);
         $this->assertEquals(2, $stats['misses']);
-        $this->assertEquals(0.5, $stats['hitRate']);
+        $this->assertEquals(50.0, $stats['hit_rate']);
         $this->assertEquals(1, $stats['size']);
         $this->assertEquals(0, $stats['evictions']);
     }

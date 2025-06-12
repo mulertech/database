@@ -32,10 +32,12 @@ final class ChangeSetManager
 
     /**
      * @param IdentityMap $identityMap
+     * @param EntityRegistry $registry
      * @param ChangeDetector $changeDetector
      */
     public function __construct(
         private readonly IdentityMap $identityMap,
+        private readonly EntityRegistry $registry,
         private readonly ChangeDetector $changeDetector
     ) {
         $this->changeSets = new SplObjectStorage();
@@ -74,6 +76,9 @@ final class ChangeSetManager
         }
 
         $this->scheduledInsertions[] = $entity;
+
+        // Register entity in the registry
+        $this->registry->register($entity);
 
         // L'état des entités dans scheduleInsert doit être NEW
         $metadata = $this->identityMap->getMetadata($entity);
@@ -121,19 +126,15 @@ final class ChangeSetManager
      */
     public function scheduleUpdate(object $entity): void
     {
-        // Don't schedule if already in insertions or deletions
-        if (in_array($entity, $this->scheduledInsertions, true) ||
+        if (!$this->identityMap->isManaged($entity) ||
+            in_array($entity, $this->scheduledInsertions, true) ||
             in_array($entity, $this->scheduledDeletions, true)) {
             return;
         }
 
         if (!in_array($entity, $this->scheduledUpdates, true)) {
             $this->scheduledUpdates[] = $entity;
-        }
-
-        // Ensure entity is managed
-        if (!$this->identityMap->isManaged($entity)) {
-            $this->identityMap->add($entity);
+            $this->registry->register($entity);
         }
     }
 
@@ -149,9 +150,9 @@ final class ChangeSetManager
 
         $this->scheduledDeletions[] = $entity;
 
-        // Update metadata state
+        // Update state to REMOVED
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null) {
+        if ($metadata !== null && $metadata->state !== EntityState::REMOVED) {
             $newMetadata = $metadata->withState(EntityState::REMOVED);
             $this->identityMap->updateMetadata($entity, $newMetadata);
         }
@@ -159,6 +160,22 @@ final class ChangeSetManager
         // Remove from other schedules
         $this->removeFromSchedule($entity, 'insertions');
         $this->removeFromSchedule($entity, 'updates');
+    }
+
+    /**
+     * @return void
+     */
+    public function commit(): void
+    {
+        // Clear all schedules after commit
+        $this->scheduledInsertions = [];
+        $this->scheduledUpdates = [];
+        $this->scheduledDeletions = [];
+        $this->changeSets = new SplObjectStorage();
+        $this->visitedEntities = [];
+
+        // Update registry statistics
+        $this->registry->updateStatistics();
     }
 
     /**
@@ -172,15 +189,18 @@ final class ChangeSetManager
         $this->removeFromSchedule($entity, 'updates');
         $this->removeFromSchedule($entity, 'deletions');
 
-        // Update state to detached
+        // Update state to DETACHED
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null) {
+        if ($metadata !== null && $metadata->state !== EntityState::DETACHED) {
             $newMetadata = $metadata->withState(EntityState::DETACHED);
             $this->identityMap->updateMetadata($entity, $newMetadata);
         }
 
         // Remove from changeset
         unset($this->changeSets[$entity]);
+
+        // Unregister from registry
+        $this->registry->unregister($entity);
     }
 
     /**
@@ -211,6 +231,7 @@ final class ChangeSetManager
                 $newMetadata = $metadata->withState(EntityState::MANAGED);
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             }
+            $this->registry->register($entity);
         }
     }
 
@@ -290,6 +311,7 @@ final class ChangeSetManager
         $this->scheduledUpdates = [];
         $this->scheduledDeletions = [];
         $this->visitedEntities = [];
+        $this->registry->clear();
     }
 
     /**

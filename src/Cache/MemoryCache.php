@@ -5,68 +5,45 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Cache mémoire avec éviction LRU/LFU/FIFO
+ * Cache en mémoire avec support LRU/LFU/FIFO et tagging
  * @package MulerTech\Database\Cache
  * @author Sébastien Muler
  */
 class MemoryCache implements TaggableCacheInterface
 {
-    /**
-     * @var array<string, mixed>
-     */
-    private array $cache = [];
+    /** @var array<string, mixed> */
+    protected array $cache = [];
 
-    /**
-     * @var array<string, int>
-     */
-    private array $expirations = [];
+    /** @var array<string, int> */
+    protected array $ttl = [];
 
-    /**
-     * @var array<string, array<string>>
-     */
-    private array $tags = [];
+    /** @var array<string, int> */
+    protected array $accessTime = [];
 
-    /**
-     * @var array<string, array<string, true>>
-     */
-    private array $taggedKeys = [];
+    /** @var array<string, int> */
+    protected array $accessCount = [];
 
-    /**
-     * @var array<string, int>
-     */
-    private array $accessCount = [];
+    /** @var array<string, array<string>> */
+    protected array $tags = [];
 
-    /**
-     * @var array<string, int>
-     */
-    private array $lastAccess = [];
+    /** @var array<string, array<string, bool>> */
+    protected array $taggedKeys = [];
 
-    /**
-     * @var array<string, int>
-     */
-    private array $insertOrder = [];
-
-    /**
-     * @var int
-     */
-    private int $insertCounter = 0;
-
-    /**
-     * @var CacheConfig
-     */
-    private readonly CacheConfig $config;
-
-    /**
-     * @var array{hits: int, misses: int, evictions: int}
-     */
-    private array $stats = ['hits' => 0, 'misses' => 0, 'evictions' => 0];
+    /** @var array<string, mixed> */
+    protected array $stats = [
+        'hits' => 0,
+        'misses' => 0,
+        'writes' => 0,
+        'deletes' => 0,
+        'evictions' => 0,
+    ];
 
     /**
      * @param CacheConfig $config
      */
-    public function __construct(CacheConfig $config)
-    {
-        $this->config = $config;
+    public function __construct(
+        protected readonly CacheConfig $config
+    ) {
     }
 
     /**
@@ -76,17 +53,21 @@ class MemoryCache implements TaggableCacheInterface
     public function get(string $key): mixed
     {
         if (!$this->has($key)) {
-            if ($this->config->enableStats) {
-                $this->stats['misses']++;
-            }
+            $this->stats['misses']++;
             return null;
         }
 
-        if ($this->config->enableStats) {
-            $this->stats['hits']++;
+        // Check TTL
+        if ($this->isExpired($key)) {
+            $this->delete($key);
+            $this->stats['misses']++;
+            return null;
         }
 
-        $this->updateAccessMetrics($key);
+        // Update access info
+        $this->accessTime[$key] = time();
+        $this->accessCount[$key] = ($this->accessCount[$key] ?? 0) + 1;
+        $this->stats['hits']++;
 
         return $this->cache[$key];
     }
@@ -99,18 +80,17 @@ class MemoryCache implements TaggableCacheInterface
      */
     public function set(string $key, mixed $value, int $ttl = 0): void
     {
-        $this->ensureCapacity();
-
-        $this->cache[$key] = $value;
-
-        if ($ttl > 0) {
-            $this->expirations[$key] = time() + $ttl;
-        } elseif ($this->config->ttl > 0) {
-            $this->expirations[$key] = time() + $this->config->ttl;
+        // Check if we need to evict
+        if (!isset($this->cache[$key]) && count($this->cache) >= $this->config->maxSize) {
+            $this->evict();
         }
 
-        $this->insertOrder[$key] = ++$this->insertCounter;
-        $this->updateAccessMetrics($key);
+        $this->cache[$key] = $value;
+        $this->ttl[$key] = $ttl > 0 ? time() + $ttl : 0;
+        $this->accessTime[$key] = time();
+        $this->accessCount[$key] = 0;
+
+        $this->stats['writes']++;
     }
 
     /**
@@ -119,14 +99,11 @@ class MemoryCache implements TaggableCacheInterface
      */
     public function delete(string $key): void
     {
-        unset(
-            $this->cache[$key],
-            $this->expirations[$key],
-            $this->accessCount[$key],
-            $this->lastAccess[$key],
-            $this->insertOrder[$key]
-        );
+        if (!isset($this->cache[$key])) {
+            return;
+        }
 
+        // Remove from tags
         if (isset($this->tags[$key])) {
             foreach ($this->tags[$key] as $tag) {
                 unset($this->taggedKeys[$tag][$key]);
@@ -136,6 +113,15 @@ class MemoryCache implements TaggableCacheInterface
             }
             unset($this->tags[$key]);
         }
+
+        unset(
+            $this->cache[$key],
+            $this->ttl[$key],
+            $this->accessTime[$key],
+            $this->accessCount[$key]
+        );
+
+        $this->stats['deletes']++;
     }
 
     /**
@@ -144,14 +130,11 @@ class MemoryCache implements TaggableCacheInterface
     public function clear(): void
     {
         $this->cache = [];
-        $this->expirations = [];
+        $this->ttl = [];
+        $this->accessTime = [];
+        $this->accessCount = [];
         $this->tags = [];
         $this->taggedKeys = [];
-        $this->accessCount = [];
-        $this->lastAccess = [];
-        $this->insertOrder = [];
-        $this->insertCounter = 0;
-        $this->stats = ['hits' => 0, 'misses' => 0, 'evictions' => 0];
     }
 
     /**
@@ -160,16 +143,7 @@ class MemoryCache implements TaggableCacheInterface
      */
     public function has(string $key): bool
     {
-        if (!isset($this->cache[$key])) {
-            return false;
-        }
-
-        if (isset($this->expirations[$key]) && time() > $this->expirations[$key]) {
-            $this->delete($key);
-            return false;
-        }
-
-        return true;
+        return isset($this->cache[$key]) && !$this->isExpired($key);
     }
 
     /**
@@ -236,9 +210,10 @@ class MemoryCache implements TaggableCacheInterface
             return;
         }
 
-        foreach (array_keys($this->taggedKeys[$tag]) as $key) {
-            $this->delete($key);
-        }
+        $keys = array_keys($this->taggedKeys[$tag]);
+        $this->deleteMultiple($keys);
+
+        unset($this->taggedKeys[$tag]);
     }
 
     /**
@@ -253,101 +228,101 @@ class MemoryCache implements TaggableCacheInterface
     }
 
     /**
-     * @return array{hits: int, misses: int, evictions: int, hitRate: float, size: int}
+     * @return array<string, mixed>
      */
-    public function getStats(): array
+    public function getStatistics(): array
     {
-        $total = $this->stats['hits'] + $this->stats['misses'];
-        $hitRate = $total > 0 ? $this->stats['hits'] / $total : 0.0;
+        $hits = (int)$this->stats['hits'];
+        $misses = (int)$this->stats['misses'];
+        $totalRequests = $hits + $misses;
+
+        $hitRate = $totalRequests > 0
+            ? $hits / $totalRequests
+            : 0;
 
         return [
-            'hits' => $this->stats['hits'],
-            'misses' => $this->stats['misses'],
-            'evictions' => $this->stats['evictions'],
-            'hitRate' => $hitRate,
+            ...$this->stats,
+            'hit_rate' => round($hitRate * 100, 2),
             'size' => count($this->cache),
+            'max_size' => $this->config->maxSize,
+            'eviction_policy' => $this->config->evictionPolicy,
         ];
     }
 
     /**
      * @param string $key
-     * @return void
+     * @return bool
      */
-    private function updateAccessMetrics(string $key): void
+    protected function isExpired(string $key): bool
     {
-        $this->lastAccess[$key] = time();
-        $this->accessCount[$key] = ($this->accessCount[$key] ?? 0) + 1;
+        if (!isset($this->ttl[$key]) || $this->ttl[$key] === 0) {
+            return false;
+        }
+
+        return time() > $this->ttl[$key];
     }
 
     /**
      * @return void
      */
-    private function ensureCapacity(): void
+    protected function evict(): void
     {
-        if (count($this->cache) < $this->config->maxSize) {
-            return;
-        }
-
         $keyToEvict = match ($this->config->evictionPolicy) {
             'lru' => $this->findLruKey(),
             'lfu' => $this->findLfuKey(),
             'fifo' => $this->findFifoKey(),
-            default => throw new \RuntimeException('Invalid eviction policy'),
+            default => $this->findLruKey(),
         };
 
         if ($keyToEvict !== null) {
             $this->delete($keyToEvict);
-            if ($this->config->enableStats) {
-                $this->stats['evictions']++;
+            $this->stats['evictions']++;
+        }
+    }
+
+    /**
+     * @return string|null
+     */
+    protected function findLruKey(): ?string
+    {
+        $oldestTime = PHP_INT_MAX;
+        $oldestKey = null;
+
+        foreach ($this->accessTime as $key => $time) {
+            if ($time < $oldestTime) {
+                $oldestTime = $time;
+                $oldestKey = $key;
             }
         }
+
+        return $oldestKey;
     }
 
     /**
      * @return string|null
      */
-    private function findLruKey(): ?string
+    protected function findLfuKey(): ?string
     {
-        if (empty($this->lastAccess)) {
-            return null;
-        }
+        $minCount = PHP_INT_MAX;
+        $lfuKey = null;
 
-        $sorted = $this->lastAccess;
-        asort($sorted);
-
-        return array_key_first($sorted);
-    }
-
-    /**
-     * @return string|null
-     */
-    private function findLfuKey(): ?string
-    {
-        if (empty($this->accessCount)) {
-            return null;
-        }
-
-        $minAccess = min($this->accessCount);
         foreach ($this->accessCount as $key => $count) {
-            if ($count === $minAccess) {
-                return $key;
+            if ($count < $minCount) {
+                $minCount = $count;
+                $lfuKey = $key;
             }
         }
 
-        return null;
+        return $lfuKey;
     }
 
     /**
      * @return string|null
      */
-    private function findFifoKey(): ?string
+    protected function findFifoKey(): ?string
     {
-        if (empty($this->insertOrder)) {
-            return null;
-        }
-
-        return array_key_first(
-            array_slice($this->insertOrder, 0, 1, true)
-        );
+        // Simply return the first key
+        $keys = array_keys($this->cache);
+        return $keys[0] ?? null;
     }
 }

@@ -147,7 +147,7 @@ class PreparedStatementCache extends MemoryCache
      */
     public function getDetailedStats(): array
     {
-        $baseStats = $this->getStats();
+        $baseStats = $this->getStatistics();
 
         // Sort metrics by usage count
         $sortedMetrics = $this->statementMetrics;

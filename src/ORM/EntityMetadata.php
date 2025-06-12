@@ -124,56 +124,26 @@ final readonly class EntityMetadata
     }
 
     /**
-     * @return int
+     * @return array{
+     *     className: class-string,
+     *     identifier: int|string,
+     *     state: string,
+     *     originalDataCount: int,
+     *     loadedAt: string,
+     *     lastModifiedAt: string|null,
+     *     age: int
+     * }
      */
-    public function getAge(): int
-    {
-        $now = new DateTimeImmutable();
-        return $now->getTimestamp() - $this->loadedAt->getTimestamp();
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getTimeSinceLastModification(): ?int
-    {
-        if ($this->lastModifiedAt === null) {
-            return null;
-        }
-
-        $now = new DateTimeImmutable();
-        return $now->getTimestamp() - $this->lastModifiedAt->getTimestamp();
-    }
-
-    /**
-     * @param string $property
-     * @return mixed
-     */
-    public function getOriginalValue(string $property): mixed
-    {
-        return $this->originalData[$property] ?? null;
-    }
-
-    /**
-     * @param string $property
-     * @return bool
-     */
-    public function hasOriginalValue(string $property): bool
-    {
-        return array_key_exists($property, $this->originalData);
-    }
-
-    /**
-     * @return array{className: class-string, identifier: int|string, state: string, age: int, propertyCount: int}
-     */
-    public function getSummary(): array
+    public function toArray(): array
     {
         return [
             'className' => $this->className,
             'identifier' => $this->identifier,
             'state' => $this->state->value,
-            'age' => $this->getAge(),
-            'propertyCount' => count($this->originalData),
+            'originalDataCount' => count($this->originalData),
+            'loadedAt' => $this->loadedAt->format('Y-m-d H:i:s'),
+            'lastModifiedAt' => $this->lastModifiedAt?->format('Y-m-d H:i:s'),
+            'age' => (new DateTimeImmutable())->getTimestamp() - $this->loadedAt->getTimestamp(),
         ];
     }
 }

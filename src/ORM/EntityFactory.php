@@ -175,10 +175,22 @@ final class EntityFactory
         $entityClass = $entity::class;
         $data = $this->extract($entity);
 
-        // Remove ID to create a new entity
-        unset($data['id'], $data['identifier'], $data['uuid']);
+        // Remove ID field to create a new entity by setting this to null
+        if (isset($data['id'])) {
+            $data['id'] = null;
+        } elseif (isset($data['uuid'])) {
+            $data['uuid'] = null;
+        } elseif (isset($data['identifier'])) {
+            $data['identifier'] = null;
+        }
 
-        return $this->create($entityClass, $data);
+        // Create a new instance without constructor to avoid issues
+        $clonedEntity = $this->create($entityClass, [], false);
+
+        // Hydrate all data except ID fields
+        $this->hydrate($clonedEntity, $data);
+
+        return $clonedEntity;
     }
 
     /**
@@ -233,7 +245,7 @@ final class EntityFactory
             } else {
                 throw new \RuntimeException(
                     sprintf(
-                        'Cannot create instance of %s: required parameter "%s" not provided',
+                        'Cannot create entity %s: missing required constructor parameter "%s"',
                         $reflection->getName(),
                         $paramName
                     )
@@ -266,120 +278,21 @@ final class EntityFactory
         }
 
         $type = $property->getType();
-        if ($type === null) {
+
+        if (!$type instanceof ReflectionNamedType) {
             return $value;
         }
 
-        // Déterminer le type de façon sécurisée
-        if ($type instanceof ReflectionNamedType) {
-            $typeName = $type->getName();
-        } elseif (method_exists($type, 'getTypes')) {
-            // Pour les types d'union (PHP 8.0+)
-            $types = $type->getTypes();
-            if (!empty($types) && $types[0] instanceof ReflectionNamedType) {
-                $typeName = $types[0]->getName();
-            } else {
-                $typeName = 'mixed';
-            }
-        } else {
-            $typeName = 'mixed';
-        }
+        $typeName = $type->getName();
 
+        // Handle basic type conversions
         return match ($typeName) {
             'int' => (int) $value,
             'float' => (float) $value,
             'string' => (string) $value,
             'bool' => (bool) $value,
             'array' => is_array($value) ? $value : [$value],
-            'DateTime' => $this->convertToDateTime($value),
-            'DateTimeImmutable' => $this->convertToDateTimeImmutable($value),
-            default => $value,
+            default => $value
         };
-    }
-
-    /**
-     * @param mixed $value
-     * @return \DateTime|null
-     */
-    private function convertToDateTime(mixed $value): ?\DateTime
-    {
-        if ($value instanceof \DateTime) {
-            return $value;
-        }
-
-        if ($value instanceof \DateTimeImmutable) {
-            return \DateTime::createFromImmutable($value);
-        }
-
-        if (is_string($value)) {
-            try {
-                return new \DateTime($value);
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param mixed $value
-     * @return \DateTimeImmutable|null
-     */
-    private function convertToDateTimeImmutable(mixed $value): ?\DateTimeImmutable
-    {
-        if ($value instanceof \DateTimeImmutable) {
-            return $value;
-        }
-
-        if ($value instanceof \DateTime) {
-            return \DateTimeImmutable::createFromMutable($value);
-        }
-
-        if (is_string($value)) {
-            try {
-                return new \DateTimeImmutable($value);
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @return array{cachedClasses: int, totalProperties: int, memoryUsage: int}
-     */
-    public function getStatistics(): array
-    {
-        $totalProperties = 0;
-        foreach ($this->propertiesCache as $properties) {
-            $totalProperties += count($properties);
-        }
-
-        return [
-            'cachedClasses' => count($this->reflectionCache),
-            'totalProperties' => $totalProperties,
-            'memoryUsage' => memory_get_usage(true),
-        ];
-    }
-
-    /**
-     * @param class-string|null $entityClass
-     * @return void
-     */
-    public function clearCache(?string $entityClass = null): void
-    {
-        if ($entityClass === null) {
-            $this->reflectionCache = [];
-            $this->propertiesCache = [];
-            $this->hasConstructorCache = [];
-        } else {
-            unset(
-                $this->reflectionCache[$entityClass],
-                $this->propertiesCache[$entityClass],
-                $this->hasConstructorCache[$entityClass]
-            );
-        }
     }
 }

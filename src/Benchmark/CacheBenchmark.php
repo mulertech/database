@@ -247,7 +247,7 @@ class CacheBenchmark
                 $cache->set('key_' . $value, $value);
             }
 
-            $stats = $cache->getStats();
+            $stats = $cache->getStatistics();
             $evictions = $stats['evictions'];
             $time = microtime(true) - $startTime;
 

@@ -432,7 +432,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
             return ['enabled' => false];
         }
 
-        $stats = $this->statementCache?->getStats();
+        $stats = $this->statementCache?->getStatistics();
 
         // Add usage analytics
         $topStatements = [];
@@ -569,7 +569,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     public function __destruct()
     {
         // Log cache statistics on destruction if enabled
-        if ($this->statementCache !== null && $this->statementCache->getStats()['hits'] > 0) {
+        if ($this->statementCache !== null && $this->statementCache->getStatistics()['hits'] > 0) {
             // You can log these stats to your monitoring system
             $stats = $this->getStatementCacheStats();
             // Example: error_log('Statement cache stats: ' . json_encode($stats));
