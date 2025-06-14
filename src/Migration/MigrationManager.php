@@ -56,7 +56,8 @@ class MigrationManager
 
         $tableName = $dbMapping->getTableName($this->migrationHistory);
         if ($tableName === null) {
-            throw new RuntimeException("Migration history table name not found in mapping.");
+            // If migration history is not in the main mapping, use default table name
+            $tableName = 'migration_history';
         }
 
         // Check if table exists in the database
@@ -307,7 +308,8 @@ class MigrationManager
         $tableName = $this->entityManager->getDbMapping()->getTableName($this->migrationHistory);
 
         if ($tableName === null) {
-            throw new RuntimeException("Migration history table name not found in mapping.");
+            // If migration history is not in the main mapping, use default table name
+            $tableName = 'migration_history';
         }
 
         $queryBuilder

@@ -32,6 +32,16 @@ class DeletionProcessor
      * @return void
      * @throws ReflectionException
      */
+    public function process(object $entity): void
+    {
+        $this->execute($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     * @throws ReflectionException
+     */
     public function execute(object $entity): void
     {
         $queryBuilder = $this->buildDeleteQuery($entity);

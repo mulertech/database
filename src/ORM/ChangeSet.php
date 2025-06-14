@@ -22,6 +22,14 @@ final readonly class ChangeSet
     }
 
     /**
+     * @return array<string, PropertyChange>
+     */
+    public function getChanges(): array
+    {
+        return $this->changes;
+    }
+
+    /**
      * @return bool
      */
     public function isEmpty(): bool

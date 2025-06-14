@@ -11,6 +11,7 @@ use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\Mapping\MtManyToOne;
 use MulerTech\Database\Mapping\MtOneToMany;
+use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 
 /**
@@ -36,7 +37,7 @@ class Group
     #[MtColumn(columnName: "member_count", columnType: ColumnType::MEDIUMINT, unsigned: true, isNullable: true, columnDefault: "0")]
     private ?int $memberCount = null;
 
-    #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, unsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Group::class, referencedColumn: "id")]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $parent = null;
@@ -54,13 +55,9 @@ class Group
 
     public function __construct()
     {
-        $this->children = new Collection();
-        $this->users = new Collection();
+        $this->children = new DatabaseCollection();
+        $this->users = new DatabaseCollection();
     }
-
-     /**
-     * @return Collection
-     */
 
     public function getId(): ?int
     {
@@ -70,7 +67,6 @@ class Group
     public function setId(int $id): self
     {
         $this->id = $id;
-
         return $this;
     }
 
@@ -82,7 +78,6 @@ class Group
     public function setName(string $name): self
     {
         $this->name = $name;
-
         return $this;
     }
 

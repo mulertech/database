@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityFactory;
+use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\ORM\EntityRegistry;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityState;
@@ -29,7 +31,11 @@ class OrmCoreIntegrationTest extends TestCase
         $this->identityMap = new IdentityMap();
         $this->changeDetector = new ChangeDetector();
         $this->changeSetManager = new ChangeSetManager($this->identityMap, new EntityRegistry(), $this->changeDetector);
-        $this->entityFactory = new EntityFactory($this->identityMap);
+        $this->entityFactory = new EntityFactory(
+            new EntityHydrator(
+                new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity')),
+                $this->identityMap
+        );
     }
 
     public function testIdentityMapBasicOperations(): void
@@ -84,7 +90,7 @@ class OrmCoreIntegrationTest extends TestCase
 
     public function testChangeSetManager(): void
     {
-        $user = new TestUser(1, 'John Doe', 'john@example.com');
+        $user = new TestUser(null, 'John Doe', 'john@example.com');
 
         // Schedule insertion
         $this->changeSetManager->scheduleInsert($user);
@@ -222,8 +228,14 @@ class OrmCoreIntegrationTest extends TestCase
             $metadata = $this->identityMap->getMetadata($user);
             if ($metadata !== null) {
                 $currentData = $this->changeDetector->extractCurrentData($user);
-                $updatedMetadata = $metadata->withState(EntityState::MANAGED)
-                                           ->withOriginalData($currentData);
+                $updatedMetadata = new \MulerTech\Database\ORM\EntityMetadata(
+                    className: $metadata->className,
+                    identifier: $metadata->identifier,
+                    state: EntityState::MANAGED,
+                    originalData: $currentData,
+                    loadedAt: $metadata->loadedAt,
+                    lastModified: new \DateTimeImmutable()
+                );
                 $this->identityMap->updateMetadata($user, $updatedMetadata);
             }
         }

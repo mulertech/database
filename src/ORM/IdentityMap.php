@@ -60,11 +60,19 @@ final class IdentityMap
      */
     public function get(string $entityClass, int|string $id): ?object
     {
-        if (!$this->contains($entityClass, $id)) {
+        if (!isset($this->entities[$entityClass][$id])) {
             return null;
         }
 
-        return $this->entities[$entityClass][$id]->get();
+        $entity = $this->entities[$entityClass][$id]->get();
+
+        if ($entity === null) {
+            // Cleanup dead reference
+            unset($this->entities[$entityClass][$id]);
+            return null;
+        }
+
+        return $entity;
     }
 
     /**
@@ -170,9 +178,8 @@ final class IdentityMap
     {
         $entities = [];
 
-        foreach ($this->getAllEntities() as $entity) {
-            $metadata = $this->getMetadata($entity);
-            if ($metadata !== null && $metadata->state === $state) {
+        foreach ($this->metadata as $entity => $metadata) {
+            if ($metadata->state === $state) {
                 $entities[] = $entity;
             }
         }
@@ -191,12 +198,16 @@ final class IdentityMap
 
     /**
      * @param object $entity
-     * @param EntityMetadata $metadata
+     * @param EntityMetadata $newMetadata
      * @return void
      */
-    public function updateMetadata(object $entity, EntityMetadata $metadata): void
+    public function updateMetadata(object $entity, EntityMetadata $newMetadata): void
     {
-        $this->metadata[$entity] = $metadata;
+        if (!isset($this->metadata[$entity])) {
+            throw new \InvalidArgumentException('Entity is not managed by this IdentityMap');
+        }
+
+        $this->metadata[$entity] = $newMetadata;
     }
 
     /**
@@ -407,5 +418,23 @@ final class IdentityMap
         }
 
         return $data;
+    }
+
+    /**
+     * Get all entities currently managed by the IdentityMap, regardless of class.
+     * These are entities that the PersistenceManager should consider for flushing.
+     * @return array<object>
+     */
+    public function getAllManaged(): array
+    {
+        $managedEntities = [];
+        // Iterate over the WeakMap. $entity is the object key, $metadata is its value.
+        // WeakMap automatically handles garbage collected entities, so $entity is alive here.
+        foreach ($this->metadata as $entity => $metadata) {
+            if ($metadata->isManaged() || $metadata->isNew()) {
+                $managedEntities[] = $entity;
+            }
+        }
+        return $managedEntities;
     }
 }

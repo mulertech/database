@@ -54,7 +54,7 @@ class MappingTest extends TestCase
      */
     public function testTableNameWithoutTableNameSet(): void
     {
-        $this->assertEquals('sametablename', $this->getDbMapping()->getTableName(SameTableName::class));
+        $this->assertEquals('same_table_name', $this->getDbMapping()->getTableName(SameTableName::class));
     }
 
     /**
@@ -74,7 +74,7 @@ class MappingTest extends TestCase
     {
         $dbMapping = $this->getDbMapping();
         $this->assertEquals(
-            ['groups_test', 'groupsub', 'link_user_group_test', 'sametablename', 'units_test', 'users_test'],
+            ['group_sub', 'groups_test', 'link_user_group_test', 'same_table_name', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }
@@ -90,7 +90,7 @@ class MappingTest extends TestCase
             false
         );
         $this->assertEquals(
-            ['groups_test', 'link_user_group_test', 'sametablename', 'units_test', 'users_test'],
+            ['groups_test', 'link_user_group_test', 'same_table_name', 'units_test', 'users_test'],
             $dbMapping->getTables()
         );
     }

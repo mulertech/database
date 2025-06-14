@@ -12,6 +12,7 @@ use MulerTech\Database\Mapping\MtEntity;
 use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\Mapping\MtOneToOne;
+use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 
 /**
@@ -148,15 +149,11 @@ class User
 
     private ?DateTime $blockedAtDateTime = null;
 
-    /**
-     * Test of a variable which is not a column in the database
-     * @var int $notColumn
-     */
-    private int $notColumn;
+    private int $notColumn = 0;
 
     public function __construct()
     {
-        $this->groups = new Collection();
+        $this->groups = new DatabaseCollection();
     }
 
     public function getId(): ?int
@@ -167,7 +164,6 @@ class User
     public function setId(int $id): self
     {
         $this->id = $id;
-
         return $this;
     }
 
@@ -179,7 +175,6 @@ class User
     public function setUsername(string $username): self
     {
         $this->username = $username;
-
         return $this;
     }
 
@@ -191,7 +186,6 @@ class User
     public function setSize(?int $size): self
     {
         $this->size = $size;
-
         return $this;
     }
 
@@ -203,7 +197,6 @@ class User
     public function setUnit(Unit $unit): self
     {
         $this->unit = $unit;
-
         return $this;
     }
 
@@ -212,29 +205,36 @@ class User
         return $this->manager;
     }
 
-    public function setManager(User $manager): self
+    public function setManager(?User $manager): self
     {
         $this->manager = $manager;
-
         return $this;
     }
 
-    public function getGroups(): ?Collection
+    public function getGroups(): Collection
     {
+        if (!($this->groups instanceof DatabaseCollection)) {
+            $this->groups = new DatabaseCollection($this->groups->items());
+        }
         return $this->groups;
     }
 
     public function setGroups(Collection $groups): self
     {
-        $this->groups = $groups;
-
+        // Always ensure we use DatabaseCollection for change tracking
+        if (!($groups instanceof DatabaseCollection)) {
+            $this->groups = new DatabaseCollection($groups->items());
+        } else {
+            $this->groups = $groups;
+        }
+        
         return $this;
     }
 
     public function addGroup(Group $group): self
     {
-        if (!$this->groups->contains($group)) {
-            $this->groups->push($group);
+        if (!$this->getGroups()->contains($group)) {
+            $this->getGroups()->push($group);
         }
 
         return $this;
@@ -242,8 +242,8 @@ class User
 
     public function removeGroup(Group $group): self
     {
-        $this->groups->removeItem($group);
-
+        $this->getGroups()->removeItem($group, false);
+        
         return $this;
     }
 

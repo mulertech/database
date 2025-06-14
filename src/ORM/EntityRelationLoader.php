@@ -45,9 +45,7 @@ class EntityRelationLoader
         if (!empty($entityOneToMany = $this->dbMapping->getOneToMany($entityName))) {
             foreach ($entityOneToMany as $property => $oneToMany) {
                 $result = $this->loadOneToMany($entity, $oneToMany, $property);
-                if ($result !== null) {
-                    $entitiesToLoad[] = $result;
-                }
+                $entitiesToLoad[] = $result;
             }
         }
 
@@ -63,9 +61,7 @@ class EntityRelationLoader
         if (!empty($entityManyToMany = $this->dbMapping->getManyToMany($entityName))) {
             foreach ($entityManyToMany as $property => $manyToMany) {
                 $result = $this->loadManyToMany($entity, $manyToMany, $property);
-                if ($result !== null) {
-                    $entitiesToLoad[] = $result;
-                }
+                $entitiesToLoad[] = $result;
             }
         }
 
@@ -88,7 +84,8 @@ class EntityRelationLoader
         $setter = 'set' . ucfirst($property);
         $getter = 'get' . ucfirst($property);
 
-        if (!is_null($entity->$getter())) {
+        // Check if property is already set and not null
+        if ($this->isPropertyInitializedAndNotNull($entity, $property, $getter)) {
             return null;
         }
 
@@ -98,12 +95,33 @@ class EntityRelationLoader
         if (isset($entityData[$column]) && method_exists($entity, $setter)) {
             /** @var class-string $targetEntity */
             $targetEntity = $this->getTargetEntity(get_class($entity), $relation, $property);
-            $relatedEntity = $this->entityManager->find(
-                $targetEntity,
-                $entityData[$column]
-            );
-            $entity->$setter($relatedEntity);
+
+            try {
+                $foundEntity = $this->entityManager->find(
+                    $targetEntity,
+                    $entityData[$column]
+                );
+
+                // Only set if we actually found an entity
+                if ($foundEntity !== null) {
+                    $relatedEntity = $foundEntity;
+                    $entity->$setter($relatedEntity);
+                } else {
+                    // Only set to null if the setter accepts null values
+                    if ($this->setterAcceptsNull($entity, $setter)) {
+                        $entity->$setter(null);
+                    }
+                    // For non-nullable relations, we don't set anything if entity not found
+                }
+            } catch (\Exception $e) {
+                // If loading fails, only set to null if the setter accepts it
+                if ($this->setterAcceptsNull($entity, $setter)) {
+                    $entity->$setter(null);
+                }
+                // For non-nullable relations, we don't set anything if loading fails
+            }
         }
+        // Don't set to null for non-nullable relations when no foreign key value exists
 
         return $relatedEntity;
     }
@@ -112,50 +130,62 @@ class EntityRelationLoader
      * @param object $entity
      * @param MtOneToMany $oneToMany
      * @param string $property
-     * @return Collection<int, object>|null
+     * @return Collection<int, object>
      */
-    private function loadOneToMany(object $entity, MtOneToMany $oneToMany, string $property): ?Collection
+    private function loadOneToMany(object $entity, MtOneToMany $oneToMany, string $property): Collection
     {
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
         if ($entityId === null) {
-            return null;
+            // If entity has no ID, it cannot have related OneToMany entities from DB
+            // Set an empty collection if setter exists
+            $setter = 'set' . ucfirst($property);
+            if (method_exists($entity, $setter)) {
+                // Ensure type compatibility, assuming setter accepts Collection
+                $entity->{$setter}(new DatabaseCollection());
+            }
+            return new DatabaseCollection();
         }
-
-        $getter = 'get' . ucfirst($property);
-        $actualRelation = $entity->$getter();
-
-        if ($actualRelation instanceof Collection && $actualRelation->count() > 0) {
-            /** @var Collection<int, object> $actualRelation */
-            return $actualRelation;
-        }
-
-        $mappedByColumn = $this->getColumnName(
-            get_class($entity),
-            $this->getInverseJoinProperty(get_class($entity), $oneToMany, $property)
-        );
-        /** @var class-string $targetEntity */
-        $targetEntity = $this->getTargetEntity(get_class($entity), $oneToMany, $property);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
-            ->select()
-            ->from($this->getTableName($targetEntity))
-            ->where(SqlOperations::equal($mappedByColumn, $entityId));
-
-        $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
-            $queryBuilder,
-            $targetEntity,
-            false
-        );
-
-        if ($result === null) {
-            return null;
-        }
-
-        $oneToMany->entity = get_class($entity);
-        /** @var Collection<int, object> $collection */
-        $collection = new DatabaseCollection($result);
 
         $setter = 'set' . ucfirst($property);
-        $entity->$setter($collection);
+
+        /** @var class-string $entityClass */
+        $entityClass = get_class($entity);
+        /** @var class-string $targetEntity */
+        // Get target entity class from the relation attribute
+        $targetEntity = $this->getTargetEntity($entityClass, $oneToMany, $property);
+
+        // 'mappedBy' on MtOneToMany is the property name on the target entity
+        $mappedByProperty = $oneToMany->inverseJoinProperty;
+        if (empty($mappedByProperty)) {
+            throw new RuntimeException(sprintf(
+                'The "mappedBy" attribute is not defined for the OneToMany relation "%s" on entity "%s".',
+                $property,
+                $entityClass
+            ));
+        }
+        $mappedByColumn = $this->getColumnName($targetEntity, $mappedByProperty);
+
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
+        $queryBuilder->select('*')
+            ->from($this->getTableName($targetEntity))
+            ->where(SqlOperations::equal(
+                $mappedByColumn,
+                $queryBuilder->addNamedParameter($entityId)
+            ));
+
+        $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
+            $queryBuilder, // Pass the QueryBuilder instance
+            $targetEntity  // Pass the target entity class string
+        );
+
+        $collection = new DatabaseCollection(); // Default to empty collection
+        if ($result !== null) {
+            $collection = new DatabaseCollection($result);
+        }
+
+        if (method_exists($entity, $setter)) {
+            $entity->{$setter}($collection);
+        }
 
         return $collection;
     }
@@ -164,22 +194,26 @@ class EntityRelationLoader
      * @param object $entity
      * @param MtManyToMany $relation
      * @param string $property
-     * @return Collection<int, object>|null
+     * @return Collection<int, object>
      */
-    private function loadManyToMany(object $entity, MtManyToMany $relation, string $property): ?Collection
+    private function loadManyToMany(object $entity, MtManyToMany $relation, string $property): Collection
     {
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
         if ($entityId === null) {
-            return null;
+            // Set empty collection if no ID
+            $setter = 'set' . ucfirst($property);
+            if (method_exists($entity, $setter)) {
+                $collection = new DatabaseCollection();
+                $collection->synchronizeInitialState(); // Important: synchronize empty state
+                $entity->{$setter}($collection);
+            }
+            return new DatabaseCollection();
         }
 
-        $getter = 'get' . ucfirst($property);
-        $actualRelation = $entity->$getter();
+        $setter = 'set' . ucfirst($property);
 
-        if ($actualRelation instanceof Collection && $actualRelation->count() > 0) {
-            /** @var Collection<int, object> $actualRelation */
-            return $actualRelation;
-        }
+        // Pour ManyToMany: TOUJOURS recharger depuis la base de données
+        // pour s'assurer que l'état reflète les changements
 
         /** @var class-string $mappedBy */
         $mappedBy = $this->getMappedBy(get_class($entity), $relation, $property);
@@ -197,38 +231,137 @@ class EntityRelationLoader
             $this->getInverseJoinProperty(get_class($entity), $relation, $property)
         );
 
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
-            ->select('t.*')
-            ->from($targetTable, 't')
-            ->where(
-                new SqlOperations()->in(
-                    't.id',
-                    new QueryBuilder($this->entityManager->getEmEngine())
-                        ->select('j.' . $inverseJoinColumn)
-                        ->from($pivotTable, 'j')
-                        ->where(SqlOperations::equal('j.' . $joinColumn, $entityId))
-                )
-            );
+        // Use a direct PDO query to ensure we get fresh data
+        $pdo = $this->entityManager->getPdm();
+        $sql = "SELECT t.* FROM `$targetTable` t 
+                INNER JOIN `$pivotTable` p ON t.id = p.`$inverseJoinColumn` 
+                WHERE p.`$joinColumn` = ?";
 
-        $result = $this->entityManager->getEmEngine()->getQueryBuilderListKeyByIdResult(
-            $queryBuilder,
-            $this->getTargetEntity(get_class($entity), $relation, $property),
-            false
-        );
+        $statement = $pdo->prepare($sql);
+        $statement->execute([$entityId]);
+        $results = $statement->fetchAll(\PDO::FETCH_ASSOC);
+        $statement->closeCursor();
 
-        $collection = null;
-        if ($result !== null) {
-            $relation->entity = get_class($entity);
-            /** @var Collection<int, object> $collection */
-            $collection = new DatabaseCollection($result);
+        $relation->entity = get_class($entity);
 
-            $setter = 'set' . ucfirst($property);
-            if (method_exists($entity, $setter)) {
-                $entity->$setter($collection);
+        if (!empty($results)) {
+            // Create managed entities from the results
+            $entities = [];
+            foreach ($results as $entityData) {
+                // Check if entity is already in identity map
+                if (isset($entityData['id'])) {
+                    $managedEntity = $this->entityManager->getEmEngine()->getIdentityMap()->get($targetEntity, $entityData['id']);
+                    if ($managedEntity !== null) {
+                        $entities[] = $managedEntity;
+                        continue;
+                    }
+                }
+
+                // Create new managed entity
+                $relatedEntity = $this->entityManager->getEmEngine()->createManagedEntity($entityData, $targetEntity, false);
+                $entities[] = $relatedEntity;
             }
+
+            $collection = new DatabaseCollection($entities);
+        } else {
+            $collection = new DatabaseCollection([]);
+        }
+
+        // IMPORTANT: Synchronize the initial state after loading from database
+        $collection->synchronizeInitialState();
+
+        // Définir la collection sur l'entité
+        if (method_exists($entity, $setter)) {
+            $entity->$setter($collection);
         }
 
         return $collection;
+    }
+
+    /**
+     * Check if a property is initialized (regardless of content)
+     *
+     * @param object $entity
+     * @param string $property
+     * @return bool
+     */
+    private function isPropertyInitialized(object $entity, string $property): bool
+    {
+        try {
+            $reflection = new \ReflectionClass($entity);
+            $reflectionProperty = $reflection->getProperty($property);
+
+            return $reflectionProperty->isInitialized($entity);
+        } catch (\ReflectionException) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if a property is initialized and not null
+     *
+     * @param object $entity
+     * @param string $property
+     * @param string $getter
+     * @return bool
+     */
+    private function isPropertyInitializedAndNotNull(object $entity, string $property, string $getter): bool
+    {
+        try {
+            $reflection = new \ReflectionClass($entity);
+            $reflectionProperty = $reflection->getProperty($property);
+
+            // Check if property is initialized
+            if (!$reflectionProperty->isInitialized($entity)) {
+                return false;
+            }
+
+            // Check if value is not null
+            if (!method_exists($entity, $getter)) {
+                return false;
+            }
+
+            return $entity->$getter() !== null;
+        } catch (\ReflectionException) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if a property is initialized and not empty (for collections)
+     *
+     * @param object $entity
+     * @param string $property
+     * @param string $getter
+     * @return bool
+     */
+    private function isPropertyInitializedAndNotEmpty(object $entity, string $property, string $getter): bool
+    {
+        try {
+            $reflection = new \ReflectionClass($entity);
+            $reflectionProperty = $reflection->getProperty($property);
+
+            // Check if property is initialized
+            if (!$reflectionProperty->isInitialized($entity)) {
+                return false;
+            }
+
+            // Check if getter method exists
+            if (!method_exists($entity, $getter)) {
+                return false;
+            }
+
+            $value = $entity->$getter();
+
+            // Check if it's a collection and has content
+            if ($value instanceof Collection) {
+                return $value->count() > 0;
+            }
+
+            return $value !== null;
+        } catch (\ReflectionException) {
+            return false;
+        }
     }
 
     /**
@@ -267,28 +400,27 @@ class EntityRelationLoader
     }
 
     /**
-     * @param class-string $entity
-     * @param MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relation
-     * @param string $property
+     * @param string $sourceEntityClass
+     * @param MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relationAttribute
+     * @param string $propertyName
      * @return class-string
      */
     private function getTargetEntity(
-        string $entity,
-        MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relation,
-        string $property
+        string $sourceEntityClass, // Changed signature to match usage
+        MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relationAttribute, // Changed signature
+        string $propertyName // Changed signature
     ): string {
-        if (null === $targetEntity = $relation->targetEntity) {
-            throw new RuntimeException(
-                sprintf(
-                    'Target entity is not defined for the class "%s" and property "%s". Please check the mapping configuration.',
-                    $entity,
-                    $property
-                )
-            );
+        /** @var class-string $target */
+        $target = $relationAttribute->targetEntity;
+        if (!class_exists($target)) {
+            throw new RuntimeException(sprintf(
+                'Target entity class "%s" for relation "%s" on entity "%s" does not exist.',
+                $target,
+                $propertyName,
+                $sourceEntityClass
+            ));
         }
-
-        /** @var class-string $targetEntity */
-        return $targetEntity;
+        return $target;
     }
 
     /**
@@ -351,5 +483,43 @@ class EntityRelationLoader
         }
 
         return $joinProperty;
+    }
+
+    /**
+     * Check if a setter method accepts null values
+     *
+     * @param object $entity
+     * @param string $setterMethod
+     * @return bool
+     */
+    private function setterAcceptsNull(object $entity, string $setterMethod): bool
+    {
+        try {
+            $reflection = new \ReflectionClass($entity);
+
+            if (!$reflection->hasMethod($setterMethod)) {
+                return false;
+            }
+
+            $method = $reflection->getMethod($setterMethod);
+            $parameters = $method->getParameters();
+
+            if (empty($parameters)) {
+                return false;
+            }
+
+            $firstParameter = $parameters[0];
+            $type = $firstParameter->getType();
+
+            // If no type hint, assume it accepts null
+            if ($type === null) {
+                return true;
+            }
+
+            // Check if the parameter allows null
+            return $type->allowsNull();
+        } catch (\ReflectionException $e) {
+            return false;
+        }
     }
 }

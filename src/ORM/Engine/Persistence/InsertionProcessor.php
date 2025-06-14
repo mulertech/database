@@ -28,6 +28,18 @@ class InsertionProcessor
 
     /**
      * @param object $entity
+     * @return void
+     * @throws ReflectionException
+     */
+    public function process(object $entity): void
+    {
+        // Extract all properties as changes for insertion
+        $changes = $this->extractEntityData($entity);
+        $this->execute($entity, $changes);
+    }
+
+    /**
+     * @param object $entity
      * @param array<string, array<int, mixed>> $changes
      * @return void
      * @throws ReflectionException
@@ -230,5 +242,26 @@ class InsertionProcessor
         }
 
         return $entity->getId();
+    }
+
+    /**
+     * Extract all entity data as changes for insertion
+     *
+     * @param object $entity
+     * @return array<string, array<int, mixed>>
+     * @throws ReflectionException
+     */
+    private function extractEntityData(object $entity): array
+    {
+        $changes = [];
+        $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
+
+        foreach ($propertiesColumns as $property => $column) {
+            $value = $this->getPropertyValue($entity, $property);
+            // Format as [old_value, new_value] where old is null for new entities
+            $changes[$property] = [null, $value];
+        }
+
+        return $changes;
     }
 }
