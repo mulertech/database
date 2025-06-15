@@ -21,7 +21,7 @@ class Migration202505011024 extends Migration
         $tableDefinition->column("description")->text();
         $tableDefinition->column("created_at")->timestamp();
         $tableDefinition->column("member_count")->mediumInt()->unsigned()->default("0");
-        $tableDefinition->column("parent_id")->integer()->unsigned()->notNull();
+        $tableDefinition->column("parent_id")->integer()->unsigned();
         $tableDefinition->engine("InnoDB")
             ->charset("utf8mb4")
             ->collation("utf8mb4_unicode_ci");
@@ -41,7 +41,7 @@ class Migration202505011024 extends Migration
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
-        $tableDefinition = $schema->createTable("sametablename");
+        $tableDefinition = $schema->createTable("same_table_name");
         $tableDefinition->column("id")->integer()->unsigned()->notNull()->autoIncrement();
         $tableDefinition->primaryKey("id");
         $tableDefinition->engine("InnoDB")
@@ -51,7 +51,7 @@ class Migration202505011024 extends Migration
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
-        $tableDefinition = $schema->createTable("groupsub");
+        $tableDefinition = $schema->createTable("group_sub");
         $tableDefinition->column("id")->integer()->unsigned()->notNull()->autoIncrement();
         $tableDefinition->primaryKey("id");
         $tableDefinition->engine("InnoDB")
@@ -210,11 +210,11 @@ class Migration202505011024 extends Migration
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
-        $sql = $schema->dropTable("sametablename");
+        $sql = $schema->dropTable("same_table_name");
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
-        $sql = $schema->dropTable("groupsub");
+        $sql = $schema->dropTable("group_sub");
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();

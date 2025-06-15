@@ -57,8 +57,8 @@ class SchemaComparerTest extends TestCase
             'users_test',
             'units_test',
             'groups_test',
-            'sametablename',
-            'groupsub',
+            'same_table_name',
+            'group_sub',
             'fake'
         ];
 
@@ -84,8 +84,8 @@ class SchemaComparerTest extends TestCase
         $this->assertEquals([
             'groups_test' => Group::class,
             'link_user_group_test' => GroupUser::class,
-            'sametablename' => SameTableName::class,
-            'groupsub' => GroupSub::class,
+            'same_table_name' => SameTableName::class,
+            'group_sub' => GroupSub::class,
             'units_test' => Unit::class,
             'users_test' => User::class,
         ],

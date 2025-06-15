@@ -14,24 +14,108 @@ class DbMapping implements DbMappingInterface
     /** @var array<string, array<string, string>> $columns */
     private array $columns = [];
 
+    /** @var string|null $entitiesPath */
+    private ?string $entitiesPath = null;
+
     /**
-     * @param string $entitiesPath
+     * @param string|null $entitiesPath
      * @param bool $recursive
      */
     public function __construct(
-        private readonly string $entitiesPath,
-        private readonly bool   $recursive = true
+        ?string $entitiesPath = null,
+        private readonly bool $recursive = true
     ) {
+        $this->entitiesPath = $entitiesPath;
+        if ($entitiesPath !== null) {
+            $this->loadEntities();
+        }
+    }
+
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
+    private function loadEntities(): void
+    {
+        if ($this->entitiesPath === null) {
+            return;
+        }
+
+        $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
+
+        foreach ($classNames as $className) {
+            if (!class_exists($className)) {
+                continue;
+            }
+
+            try {
+                $reflection = new ReflectionClass($className);
+                $this->processEntityClass($reflection);
+            } catch (ReflectionException $e) {
+                // Skip classes that can't be reflected
+                continue;
+            }
+        }
+    }
+
+    /**
+     * @param ReflectionClass<object> $reflection
+     * @return void
+     */
+    private function processEntityClass(ReflectionClass $reflection): void
+    {
+        $className = $reflection->getName();
+
+        // Get table name from MtEntity attribute
+        $entityAttrs = $reflection->getAttributes(MtEntity::class);
+        if (!empty($entityAttrs)) {
+            $entityAttr = $entityAttrs[0]->newInstance();
+            $tableName = $entityAttr->tableName ?? $this->classNameToTableName($className);
+            $this->tables[$className] = $tableName;
+
+            // Process properties for column mappings
+            foreach ($reflection->getProperties() as $property) {
+                $propertyName = $property->getName();
+
+                // Get column mapping from MtColumn attribute
+                $columnAttrs = $property->getAttributes(MtColumn::class);
+                if (!empty($columnAttrs)) {
+                    $columnAttr = $columnAttrs[0]->newInstance();
+                    $columnName = $columnAttr->columnName ?? $propertyName;
+                    $this->columns[$className][$propertyName] = $columnName;
+                }
+            }
+        }
+    }
+
+    /**
+     * Convert class name to table name (basic implementation)
+     * @param string $className
+     * @return string
+     */
+    private function classNameToTableName(string $className): string
+    {
+        try {
+            /** @var class-string $className */
+            $reflection = new ReflectionClass($className);
+            $shortName = $reflection->getShortName();
+        } catch (ReflectionException $e) {
+            // Fallback to basic conversion if reflection fails
+            $parts = explode('\\', $className);
+            $shortName = end($parts);
+        }
+
+        // Convert CamelCase to snake_case
+        $converted = preg_replace('/([a-z])([A-Z])/', '$1_$2', $shortName);
+        return strtolower($converted ?: $shortName);
     }
 
     /**
      * @param class-string $entityName
      * @return string|null
-     * @throws ReflectionException
      */
     public function getTableName(string $entityName): ?string
     {
-        $this->initializeTables($entityName);
         return $this->tables[$entityName] ?? null;
     }
 
@@ -116,7 +200,41 @@ class DbMapping implements DbMappingInterface
     public function getColumnName(string $entityName, string $property): ?string
     {
         $columns = $this->getPropertiesColumns($entityName);
-        return $columns[$property] ?? null;
+        if (isset($columns[$property])) {
+            return $columns[$property];
+        }
+
+        // If direct mapping not found, check if it's a relation property
+        // and try to find the foreign key column
+        $oneToOneList = $this->getOneToOne($entityName);
+        if (!empty($oneToOneList) && isset($oneToOneList[$property])) {
+            // For OneToOne relations, try property_id as column name
+            $fkColumn = $property . '_id';
+            // Check if this column exists in the mapped columns
+            foreach ($columns as $prop => $col) {
+                if ($col === $fkColumn) {
+                    return $col;
+                }
+            }
+            // If not found in mapped columns, return the convention-based name
+            return $fkColumn;
+        }
+
+        $manyToOneList = $this->getManyToOne($entityName);
+        if (!empty($manyToOneList) && isset($manyToOneList[$property])) {
+            // For ManyToOne relations, try property_id as column name
+            $fkColumn = $property . '_id';
+            // Check if this column exists in the mapped columns
+            foreach ($columns as $prop => $col) {
+                if ($col === $fkColumn) {
+                    return $col;
+                }
+            }
+            // If not found in mapped columns, return the convention-based name
+            return $fkColumn;
+        }
+
+        return null;
     }
 
     /**
@@ -317,43 +435,103 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
+     * Get OneToOne relations for an entity
+     *
      * @param class-string $entityName
-     * @return array<string, mixed>|null
-     * @throws ReflectionException
+     * @return array<string, MtOneToOne>
      */
-    public function getOneToOne(string $entityName): ?array
+    public function getOneToOne(string $entityName): array
     {
-        return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtOneToOne::class);
+        try {
+            $reflection = new ReflectionClass($entityName);
+            $relations = [];
+
+            foreach ($reflection->getProperties() as $property) {
+                $oneToOneAttrs = $property->getAttributes(MtOneToOne::class);
+                if (!empty($oneToOneAttrs)) {
+                    $relations[$property->getName()] = $oneToOneAttrs[0]->newInstance();
+                }
+            }
+
+            return $relations;
+        } catch (ReflectionException $e) {
+            return [];
+        }
     }
 
     /**
+     * Get ManyToOne relations for an entity
+     *
      * @param class-string $entityName
-     * @return array<string, mixed>|null
-     * @throws ReflectionException
+     * @return array<string, MtManyToOne>
      */
-    public function getOneToMany(string $entityName): ?array
+    public function getManyToOne(string $entityName): array
     {
-        return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtOneToMany::class);
+        try {
+            $reflection = new ReflectionClass($entityName);
+            $relations = [];
+
+            foreach ($reflection->getProperties() as $property) {
+                $manyToOneAttrs = $property->getAttributes(MtManyToOne::class);
+                if (!empty($manyToOneAttrs)) {
+                    $relations[$property->getName()] = $manyToOneAttrs[0]->newInstance();
+                }
+            }
+
+            return $relations;
+        } catch (ReflectionException $e) {
+            return [];
+        }
     }
 
     /**
+     * Get OneToMany relations for an entity
+     *
      * @param class-string $entityName
-     * @return array<string, mixed>|null
-     * @throws ReflectionException
+     * @return array<string, MtOneToMany>
      */
-    public function getManyToOne(string $entityName): ?array
+    public function getOneToMany(string $entityName): array
     {
-        return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtManyToOne::class);
+        try {
+            $reflection = new ReflectionClass($entityName);
+            $relations = [];
+
+            foreach ($reflection->getProperties() as $property) {
+                $oneToManyAttrs = $property->getAttributes(MtOneToMany::class);
+                if (!empty($oneToManyAttrs)) {
+                    $relations[$property->getName()] = $oneToManyAttrs[0]->newInstance();
+                }
+            }
+
+            return $relations;
+        } catch (ReflectionException $e) {
+            return [];
+        }
     }
 
     /**
+     * Get ManyToMany relations for an entity
+     *
      * @param class-string $entityName
-     * @return array<string, mixed>|null
-     * @throws ReflectionException
+     * @return array<string, MtManyToMany>
      */
-    public function getManyToMany(string $entityName): ?array
+    public function getManyToMany(string $entityName): array
     {
-        return Php::getInstanceOfPropertiesAttributesNamed($entityName, MtManyToMany::class);
+        try {
+            $reflection = new ReflectionClass($entityName);
+            $relations = [];
+
+            foreach ($reflection->getProperties() as $property) {
+                $manyToManyAttrs = $property->getAttributes(MtManyToMany::class);
+                if (!empty($manyToManyAttrs)) {
+                    $relations[$property->getName()] = $manyToManyAttrs[0]->newInstance();
+                }
+            }
+
+            return $relations;
+        } catch (ReflectionException $e) {
+            return [];
+        }
     }
 
     /**
@@ -364,11 +542,13 @@ class DbMapping implements DbMappingInterface
     private function initializeTables(?string $entity = null): void
     {
         if (empty($this->tables)) {
-            $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
-            foreach ($classNames as $className) {
-                $table = $this->generateTableName($className);
-                if ($table) {
-                    $this->tables[$className] = $table;
+            if ($this->entitiesPath !== null) {
+                $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
+                foreach ($classNames as $className) {
+                    $table = $this->generateTableName($className);
+                    if ($table) {
+                        $this->tables[$className] = $table;
+                    }
                 }
             }
         }
@@ -394,7 +574,7 @@ class DbMapping implements DbMappingInterface
             return null;
         }
 
-        return $mtEntity->tableName ?? strtolower(new ReflectionClass($entityName)->getShortName());
+        return $mtEntity->tableName ?? $this->classNameToTableName($entityName);
     }
 
     /**

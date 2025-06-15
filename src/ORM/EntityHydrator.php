@@ -13,6 +13,7 @@ use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\Mapping\MtOneToOne;
 use MulerTech\Database\Mapping\MtManyToOne;
+use MulerTech\Collections\Collection;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
@@ -66,27 +67,48 @@ class EntityHydrator
     public function hydrate(array $data, string $entityName): object
     {
         $entity = new $entityName();
-        $columnToPropertyMap = $this->getColumnToPropertyMap($entityName);
+        $reflection = new ReflectionClass($entityName);
 
-        foreach ($data as $column => $value) {
-            // Find the property corresponding to this column
-            $propertyName = $columnToPropertyMap[$column] ?? $this->snakeToCamelCase($column);
+        // Initialize collections first
+        $this->initializeCollections($entity, $reflection);
 
-            // Check if the property has a mapping of type MtOneToOne or MtManyToOne
-            if ($this->isRelationMapping($entityName, $propertyName)) {
-                continue; // Skip hydration for relational mappings
+        // Then hydrate scalar properties and relations
+        if ($this->dbMapping !== null) {
+            try {
+                $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityName);
+
+                foreach ($propertiesColumns as $property => $column) {
+                    if (!isset($data[$column])) {
+                        continue;
+                    }
+
+                    $value = $data[$column];
+
+                    // Check if this property is a relation
+                    if ($this->isRelationProperty($entityName, $property)) {
+                        // For relations, we store the foreign key value but don't set the property yet
+                        // The relation will be loaded later by EntityRelationLoader
+                        continue;
+                    }
+
+                    // Process the value according to its type for scalar properties
+                    $processedValue = $this->processValue($entityName, $property, $value);
+
+                    // Validate nullable constraints
+                    if ($processedValue === null && !$this->isPropertyNullable($entityName, $property)) {
+                        throw new \TypeError("Property {$property} of {$entityName} cannot be null");
+                    }
+
+                    $reflectionProperty = $reflection->getProperty($property);
+                    $reflectionProperty->setValue($entity, $processedValue);
+                }
+            } catch (\Exception $e) {
+                // If dbMapping fails, fall back to basic hydration
+                $this->fallbackHydration($entity, $data, $reflection);
             }
-
-            // Check if a setter method exists for this property
-            if ($this->hasSetterMethod($entityName, $propertyName)) {
-                $setterMethod = 'set' . ucfirst($propertyName);
-
-                // Process the value based on property type
-                $processedValue = $this->processValue($entityName, $propertyName, $value);
-
-                // Call the setter with the processed value
-                $entity->$setterMethod($processedValue);
-            }
+        } else {
+            // No dbMapping available, use fallback hydration
+            $this->fallbackHydration($entity, $data, $reflection);
         }
 
         return $entity;
@@ -165,65 +187,6 @@ class EntityHydrator
     /**
      * @param class-string $entityClass
      * @param string $propertyName
-     * @return bool
-     */
-    private function hasSetterMethod(string $entityClass, string $propertyName): bool
-    {
-        $cacheKey = $entityClass . '::' . $propertyName;
-
-        if (isset($this->setterCache[$cacheKey])) {
-            return $this->setterCache[$cacheKey];
-        }
-
-        $setterMethod = 'set' . ucfirst($propertyName);
-        $hasSetter = method_exists($entityClass, $setterMethod);
-
-        $this->setterCache[$cacheKey] = $hasSetter;
-
-        return $hasSetter;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param string $propertyName
-     * @return bool
-     */
-    private function isRelationMapping(string $entityClass, string $propertyName): bool
-    {
-        $cacheKey = 'relation:' . $entityClass . ':' . $propertyName;
-
-        $cached = $this->metadataCache->getPropertyMetadata($entityClass, $cacheKey);
-        if ($cached !== null) {
-            return $cached;
-        }
-
-        $isRelation = false;
-
-        try {
-            $property = $this->getReflectionProperty($entityClass, $propertyName);
-            if ($property !== null) {
-                $attributes = $property->getAttributes();
-
-                foreach ($attributes as $attribute) {
-                    $attributeClass = $attribute->getName();
-                    if ($attributeClass === MtOneToOne::class || $attributeClass === MtManyToOne::class) {
-                        $isRelation = true;
-                        break;
-                    }
-                }
-            }
-        } catch (ReflectionException $e) {
-            // Ignore reflection errors
-        }
-
-        $this->metadataCache->setPropertyMetadata($entityClass, $cacheKey, $isRelation);
-
-        return $isRelation;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param string $propertyName
      * @return ReflectionProperty|null
      * @throws ReflectionException
      */
@@ -271,59 +234,16 @@ class EntityHydrator
     }
 
     /**
+     * Process a value according to its type (make public for external use)
+     *
      * @param class-string $entityClass
      * @param string $propertyName
      * @param mixed $value
      * @return mixed
      */
-    private function processValue(string $entityClass, string $propertyName, mixed $value): mixed
+    public function processPropertyValue(string $entityClass, string $propertyName, mixed $value): mixed
     {
-        if ($value === null) {
-            return null;
-        }
-
-        // First try to use DbMapping if available
-        if ($this->dbMapping !== null) {
-            try {
-                $columnType = $this->getCachedColumnType($entityClass, $propertyName);
-
-                if ($columnType !== null) {
-                    return $this->processValueByColumnType($value, $columnType);
-                }
-            } catch (ReflectionException $e) {
-                // If this fails, try the reflection-based approach
-            }
-        }
-
-        // Fall back to attribute-based approach
-        try {
-            $property = $this->getReflectionProperty($entityClass, $propertyName);
-            if ($property !== null) {
-                // Try to use MtColumn attribute if available
-                $mtColumnAttrs = $property->getAttributes(MtColumn::class);
-                if (!empty($mtColumnAttrs)) {
-                    $mtColumnAttr = $mtColumnAttrs[0];
-                    $mtColumn = $mtColumnAttr->newInstance();
-                    if ($mtColumn->columnType !== null) {
-                        return $this->processValueByColumnType($value, $mtColumn->columnType);
-                    }
-                }
-
-                // Use PHP's type information
-                $type = $property->getType();
-                if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-                    $typeName = $type->getName();
-                    // If the type is a class, process it accordingly
-                    if (class_exists($typeName)) {
-                        return $this->processValueByPhpType($value, $typeName);
-                    }
-                }
-            }
-        } catch (ReflectionException $e) {
-            // If reflection fails, return value as-is
-        }
-
-        return $value;
+        return $this->processValue($entityClass, $propertyName, $value);
     }
 
     /**
@@ -500,5 +420,222 @@ class EntityHydrator
         }
 
         return new $className();
+    }
+
+    /**
+     * @param object $entity
+     * @param ReflectionClass<object> $reflection
+     * @return void
+     * @throws ReflectionException
+     */
+    private function initializeCollections(object $entity, ReflectionClass $reflection): void
+    {
+        $entityName = $entity::class;
+
+        // Only initialize collections if dbMapping is available
+        $dbMapping = $this->dbMapping;
+        if ($dbMapping === null) {
+            return;
+        }
+
+        // Initialize OneToMany collections with DatabaseCollection
+        $oneToManyList = $dbMapping->getOneToMany($entityName);
+        if (!empty($oneToManyList)) {
+            foreach ($oneToManyList as $property => $oneToMany) {
+                $this->initializeCollectionProperty($entity, $reflection, $property);
+            }
+        }
+
+        // Initialize ManyToMany collections with DatabaseCollection
+        $manyToManyList = $dbMapping->getManyToMany($entityName);
+        if (!empty($manyToManyList)) {
+            foreach ($manyToManyList as $property => $manyToMany) {
+                $this->initializeCollectionProperty($entity, $reflection, $property);
+            }
+        }
+    }
+
+    /**
+     * @param object $entity
+     * @param ReflectionClass<object> $reflection
+     * @param string $property
+     * @return void
+     */
+    private function initializeCollectionProperty(object $entity, ReflectionClass $reflection, string $property): void
+    {
+        try {
+            $reflectionProperty = $reflection->getProperty($property);
+
+            // ALWAYS use DatabaseCollection for all relation collections to ensure change tracking
+            if (!$reflectionProperty->isInitialized($entity)) {
+                $reflectionProperty->setValue($entity, new DatabaseCollection());
+            } else {
+                // If already initialized, ALWAYS convert to DatabaseCollection
+                $currentValue = $reflectionProperty->getValue($entity);
+                if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
+                    $reflectionProperty->setValue($entity, new DatabaseCollection($currentValue->items()));
+                } elseif (!($currentValue instanceof DatabaseCollection)) {
+                    // Initialize with empty DatabaseCollection if it's not a Collection at all
+                    $reflectionProperty->setValue($entity, new DatabaseCollection());
+                }
+            }
+        } catch (ReflectionException) {
+            // Property doesn't exist, ignore
+        }
+    }
+
+    /**
+     * Check if a property represents a relation (OneToOne, ManyToOne, etc.)
+     *
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @return bool
+     */
+    private function isRelationProperty(string $entityClass, string $propertyName): bool
+    {
+        if ($this->dbMapping === null) {
+            return false;
+        }
+
+        // Check if it's a OneToOne relation
+        $oneToOneList = $this->dbMapping->getOneToOne($entityClass);
+        if (!empty($oneToOneList) && isset($oneToOneList[$propertyName])) {
+            return true;
+        }
+
+        // Check if it's a ManyToOne relation
+        $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
+        if (!empty($manyToOneList) && isset($manyToOneList[$propertyName])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Fallback hydration when dbMapping is not available
+     *
+     * @param object $entity
+     * @param array<string, mixed> $data
+     * @param ReflectionClass<object> $reflection
+     * @return void
+     */
+    private function fallbackHydration(object $entity, array $data, ReflectionClass $reflection): void
+    {
+        $entityName = $entity::class;
+
+        foreach ($data as $column => $value) {
+            // Convert snake_case to camelCase
+            $propertyName = $this->snakeToCamelCase($column);
+
+            if ($reflection->hasProperty($propertyName)) {
+                try {
+                    $property = $reflection->getProperty($propertyName);
+
+                    // Process the value according to its type before assignment
+                    $processedValue = $this->processValue($entityName, $propertyName, $value);
+
+                    $property->setValue($entity, $processedValue);
+                } catch (\ReflectionException $e) {
+                    // Skip properties that can't be set
+                    continue;
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a property is nullable based on mapping or reflection
+     *
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @return bool
+     */
+    private function isPropertyNullable(string $entityClass, string $propertyName): bool
+    {
+        // First check DbMapping if available
+        if ($this->dbMapping !== null) {
+            try {
+                $nullable = $this->dbMapping->isNullable($entityClass, $propertyName);
+                if ($nullable !== null) {
+                    return $nullable;
+                }
+            } catch (\Exception $e) {
+                // Fall through to reflection check
+            }
+        }
+
+        // Fall back to reflection-based check
+        try {
+            $property = $this->getReflectionProperty($entityClass, $propertyName);
+            if ($property !== null) {
+                $type = $property->getType();
+                if ($type instanceof ReflectionNamedType) {
+                    return $type->allowsNull();
+                }
+            }
+        } catch (\Exception $e) {
+            // If we can't determine, assume nullable
+        }
+
+        return true; // Default to nullable if we can't determine
+    }
+
+    /**
+     * Process a value according to its type
+     *
+     * @param class-string $entityClass
+     * @param string $propertyName
+     * @param mixed $value
+     * @return mixed
+     */
+    private function processValue(string $entityClass, string $propertyName, mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // First try to use DbMapping if available
+        if ($this->dbMapping !== null) {
+            try {
+                $columnType = $this->getCachedColumnType($entityClass, $propertyName);
+
+                if ($columnType !== null) {
+                    return $this->processValueByColumnType($value, $columnType);
+                }
+            } catch (ReflectionException $e) {
+                // If this fails, try the reflection-based approach
+            }
+        }
+
+        // Fall back to attribute-based approach
+        try {
+            $property = $this->getReflectionProperty($entityClass, $propertyName);
+            if ($property !== null) {
+                // Try to use MtColumn attribute if available
+                $mtColumnAttrs = $property->getAttributes(MtColumn::class);
+                if (!empty($mtColumnAttrs)) {
+                    $mtColumnAttr = $mtColumnAttrs[0];
+                    $mtColumn = $mtColumnAttr->newInstance();
+                    if ($mtColumn->columnType !== null) {
+                        return $this->processValueByColumnType($value, $mtColumn->columnType);
+                    }
+                }
+
+                // Use PHP's type information
+                $type = $property->getType();
+                if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
+                    $typeName = $type->getName();
+                    // If the type is a class, process it accordingly
+                    if (class_exists($typeName)) {
+                        return $this->processValueByPhpType($value, $typeName);
+                    }
+                }
+            }
+        } catch (ReflectionException $e) {
+            // If reflection fails, return value as-is
+        }
+
+        return $value;
     }
 }

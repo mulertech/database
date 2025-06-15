@@ -88,7 +88,9 @@ class EntityManager implements EntityManagerInterface
      */
     public function find(string $entity, string|int|SqlOperations $idOrWhere): ?object
     {
-        return $this->emEngine->find($entity, $idOrWhere);
+        $result = $this->emEngine->find($entity, $idOrWhere);
+        // Ensure we never return false, only null or object
+        return $result ?: null;
     }
 
     /**

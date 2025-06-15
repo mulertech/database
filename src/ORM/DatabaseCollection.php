@@ -17,7 +17,7 @@ class DatabaseCollection extends Collection
     /**
      * @var array<int, object> The initial state of the collection
      */
-    public array $initialItems = [];
+    private array $initialItems = [];
 
     /**
      * @param array<TKey, TValue> $items
@@ -67,11 +67,38 @@ class DatabaseCollection extends Collection
     }
 
     /**
+     * Synchronize the initial state after loading from database
+     * This should be called after the collection is populated with data from the database
+     * @return void
+     */
+    public function synchronizeInitialState(): void
+    {
+        $this->saveInitialState();
+    }
+
+    /**
+     * Override push to track changes properly
+     */
+    public function push(mixed ...$values): void
+    {
+        parent::push(...$values);
+    }
+
+    /**
+     * Override removeItem to track changes properly
+     */
+    public function removeItem(mixed $item, bool $strict = true): bool
+    {
+        return parent::removeItem($item, $strict);
+    }
+
+    /**
      * Saves the initial state of the collection for future comparison
      * @return void
      */
     private function saveInitialState(): void
     {
+        $this->initialItems = [];
         foreach ($this->items() as $entity) {
             $this->initialItems[spl_object_id($entity)] = $entity;
         }

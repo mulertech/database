@@ -29,7 +29,18 @@ class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, array<int, mixed>> $changes
+     * @param array<string, mixed> $changes
+     * @return void
+     * @throws ReflectionException
+     */
+    public function process(object $entity, array $changes): void
+    {
+        $this->execute($entity, $changes);
+    }
+
+    /**
+     * @param object $entity
+     * @param array<string, mixed> $changes
      * @return void
      * @throws ReflectionException
      */
@@ -39,21 +50,38 @@ class UpdateProcessor
             return;
         }
 
-        $queryBuilder = $this->buildUpdateQuery($entity, $changes);
-
-        // Verify that the query has actual SET clauses
-        if (!$this->hasValidValues($queryBuilder, $entity, $changes)) {
+        // Verify entity has an ID before attempting update
+        $entityId = $this->getId($entity);
+        if ($entityId === null) {
             return;
         }
 
-        $pdoStatement = $queryBuilder->getResult();
-        $pdoStatement->execute();
-        $pdoStatement->closeCursor();
+        // Verify entity exists in database before updating
+        if (!$this->entityExists($entity)) {
+            return;
+        }
+
+        try {
+            $queryBuilder = $this->buildUpdateQuery($entity, $changes);
+
+            // Verify that the query has actual SET clauses
+            if (!$this->hasValidValues($queryBuilder, $entity, $changes)) {
+                return;
+            }
+
+            $pdoStatement = $queryBuilder->getResult();
+
+            $success = $pdoStatement->execute();
+            $rowsAffected = $pdoStatement->rowCount();
+            $pdoStatement->closeCursor();
+        } catch (\Exception $e) {
+            // Log error but don't fail - entity might have been deleted
+        }
     }
 
     /**
      * @param array<object> $entities
-     * @param array<int, array<string, array<int, mixed>>> $allChanges
+     * @param array<int, array<string, mixed>> $allChanges
      * @return void
      * @throws ReflectionException
      * @todo Is this method necessary?
@@ -72,8 +100,111 @@ class UpdateProcessor
     }
 
     /**
+     * Get the foreign key column name for a relation property
+     *
+     * @param class-string $entityClass
+     * @param string $property
+     * @return string|null
+     */
+    private function getForeignKeyColumn(string $entityClass, string $property): ?string
+    {
+        try {
+            // First try direct column mapping (works for properties that map directly to columns)
+            $directColumn = $this->dbMapping->getColumnName($entityClass, $property);
+            if ($directColumn !== null) {
+                return $directColumn;
+            }
+        } catch (\Exception $e) {
+            // If direct mapping fails, try relation-based mapping
+        }
+
+        try {
+            // CRITICAL FIX: Check if the property has a direct column mapping in getPropertiesColumns
+            $allPropertiesColumns = $this->dbMapping->getPropertiesColumns($entityClass);
+
+            if (isset($allPropertiesColumns[$property])) {
+                return $allPropertiesColumns[$property];
+            }
+
+            // Check if it's a ManyToOne relation that should have a foreign key column
+            $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
+            if (is_array($manyToOneList) && isset($manyToOneList[$property])) {
+                // For ManyToOne, the foreign key column is typically property_id
+                $foreignKeyColumn = $property . '_id';
+
+                // Verify this column exists in the entity's column mappings
+                foreach ($allPropertiesColumns as $prop => $col) {
+                    if ($col === $foreignKeyColumn) {
+                        return $col;
+                    }
+                }
+
+                // Check if the property itself maps to a column (direct FK mapping)
+                try {
+                    $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
+                    if ($mappedColumn !== null) {
+                        return $mappedColumn;
+                    }
+                } catch (\Exception $e) {
+                    // Continue with convention-based name
+                }
+
+                // If not found in explicit mappings, return the convention-based name
+                // This handles cases where the FK column isn't explicitly mapped to a property
+                return $foreignKeyColumn;
+            }
+
+            $oneToOneList = $this->dbMapping->getOneToOne($entityClass);
+            if (is_array($oneToOneList) && isset($oneToOneList[$property])) {
+                // For OneToOne, the foreign key column is typically property_id
+                $foreignKeyColumn = $property . '_id';
+
+                // Verify this column exists in the entity's column mappings
+                foreach ($allPropertiesColumns as $prop => $col) {
+                    if ($col === $foreignKeyColumn) {
+                        return $col;
+                    }
+                }
+
+                // Check if the property itself maps to a column (direct FK mapping)
+                try {
+                    $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
+                    if ($mappedColumn !== null) {
+                        return $mappedColumn;
+                    }
+                } catch (\Exception $e) {
+                    // Continue with convention-based name
+                }
+
+                // If not found in explicit mappings, return the convention-based name
+                return $foreignKeyColumn;
+            }
+        } catch (\Exception $e) {
+            // If mapping fails, return null
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
      * @param object $entity
-     * @param array<string, array<int, mixed>> $changes
+     * @return int|null
+     */
+    private function getId(object $entity): ?int
+    {
+        if (!method_exists($entity, 'getId')) {
+            throw new RuntimeException(
+                sprintf('The entity %s must have a getId method', $entity::class)
+            );
+        }
+
+        return $entity->getId();
+    }
+
+    /**
+     * @param object $entity
+     * @param array<string, mixed> $changes
      * @return QueryBuilder
      * @throws ReflectionException
      */
@@ -84,20 +215,100 @@ class UpdateProcessor
         $queryBuilder->update($tableName);
 
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
+        $hasUpdates = false;
 
         foreach ($propertiesColumns as $property => $column) {
-            if (!isset($changes[$property][1])) {
+            if (!isset($changes[$property])) {
                 continue;
             }
 
-            $value = $changes[$property][1];
+            // Handle both array format [old, new] and [key => old, key => new] format
+            $changeData = $changes[$property];
+            $value = null;
 
-            // If it's an object (relation), we retrieve its ID
-            if (is_object($value)) {
-                $value = $this->getId($value);
+            if (is_array($changeData)) {
+                if (isset($changeData[1])) {
+                    // Format: [old, new]
+                    $value = $changeData[1];
+                } elseif (isset($changeData['new'])) {
+                    // Format: ['old' => old, 'new' => new]
+                    $value = $changeData['new'];
+                } else {
+                    // Fallback: take the last value
+                    $value = end($changeData);
+                }
+            } else {
+                $value = $changeData;
+            }
+
+            // CRITICAL FIX: Handle serialized arrays from ChangeDetector
+            if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
+                // This is a serialized entity reference from ChangeDetector
+                $value = $value['__id__'];
+            } elseif (is_object($value)) {
+                // This is an actual object, extract its ID
+                $extractedId = $this->getId($value);
+                if ($extractedId !== null) {
+                    $value = $extractedId;
+                } else {
+                    $value = null;
+                }
             }
 
             $queryBuilder->setValue($column, $value);
+            $hasUpdates = true;
+        }
+
+        if (!$hasUpdates) {
+            // Check for relation property changes that map to foreign key columns
+            foreach ($changes as $property => $change) {
+                // Skip if this property is already handled above
+                if (isset($propertiesColumns[$property])) {
+                    continue;
+                }
+
+                // Try to find a foreign key column for this relation property
+                $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
+                if ($foreignKeyColumn !== null) {
+                    // Handle both array format [old, new] and [key => old, key => new] format
+                    $changeData = $change;
+                    $value = null;
+
+                    if (is_array($changeData)) {
+                        if (isset($changeData[1])) {
+                            // Format: [old, new]
+                            $value = $changeData[1];
+                        } elseif (isset($changeData['new'])) {
+                            // Format: ['old' => old, 'new' => new]
+                            $value = $changeData['new'];
+                        } else {
+                            // Fallback: take the last value
+                            $value = end($changeData);
+                        }
+                    } else {
+                        $value = $changeData;
+                    }
+
+                    // CRITICAL FIX: Handle serialized arrays from ChangeDetector
+                    if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
+                        // This is a serialized entity reference from ChangeDetector
+                        $value = $value['__id__'];
+                    } elseif (is_object($value)) {
+                        // This is an actual object, extract its ID
+                        $extractedId = $this->getId($value);
+                        if ($extractedId !== null) {
+                            $value = $extractedId;
+                        } else {
+                            $value = null;
+                        }
+                    } elseif ($value === null) {
+                        // Keep null value
+                    }
+
+                    $queryBuilder->setValue($foreignKeyColumn, $value);
+                    $hasUpdates = true;
+                }
+            }
         }
 
         $entityId = $this->getId($entity);
@@ -117,7 +328,7 @@ class UpdateProcessor
     /**
      * @param class-string $entityClass
      * @param array<object> $entities
-     * @param array<int, array<string, array<int, mixed>>> $allChanges
+     * @param array<int, array<string, mixed>> $allChanges
      * @return void
      * @throws ReflectionException
      */
@@ -140,49 +351,6 @@ class UpdateProcessor
                 $this->execute($entity, $changes);
             }
         }
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param array<object> $entities
-     * @param string $property
-     * @param mixed $value
-     * @return void
-     * @throws ReflectionException
-     */
-    public function bulkUpdate(string $entityClass, array $entities, string $property, mixed $value): void
-    {
-        if (empty($entities)) {
-            return;
-        }
-
-        $tableName = $this->getTableName($entityClass);
-        $column = $this->getColumnName($entityClass, $property);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-
-        $ids = array_map(fn ($entity) => $this->getId($entity), $entities);
-        $idParams = [];
-
-        foreach ($ids as $index => $id) {
-            $idParams[] = $queryBuilder->addNamedParameter($id);
-        }
-
-        $sql = sprintf(
-            'UPDATE `%s` SET `%s` = %s WHERE id IN (%s)',
-            $tableName,
-            $column,
-            $queryBuilder->addNamedParameter($value),
-            implode(', ', $idParams)
-        );
-
-        $statement = $this->entityManager->getPdm()->prepare($sql);
-
-        foreach ($queryBuilder->getNamedParameters() as $name => $paramValue) {
-            $statement->bindValue(":$name", $paramValue);
-        }
-
-        $statement->execute();
-        $statement->closeCursor();
     }
 
     /**
@@ -311,24 +479,38 @@ class UpdateProcessor
     }
 
     /**
+     * Check if an entity exists in the database
+     *
      * @param object $entity
-     * @return int|null
+     * @return bool
      */
-    private function getId(object $entity): ?int
+    private function entityExists(object $entity): bool
     {
-        if (!method_exists($entity, 'getId')) {
-            throw new RuntimeException(
-                sprintf('The entity %s must have a getId method', $entity::class)
-            );
-        }
+        try {
+            $entityId = $this->getId($entity);
+            if ($entityId === null) {
+                return false;
+            }
 
-        return $entity->getId();
+            $tableName = $this->getTableName($entity::class);
+
+            $pdo = $this->entityManager->getPdm();
+            $statement = $pdo->prepare("SELECT COUNT(*) FROM `$tableName` WHERE id = :id");
+            $statement->execute(['id' => $entityId]);
+            $count = (int) $statement->fetchColumn();
+            $statement->closeCursor();
+
+            return $count > 0;
+        } catch (\Exception $e) {
+            // If we can't check, assume it exists to avoid silent failures
+            return true;
+        }
     }
 
     /**
      * @param QueryBuilder $queryBuilder
      * @param object $entity
-     * @param array<string, array<int, mixed>> $changes
+     * @param array<string, mixed> $changes
      * @return bool
      * @throws ReflectionException
      */
@@ -337,10 +519,28 @@ class UpdateProcessor
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
         $hasValues = false;
 
+        // Check direct property to column mappings
         foreach ($propertiesColumns as $property => $column) {
-            if (isset($changes[$property][1])) {
+            if (isset($changes[$property])) {
                 $hasValues = true;
                 break;
+            }
+        }
+
+        // Check for relation properties that might have foreign key columns
+        if (!$hasValues) {
+            foreach ($changes as $property => $change) {
+                // Skip if this property is already handled above
+                if (isset($propertiesColumns[$property])) {
+                    continue;
+                }
+
+                // Check if this is a relation property with a foreign key
+                $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
+                if ($foreignKeyColumn !== null) {
+                    $hasValues = true;
+                    break;
+                }
             }
         }
 

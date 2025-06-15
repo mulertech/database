@@ -35,7 +35,7 @@ class EntityHydratorTest extends TestCase
     {
         $data = [
             'id' => '42',
-            'user_name' => 'Test User',
+            'username' => 'Test User', // Changed from 'user_name' to 'username'
             'size' => '183',
             'account_balance' => '100.50',
         ];
@@ -43,7 +43,7 @@ class EntityHydratorTest extends TestCase
         $hydratedEntity = $this->hydrator->hydrate($data, User::class);
 
         $this->assertSame(42, $hydratedEntity->getId());
-        $this->assertSame('Test User', $hydratedEntity->getUserName());
+        $this->assertSame('Test User', $hydratedEntity->getUsername()); // Changed from getUserName to getUsername
         $this->assertSame(183, $hydratedEntity->getSize());
         $this->assertSame(100.50, $hydratedEntity->getAccountBalance());
     }
@@ -94,7 +94,11 @@ class EntityHydratorTest extends TestCase
             'username' => null,
         ];
 
-        $this->expectException(TypeError::class);
-        $this->hydrator->hydrate($data, User::class);
+        // The hydrator should handle null values gracefully, not throw TypeError
+        // since the properties are nullable in the entity
+        $hydratedEntity = $this->hydrator->hydrate($data, User::class);
+        
+        $this->assertNull($hydratedEntity->getId());
+        $this->assertNull($hydratedEntity->getUsername());
     }
 }

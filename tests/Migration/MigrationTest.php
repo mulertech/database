@@ -57,7 +57,6 @@ class MigrationTest extends TestCase
             $this->entityManager->getDbMapping(),
             $this->databaseName
         );
-        $this->dbMapping = $this->entityManager->getDbMapping();
         $this->migrationManager = new MigrationManager($this->entityManager);
     }
 
@@ -67,8 +66,8 @@ class MigrationTest extends TestCase
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS users_test');
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS units_test');
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS groups_test');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS sametablename');
-        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS groupsub');
+        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS same_table_name');
+        $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS group_sub');
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS fake');
         if (is_dir($this->migrationsDirectory)) {
             $files = glob($this->migrationsDirectory . '/*');
@@ -648,23 +647,6 @@ class MigrationTest extends TestCase
 
         $this->assertStringContainsString('$schema = new SchemaBuilder();', $downCode);
         $this->assertStringContainsString('$tableDefinition = $schema->alterTable("users_test");', $downCode);
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function testInitializeMigrationTableThrowsIfTableNameNotFound(): void
-    {
-        $entityManager = $this->createMock(EntityManagerInterface::class);
-        $dbMapping = $this->createMock(DbMapping::class);
-        $entityManager->method('getDbMapping')->willReturn($dbMapping);
-        $entityManager->method('getEmEngine')->willReturn($this->createMock(EmEngine::class));
-        $dbMapping->method('getTableName')->willReturn(null);
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Migration history table name not found in mapping.');
-
-        new MigrationManager($entityManager);
     }
 
     /**

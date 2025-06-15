@@ -61,9 +61,13 @@ class EntityStateManager
     public function scheduleForInsertion(object $entity): void
     {
         $objectId = spl_object_id($entity);
+
         if (!isset($this->entityInsertions[$objectId])) {
             $this->entityInsertions[$objectId] = $entity;
-            $this->manage($entity);
+
+            // Remove from other schedules if present
+            unset($this->entityUpdates[$objectId]);
+            unset($this->entityDeletions[$objectId]);
         }
     }
 
@@ -201,6 +205,38 @@ class EntityStateManager
             $this->entityUpdates[$objectId],
             $this->entityDeletions[$objectId]
         );
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function markAsPersisted(object $entity): void
+    {
+        $oid = spl_object_id($entity);
+
+        // Remove from entity insertions
+        if (isset($this->entityInsertions[$oid])) {
+            unset($this->entityInsertions[$oid]);
+        }
+
+        // Add to managed entities
+        $this->managedEntities[$oid] = $entity;
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function markAsRemoved(object $entity): void
+    {
+        $oid = spl_object_id($entity);
+
+        // Remove from all states
+        unset($this->managedEntities[$oid]);
+        unset($this->entityInsertions[$oid]);
+        unset($this->entityUpdates[$oid]);
+        unset($this->entityDeletions[$oid]);
     }
 
     /**

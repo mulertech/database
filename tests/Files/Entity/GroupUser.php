@@ -11,7 +11,7 @@ use MulerTech\Database\Mapping\MtFk;
 use MulerTech\Database\Mapping\MtManyToOne;
 
 /**
- * Class GroupUser
+ * Link entity for User-Group many-to-many relationship
  * @package MulerTech\Database\Tests\Files\Entity
  * @author Sébastien Muler
  */
