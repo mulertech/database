@@ -41,6 +41,16 @@ class RelationManager
     private array $processedRelations = [];
 
     /**
+     * @var array<class-string, array<string, mixed>|false> Cache for OneToMany mappings
+     */
+    private array $oneToManyCache = [];
+
+    /**
+     * @var array<class-string, array<string, mixed>|false> Cache for ManyToMany mappings
+     */
+    private array $manyToManyCache = [];
+
+    /**
      * @param EntityManagerInterface $entityManager
      * @param EntityStateManager $stateManager
      */
@@ -71,6 +81,9 @@ class RelationManager
         $this->processedEntities = [];
         $this->processedRelations = [];
         $this->manyToManyInsertions = [];
+        // Clear caches for new flush cycle
+        $this->oneToManyCache = [];
+        $this->manyToManyCache = [];
     }
 
     /**
@@ -79,20 +92,31 @@ class RelationManager
      */
     public function processRelationChanges(): void
     {
-        // DO NOT reset processed entities here - keep tracking throughout the flush cycle
+        // Collect all entities to process first to avoid duplicates
+        $entitiesToProcess = [];
 
-        // Process insertions first - they might create new entities with relations
+        // Add scheduled insertions
         $scheduledInsertions = $this->stateManager->getScheduledInsertions();
         foreach ($scheduledInsertions as $entity) {
-            $this->processEntityRelations($entity);
+            $entityId = spl_object_id($entity);
+            $entitiesToProcess[$entityId] = $entity;
         }
 
-        // Then process managed entities that might have relation changes
+        // Add managed entities that are not scheduled for deletion
         $managedEntities = $this->stateManager->getManagedEntities();
         foreach ($managedEntities as $entity) {
             if (!$this->stateManager->isScheduledForDeletion($entity)) {
-                $this->processEntityRelations($entity);
+                $entityId = spl_object_id($entity);
+                // Only add if not already in the list (from insertions)
+                if (!isset($entitiesToProcess[$entityId])) {
+                    $entitiesToProcess[$entityId] = $entity;
+                }
             }
+        }
+
+        // Now process each unique entity only once
+        foreach ($entitiesToProcess as $entity) {
+            $this->processEntityRelations($entity);
         }
     }
 
@@ -119,6 +143,8 @@ class RelationManager
         $this->manyToManyInsertions = [];
         $this->processedEntities = [];
         $this->processedRelations = [];
+        $this->oneToManyCache = [];
+        $this->manyToManyCache = [];
     }
 
     /**
@@ -129,19 +155,35 @@ class RelationManager
     private function processEntityRelations(object $entity): void
     {
         $entityId = spl_object_id($entity);
-        
+
         // Skip if already processed in this flush cycle
         if (in_array($entityId, $this->processedEntities, true)) {
             return;
         }
-        
+
         // Mark as processed
         $this->processedEntities[] = $entityId;
 
+        $entityName = $entity::class;
+
+        // Check if entity has any relations to process (using cache)
+        $oneToManyList = $this->getOneToManyMapping($entityName);
+        $manyToManyList = $this->getManyToManyMapping($entityName);
+
+        // Skip if no relations
+        if ($oneToManyList === false && $manyToManyList === false) {
+            return;
+        }
+
         $entityReflection = new ReflectionClass($entity);
 
-        $this->processOneToManyRelations($entity, $entityReflection);
-        $this->processManyToManyRelations($entity, $entityReflection);
+        if ($oneToManyList !== false) {
+            $this->processOneToManyRelations($entity, $entityReflection);
+        }
+
+        if ($manyToManyList !== false) {
+            $this->processManyToManyRelations($entity, $entityReflection);
+        }
     }
 
     /**
@@ -153,9 +195,9 @@ class RelationManager
     private function processOneToManyRelations(object $entity, ReflectionClass $entityReflection): void
     {
         $entityName = $entity::class;
-        $oneToManyList = $this->entityManager->getDbMapping()->getOneToMany($entityName);
+        $oneToManyList = $this->getOneToManyMapping($entityName);
 
-        if (!is_array($oneToManyList)) {
+        if ($oneToManyList === false) {
             return;
         }
 
@@ -193,9 +235,9 @@ class RelationManager
     private function processManyToManyRelations(object $entity, ReflectionClass $entityReflection): void
     {
         $entityName = $entity::class;
-        $manyToManyList = $this->entityManager->getDbMapping()->getManyToMany($entityName);
+        $manyToManyList = $this->getManyToManyMapping($entityName);
 
-        if (!is_array($manyToManyList)) {
+        if ($manyToManyList === false) {
             return;
         }
 
@@ -205,12 +247,12 @@ class RelationManager
             var_dump('DEBUG: RelationManager->processManyToManyRelations', $entity->getId(), $entityName);
             // Create a unique key for this entity+property combination
             $relationKey = $entityId . '_' . $property;
-            
+
             // Skip if this specific relation was already processed
             if (isset($this->processedRelations[$relationKey])) {
                 continue;
             }
-            
+
             // Mark this relation as processed
             $this->processedRelations[$relationKey] = true;
 
@@ -309,7 +351,7 @@ class RelationManager
 
         // Group relations by unique key to avoid duplicates
         $uniqueRelations = [];
-        
+
         foreach ($this->manyToManyInsertions as $relation) {
             $entity = $relation['entity'];
             $relatedEntity = $relation['related'];
@@ -383,7 +425,7 @@ class RelationManager
     {
         // Try common ID getter methods
         $methods = ['getId', 'getIdentifier', 'getUuid', 'getPrimaryKey'];
-        
+
         foreach ($methods as $method) {
             if (method_exists($entity, $method)) {
                 $value = $entity->$method();
@@ -397,7 +439,7 @@ class RelationManager
         try {
             $reflection = new ReflectionClass($entity);
             $properties = ['id', 'identifier', 'uuid', 'primaryKey'];
-            
+
             foreach ($properties as $propertyName) {
                 if ($reflection->hasProperty($propertyName)) {
                     $property = $reflection->getProperty($propertyName);
@@ -468,7 +510,7 @@ class RelationManager
                     // Create a minimal link entity just for deletion
                     // We don't need to fully hydrate it, just need the ID
                     $linkEntity = new $mappedBy();
-                    
+
                     // Set the ID using reflection if no setter exists
                     if (method_exists($linkEntity, 'setId')) {
                         $linkEntity->setId($linkData['id']);
@@ -480,7 +522,7 @@ class RelationManager
                             $idProperty->setValue($linkEntity, $linkData['id']);
                         }
                     }
-                    
+
                     // Mark it as managed so it can be deleted
                     $this->stateManager->manage($linkEntity);
                 }
@@ -547,8 +589,8 @@ class RelationManager
      */
     private function findExistingLinkRelation(MtManyToMany $manyToMany, object $entity, object $relatedEntity): ?object
     {
-        if ($manyToMany->mappedBy === null || 
-            $manyToMany->joinProperty === null || 
+        if ($manyToMany->mappedBy === null ||
+            $manyToMany->joinProperty === null ||
             $manyToMany->inverseJoinProperty === null) {
             return null;
         }
@@ -653,5 +695,33 @@ class RelationManager
         }
 
         return $changedRelations;
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return array<string, mixed>|false
+     */
+    private function getOneToManyMapping(string $entityName): array|false
+    {
+        if (!isset($this->oneToManyCache[$entityName])) {
+            $mapping = $this->entityManager->getDbMapping()->getOneToMany($entityName);
+            $this->oneToManyCache[$entityName] = is_array($mapping) ? $mapping : false;
+        }
+
+        return $this->oneToManyCache[$entityName];
+    }
+
+    /**
+     * @param class-string $entityName
+     * @return array<string, mixed>|false
+     */
+    private function getManyToManyMapping(string $entityName): array|false
+    {
+        if (!isset($this->manyToManyCache[$entityName])) {
+            $mapping = $this->entityManager->getDbMapping()->getManyToMany($entityName);
+            $this->manyToManyCache[$entityName] = is_array($mapping) ? $mapping : false;
+        }
+
+        return $this->manyToManyCache[$entityName];
     }
 }

@@ -53,6 +53,11 @@ class PersistenceManager
     private bool $isInEventProcessing = false;
 
     /**
+     * @var bool Track if relations have been processed in this flush cycle
+     */
+    private bool $relationsProcessed = false;
+
+    /**
      * @param EntityManagerInterface $entityManager
      * @param EntityStateManager $stateManager
      * @param ChangeDetector $changeDetector
@@ -119,15 +124,17 @@ class PersistenceManager
 
         $this->isFlushInProgress = true;
         $this->flushDepth = 0;
+        $this->relationsProcessed = false; // Reset flag for new flush cycle
 
         try {
             // Start a new flush cycle for the relation manager
             $this->relationManager->startFlushCycle();
-            
+
             $this->doFlush();
         } finally {
             $this->isFlushInProgress = false;
             $this->hasPostEventChanges = false;
+            $this->relationsProcessed = false; // Reset flag
         }
     }
 
@@ -151,9 +158,12 @@ class PersistenceManager
         // Compute all change sets
         $this->changeSetManager->computeChangeSets();
 
-        // IMPORTANT: Process relation changes BEFORE processing deletions
-        // This ensures ManyToMany deletions are scheduled before we process deletions
-        $this->relationManager->processRelationChanges();
+        // IMPORTANT: Process relation changes ONLY ONCE per flush cycle
+        // This should only happen at the first level, not in recursive calls
+        if (!$this->relationsProcessed) {
+            $this->relationManager->processRelationChanges();
+            $this->relationsProcessed = true;
+        }
 
         // Get entities to process (including any new ones from relation processing)
         $insertions = $this->changeSetManager->getScheduledInsertions();
@@ -165,9 +175,9 @@ class PersistenceManager
 
         // Merge deletions from both sources
         $allDeletions = array_unique(array_merge(
-                                         array_values($deletions),
-                                         array_values($stateManagerDeletions)
-                                     ), SORT_REGULAR);
+            array_values($deletions),
+            array_values($stateManagerDeletions)
+        ), SORT_REGULAR);
 
         // Process all deletions first (including link entities)
         foreach ($allDeletions as $entity) {
@@ -184,8 +194,11 @@ class PersistenceManager
             $this->processUpdate($entity);
         }
 
-        // Execute any remaining relation operations (like pivot table inserts)
-        $this->relationManager->flush();
+        // Execute any pending relation operations (like pivot table inserts)
+        // This should also only happen once
+        if ($this->flushDepth === 1) {
+            $this->relationManager->flush();
+        }
 
         // Check if there are new insertions from relation processing (like link entities)
         $newInsertions = $this->stateManager->getScheduledInsertions();
@@ -207,13 +220,36 @@ class PersistenceManager
         $this->changeSetManager->clearProcessedChanges();
         $this->stateManager->clear();
 
-        // Fire post-flush event if event manager is available
-        if ($this->eventManager !== null) {
+        // Fire post-flush event if event manager is available - but LIMIT recursion
+        if ($this->eventManager !== null && !$this->isInEventProcessing && $this->flushDepth <= 2) {
+            $this->isInEventProcessing = true;
+
+            // Store state before event
+            $preEventInsertions = count($this->changeSetManager->getScheduledInsertions());
+            $preEventUpdates = count($this->changeSetManager->getScheduledUpdates());
+            $preEventDeletions = count($this->changeSetManager->getScheduledDeletions());
+
             $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
+
+            // Check if new operations were scheduled during the event
+            $postEventInsertions = count($this->changeSetManager->getScheduledInsertions());
+            $postEventUpdates = count($this->changeSetManager->getScheduledUpdates());
+            $postEventDeletions = count($this->changeSetManager->getScheduledDeletions());
+
+            $hasNewChanges = $postEventInsertions > $preEventInsertions ||
+                           $postEventUpdates > $preEventUpdates ||
+                           $postEventDeletions > $preEventDeletions;
+
+            $this->isInEventProcessing = false;
+
+            // If there were changes during post-flush events, process them immediately
+            if ($hasNewChanges) {
+                $this->hasPostEventChanges = true;
+            }
         }
 
-        // Check if there were changes during post events
-        if ($this->hasPostEventChanges) {
+        // Check if there were changes during post events - but LIMIT recursion
+        if ($this->hasPostEventChanges && $this->flushDepth < 3) {
             $this->hasPostEventChanges = false;
             $this->doFlush(); // Recursive flush for post-event changes
         }
