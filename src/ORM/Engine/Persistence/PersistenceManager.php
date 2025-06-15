@@ -121,6 +121,9 @@ class PersistenceManager
         $this->flushDepth = 0;
 
         try {
+            // Start a new flush cycle for the relation manager
+            $this->relationManager->startFlushCycle();
+            
             $this->doFlush();
         } finally {
             $this->isFlushInProgress = false;
@@ -435,8 +438,10 @@ class PersistenceManager
     {
         $this->changeSetManager->clear();
         $this->stateManager->clear();
+        $this->relationManager->clear();
         $this->processedEvents = [];
         $this->flushDepth = 0;
+        $this->hasPostEventChanges = false;
         $this->isInEventProcessing = false;
     }
 }

@@ -31,9 +31,14 @@ class RelationManager
     private EntityRelationLoader $relationLoader;
 
     /**
-     * @var array<int> Track processed entities to avoid duplicates
+     * @var array<int> Track processed entities during the entire flush cycle
      */
     private array $processedEntities = [];
+
+    /**
+     * @var array<string, bool> Track processed relations to avoid duplicates
+     */
+    private array $processedRelations = [];
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -58,13 +63,23 @@ class RelationManager
     }
 
     /**
+     * Start a new flush cycle - reset tracking
+     * @return void
+     */
+    public function startFlushCycle(): void
+    {
+        $this->processedEntities = [];
+        $this->processedRelations = [];
+        $this->manyToManyInsertions = [];
+    }
+
+    /**
      * @return void
      * @throws ReflectionException
      */
     public function processRelationChanges(): void
     {
-        // Reset processed entities for this flush cycle
-        $this->processedEntities = [];
+        // DO NOT reset processed entities here - keep tracking throughout the flush cycle
 
         // Process insertions first - they might create new entities with relations
         $scheduledInsertions = $this->stateManager->getScheduledInsertions();
@@ -103,6 +118,7 @@ class RelationManager
     {
         $this->manyToManyInsertions = [];
         $this->processedEntities = [];
+        $this->processedRelations = [];
     }
 
     /**
@@ -113,12 +129,12 @@ class RelationManager
     private function processEntityRelations(object $entity): void
     {
         $entityId = spl_object_id($entity);
-
-        // Skip if already processed
+        
+        // Skip if already processed in this flush cycle
         if (in_array($entityId, $this->processedEntities, true)) {
             return;
         }
-
+        
         // Mark as processed
         $this->processedEntities[] = $entityId;
 
@@ -144,7 +160,16 @@ class RelationManager
         }
 
         foreach ($oneToManyList as $property => $oneToMany) {
-            $entities = $entityReflection->getProperty($property)->getValue($entity);
+            if (!$entityReflection->hasProperty($property)) {
+                continue;
+            }
+
+            $reflectionProperty = $entityReflection->getProperty($property);
+            if (!$reflectionProperty->isInitialized($entity)) {
+                continue;
+            }
+
+            $entities = $reflectionProperty->getValue($entity);
 
             if (!$entities instanceof Collection) {
                 continue;
@@ -174,8 +199,21 @@ class RelationManager
             return;
         }
 
+        $entityId = spl_object_id($entity);
+
         foreach ($manyToManyList as $property => $manyToMany) {
             var_dump('DEBUG: RelationManager->processManyToManyRelations', $entity->getId(), $entityName);
+            // Create a unique key for this entity+property combination
+            $relationKey = $entityId . '_' . $property;
+            
+            // Skip if this specific relation was already processed
+            if (isset($this->processedRelations[$relationKey])) {
+                continue;
+            }
+            
+            // Mark this relation as processed
+            $this->processedRelations[$relationKey] = true;
+
             if (!$entityReflection->hasProperty($property)) {
                 continue;
             }
@@ -254,6 +292,7 @@ class RelationManager
                 'entity' => $entity,
                 'related' => $relatedEntity,
                 'manyToMany' => $manyToMany,
+                'action' => 'insert'
             ];
         }
     }
@@ -270,7 +309,7 @@ class RelationManager
 
         // Group relations by unique key to avoid duplicates
         $uniqueRelations = [];
-
+        
         foreach ($this->manyToManyInsertions as $relation) {
             $entity = $relation['entity'];
             $relatedEntity = $relation['related'];
@@ -286,15 +325,13 @@ class RelationManager
             }
 
             // Create a unique key for this relation
-            // Include the pivot table name to ensure uniqueness
             $pivotTable = $manyToMany->mappedBy ?? '';
             $relationKey = sprintf(
-                '%s_%s_%s_%s_%s',
+                '%s_%s_%s_%s',
                 $action,
                 $pivotTable,
                 min($entityId, $relatedEntityId),
-                max($entityId, $relatedEntityId),
-                $entityId < $relatedEntityId ? 'forward' : 'reverse'
+                max($entityId, $relatedEntityId)
             );
 
             // Store only the first occurrence of each unique relation
@@ -336,6 +373,46 @@ class RelationManager
 
         // Clear the list after processing
         $this->manyToManyInsertions = [];
+    }
+
+    /**
+     * @param object $entity
+     * @return int|string|null
+     */
+    private function getId(object $entity): int|string|null
+    {
+        // Try common ID getter methods
+        $methods = ['getId', 'getIdentifier', 'getUuid', 'getPrimaryKey'];
+        
+        foreach ($methods as $method) {
+            if (method_exists($entity, $method)) {
+                $value = $entity->$method();
+                if ($value !== null) {
+                    return $value;
+                }
+            }
+        }
+
+        // Try direct property access
+        try {
+            $reflection = new ReflectionClass($entity);
+            $properties = ['id', 'identifier', 'uuid', 'primaryKey'];
+            
+            foreach ($properties as $propertyName) {
+                if ($reflection->hasProperty($propertyName)) {
+                    $property = $reflection->getProperty($propertyName);
+                    $property->setAccessible(true);
+                    $value = $property->getValue($entity);
+                    if ($value !== null) {
+                        return $value;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Continue if reflection fails
+        }
+
+        return null;
     }
 
     /**
@@ -391,7 +468,7 @@ class RelationManager
                     // Create a minimal link entity just for deletion
                     // We don't need to fully hydrate it, just need the ID
                     $linkEntity = new $mappedBy();
-
+                    
                     // Set the ID using reflection if no setter exists
                     if (method_exists($linkEntity, 'setId')) {
                         $linkEntity->setId($linkData['id']);
@@ -403,7 +480,7 @@ class RelationManager
                             $idProperty->setValue($linkEntity, $linkData['id']);
                         }
                     }
-
+                    
                     // Mark it as managed so it can be deleted
                     $this->stateManager->manage($linkEntity);
                 }
@@ -470,56 +547,52 @@ class RelationManager
      */
     private function findExistingLinkRelation(MtManyToMany $manyToMany, object $entity, object $relatedEntity): ?object
     {
-        $manyToMany->entity = $entity::class;
-
-        if ($manyToMany->joinProperty === null || $manyToMany->inverseJoinProperty === null) {
-            throw new RuntimeException(
-                sprintf(
-                    'Invalid MtManyToMany relation configuration between %s and %s classes.',
-                    $entity::class,
-                    $relatedEntity::class
-                )
-            );
+        if ($manyToMany->mappedBy === null || 
+            $manyToMany->joinProperty === null || 
+            $manyToMany->inverseJoinProperty === null) {
+            return null;
         }
 
         $getEntity = 'get' . ucfirst($manyToMany->joinProperty);
         $getRelatedEntity = 'get' . ucfirst($manyToMany->inverseJoinProperty);
 
+        // First check in managed entities
         foreach ($this->stateManager->getManagedEntities() as $managedEntity) {
-            if (!($managedEntity instanceof $manyToMany->mappedBy)) {
+            if (!$managedEntity instanceof $manyToMany->mappedBy) {
                 continue;
             }
 
-            if (
-                method_exists($managedEntity, $getEntity) &&
-                method_exists($managedEntity, $getRelatedEntity) &&
-                $managedEntity->$getEntity() !== null &&
-                $managedEntity->$getRelatedEntity() !== null &&
-                method_exists($entity, 'getId') &&
-                method_exists($relatedEntity, 'getId') &&
-                $managedEntity->$getEntity()->getId() === $entity->getId() &&
-                $managedEntity->$getRelatedEntity()->getId() === $relatedEntity->getId()
-            ) {
+            if (!method_exists($managedEntity, $getEntity) || !method_exists($managedEntity, $getRelatedEntity)) {
+                continue;
+            }
+
+            $managedEntityValue = $managedEntity->$getEntity();
+            $managedRelatedValue = $managedEntity->$getRelatedEntity();
+
+            if ($managedEntityValue === $entity && $managedRelatedValue === $relatedEntity) {
                 return $managedEntity;
             }
         }
 
-        return null;
-    }
+        // Then check in scheduled insertions
+        foreach ($this->stateManager->getScheduledInsertions() as $scheduledEntity) {
+            if (!$scheduledEntity instanceof $manyToMany->mappedBy) {
+                continue;
+            }
 
-    /**
-     * @param object $entity
-     * @return int|null
-     */
-    private function getId(object $entity): ?int
-    {
-        if (!method_exists($entity, 'getId')) {
-            throw new RuntimeException(
-                sprintf('The entity %s must have a getId method', $entity::class)
-            );
+            if (!method_exists($scheduledEntity, $getEntity) || !method_exists($scheduledEntity, $getRelatedEntity)) {
+                continue;
+            }
+
+            $scheduledEntityValue = $scheduledEntity->$getEntity();
+            $scheduledRelatedValue = $scheduledEntity->$getRelatedEntity();
+
+            if ($scheduledEntityValue === $entity && $scheduledRelatedValue === $relatedEntity) {
+                return $scheduledEntity;
+            }
         }
 
-        return $entity->getId();
+        return null;
     }
 
     /**
