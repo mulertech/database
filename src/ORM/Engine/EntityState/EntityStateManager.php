@@ -244,7 +244,6 @@ class EntityStateManager
      */
     public function clear(): void
     {
-        $this->managedEntities = [];
         $this->entityInsertions = [];
         $this->entityUpdates = [];
         $this->entityDeletions = [];

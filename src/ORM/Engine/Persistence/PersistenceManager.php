@@ -148,13 +148,26 @@ class PersistenceManager
         // Compute all change sets
         $this->changeSetManager->computeChangeSets();
 
-        // Get entities to process
+        // IMPORTANT: Process relation changes BEFORE processing deletions
+        // This ensures ManyToMany deletions are scheduled before we process deletions
+        $this->relationManager->processRelationChanges();
+
+        // Get entities to process (including any new ones from relation processing)
         $insertions = $this->changeSetManager->getScheduledInsertions();
         $updates = $this->changeSetManager->getScheduledUpdates();
         $deletions = $this->changeSetManager->getScheduledDeletions();
 
-        // Process deletions first
-        foreach ($deletions as $entity) {
+        // Also get deletions from state manager (for link entities)
+        $stateManagerDeletions = $this->stateManager->getScheduledDeletions();
+
+        // Merge deletions from both sources
+        $allDeletions = array_unique(array_merge(
+                                         array_values($deletions),
+                                         array_values($stateManagerDeletions)
+                                     ), SORT_REGULAR);
+
+        // Process all deletions first (including link entities)
+        foreach ($allDeletions as $entity) {
             $this->processDeletion($entity);
         }
 
@@ -168,10 +181,7 @@ class PersistenceManager
             $this->processUpdate($entity);
         }
 
-        // IMPORTANT: Process relation changes AFTER entities have IDs
-        $this->relationManager->processRelationChanges();
-
-        // Execute any pending relation operations (like pivot table inserts)
+        // Execute any remaining relation operations (like pivot table inserts)
         $this->relationManager->flush();
 
         // Check if there are new insertions from relation processing (like link entities)
@@ -182,59 +192,25 @@ class PersistenceManager
             }
         }
 
-        // Clear change sets after successful flush but BEFORE post-flush events
-        $this->changeSetManager->clearProcessedChanges();
-
-        // Fire post-flush event if event manager is available - but LIMIT recursion
-        if ($this->eventManager !== null && !$this->isInEventProcessing && $this->flushDepth <= 2) {
-            $this->isInEventProcessing = true;
-
-            // Store state before event
-            $preEventInsertions = count($this->changeSetManager->getScheduledInsertions());
-            $preEventUpdates = count($this->changeSetManager->getScheduledUpdates());
-            $preEventDeletions = count($this->changeSetManager->getScheduledDeletions());
-
-            $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
-
-            // Check if new operations were scheduled during the event
-            $postEventInsertions = count($this->changeSetManager->getScheduledInsertions());
-            $postEventUpdates = count($this->changeSetManager->getScheduledUpdates());
-            $postEventDeletions = count($this->changeSetManager->getScheduledDeletions());
-
-            $hasNewChanges = $postEventInsertions > $preEventInsertions ||
-                           $postEventUpdates > $preEventUpdates ||
-                           $postEventDeletions > $preEventDeletions;
-
-            $this->isInEventProcessing = false;
-
-            // If there were changes during post-flush events, process them immediately
-            if ($hasNewChanges) {
-                // Process new insertions/updates created by post-flush events
-                $newInsertions = array_slice($this->changeSetManager->getScheduledInsertions(), $preEventInsertions);
-                $newUpdates = array_slice($this->changeSetManager->getScheduledUpdates(), $preEventUpdates);
-                $newDeletions = array_slice($this->changeSetManager->getScheduledDeletions(), $preEventDeletions);
-
-                foreach ($newDeletions as $entity) {
-                    $this->processDeletion($entity);
-                }
-
-                foreach ($newInsertions as $entity) {
-                    $this->processInsertion($entity);
-                }
-
-                foreach ($newUpdates as $entity) {
-                    $this->processUpdate($entity);
-                }
-
-                // Clear the new changes immediately
-                $this->changeSetManager->clearProcessedChanges();
-
-                $this->hasPostEventChanges = true;
+        // Check for any new deletions that were scheduled during relation processing
+        $newDeletions = $this->stateManager->getScheduledDeletions();
+        foreach ($newDeletions as $entity) {
+            if (!in_array($entity, $allDeletions, true)) {
+                $this->processDeletion($entity);
             }
         }
 
-        // Check if there were changes during post events - but LIMIT recursion
-        if ($this->hasPostEventChanges && $this->flushDepth < 3) {
+        // Clear change sets after successful flush but BEFORE post-flush events
+        $this->changeSetManager->clearProcessedChanges();
+        $this->stateManager->clear();
+
+        // Fire post-flush event if event manager is available
+        if ($this->eventManager !== null) {
+            $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
+        }
+
+        // Check if there were changes during post events
+        if ($this->hasPostEventChanges) {
             $this->hasPostEventChanges = false;
             $this->doFlush(); // Recursive flush for post-event changes
         }
