@@ -77,22 +77,6 @@ class DatabaseCollection extends Collection
     }
 
     /**
-     * Override push to track changes properly
-     */
-    public function push(mixed ...$values): void
-    {
-        parent::push(...$values);
-    }
-
-    /**
-     * Override removeItem to track changes properly
-     */
-    public function removeItem(mixed $item, bool $strict = true): bool
-    {
-        return parent::removeItem($item, $strict);
-    }
-
-    /**
      * Saves the initial state of the collection for future comparison
      * @return void
      */

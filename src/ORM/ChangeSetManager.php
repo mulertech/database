@@ -398,6 +398,7 @@ final class ChangeSetManager
         $this->scheduledInsertions = [];
         $this->scheduledUpdates = [];
         $this->scheduledDeletions = [];
+        $this->visitedEntities = [];
     }
 
     /**
