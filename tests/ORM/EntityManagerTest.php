@@ -284,7 +284,7 @@ class EntityManagerTest extends TestCase
         $unit->setName('TestUnit');
         $em->persist($unit);
         $em->flush(); // Flush to get the unit ID
-        
+
         $group1 = new Group();
         $group1->setName('Group1');
         $group2 = new Group();
@@ -303,7 +303,7 @@ class EntityManagerTest extends TestCase
         $em->persist($user1);
         $em->persist($user2);
         $em->flush();
-        
+
         $newUser1 = $em->find(User::class, 'username=\'User1\'');
         self::assertEquals(2, count($newUser1->getGroups()));
         
@@ -315,17 +315,9 @@ class EntityManagerTest extends TestCase
         
         $em->persist($newUser2);
         $em->flush();
-        
-        // Check database directly
-        $pdo = $this->entityManager->getPdm();
-        $statement = $pdo->prepare('SELECT * FROM link_user_group_test WHERE user_id = ?');
-        $statement->execute([$newUser2->getId()]);
-        $pivotData = $statement->fetchAll(\PDO::FETCH_ASSOC);
-        
+
         // Reload to get fresh state
         $reloadedUser2 = $em->find(User::class, 'username=\'User2\'');
-        
-        $firstGroup = $reloadedUser2->getGroups()->reset();
         
         self::assertEquals(1, count($reloadedUser2->getGroups()));
         self::assertEquals('Group2', $reloadedUser2->getGroups()->reset()->getName());

@@ -277,11 +277,11 @@ class SchemaComparerTest extends TestCase
                 CONSTRAINT fk_link_user_group_test_group_id_groups_test FOREIGN KEY (group_id) REFERENCES groups_test(id)
             )'
         );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS sametablename (
+        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS same_table_name (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS groupsub (
+        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS group_sub (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );
@@ -317,11 +317,11 @@ class SchemaComparerTest extends TestCase
                 CONSTRAINT fk_link_user_group_test_group_id_groups_test FOREIGN KEY (group_id) REFERENCES groups_test(id)
             )'
         );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS sametablename (
+        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS same_table_name (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS groupsub (
+        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS group_sub (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );
@@ -360,11 +360,11 @@ class SchemaComparerTest extends TestCase
                 group_id INT UNSIGNED NOT NULL
             )'
         );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS sametablename (
+        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS same_table_name (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );
-        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS groupsub (
+        $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS group_sub (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
             )'
         );

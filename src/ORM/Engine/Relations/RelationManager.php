@@ -244,7 +244,6 @@ class RelationManager
         $entityId = spl_object_id($entity);
 
         foreach ($manyToManyList as $property => $manyToMany) {
-            var_dump('DEBUG: RelationManager->processManyToManyRelations', $entity->getId(), $entityName);
             // Create a unique key for this entity+property combination
             $relationKey = $entityId . '_' . $property;
 
