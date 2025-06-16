@@ -53,11 +53,6 @@ class PersistenceManager
     private bool $isInEventProcessing = false;
 
     /**
-     * @var bool Track if relations have been processed in this flush cycle
-     */
-    private bool $relationsProcessed = false;
-
-    /**
      * @param EntityManagerInterface $entityManager
      * @param EntityStateManager $stateManager
      * @param ChangeDetector $changeDetector
@@ -124,7 +119,6 @@ class PersistenceManager
 
         $this->isFlushInProgress = true;
         $this->flushDepth = 0;
-        $this->relationsProcessed = false; // Reset flag for new flush cycle
 
         try {
             // Start a new flush cycle for the relation manager
@@ -134,7 +128,6 @@ class PersistenceManager
         } finally {
             $this->isFlushInProgress = false;
             $this->hasPostEventChanges = false;
-            $this->relationsProcessed = false; // Reset flag
         }
     }
 
@@ -157,13 +150,6 @@ class PersistenceManager
 
         // Compute all change sets
         $this->changeSetManager->computeChangeSets();
-
-        // IMPORTANT: Process relation changes ONLY ONCE per flush cycle
-        // This should only happen at the first level, not in recursive calls
-        if (!$this->relationsProcessed) {
-            $this->relationManager->processRelationChanges();
-            $this->relationsProcessed = true;
-        }
 
         // Get entities to process (including any new ones from relation processing)
         $insertions = $this->changeSetManager->getScheduledInsertions();
@@ -331,7 +317,6 @@ class PersistenceManager
                 new \DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($entity, $newMetadata);
-        } else {
         }
 
         // Call post-update event
