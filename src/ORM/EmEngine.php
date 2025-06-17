@@ -3,19 +3,20 @@
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Collections\Collection;
-use MulerTech\Database\ORM\Engine\EntityState\EntityStateManager;
+use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
+use MulerTech\Database\ORM\State\DirectStateManager;
 use MulerTech\Database\ORM\State\EntityState;
-use MulerTech\Database\ORM\State\EntityStateBridge;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
+use MulerTech\EventManager\EventManager;
 use PDO;
 use ReflectionException;
 use RuntimeException;
@@ -284,7 +285,6 @@ class EmEngine
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     public function persist(object $entity): void
     {
@@ -299,7 +299,7 @@ class EmEngine
 
         // Only schedule for insertion if entity doesn't have an ID (is truly new)
         if ($entityId === null) {
-            $this->changeSetManager->scheduleInsert($entity);
+            $this->stateManager->scheduleForInsertion($entity);
         }
         // Entity already has an ID, it should be tracked for updates if changes are detected
         // This will be handled automatically by the change detection system
@@ -311,7 +311,8 @@ class EmEngine
      */
     public function remove(object $entity): void
     {
-        $this->changeSetManager->scheduleDelete($entity);
+        // Use stateManager instead of changeSetManager
+        $this->stateManager->scheduleForDeletion($entity);
     }
 
     /**
@@ -320,7 +321,8 @@ class EmEngine
      */
     public function detach(object $entity): void
     {
-        $this->changeSetManager->detach($entity);
+        // Use stateManager for detach
+        $this->stateManager->detach($entity);
     }
 
     /**
@@ -387,17 +389,16 @@ class EmEngine
         $this->hydrator = new EntityHydrator($dbMapping);
         $this->entityFactory = new EntityFactory($this->hydrator, $this->identityMap);
 
-        // State management - Use bridge for backward compatibility
-        $legacyStateManager = new EntityStateManager();
+        // State management - Use direct state manager with ChangeSetManager integration
         $stateTransitionManager = new StateTransitionManager($eventManager);
         $stateValidator = new StateValidator();
 
-        // Create bridge to use new enum-based system while maintaining compatibility
-        $this->stateManager = new EntityStateBridge(
-            $legacyStateManager,
+        // Create DirectStateManager with ChangeSetManager
+        $this->stateManager = new DirectStateManager(
             $this->identityMap,
             $stateTransitionManager,
-            $stateValidator
+            $stateValidator,
+            $this->changeSetManager
         );
 
         // Persistence processors
@@ -670,7 +671,7 @@ class EmEngine
      */
     public function getScheduledInsertions(): array
     {
-        return $this->changeSetManager->getScheduledInsertions();
+        return array_values($this->stateManager->getScheduledInsertions());
     }
 
     /**
@@ -678,7 +679,7 @@ class EmEngine
      */
     public function getScheduledUpdates(): array
     {
-        return $this->changeSetManager->getScheduledUpdates();
+        return array_values($this->stateManager->getScheduledUpdates());
     }
 
     /**
@@ -686,7 +687,7 @@ class EmEngine
      */
     public function getScheduledDeletions(): array
     {
-        return $this->changeSetManager->getScheduledDeletions();
+        return array_values($this->stateManager->getScheduledDeletions());
     }
 
     /**

@@ -105,6 +105,7 @@ class RelationManager
 
         // Add scheduled insertions
         $scheduledInsertions = $this->stateManager->getScheduledInsertions();
+//        var_dump('DEBUG: Scheduled Insertions', $scheduledInsertions);
         foreach ($scheduledInsertions as $entity) {
             $entityId = spl_object_id($entity);
             $entitiesToProcess[$entityId] = $entity;
