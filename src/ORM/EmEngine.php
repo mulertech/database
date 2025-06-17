@@ -3,7 +3,6 @@
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\Engine\EntityState\EntityStateManager;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
@@ -11,9 +10,12 @@ use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityStateBridge;
+use MulerTech\Database\ORM\State\StateManagerInterface;
+use MulerTech\Database\ORM\State\StateTransitionManager;
+use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\EventManager\EventManager;
 use PDO;
 use ReflectionException;
 use RuntimeException;
@@ -25,9 +27,9 @@ use RuntimeException;
 class EmEngine
 {
     /**
-     * @var EntityStateManager
+     * @var StateManagerInterface
      */
-    private EntityStateManager $stateManager;
+    private StateManagerInterface $stateManager;
 
     /**
      * @var IdentityMap
@@ -374,7 +376,6 @@ class EmEngine
         $eventManager = $this->entityManager->getEventManager();
 
         // Basic components
-        $this->stateManager = new EntityStateManager();
         $this->identityMap = new IdentityMap();
         $this->entityRegistry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
@@ -385,6 +386,19 @@ class EmEngine
         );
         $this->hydrator = new EntityHydrator($dbMapping);
         $this->entityFactory = new EntityFactory($this->hydrator, $this->identityMap);
+
+        // State management - Use bridge for backward compatibility
+        $legacyStateManager = new EntityStateManager();
+        $stateTransitionManager = new StateTransitionManager($eventManager);
+        $stateValidator = new StateValidator();
+
+        // Create bridge to use new enum-based system while maintaining compatibility
+        $this->stateManager = new EntityStateBridge(
+            $legacyStateManager,
+            $this->identityMap,
+            $stateTransitionManager,
+            $stateValidator
+        );
 
         // Persistence processors
         $insertionProcessor = new InsertionProcessor($this->entityManager, $dbMapping);
@@ -433,7 +447,9 @@ class EmEngine
         $this->entityRegistry->register($entity);
 
         // Mark as managed in state manager
-        $this->stateManager->manage($entity);
+        if (!$this->stateManager->isManaged($entity)) {
+            $this->stateManager->manage($entity);
+        }
 
         // Load relations after the entity is properly managed
         if ($loadRelations) {
@@ -554,9 +570,9 @@ class EmEngine
     // Methods for compatibility with the existing API
 
     /**
-     * @return EntityStateManager
+     * @return StateManagerInterface
      */
-    public function getStateManager(): EntityStateManager
+    public function getStateManager(): StateManagerInterface
     {
         return $this->stateManager;
     }
@@ -767,21 +783,40 @@ class EmEngine
     }
 
     /**
-     * Extract entity ID for checking if entity is new or existing
-     *
      * @param object $entity
      * @return int|string|null
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        // Try common ID methods
-        foreach (['getId', 'getIdentifier', 'getUuid'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
+        // Try common getter methods
+        if (method_exists($entity, 'getId')) {
+            return $entity->getId();
+        }
+
+        if (method_exists($entity, 'getIdentifier')) {
+            return $entity->getIdentifier();
+        }
+
+        if (method_exists($entity, 'getUuid')) {
+            return $entity->getUuid();
+        }
+
+        // Try direct property access
+        try {
+            $reflection = new \ReflectionClass($entity);
+
+            foreach (['id', 'uuid', 'identifier'] as $property) {
+                if ($reflection->hasProperty($property)) {
+                    $prop = $reflection->getProperty($property);
+                    $prop->setAccessible(true);
+                    $value = $prop->getValue($entity);
+                    if ($value !== null) {
+                        return $value;
+                    }
                 }
             }
+        } catch (\ReflectionException $e) {
+            // Property access failed
         }
 
         return null;

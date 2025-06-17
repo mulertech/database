@@ -2,13 +2,15 @@
 
 namespace MulerTech\Database\ORM\Engine\EntityState;
 
+use MulerTech\Database\ORM\State\StateManagerInterface;
+
 /**
  * Entity state manager (managed, insertions, updates, deletions)
  *
  * @package MulerTech\Database\ORM\Engine\EntityState
  * @author Sébastien Muler
  */
-class EntityStateManager
+class EntityStateManager implements StateManagerInterface
 {
     /**
      * @var array<int, object> Format: [$objectId => $entity]

@@ -17,4 +17,6 @@ enum DbEvents: string
     case onFlush = 'onFlush';
     case postFlush = 'postFlush';
     case onClear = 'onClear';
+    case preStateTransition = 'preStateTransition';
+    case postStateTransition = 'postStateTransition';
 }

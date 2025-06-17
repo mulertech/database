@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\State;
 
+use MulerTech\EventManager\Event;
+
 /**
  * Event dispatched during entity state transitions
  * @package MulerTech\Database\ORM\State
  * @author Sébastien Muler
  */
-final class StateTransitionEvent
+final class StateTransitionEvent extends Event
 {
     /**
      * @param object $entity
@@ -26,6 +28,7 @@ final class StateTransitionEvent
         if (!in_array($phase, ['pre', 'post'], true)) {
             throw new \InvalidArgumentException('Phase must be either "pre" or "post"');
         }
+        $this->setName($phase . 'StateTransition');
     }
 
     /**

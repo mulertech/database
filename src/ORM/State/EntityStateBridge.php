@@ -13,7 +13,7 @@ use MulerTech\Database\ORM\EntityMetadata;
  * @package MulerTech\Database\ORM\State
  * @author Sébastien Muler
  */
-final class EntityStateBridge
+final class EntityStateBridge implements StateManagerInterface
 {
     /**
      * @param EntityStateManager $legacyStateManager
@@ -88,6 +88,15 @@ final class EntityStateBridge
 
     /**
      * @param object $entity
+     * @return bool
+     */
+    public function isManaged(object $entity): bool
+    {
+        return $this->getEntityState($entity) === EntityState::MANAGED;
+    }
+
+    /**
+     * @param object $entity
      * @return void
      */
     public function manage(object $entity): void
@@ -154,7 +163,17 @@ final class EntityStateBridge
     }
 
     /**
-     * @return array<object>
+     * @param object $dependent
+     * @param object $dependency
+     * @return void
+     */
+    public function addInsertionDependency(object $dependent, object $dependency): void
+    {
+        $this->legacyStateManager->addInsertionDependency($dependent, $dependency);
+    }
+
+    /**
+     * @return array<int, object>
      */
     public function getScheduledInsertions(): array
     {
@@ -162,7 +181,7 @@ final class EntityStateBridge
     }
 
     /**
-     * @return array<object>
+     * @return array<int, object>
      */
     public function getScheduledUpdates(): array
     {
@@ -170,11 +189,75 @@ final class EntityStateBridge
     }
 
     /**
-     * @return array<object>
+     * @return array<int, object>
      */
     public function getScheduledDeletions(): array
     {
         return $this->legacyStateManager->getScheduledDeletions();
+    }
+
+    /**
+     * @return array<int, object>
+     */
+    public function getManagedEntities(): array
+    {
+        return $this->legacyStateManager->getManagedEntities();
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isScheduledForInsertion(object $entity): bool
+    {
+        return $this->legacyStateManager->isScheduledForInsertion($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isScheduledForUpdate(object $entity): bool
+    {
+        return $this->legacyStateManager->isScheduledForUpdate($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isScheduledForDeletion(object $entity): bool
+    {
+        return $this->legacyStateManager->isScheduledForDeletion($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function markAsProcessed(object $entity): void
+    {
+        $this->legacyStateManager->markAsProcessed($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function markAsPersisted(object $entity): void
+    {
+        $this->legacyStateManager->markAsPersisted($entity);
+        $this->setEntityState($entity, EntityState::MANAGED);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function markAsRemoved(object $entity): void
+    {
+        $this->legacyStateManager->markAsRemoved($entity);
+        $this->identityMap->remove($entity);
     }
 
     /**
