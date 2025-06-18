@@ -370,7 +370,7 @@ class RelationManager
 
     /**
      * @param object $entity
-     * @param DatabaseCollection $collection
+     * @param DatabaseCollection<int, object> $collection
      * @param MtManyToMany $manyToMany
      * @return void
      */
@@ -381,32 +381,28 @@ class RelationManager
     ): void {
         // Process additions
         foreach ($collection->getAddedEntities() as $relatedEntity) {
-            if ($relatedEntity !== null) {
-                $this->manyToManyInsertions[] = [
-                    'entity' => $entity,
-                    'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany,
-                    'action' => 'insert'
-                ];
-            }
+            $this->manyToManyInsertions[] = [
+                'entity' => $entity,
+                'related' => $relatedEntity,
+                'manyToMany' => $manyToMany,
+                'action' => 'insert'
+            ];
         }
 
         // Process deletions
         foreach ($collection->getRemovedEntities() as $relatedEntity) {
-            if ($relatedEntity !== null) {
-                $this->manyToManyInsertions[] = [
-                    'entity' => $entity,
-                    'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany,
-                    'action' => 'delete'
-                ];
-            }
+            $this->manyToManyInsertions[] = [
+                'entity' => $entity,
+                'related' => $relatedEntity,
+                'manyToMany' => $manyToMany,
+                'action' => 'delete'
+            ];
         }
     }
 
     /**
      * @param object $entity
-     * @param Collection $collection
+     * @param Collection<int, object> $collection
      * @param MtManyToMany $manyToMany
      * @return void
      */
@@ -416,18 +412,15 @@ class RelationManager
         MtManyToMany $manyToMany
     ): void {
         foreach ($collection->items() as $relatedEntity) {
-            if ($relatedEntity !== null) {
-                // Ensure both entities have IDs before creating links
-                $entityId = $this->getId($entity);
-                $relatedEntityId = $this->getId($relatedEntity);
+            $entityId = $this->getId($entity);
+            $relatedEntityId = $this->getId($relatedEntity);
 
-                if ($entityId !== null && $relatedEntityId !== null) {
-                    $this->manyToManyInsertions[] = [
-                        'entity' => $entity,
-                        'related' => $relatedEntity,
-                        'manyToMany' => $manyToMany
-                    ];
-                }
+            if ($entityId !== null && $relatedEntityId !== null) {
+                $this->manyToManyInsertions[] = [
+                    'entity' => $entity,
+                    'related' => $relatedEntity,
+                    'manyToMany' => $manyToMany
+                ];
             }
         }
     }
@@ -520,11 +513,19 @@ class RelationManager
             return null;
         }
 
+        // Validate that required properties are not null
+        $joinProperty = $manyToMany->joinProperty;
+        $inverseJoinProperty = $manyToMany->inverseJoinProperty;
+
+        if ($joinProperty === null || $inverseJoinProperty === null) {
+            return null;
+        }
+
         // Create a cache key
         $cacheKey = sprintf(
             '%s_%s_%s_%s',
             $manyToMany->mappedBy,
-            $manyToMany->joinProperty,
+            $joinProperty,
             $entityId,
             $relatedEntityId
         );
@@ -540,11 +541,11 @@ class RelationManager
         // Build where clause
         $joinColumn = $this->entityManager->getDbMapping()->getColumnName(
             $linkEntityClass,
-            $manyToMany->joinProperty
+            $joinProperty
         );
         $inverseJoinColumn = $this->entityManager->getDbMapping()->getColumnName(
             $linkEntityClass,
-            $manyToMany->inverseJoinProperty
+            $inverseJoinProperty
         );
 
         $where = sprintf(
@@ -608,9 +609,17 @@ class RelationManager
             throw new RuntimeException('Cannot create link entity without IDs');
         }
 
+        // Validate that required properties are not null
+        $joinProperty = $manyToMany->joinProperty;
+        $inverseJoinProperty = $manyToMany->inverseJoinProperty;
+
+        if ($joinProperty === null || $inverseJoinProperty === null) {
+            throw new RuntimeException('Cannot create link entity without join properties');
+        }
+
         // Set the join properties using setter methods with actual entity objects
-        $joinPropertySetter = 'set' . ucfirst($manyToMany->joinProperty);
-        $inverseJoinPropertySetter = 'set' . ucfirst($manyToMany->inverseJoinProperty);
+        $joinPropertySetter = 'set' . ucfirst($joinProperty);
+        $inverseJoinPropertySetter = 'set' . ucfirst($inverseJoinProperty);
 
         if (method_exists($linkEntity, $joinPropertySetter)) {
             $linkEntity->$joinPropertySetter($entity);

@@ -90,7 +90,7 @@ class EntityRelationLoader
         $column = $this->getColumnName(get_class($entity), $property);
         $relatedEntity = null;
 
-        if (isset($entityData[$column]) && $entityData[$column] !== null && method_exists($entity, $setter)) {
+        if (isset($entityData[$column]) && method_exists($entity, $setter)) {
             /** @var class-string $targetEntity */
             $targetEntity = $this->getTargetEntity(get_class($entity), $relation, $property);
 
