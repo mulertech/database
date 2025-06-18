@@ -341,7 +341,7 @@ class PersistenceManager
      */
     private function processDeletion(object $entity): void
     {
-        // Call pre-remove event
+        // Call pre-remove event BEFORE any deletion processing
         $this->callEntityEvent($entity, 'preRemove');
 
         // Process the deletion
@@ -434,6 +434,16 @@ class PersistenceManager
                     break;
                 case 'preRemove':
                     $this->eventManager->dispatch(new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager));
+                    
+                    // After PreRemove event, check if any entities need to be updated and process them immediately
+                    $this->changeSetManager->computeChangeSets();
+                    $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+                    if (!empty($pendingUpdates)) {
+                        foreach ($pendingUpdates as $updateEntity) {
+                            $this->processUpdate($updateEntity);
+                        }
+                        $this->changeSetManager->clearProcessedChanges();
+                    }
                     break;
                 case 'postRemove':
                     $this->eventManager->dispatch(new \MulerTech\Database\Event\PostRemoveEvent($entity, $this->entityManager));
