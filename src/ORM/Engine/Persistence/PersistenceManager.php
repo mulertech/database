@@ -151,6 +151,9 @@ class PersistenceManager
         // Compute all change sets
         $this->changeSetManager->computeChangeSets();
 
+        // Process relation changes BEFORE getting scheduled operations
+        $this->relationManager->processRelationChanges();
+
         // Get entities to process (including any new ones from relation processing)
         $insertions = $this->changeSetManager->getScheduledInsertions();
         $updates = $this->changeSetManager->getScheduledUpdates();
@@ -248,6 +251,14 @@ class PersistenceManager
      */
     private function processInsertion(object $entity): void
     {
+        // Check if entity already has an ID (was already persisted)
+        $entityId = $this->extractEntityId($entity);
+        if ($entityId !== null) {
+            // Entity already has an ID, just mark as managed
+            $this->stateManager->manage($entity);
+            return;
+        }
+
         // Call pre-persist event
         $this->callEntityEvent($entity, 'prePersist');
 
@@ -330,7 +341,7 @@ class PersistenceManager
      */
     private function processDeletion(object $entity): void
     {
-        // Call pre-remove event
+        // Call pre-remove event BEFORE any deletion processing
         $this->callEntityEvent($entity, 'preRemove');
 
         // Process the deletion
@@ -423,9 +434,38 @@ class PersistenceManager
                     break;
                 case 'preRemove':
                     $this->eventManager->dispatch(new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager));
+
+                    // After PreRemove event, check if any entities need to be updated and process them immediately
+                    $this->changeSetManager->computeChangeSets();
+                    $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+                    if (!empty($pendingUpdates)) {
+                        foreach ($pendingUpdates as $updateEntity) {
+                            $this->processUpdate($updateEntity);
+                        }
+                        $this->changeSetManager->clearProcessedChanges();
+                    }
                     break;
                 case 'postRemove':
                     $this->eventManager->dispatch(new \MulerTech\Database\Event\PostRemoveEvent($entity, $this->entityManager));
+
+                    // After PostRemove event, check if any entities need to be updated and process them immediately
+                    $this->changeSetManager->computeChangeSets();
+                    $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+                    if (!empty($pendingUpdates)) {
+                        foreach ($pendingUpdates as $updateEntity) {
+                            $this->processUpdate($updateEntity);
+                        }
+                        $this->changeSetManager->clearProcessedChanges();
+                    }
+
+                    // Also check for any new insertions that might have been scheduled
+                    $pendingInsertions = $this->changeSetManager->getScheduledInsertions();
+                    if (!empty($pendingInsertions)) {
+                        foreach ($pendingInsertions as $insertEntity) {
+                            $this->processInsertion($insertEntity);
+                        }
+                        $this->changeSetManager->clearProcessedChanges();
+                    }
                     break;
             }
         }

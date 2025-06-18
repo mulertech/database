@@ -33,6 +33,13 @@ class InsertionProcessor
      */
     public function process(object $entity): void
     {
+        // Check if entity already has an ID
+        $entityId = $this->getId($entity);
+        if ($entityId !== null) {
+            // Entity already has an ID, skip insertion
+            return;
+        }
+
         // Extract all properties as changes for insertion
         $changes = $this->extractEntityData($entity);
         $this->execute($entity, $changes);
@@ -46,6 +53,12 @@ class InsertionProcessor
      */
     public function execute(object $entity, array $changes): void
     {
+        // Double-check that entity doesn't have an ID before executing
+        $entityId = $this->getId($entity);
+        if ($entityId !== null) {
+            return;
+        }
+
         $queryBuilder = $this->buildInsertQuery($entity, $changes);
 
         $pdoStatement = $queryBuilder->getResult();

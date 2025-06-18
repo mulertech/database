@@ -134,13 +134,32 @@ class RelationManager
      */
     public function flush(): void
     {
-        // Process all relation changes first
-        $this->processRelationChanges();
+        // Process ManyToMany relations that need to create/delete link entities
+        foreach ($this->manyToManyInsertions as $operation) {
+            $entity = $operation['entity'];
+            $relatedEntity = $operation['related'];
+            $manyToMany = $operation['manyToMany'];
+            $action = $operation['action'] ?? 'insert';
 
-        // Then execute the ManyToMany relations
-        if (!empty($this->manyToManyInsertions)) {
-            $this->executeManyToManyRelations();
+            if ($action === 'delete') {
+                // Schedule existing link for deletion
+                $this->scheduleExistingLinkForDeletion($manyToMany, $entity, $relatedEntity);
+            } else {
+                // Check if link already exists
+                $existingLink = $this->findExistingLinkRelation($manyToMany, $entity, $relatedEntity);
+
+                if ($existingLink === null) {
+                    // Create new link entity
+                    $linkEntity = $this->createLinkEntity($manyToMany, $entity, $relatedEntity);
+
+                    // Schedule link entity for insertion
+                    $this->stateManager->scheduleForInsertion($linkEntity);
+                }
+            }
         }
+
+        // Clear the queue after processing
+        $this->manyToManyInsertions = [];
     }
 
     /**
@@ -351,7 +370,7 @@ class RelationManager
 
     /**
      * @param object $entity
-     * @param DatabaseCollection $collection
+     * @param DatabaseCollection<int, object> $collection
      * @param MtManyToMany $manyToMany
      * @return void
      */
@@ -362,32 +381,28 @@ class RelationManager
     ): void {
         // Process additions
         foreach ($collection->getAddedEntities() as $relatedEntity) {
-            if ($relatedEntity !== null) {
-                $this->manyToManyInsertions[] = [
-                    'entity' => $entity,
-                    'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany,
-                    'action' => 'insert'
-                ];
-            }
+            $this->manyToManyInsertions[] = [
+                'entity' => $entity,
+                'related' => $relatedEntity,
+                'manyToMany' => $manyToMany,
+                'action' => 'insert'
+            ];
         }
 
         // Process deletions
         foreach ($collection->getRemovedEntities() as $relatedEntity) {
-            if ($relatedEntity !== null) {
-                $this->manyToManyInsertions[] = [
-                    'entity' => $entity,
-                    'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany,
-                    'action' => 'delete'
-                ];
-            }
+            $this->manyToManyInsertions[] = [
+                'entity' => $entity,
+                'related' => $relatedEntity,
+                'manyToMany' => $manyToMany,
+                'action' => 'delete'
+            ];
         }
     }
 
     /**
      * @param object $entity
-     * @param Collection $collection
+     * @param Collection<int, object> $collection
      * @param MtManyToMany $manyToMany
      * @return void
      */
@@ -397,7 +412,10 @@ class RelationManager
         MtManyToMany $manyToMany
     ): void {
         foreach ($collection->items() as $relatedEntity) {
-            if ($relatedEntity !== null) {
+            $entityId = $this->getId($entity);
+            $relatedEntityId = $this->getId($relatedEntity);
+
+            if ($entityId !== null && $relatedEntityId !== null) {
                 $this->manyToManyInsertions[] = [
                     'entity' => $entity,
                     'related' => $relatedEntity,
@@ -441,9 +459,27 @@ class RelationManager
      */
     private function executeManyToManyRelations(): void
     {
-        // Implementation for executing many-to-many relations
-        // This would create the link entities and schedule them for insertion
-        // The implementation depends on your specific requirements
+        // Process all pending many-to-many operations
+        foreach ($this->manyToManyInsertions as $operation) {
+            $entity = $operation['entity'];
+            $relatedEntity = $operation['related'];
+            $manyToMany = $operation['manyToMany'];
+            $action = $operation['action'] ?? 'insert';
+
+            if ($action === 'delete') {
+                $this->scheduleExistingLinkForDeletion($manyToMany, $entity, $relatedEntity);
+            } else {
+                $existingLink = $this->findExistingLinkRelation($manyToMany, $entity, $relatedEntity);
+
+                if ($existingLink === null) {
+                    $linkEntity = $this->createLinkEntity($manyToMany, $entity, $relatedEntity);
+                    $this->stateManager->scheduleForInsertion($linkEntity);
+                }
+            }
+        }
+
+        // Clear processed insertions
+        $this->manyToManyInsertions = [];
     }
 
     /**
@@ -470,9 +506,63 @@ class RelationManager
         object $entity,
         object $relatedEntity
     ): ?object {
-        // Implementation to find existing link relations
-        // This would query the database or check the identity map
-        return null;
+        $entityId = $this->getId($entity);
+        $relatedEntityId = $this->getId($relatedEntity);
+
+        if ($entityId === null || $relatedEntityId === null) {
+            return null;
+        }
+
+        // Validate that required properties are not null
+        $joinProperty = $manyToMany->joinProperty;
+        $inverseJoinProperty = $manyToMany->inverseJoinProperty;
+
+        if ($joinProperty === null || $inverseJoinProperty === null) {
+            return null;
+        }
+
+        // Create a cache key
+        $cacheKey = sprintf(
+            '%s_%s_%s_%s',
+            $manyToMany->mappedBy,
+            $joinProperty,
+            $entityId,
+            $relatedEntityId
+        );
+
+        // Check cache first
+        if (isset($this->existingLinkCache[$cacheKey])) {
+            return $this->existingLinkCache[$cacheKey];
+        }
+
+        /** @var class-string $linkEntityClass */
+        $linkEntityClass = $manyToMany->mappedBy;
+
+        // Build where clause
+        $joinColumn = $this->entityManager->getDbMapping()->getColumnName(
+            $linkEntityClass,
+            $joinProperty
+        );
+        $inverseJoinColumn = $this->entityManager->getDbMapping()->getColumnName(
+            $linkEntityClass,
+            $inverseJoinProperty
+        );
+
+        $where = sprintf(
+            "%s = %s AND %s = %s",
+            $joinColumn,
+            is_numeric($entityId) ? $entityId : "'$entityId'",
+            $inverseJoinColumn,
+            is_numeric($relatedEntityId) ? $relatedEntityId : "'$relatedEntityId'"
+        );
+
+        // Find existing link entity
+        $existingLink = $this->entityManager->find($linkEntityClass, $where);
+
+        // Cache the result
+        $this->existingLinkCache[$cacheKey] = $existingLink;
+
+        return $existingLink;
     }
 
     /**
@@ -486,7 +576,12 @@ class RelationManager
         object $entity,
         object $relatedEntity
     ): void {
-        // Implementation to schedule existing link for deletion
+        $existingLink = $this->findExistingLinkRelation($manyToMany, $entity, $relatedEntity);
+
+        if ($existingLink !== null) {
+            // Schedule the link entity for deletion
+            $this->stateManager->scheduleForDeletion($existingLink);
+        }
     }
 
     /**
@@ -500,7 +595,40 @@ class RelationManager
         object $entity,
         object $relatedEntity
     ): object {
-        // Implementation to create link entity
-        throw new RuntimeException('Not implemented yet');
+        /** @var class-string $linkEntityClass */
+        $linkEntityClass = $manyToMany->mappedBy;
+
+        // Create new instance of link entity
+        $linkEntity = new $linkEntityClass();
+
+        // Get entity IDs
+        $entityId = $this->getId($entity);
+        $relatedEntityId = $this->getId($relatedEntity);
+
+        if ($entityId === null || $relatedEntityId === null) {
+            throw new RuntimeException('Cannot create link entity without IDs');
+        }
+
+        // Validate that required properties are not null
+        $joinProperty = $manyToMany->joinProperty;
+        $inverseJoinProperty = $manyToMany->inverseJoinProperty;
+
+        if ($joinProperty === null || $inverseJoinProperty === null) {
+            throw new RuntimeException('Cannot create link entity without join properties');
+        }
+
+        // Set the join properties using setter methods with actual entity objects
+        $joinPropertySetter = 'set' . ucfirst($joinProperty);
+        $inverseJoinPropertySetter = 'set' . ucfirst($inverseJoinProperty);
+
+        if (method_exists($linkEntity, $joinPropertySetter)) {
+            $linkEntity->$joinPropertySetter($entity);
+        }
+
+        if (method_exists($linkEntity, $inverseJoinPropertySetter)) {
+            $linkEntity->$inverseJoinPropertySetter($relatedEntity);
+        }
+
+        return $linkEntity;
     }
 }
