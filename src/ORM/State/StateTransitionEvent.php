@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\State;
 
-use MulerTech\Database\Event\AbstractEntityEvent;
 use MulerTech\EventManager\Event;
 
 /**
- * Événement de transition d'état d'entité
+ * Event dispatched during entity state transitions
  * @package MulerTech\Database\ORM\State
  * @author Sébastien Muler
  */
 final class StateTransitionEvent extends Event
 {
-    public const PRE_TRANSITION = 'orm.state.pre_transition';
-    public const POST_TRANSITION = 'orm.state.post_transition';
-
     /**
      * @param object $entity
      * @param EntityState $fromState
@@ -27,9 +23,12 @@ final class StateTransitionEvent extends Event
         private readonly object $entity,
         private readonly EntityState $fromState,
         private readonly EntityState $toState,
-        private readonly string $phase = 'pre'
+        private readonly string $phase
     ) {
-        $this->setName($this->getEventName());
+        if (!in_array($phase, ['pre', 'post'], true)) {
+            throw new \InvalidArgumentException('Phase must be either "pre" or "post"');
+        }
+        $this->setName($phase . 'StateTransition');
     }
 
     /**
@@ -81,14 +80,6 @@ final class StateTransitionEvent extends Event
     }
 
     /**
-     * @return class-string
-     */
-    public function getEntityClass(): string
-    {
-        return $this->entity::class;
-    }
-
-    /**
      * @return string
      */
     public function getTransitionKey(): string
@@ -99,33 +90,5 @@ final class StateTransitionEvent extends Event
             $this->fromState->value,
             $this->toState->value
         );
-    }
-
-    /**
-     * @return array{
-     *     entity_class: class-string,
-     *     from_state: string,
-     *     to_state: string,
-     *     phase: string,
-     *     transition_key: string
-     * }
-     */
-    public function toArray(): array
-    {
-        return [
-            'entity_class' => $this->getEntityClass(),
-            'from_state' => $this->fromState->value,
-            'to_state' => $this->toState->value,
-            'phase' => $this->phase,
-            'transition_key' => $this->getTransitionKey(),
-        ];
-    }
-
-    /**
-     * @return string
-     */
-    private function getEventName(): string
-    {
-        return $this->phase === 'pre' ? self::PRE_TRANSITION : self::POST_TRANSITION;
     }
 }

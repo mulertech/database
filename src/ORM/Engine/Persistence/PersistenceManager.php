@@ -4,7 +4,7 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\Engine\EntityState\EntityStateManager;
+use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\IdentityMap;
@@ -54,7 +54,7 @@ class PersistenceManager
 
     /**
      * @param EntityManagerInterface $entityManager
-     * @param EntityStateManager $stateManager
+     * @param StateManagerInterface $stateManager
      * @param ChangeDetector $changeDetector
      * @param RelationManager $relationManager
      * @param InsertionProcessor $insertionProcessor
@@ -66,7 +66,7 @@ class PersistenceManager
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly EntityStateManager $stateManager,
+        private readonly StateManagerInterface $stateManager,
         private readonly ChangeDetector $changeDetector,
         private readonly RelationManager $relationManager,
         private readonly InsertionProcessor $insertionProcessor,
@@ -255,7 +255,7 @@ class PersistenceManager
         $this->insertionProcessor->process($entity);
 
         // Update entity state to MANAGED after successful insertion
-        $this->stateManager->markAsPersisted($entity);
+        $this->stateManager->manage($entity);
 
         // Update metadata to MANAGED state
         $metadata = $this->identityMap->getMetadata($entity);
