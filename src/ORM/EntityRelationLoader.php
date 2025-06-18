@@ -84,10 +84,8 @@ class EntityRelationLoader
         $setter = 'set' . ucfirst($property);
         $getter = 'get' . ucfirst($property);
 
-        // Check if property is already set and not null
-        if ($this->isPropertyInitializedAndNotNull($entity, $property, $getter)) {
-            return null;
-        }
+        // Always reload relations for fresh data, don't check if already set
+        // This is important for cases where foreign keys might have been updated
 
         $column = $this->getColumnName(get_class($entity), $property);
         $relatedEntity = null;
@@ -111,17 +109,19 @@ class EntityRelationLoader
                     if ($this->setterAcceptsNull($entity, $setter)) {
                         $entity->$setter(null);
                     }
-                    // For non-nullable relations, we don't set anything if entity not found
                 }
             } catch (\Exception $e) {
                 // If loading fails, only set to null if the setter accepts it
                 if ($this->setterAcceptsNull($entity, $setter)) {
                     $entity->$setter(null);
                 }
-                // For non-nullable relations, we don't set anything if loading fails
+            }
+        } else {
+            // If no foreign key value exists, set to null if acceptable
+            if (method_exists($entity, $setter) && $this->setterAcceptsNull($entity, $setter)) {
+                $entity->$setter(null);
             }
         }
-        // Don't set to null for non-nullable relations when no foreign key value exists
 
         return $relatedEntity;
     }
@@ -270,7 +270,7 @@ class EntityRelationLoader
         // IMPORTANT: Synchronize the initial state after loading from database
         $collection->synchronizeInitialState();
 
-        // Définir la collection sur l'entité
+        // Set the collection on the entity
         if (method_exists($entity, $setter)) {
             $entity->$setter($collection);
         }
