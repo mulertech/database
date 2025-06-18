@@ -270,7 +270,7 @@ class EntityRelationLoader
         // IMPORTANT: Synchronize the initial state after loading from database
         $collection->synchronizeInitialState();
 
-        // Définir la collection sur l'entité
+        // Set the collection on the entity
         if (method_exists($entity, $setter)) {
             $entity->$setter($collection);
         }

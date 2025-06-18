@@ -72,6 +72,7 @@ final class ChangeSetManager
      */
     public function scheduleInsert(object $entity): void
     {
+        // Check if already scheduled for insertion
         if (in_array($entity, $this->scheduledInsertions, true)) {
             return;
         }
@@ -82,6 +83,11 @@ final class ChangeSetManager
 
         // If entity has an ID and is already MANAGED, don't schedule for insertion
         if ($entityId !== null && $metadata !== null && $metadata->isManaged()) {
+            return;
+        }
+
+        // If entity has an ID (was persisted elsewhere), don't schedule for insertion
+        if ($entityId !== null) {
             return;
         }
 

@@ -15,6 +15,10 @@ use InvalidArgumentException;
 class DatabaseCollectionTest extends TestCase
 {
     private array $testEntities;
+    private EntityManagerInterface $entityManager;
+    private MtOneToMany $oneToManyMapping;
+    private MtManyToMany $manyToManyMappingWithMappedBy;
+    private MtManyToMany $manyToManyMappingWithJoinTable;
 
     protected function setUp(): void
     {

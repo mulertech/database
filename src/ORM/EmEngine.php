@@ -189,7 +189,7 @@ class EmEngine
         $fetch = $pdoStatement->fetch(PDO::FETCH_ASSOC);
         $pdoStatement->closeCursor();
 
-        if ($fetch === false || $fetch === null) {
+        if ($fetch === false || $fetch === null || empty($fetch)) {
             return null;
         }
 
@@ -292,17 +292,23 @@ class EmEngine
         $entityId = $this->extractEntityId($entity);
         $isManaged = $this->identityMap->isManaged($entity);
 
+        // If entity already has an ID, it's already persisted
+        if ($entityId !== null) {
+            // Just ensure it's in the identity map and marked as managed
+            if (!$isManaged) {
+                $this->identityMap->add($entity);
+                $this->stateManager->manage($entity);
+            }
+            return;
+        }
+
         // Add to identity map if not already there
         if (!$isManaged) {
             $this->identityMap->add($entity);
         }
 
         // Only schedule for insertion if entity doesn't have an ID (is truly new)
-        if ($entityId === null) {
-            $this->stateManager->scheduleForInsertion($entity);
-        }
-        // Entity already has an ID, it should be tracked for updates if changes are detected
-        // This will be handled automatically by the change detection system
+        $this->stateManager->scheduleForInsertion($entity);
     }
 
     /**

@@ -151,6 +151,9 @@ class PersistenceManager
         // Compute all change sets
         $this->changeSetManager->computeChangeSets();
 
+        // Process relation changes BEFORE getting scheduled operations
+        $this->relationManager->processRelationChanges();
+
         // Get entities to process (including any new ones from relation processing)
         $insertions = $this->changeSetManager->getScheduledInsertions();
         $updates = $this->changeSetManager->getScheduledUpdates();
@@ -248,6 +251,14 @@ class PersistenceManager
      */
     private function processInsertion(object $entity): void
     {
+        // Check if entity already has an ID (was already persisted)
+        $entityId = $this->extractEntityId($entity);
+        if ($entityId !== null) {
+            // Entity already has an ID, just mark as managed
+            $this->stateManager->manage($entity);
+            return;
+        }
+
         // Call pre-persist event
         $this->callEntityEvent($entity, 'prePersist');
 
