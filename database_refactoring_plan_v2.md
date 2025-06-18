@@ -347,7 +347,7 @@ enum RelationType: string {
 - Support des contraintes
 - Synchronisation atomique
 
-### 3.2 Collections Optimisées
+### 3.2 Collections Optimisées (Ne pas développer ici, cette étape devra être réalisée dans le repository `mulertech/collections`)
 
 #### Classes à créer
 
@@ -633,25 +633,6 @@ class QueryOptimizer {
 3. `ORM\EntityRelationLoader`
 4. `ORM\Engine\Relations\RelationManager`
 5. Anciennes classes de cache non conformes
-
-#### Scripts de migration
-
-##### `Migration\MigrationScript`
-```php
-namespace MulerTech\Database\Migration;
-
-/**
- * Script de migration pour les utilisateurs
- * @package MulerTech\Database\Migration
- * @author Sébastien Muler
- */
-class MigrationScript {
-    public function migrateEntityManager(): void;
-    public function migrateQueryBuilder(): void;
-    public function updateConfiguration(): void;
-    public function validateMigration(): MigrationReport;
-}
-```
 
 ---
 
