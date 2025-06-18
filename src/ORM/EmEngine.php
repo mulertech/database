@@ -4,13 +4,16 @@ namespace MulerTech\Database\ORM;
 
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\ORM\Engine\EntityState\EntityStateManager;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
+use MulerTech\Database\ORM\State\DirectStateManager;
 use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\StateManagerInterface;
+use MulerTech\Database\ORM\State\StateTransitionManager;
+use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManager;
@@ -25,9 +28,9 @@ use RuntimeException;
 class EmEngine
 {
     /**
-     * @var EntityStateManager
+     * @var StateManagerInterface
      */
-    private EntityStateManager $stateManager;
+    private StateManagerInterface $stateManager;
 
     /**
      * @var IdentityMap
@@ -282,7 +285,6 @@ class EmEngine
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     public function persist(object $entity): void
     {
@@ -297,7 +299,7 @@ class EmEngine
 
         // Only schedule for insertion if entity doesn't have an ID (is truly new)
         if ($entityId === null) {
-            $this->changeSetManager->scheduleInsert($entity);
+            $this->stateManager->scheduleForInsertion($entity);
         }
         // Entity already has an ID, it should be tracked for updates if changes are detected
         // This will be handled automatically by the change detection system
@@ -309,7 +311,8 @@ class EmEngine
      */
     public function remove(object $entity): void
     {
-        $this->changeSetManager->scheduleDelete($entity);
+        // Use stateManager instead of changeSetManager
+        $this->stateManager->scheduleForDeletion($entity);
     }
 
     /**
@@ -318,7 +321,8 @@ class EmEngine
      */
     public function detach(object $entity): void
     {
-        $this->changeSetManager->detach($entity);
+        // Use stateManager for detach
+        $this->stateManager->detach($entity);
     }
 
     /**
@@ -374,7 +378,6 @@ class EmEngine
         $eventManager = $this->entityManager->getEventManager();
 
         // Basic components
-        $this->stateManager = new EntityStateManager();
         $this->identityMap = new IdentityMap();
         $this->entityRegistry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
@@ -385,6 +388,18 @@ class EmEngine
         );
         $this->hydrator = new EntityHydrator($dbMapping);
         $this->entityFactory = new EntityFactory($this->hydrator, $this->identityMap);
+
+        // State management - Use direct state manager with ChangeSetManager integration
+        $stateTransitionManager = new StateTransitionManager($eventManager);
+        $stateValidator = new StateValidator();
+
+        // Create DirectStateManager with ChangeSetManager
+        $this->stateManager = new DirectStateManager(
+            $this->identityMap,
+            $stateTransitionManager,
+            $stateValidator,
+            $this->changeSetManager
+        );
 
         // Persistence processors
         $insertionProcessor = new InsertionProcessor($this->entityManager, $dbMapping);
@@ -433,7 +448,9 @@ class EmEngine
         $this->entityRegistry->register($entity);
 
         // Mark as managed in state manager
-        $this->stateManager->manage($entity);
+        if (!$this->stateManager->isManaged($entity)) {
+            $this->stateManager->manage($entity);
+        }
 
         // Load relations after the entity is properly managed
         if ($loadRelations) {
@@ -554,9 +571,9 @@ class EmEngine
     // Methods for compatibility with the existing API
 
     /**
-     * @return EntityStateManager
+     * @return StateManagerInterface
      */
-    public function getStateManager(): EntityStateManager
+    public function getStateManager(): StateManagerInterface
     {
         return $this->stateManager;
     }
@@ -654,7 +671,7 @@ class EmEngine
      */
     public function getScheduledInsertions(): array
     {
-        return $this->changeSetManager->getScheduledInsertions();
+        return array_values($this->stateManager->getScheduledInsertions());
     }
 
     /**
@@ -662,7 +679,7 @@ class EmEngine
      */
     public function getScheduledUpdates(): array
     {
-        return $this->changeSetManager->getScheduledUpdates();
+        return array_values($this->stateManager->getScheduledUpdates());
     }
 
     /**
@@ -670,7 +687,7 @@ class EmEngine
      */
     public function getScheduledDeletions(): array
     {
-        return $this->changeSetManager->getScheduledDeletions();
+        return array_values($this->stateManager->getScheduledDeletions());
     }
 
     /**
@@ -767,21 +784,40 @@ class EmEngine
     }
 
     /**
-     * Extract entity ID for checking if entity is new or existing
-     *
      * @param object $entity
      * @return int|string|null
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        // Try common ID methods
-        foreach (['getId', 'getIdentifier', 'getUuid'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
+        // Try common getter methods
+        if (method_exists($entity, 'getId')) {
+            return $entity->getId();
+        }
+
+        if (method_exists($entity, 'getIdentifier')) {
+            return $entity->getIdentifier();
+        }
+
+        if (method_exists($entity, 'getUuid')) {
+            return $entity->getUuid();
+        }
+
+        // Try direct property access
+        try {
+            $reflection = new \ReflectionClass($entity);
+
+            foreach (['id', 'uuid', 'identifier'] as $property) {
+                if ($reflection->hasProperty($property)) {
+                    $prop = $reflection->getProperty($property);
+                    $prop->setAccessible(true);
+                    $value = $prop->getValue($entity);
+                    if ($value !== null) {
+                        return $value;
+                    }
                 }
             }
+        } catch (\ReflectionException $e) {
+            // Property access failed
         }
 
         return null;

@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\Debug\DebugEmptyInsertions;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
@@ -82,6 +83,12 @@ class EntityManagerTest extends TestCase
         $query = 'CREATE TABLE IF NOT EXISTS link_user_group_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED, group_id INT UNSIGNED)';
         $pdo->exec($query);
     }
+
+//    public function testDebug(): void
+//    {
+//        $debug = new DebugEmptyInsertions($this->entityManager);
+//        $debug->debug();
+//    }
 
     public function testGetRepository(): void
     {
