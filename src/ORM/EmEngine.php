@@ -163,11 +163,6 @@ class EmEngine
         // Create new managed entity if not found in identity map
         $entity = $this->createManagedEntity($fetch, $entityName, true);
 
-        // IMPORTANT: Re-add to identity map with correct ID to ensure future finds work
-        if (isset($fetch['id']) && !$this->identityMap->contains($entityName, $fetch['id'])) {
-            $this->identityMap->add($entity);
-        }
-
         return $entity;
     }
 
@@ -349,6 +344,10 @@ class EmEngine
         $this->entityRegistry->clear();
         $this->changeSetManager->clear();
         $this->stateManager->clear();
+        $this->relationManager->clear();
+
+        // Clear existing link cache to ensure fresh relation data
+        $this->relationManager->clear();
     }
 
     /**

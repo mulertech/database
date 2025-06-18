@@ -434,7 +434,7 @@ class PersistenceManager
                     break;
                 case 'preRemove':
                     $this->eventManager->dispatch(new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager));
-                    
+
                     // After PreRemove event, check if any entities need to be updated and process them immediately
                     $this->changeSetManager->computeChangeSets();
                     $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
@@ -447,6 +447,25 @@ class PersistenceManager
                     break;
                 case 'postRemove':
                     $this->eventManager->dispatch(new \MulerTech\Database\Event\PostRemoveEvent($entity, $this->entityManager));
+
+                    // After PostRemove event, check if any entities need to be updated and process them immediately
+                    $this->changeSetManager->computeChangeSets();
+                    $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+                    if (!empty($pendingUpdates)) {
+                        foreach ($pendingUpdates as $updateEntity) {
+                            $this->processUpdate($updateEntity);
+                        }
+                        $this->changeSetManager->clearProcessedChanges();
+                    }
+
+                    // Also check for any new insertions that might have been scheduled
+                    $pendingInsertions = $this->changeSetManager->getScheduledInsertions();
+                    if (!empty($pendingInsertions)) {
+                        foreach ($pendingInsertions as $insertEntity) {
+                            $this->processInsertion($insertEntity);
+                        }
+                        $this->changeSetManager->clearProcessedChanges();
+                    }
                     break;
             }
         }

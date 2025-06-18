@@ -420,7 +420,7 @@ class RelationManager
                 // Ensure both entities have IDs before creating links
                 $entityId = $this->getId($entity);
                 $relatedEntityId = $this->getId($relatedEntity);
-                
+
                 if ($entityId !== null && $relatedEntityId !== null) {
                     $this->manyToManyInsertions[] = [
                         'entity' => $entity,

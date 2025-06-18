@@ -104,7 +104,7 @@ final class ChangeSetManager
         }
 
         // Si l'entité est déjà dans l'identity map mais n'a pas d'ID, forcer son état à NEW
-        if ($entityId === null && $metadata->state !== EntityState::NEW) {
+        if ($metadata->state !== EntityState::NEW) {
             try {
                 $newMetadata = new EntityMetadata(
                     $metadata->className,

@@ -530,16 +530,21 @@ class EntityManagerTest extends TestCase
         $em->persist($otherManager);
         $em->persist($user);
         $em->flush();
+        
         $this->eventManager->addListener(DbEvents::postRemove->value, static function (PostRemoveEvent $event) {
             $manager = $event->getEntity();
-            $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
-            $user = $event->getEntityManager()->find(User::class, 'username=\'John\'');
-            if ($user !== null && $otherManager !== null) {
-                $user->setManager($otherManager);
-                $event->getEntityManager()->persist($user);
-                $event->getEntityManager()->flush();
+            if ($manager instanceof User && $manager->getUsername() === 'Manager') {
+                $em = $event->getEntityManager();
+                $otherManager = $em->find(User::class, 'username=\'OtherManager\'');
+                $user = $em->find(User::class, 'username=\'John\'');
+                if ($user !== null && $otherManager !== null) {
+                    $user->setManager($otherManager);
+                    $em->persist($user);
+                    $em->flush();
+                }
             }
         });
+        
         $em->remove($manager);
         $em->flush();
         $user = $em->find(User::class, 'username=\'John\'');
