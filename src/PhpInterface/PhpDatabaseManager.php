@@ -487,7 +487,13 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 throw new RuntimeException('Invalid DATABASE_URL format.');
             }
 
-            $parsedParams = self::decodeUrl($parsedUrl);
+            // Decode URL components inline
+            array_walk($parsedUrl, static function (&$urlPart) {
+                if (is_string($urlPart)) {
+                    $urlPart = urldecode($urlPart);
+                }
+            });
+            $parsedParams = $parsedUrl;
             if (isset($parsedParams['path'])) {
                 $parsedParams['dbname'] = substr($parsedParams['path'], 1);
             }
@@ -547,32 +553,5 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
         /** @var array<string, mixed> $parameters */
         return $parameters;
-    }
-
-    /**
-     * @param array<string, mixed> $url Parsed URL components
-     * @return array<string, mixed>
-     */
-    private static function decodeUrl(array $url): array
-    {
-        array_walk($url, static function (&$urlPart) {
-            if (is_string($urlPart)) {
-                $urlPart = urldecode($urlPart);
-            }
-        });
-        return $url;
-    }
-
-    /**
-     * @return void
-     */
-    public function __destruct()
-    {
-        // Log cache statistics on destruction if enabled
-        if ($this->statementCache !== null && $this->statementCache->getStatistics()['hits'] > 0) {
-            // You can log these stats to your monitoring system
-            $stats = $this->getStatementCacheStats();
-            // Example: error_log('Statement cache stats: ' . json_encode($stats));
-        }
     }
 }
