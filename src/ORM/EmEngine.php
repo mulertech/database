@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Collections\Collection;
@@ -656,7 +658,7 @@ class EmEngine
         foreach ($changeSet->getChanges() as $property => $change) {
             $changes[$property] = [
                 'old' => $change->oldValue,
-                'new' => $change->newValue
+                'new' => $change->newValue,
             ];
         }
 

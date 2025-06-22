@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Migration\Entity;
 
 use MulerTech\Database\Mapping\ColumnKey;

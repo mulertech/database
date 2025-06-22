@@ -268,7 +268,6 @@ class MemoryCache implements TaggableCacheInterface
     protected function evict(): void
     {
         $keyToEvict = match ($this->config->evictionPolicy) {
-            'lru' => $this->findLruKey(),
             'lfu' => $this->findLfuKey(),
             'fifo' => $this->findFifoKey(),
             default => $this->findLruKey(),

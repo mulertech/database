@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\Cache\CacheFactory;
@@ -180,7 +182,7 @@ class QueryFactory
             'creation' => $this->getCreationStats(),
             'compilation' => $this->getCompilerStats(),
             'optimization' => $this->getOptimizerStats(),
-            'total_queries_created' => array_sum($this->creationStats)
+            'total_queries_created' => array_sum($this->creationStats),
         ];
     }
 

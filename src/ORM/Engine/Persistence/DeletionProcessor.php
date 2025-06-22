@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\Mapping\DbMappingInterface;

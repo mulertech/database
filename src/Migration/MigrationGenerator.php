@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Migration;
 
 use MulerTech\Database\Migration\Schema\SchemaComparer;
@@ -20,33 +22,33 @@ class MigrationGenerator
      * @var string Template for migration class
      */
     private const string MIGRATION_TEMPLATE = <<<'EOT'
-<?php
+        <?php
 
-use MulerTech\Database\Migration\Migration;
-use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
+        use MulerTech\Database\Migration\Migration;
+        use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
 
-/**
- * Auto-generated migration
- */
-class Migration%date% extends Migration
-{
-    /**
-     * {@inheritdoc}
-     */
-    public function up(): void
-    {
-%up_code%
-    }
+        /**
+         * Auto-generated migration
+         */
+        class Migration%date% extends Migration
+        {
+            /**
+             * {@inheritdoc}
+             */
+            public function up(): void
+            {
+        %up_code%
+            }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function down(): void
-    {
-%down_code%
-    }
-}
-EOT;
+            /**
+             * {@inheritdoc}
+             */
+            public function down(): void
+            {
+        %down_code%
+            }
+        }
+        EOT;
 
     /**
      * @param SchemaComparer $schemaComparer
@@ -90,7 +92,7 @@ EOT;
         $migrationContent = strtr(self::MIGRATION_TEMPLATE, [
             '%date%' => $date,
             '%up_code%' => $upCode,
-            '%down_code%' => $downCode
+            '%down_code%' => $downCode,
         ]);
 
         $fileName = $this->migrationsDirectory . DIRECTORY_SEPARATOR . 'Migration' . $date . '.php';

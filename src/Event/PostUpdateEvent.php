@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Event;
 
 use MulerTech\Database\ORM\EntityManagerInterface;

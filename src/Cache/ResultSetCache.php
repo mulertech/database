@@ -9,22 +9,17 @@ namespace MulerTech\Database\Cache;
  * @package MulerTech\Database\Cache
  * @author Sébastien Muler
  */
-class ResultSetCache implements TaggableCacheInterface
+readonly class ResultSetCache implements TaggableCacheInterface
 {
     /**
      * @var CacheInterface
      */
-    private readonly CacheInterface $cache;
+    private CacheInterface $cache;
 
     /**
      * @var int
      */
-    private readonly int $compressionThreshold;
-
-    /**
-     * @var array<string, array<string>>
-     */
-    private array $queryTables = [];
+    private int $compressionThreshold;
 
     /**
      * @param CacheInterface $cache
@@ -71,7 +66,6 @@ class ResultSetCache implements TaggableCacheInterface
      */
     public function delete(string $key): void
     {
-        unset($this->queryTables[$key]);
         $this->cache->delete($key);
     }
 
@@ -80,7 +74,6 @@ class ResultSetCache implements TaggableCacheInterface
      */
     public function clear(): void
     {
-        $this->queryTables = [];
         $this->cache->clear();
     }
 
@@ -100,13 +93,10 @@ class ResultSetCache implements TaggableCacheInterface
     public function getMultiple(array $keys): array
     {
         $compressed = $this->cache->getMultiple($keys);
-        $result = [];
 
-        foreach ($compressed as $key => $data) {
-            $result[$key] = $data !== null ? $this->decompress($data) : null;
-        }
-
-        return $result;
+        return array_map(function ($data) {
+            return $data !== null ? $this->decompress($data) : null;
+        }, $compressed);
     }
 
     /**
@@ -116,11 +106,9 @@ class ResultSetCache implements TaggableCacheInterface
      */
     public function setMultiple(array $values, int $ttl = 0): void
     {
-        $compressed = [];
-
-        foreach ($values as $key => $value) {
-            $compressed[$key] = $this->compress($value);
-        }
+        $compressed = array_map(function ($value) {
+            return $this->compress($value);
+        }, $values);
 
         $this->cache->setMultiple($compressed, $ttl);
     }
@@ -131,10 +119,6 @@ class ResultSetCache implements TaggableCacheInterface
      */
     public function deleteMultiple(array $keys): void
     {
-        foreach ($keys as $key) {
-            unset($this->queryTables[$key]);
-        }
-
         $this->cache->deleteMultiple($keys);
     }
 
@@ -173,44 +157,6 @@ class ResultSetCache implements TaggableCacheInterface
     }
 
     /**
-     * @param string $query
-     * @param array<mixed> $params
-     * @param mixed $result
-     * @param array<string> $tables
-     * @param int $ttl
-     * @return void
-     */
-    public function setQueryResult(
-        string $query,
-        array $params,
-        mixed $result,
-        array $tables,
-        int $ttl = 300
-    ): void {
-        $key = $this->getQueryKey($query, $params);
-        $this->set($key, $result, $ttl);
-
-        // Track tables for invalidation
-        $this->queryTables[$key] = $tables;
-
-        // Tag with tables for easy invalidation
-        $this->tag($key, array_map(
-            fn (string $table) => 'table:' . $table,
-            $tables
-        ));
-    }
-
-    /**
-     * @param string $query
-     * @param array<mixed> $params
-     * @return mixed
-     */
-    public function getQueryResult(string $query, array $params): mixed
-    {
-        return $this->get($this->getQueryKey($query, $params));
-    }
-
-    /**
      * @param string $table
      * @return void
      */
@@ -226,23 +172,9 @@ class ResultSetCache implements TaggableCacheInterface
     public function invalidateTables(array $tables): void
     {
         $this->invalidateTags(array_map(
-            fn (string $table) => 'table:' . $table,
+            static fn (string $table) => 'table:' . $table,
             $tables
         ));
-    }
-
-    /**
-     * @param string $query
-     * @param array<mixed> $params
-     * @return string
-     */
-    private function getQueryKey(string $query, array $params): string
-    {
-        return sprintf(
-            'query:%s:%s',
-            md5($query),
-            md5(serialize($params))
-        );
     }
 
     /**
@@ -285,6 +217,6 @@ class ResultSetCache implements TaggableCacheInterface
             $serialized = $data['data'];
         }
 
-        return unserialize($serialized);
+        return unserialize($serialized, ['allowed_classes' => false]) ?: null;
     }
 }

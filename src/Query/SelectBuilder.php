@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\Relational\Sql\LinkOperator;
@@ -491,14 +493,14 @@ class SelectBuilder extends AbstractQueryBuilder
                 'type' => $type,
                 'table' => $parsed['table'],
                 'alias' => $parsed['alias'],
-                'condition' => $condition
+                'condition' => $condition,
             ];
         } else {
             $this->joins[] = [
                 'type' => $type,
                 'table' => $table,
                 'alias' => $alias,
-                'condition' => $condition
+                'condition' => $condition,
             ];
         }
 

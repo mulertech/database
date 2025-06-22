@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Mapping;
 
 /**
@@ -128,7 +130,7 @@ enum ColumnType: string
         $sql = $this->value;
 
         if ($this->requiresPrecision() && $length !== null) {
-            $scale = $scale ?? 0;
+            $scale ??= 0;
             $sql .= "($length,$scale)";
         } elseif ($this->isTypeWithLength() && $length !== null) {
             $sql .= "($length)";

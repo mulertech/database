@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql\Schema;
 
 /**
@@ -153,7 +155,7 @@ class TableDefinition
     {
         $this->indexes['PRIMARY'] = [
             'type' => 'PRIMARY KEY',
-            'columns' => is_array($columns) ? $columns : [$columns]
+            'columns' => is_array($columns) ? $columns : [$columns],
         ];
         return $this;
     }

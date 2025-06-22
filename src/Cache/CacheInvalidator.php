@@ -38,29 +38,6 @@ class CacheInvalidator
 
     /**
      * @param string $entity
-     * @param array<string> $dependencies
-     * @return void
-     */
-    public function registerDependency(string $entity, array $dependencies): void
-    {
-        $this->dependencies[$entity] = array_merge(
-            $this->dependencies[$entity] ?? [],
-            $dependencies
-        );
-    }
-
-    /**
-     * @param string $pattern
-     * @param callable $callback
-     * @return void
-     */
-    public function registerPattern(string $pattern, callable $callback): void
-    {
-        $this->invalidationPatterns[$pattern] = $callback;
-    }
-
-    /**
-     * @param string $entity
      * @param string $operation
      * @param array<string, mixed> $context
      * @return void
@@ -75,50 +52,6 @@ class CacheInvalidator
 
         // Pattern-based invalidation
         $this->applyPatterns($entity, $operation, $context);
-    }
-
-    /**
-     * @param string $table
-     * @return void
-     */
-    public function invalidateTable(string $table): void
-    {
-        foreach ($this->caches as $cache) {
-            $cache->invalidateTag('table:' . $table);
-        }
-    }
-
-    /**
-     * @param array<string> $tables
-     * @return void
-     */
-    public function invalidateTables(array $tables): void
-    {
-        foreach ($tables as $table) {
-            $this->invalidateTable($table);
-        }
-    }
-
-    /**
-     * @param array<string> $tags
-     * @return void
-     */
-    public function invalidateTags(array $tags): void
-    {
-        foreach ($this->caches as $cache) {
-            $cache->invalidateTags($tags);
-        }
-    }
-
-    /**
-     * @param string $tag
-     * @return void
-     */
-    public function invalidateTag(string $tag): void
-    {
-        foreach ($this->caches as $cache) {
-            $cache->invalidateTag($tag);
-        }
     }
 
     /**

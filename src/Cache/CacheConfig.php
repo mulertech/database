@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Cache;
 
+use InvalidArgumentException;
+
 /**
  * Configuration du cache
  * @package MulerTech\Database\Cache
@@ -28,14 +30,14 @@ final readonly class CacheConfig
 
     /**
      * @return void
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     private function validateEvictionPolicy(): void
     {
         $validPolicies = ['lru', 'lfu', 'fifo'];
 
         if (!in_array($this->evictionPolicy, $validPolicies, true)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Invalid eviction policy "%s". Valid policies are: %s',
                     $this->evictionPolicy,

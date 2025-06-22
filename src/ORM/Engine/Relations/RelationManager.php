@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Collections\Collection;
@@ -385,7 +387,7 @@ class RelationManager
                 'entity' => $entity,
                 'related' => $relatedEntity,
                 'manyToMany' => $manyToMany,
-                'action' => 'insert'
+                'action' => 'insert',
             ];
         }
 
@@ -395,7 +397,7 @@ class RelationManager
                 'entity' => $entity,
                 'related' => $relatedEntity,
                 'manyToMany' => $manyToMany,
-                'action' => 'delete'
+                'action' => 'delete',
             ];
         }
     }
@@ -419,7 +421,7 @@ class RelationManager
                 $this->manyToManyInsertions[] = [
                     'entity' => $entity,
                     'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany
+                    'manyToMany' => $manyToMany,
                 ];
             }
         }

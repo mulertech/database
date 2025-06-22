@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 /**
@@ -174,18 +176,18 @@ class QueryOptimizer
             'avoid_select_star' => [
                 'condition' => 'hasSelectStar',
                 'action' => 'suggestSpecificColumns',
-                'priority' => 1
+                'priority' => 1,
             ],
             'optimize_join_order' => [
                 'condition' => 'hasMultipleJoins',
                 'action' => 'reorderJoins',
-                'priority' => 2
+                'priority' => 2,
             ],
             'add_limit_for_exists' => [
                 'condition' => 'isExistsSubquery',
                 'action' => 'addLimitOne',
-                'priority' => 3
-            ]
+                'priority' => 3,
+            ],
         ];
 
         // INSERT optimizations
@@ -193,13 +195,13 @@ class QueryOptimizer
             'batch_small_inserts' => [
                 'condition' => 'isSmallBatch',
                 'action' => 'suggestBatching',
-                'priority' => 1
+                'priority' => 1,
             ],
             'use_insert_ignore' => [
                 'condition' => 'hasDuplicateKeyUpdate',
                 'action' => 'considerInsertIgnore',
-                'priority' => 2
-            ]
+                'priority' => 2,
+            ],
         ];
 
         // UPDATE optimizations
@@ -207,13 +209,13 @@ class QueryOptimizer
             'limit_unsafe_updates' => [
                 'condition' => 'hasNoWhereClause',
                 'action' => 'addSafetyLimit',
-                'priority' => 1
+                'priority' => 1,
             ],
             'optimize_update_joins' => [
                 'condition' => 'hasJoinsWithoutIndex',
                 'action' => 'suggestIndexes',
-                'priority' => 2
-            ]
+                'priority' => 2,
+            ],
         ];
 
         // DELETE optimizations
@@ -221,13 +223,13 @@ class QueryOptimizer
             'limit_unsafe_deletes' => [
                 'condition' => 'hasNoWhereClause',
                 'action' => 'addSafetyLimit',
-                'priority' => 1
+                'priority' => 1,
             ],
             'use_truncate_for_full_delete' => [
                 'condition' => 'isFullTableDelete',
                 'action' => 'suggestTruncate',
-                'priority' => 2
-            ]
+                'priority' => 2,
+            ],
         ];
     }
 

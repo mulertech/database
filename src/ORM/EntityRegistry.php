@@ -64,7 +64,7 @@ final class EntityRegistry
             $this->registry[$entity] = [
                 'registeredAt' => $now,
                 'lastAccessed' => $now,
-                'accessCount' => 1
+                'accessCount' => 1,
             ];
 
             // Update counters
@@ -267,7 +267,7 @@ final class EntityRegistry
                 'registered' => 0,
                 'unregistered' => 0,
                 'currentCount' => 0,
-                'lastUpdated' => time()
+                'lastUpdated' => time(),
             ];
         }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql\MySql;
 
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;

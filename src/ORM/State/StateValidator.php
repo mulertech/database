@@ -361,7 +361,7 @@ final class StateValidator
             'already_removed' => 'Entity is already scheduled for removal',
             'missing_identifier' => 'Entity must have an identifier',
             'unknown_operation' => 'Unknown operation',
-            'custom_validation_failed' => 'Custom validation failed'
+            'custom_validation_failed' => 'Custom validation failed',
         ];
     }
 }

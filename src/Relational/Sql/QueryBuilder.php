@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql;
 
 use MulerTech\Database\ORM\EmEngine;
@@ -505,13 +507,13 @@ class QueryBuilder
         }
 
         if (count($selectBuilders) === 1) {
-            return $queries[0];
+            return (string)$queries[0];
         }
 
         $firstBuilder = array_shift($selectBuilders);
         $firstBuilder->unionAll(...$selectBuilders);
 
-        return $queries[0];
+        return (string)$queries[0];
     }
 
     /**
@@ -670,7 +672,7 @@ class QueryBuilder
 
         return [
             'sql' => $sql,
-            'parameters' => $parameters
+            'parameters' => $parameters,
         ];
     }
 

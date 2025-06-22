@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\ORM\ChangeDetector;
@@ -308,7 +310,7 @@ class PersistenceManager
         foreach ($changeSet->getChanges() as $property => $change) {
             $changes[$property] = [
                 0 => $change->oldValue, // old value at index 0
-                1 => $change->newValue  // new value at index 1
+                1 => $change->newValue,  // new value at index 1
             ];
         }
 

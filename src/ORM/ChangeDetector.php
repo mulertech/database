@@ -53,7 +53,7 @@ class ChangeDetector
                 $id = $value->getId();
                 $data[$propertyName] = [
                     '__entity__' => $value::class,
-                    '__id__' => $id
+                    '__id__' => $id,
                 ];
             } elseif ($value instanceof Collection) {
                 // For collections, store a simplified representation
@@ -62,19 +62,19 @@ class ChangeDetector
                     if (is_object($item) && method_exists($item, 'getId')) {
                         $items[] = [
                             '__entity__' => $item::class,
-                            '__id__' => $item->getId()
+                            '__id__' => $item->getId(),
                         ];
                     }
                 }
                 $data[$propertyName] = [
                     '__collection__' => true,
-                    '__items__' => $items
+                    '__items__' => $items,
                 ];
             } elseif (is_object($value)) {
                 // For other objects without getId, store a placeholder
                 $data[$propertyName] = [
                     '__entity__' => $value::class,
-                    '__id__' => null
+                    '__id__' => null,
                 ];
             } elseif (is_array($value)) {
                 $data[$propertyName] = $value;
@@ -82,7 +82,7 @@ class ChangeDetector
                 // For other objects, try to serialize or store class name
                 $data[$propertyName] = [
                     '__object__' => $value::class,
-                    '__serialized__' => serialize($value)
+                    '__serialized__' => serialize($value),
                 ];
             }
         }

@@ -177,7 +177,7 @@ final class StateTransitionManager
                 $history[] = [
                     'from' => $record['from'],
                     'to' => $record['to'],
-                    'timestamp' => $record['timestamp']
+                    'timestamp' => $record['timestamp'],
                 ];
             }
         }
@@ -278,7 +278,7 @@ final class StateTransitionManager
             'from' => $from,
             'to' => $to,
             'entity' => $entity,
-            'timestamp' => time()
+            'timestamp' => time(),
         ];
 
         $this->pruneHistory();

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Migration\Schema;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
@@ -181,7 +183,7 @@ class SchemaComparer
                 'IS_NULLABLE' => $isNullable === false ? 'NO' : 'YES',
                 'COLUMN_DEFAULT' => $columnDefault,
                 'EXTRA' => $columnExtra,
-                'COLUMN_KEY' => $columnKey
+                'COLUMN_KEY' => $columnKey,
             ];
         }
 
@@ -206,14 +208,14 @@ class SchemaComparer
             if ($columnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
                 $columnDifferences['COLUMN_TYPE'] = [
                     'from' => $dbColumnInfo['COLUMN_TYPE'],
-                    'to' => $columnInfo['COLUMN_TYPE']
+                    'to' => $columnInfo['COLUMN_TYPE'],
                 ];
             }
 
             if ($columnInfo['IS_NULLABLE'] !== $dbColumnInfo['IS_NULLABLE']) {
                 $columnDifferences['IS_NULLABLE'] = [
                     'from' => $dbColumnInfo['IS_NULLABLE'],
-                    'to' => $columnInfo['IS_NULLABLE']
+                    'to' => $columnInfo['IS_NULLABLE'],
                 ];
             }
 
@@ -226,7 +228,7 @@ class SchemaComparer
                 ($dbDefault !== null && $mappingDefault !== null && $dbDefault !== $mappingDefault)) {
                 $columnDifferences['COLUMN_DEFAULT'] = [
                     'from' => $dbDefault,
-                    'to' => $mappingDefault
+                    'to' => $mappingDefault,
                 ];
             }
 
@@ -273,7 +275,7 @@ class SchemaComparer
                     'REFERENCED_TABLE_NAME' => $this->dbMapping->getReferencedTable($entityClass, $property),
                     'REFERENCED_COLUMN_NAME' => $this->dbMapping->getReferencedColumn($entityClass, $property),
                     'DELETE_RULE' => $this->dbMapping->getDeleteRule($entityClass, $property),
-                    'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property)
+                    'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property),
                 ];
             }
         }

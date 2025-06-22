@@ -219,7 +219,7 @@ class QueryCompiler
         $reflection = new \ReflectionClass($builder);
         $structure = [
             'type' => $builder->getQueryType(),
-            'class' => get_class($builder)
+            'class' => get_class($builder),
         ];
 
         // Extract only structural properties, not parameter values
