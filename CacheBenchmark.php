@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Benchmark;
 
 use MulerTech\Database\Cache\CacheConfig;
 use MulerTech\Database\Cache\CacheFactory;
@@ -373,7 +372,7 @@ class CacheBenchmark
 // e.g. `php CacheBenchmark.php 1000`
 if (PHP_SAPI === 'cli' && basename($_SERVER['argv'][0] ?? '') === basename(__FILE__)) {
     // Include necessary files
-    include_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+    include_once '.' . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
     $iterations = (int) ($_SERVER['argv'][1] ?? 1000);
     $benchmark = new CacheBenchmark($iterations);
     $benchmark->run();

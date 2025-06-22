@@ -3,7 +3,6 @@
 namespace MulerTech\Database\Tests\Migration;
 
 use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Migration\Command\MigrationGenerateCommand;
 use MulerTech\Database\Migration\Migration;
 use MulerTech\Database\Migration\MigrationGenerator;
 use MulerTech\Database\Migration\MigrationManager;
@@ -39,7 +38,6 @@ class MigrationTest extends TestCase
      */
     protected function setUp(): void
     {
-        $terminal = $this->createMock(Terminal::class);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new Driver()), []),
             new DbMapping(
@@ -165,11 +163,11 @@ class MigrationTest extends TestCase
                 $this->databaseName
             ),
             $this->migrationsDirectory,
-        )->generateMigration('202505011024');
+        )->generateMigration('202505011025');
 
         $content = file_get_contents($filename);
 
-        $this->assertStringContainsString('class Migration202505011024', $content);
+        $this->assertStringContainsString('class Migration202505011025', $content);
         $this->migrationManager->registerMigrations($this->migrationsDirectory);
         $this->migrationManager->migrate();
 
@@ -199,7 +197,7 @@ class MigrationTest extends TestCase
                 $this->databaseName
             ),
             $this->migrationsDirectory,
-        )->generateMigration('202505011024');
+        )->generateMigration('202505011026');
 
         $this->migrationManager->registerMigrations($this->migrationsDirectory);
         $this->migrationManager->migrate();
