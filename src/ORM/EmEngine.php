@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use DateTimeImmutable;
+use Exception;
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
@@ -18,8 +19,8 @@ use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\EventManager\EventManager;
 use PDO;
+use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
@@ -155,7 +156,7 @@ class EmEngine
                 // Force reload of relations to ensure fresh state
                 try {
                     $this->relationManager->loadEntityRelations($managed, $fetch);
-                } catch (\Exception $e) {
+                } catch (Exception) {
                     // Continue silently on relation loading errors
                 }
                 return $managed;
@@ -163,9 +164,7 @@ class EmEngine
         }
 
         // Create new managed entity if not found in identity map
-        $entity = $this->createManagedEntity($fetch, $entityName, true);
-
-        return $entity;
+        return $this->createManagedEntity($fetch, $entityName, true);
     }
 
     /**
@@ -186,7 +185,7 @@ class EmEngine
         $fetch = $pdoStatement->fetch(PDO::FETCH_ASSOC);
         $pdoStatement->closeCursor();
 
-        if ($fetch === false || $fetch === null || empty($fetch)) {
+        if (empty($fetch)) {
             return null;
         }
 
@@ -201,7 +200,7 @@ class EmEngine
                 if ($loadRelations) {
                     try {
                         $this->relationManager->loadEntityRelations($managed, $fetch);
-                    } catch (\Exception $e) {
+                    } catch (Exception) {
                         // Continue silently on relation loading errors
                     }
                 }
@@ -235,48 +234,6 @@ class EmEngine
         }
 
         return $this->hydrateEntityList($fetchAll, $entityName, $loadRelations);
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param class-string $entityName
-     * @param bool $loadRelations
-     * @return array<int, object>|null
-     * @throws ReflectionException
-     */
-    public function getQueryBuilderListKeyByIdResult(
-        QueryBuilder $queryBuilder,
-        string $entityName,
-        bool $loadRelations = true
-    ): ?array {
-        $pdoStatement = $queryBuilder->getResult();
-        $pdoStatement->execute();
-
-        $fetchAll = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
-        $pdoStatement->closeCursor();
-
-        if ($fetchAll === []) {
-            return null;
-        }
-
-        $entities = [];
-        foreach ($fetchAll as $entityData) {
-            if (!isset($entityData['id'])) {
-                throw new RuntimeException(
-                    sprintf('The entity %s must have an ID column', $entityName)
-                );
-            }
-
-            $entity = $this->createManagedEntity($entityData, $entityName, $loadRelations);
-            if (!method_exists($entity, 'getId')) {
-                throw new RuntimeException(
-                    sprintf('The entity %s must have a getId method', $entity::class)
-                );
-            }
-            $entities[$entity->getId()] = $entity;
-        }
-
-        return $entities;
     }
 
     /**
@@ -463,7 +420,7 @@ class EmEngine
         if ($loadRelations) {
             try {
                 $this->relationManager->loadEntityRelations($entity, $entityData);
-            } catch (\Exception $e) {
+            } catch (Exception) {
                 // If relation loading fails, log but don't fail the entity creation
                 // This ensures that at least the scalar properties are hydrated
             }
@@ -511,7 +468,7 @@ class EmEngine
     private function convertPropertyToeDatabaseCollection(object $entity, string $property): void
     {
         try {
-            $reflection = new \ReflectionClass($entity);
+            $reflection = new ReflectionClass($entity);
             $reflectionProperty = $reflection->getProperty($property);
 
             if ($reflectionProperty->isInitialized($entity)) {
@@ -525,7 +482,7 @@ class EmEngine
                 // Initialize uninitialized collection properties with empty DatabaseCollection
                 $reflectionProperty->setValue($entity, new DatabaseCollection());
             }
-        } catch (\ReflectionException $e) {
+        } catch (ReflectionException) {
             // Property doesn't exist or can't be accessed, ignore
         }
     }
@@ -575,63 +532,12 @@ class EmEngine
         return $tableName;
     }
 
-    // Methods for compatibility with the existing API
-
-    /**
-     * @return StateManagerInterface
-     */
-    public function getStateManager(): StateManagerInterface
-    {
-        return $this->stateManager;
-    }
-
-    /**
-     * @return ChangeDetector
-     */
-    public function getChangeTracker(): ChangeDetector
-    {
-        return $this->changeDetector;
-    }
-
-    /**
-     * @return PersistenceManager
-     */
-    public function getPersistenceManager(): PersistenceManager
-    {
-        return $this->persistenceManager;
-    }
-
-    /**
-     * @return RelationManager
-     */
-    public function getRelationManager(): RelationManager
-    {
-        return $this->relationManager;
-    }
-
     /**
      * @return IdentityMap
      */
     public function getIdentityMap(): IdentityMap
     {
         return $this->identityMap;
-    }
-
-    /**
-     * @return ChangeSetManager
-     */
-    public function getChangeSetManager(): ChangeSetManager
-    {
-        return $this->changeSetManager;
-    }
-
-    /**
-     * @param object $entity
-     * @return bool
-     */
-    public function isManaged(object $entity): bool
-    {
-        return $this->identityMap->isManaged($entity);
     }
 
     /**
@@ -654,47 +560,12 @@ class EmEngine
             return [];
         }
 
-        $changes = [];
-        foreach ($changeSet->getChanges() as $property => $change) {
-            $changes[$property] = [
+        return array_map(static function ($change) {
+            return [
                 'old' => $change->oldValue,
                 'new' => $change->newValue,
             ];
-        }
-
-        return $changes;
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasPendingChanges(): bool
-    {
-        return $this->changeSetManager->hasPendingChanges();
-    }
-
-    /**
-     * @return array<object>
-     */
-    public function getScheduledInsertions(): array
-    {
-        return array_values($this->stateManager->getScheduledInsertions());
-    }
-
-    /**
-     * @return array<object>
-     */
-    public function getScheduledUpdates(): array
-    {
-        return array_values($this->stateManager->getScheduledUpdates());
-    }
-
-    /**
-     * @return array<object>
-     */
-    public function getScheduledDeletions(): array
-    {
-        return array_values($this->stateManager->getScheduledDeletions());
+        }, $changeSet->getChanges());
     }
 
     /**
@@ -711,7 +582,7 @@ class EmEngine
             $dbMapping = $this->entityManager->getDbMapping();
             $propertiesColumns = $dbMapping->getPropertiesColumns($entityClass);
 
-            $reflection = new \ReflectionClass($entity);
+            $reflection = new ReflectionClass($entity);
 
             foreach ($propertiesColumns as $property => $column) {
                 if (!isset($dbData[$column])) {
@@ -725,7 +596,6 @@ class EmEngine
 
                 if ($reflection->hasProperty($property)) {
                     $reflectionProperty = $reflection->getProperty($property);
-                    $reflectionProperty->setAccessible(true);
 
                     // Process the value according to its type
                     $value = $this->hydrator->processPropertyValue($entityClass, $property, $dbData[$column]);
@@ -743,11 +613,11 @@ class EmEngine
                     EntityState::MANAGED,
                     $currentData,
                     $metadata->loadedAt,
-                    new \DateTimeImmutable()
+                    new DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             }
-        } catch (\Exception $e) {
+        } catch (Exception) {
             // If update fails, log but don't fail the operation
         }
     }
@@ -758,6 +628,7 @@ class EmEngine
      * @param class-string $entityClass
      * @param string $propertyName
      * @return bool
+     * @throws ReflectionException
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
@@ -783,11 +654,7 @@ class EmEngine
 
         // Check if it's a ManyToMany relation
         $manyToManyList = $dbMapping->getManyToMany($entityClass);
-        if (is_array($manyToManyList) && isset($manyToManyList[$propertyName])) {
-            return true;
-        }
-
-        return false;
+        return is_array($manyToManyList) && isset($manyToManyList[$propertyName]);
     }
 
     /**
@@ -810,21 +677,16 @@ class EmEngine
         }
 
         // Try direct property access
-        try {
-            $reflection = new \ReflectionClass($entity);
+        $reflection = new ReflectionClass($entity);
 
-            foreach (['id', 'uuid', 'identifier'] as $property) {
-                if ($reflection->hasProperty($property)) {
-                    $prop = $reflection->getProperty($property);
-                    $prop->setAccessible(true);
-                    $value = $prop->getValue($entity);
-                    if ($value !== null) {
-                        return $value;
-                    }
+        foreach (['id', 'uuid', 'identifier'] as $property) {
+            if ($reflection->hasProperty($property)) {
+                $prop = $reflection->getProperty($property);
+                $value = $prop->getValue($entity);
+                if ($value !== null) {
+                    return $value;
                 }
             }
-        } catch (\ReflectionException $e) {
-            // Property access failed
         }
 
         return null;

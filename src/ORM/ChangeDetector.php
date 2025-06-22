@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use DateTimeInterface;
 use MulerTech\Collections\Collection;
 use ReflectionClass;
 use ReflectionException;
@@ -31,7 +32,6 @@ class ChangeDetector
             }
 
             $propertyName = $property->getName();
-            $property->setAccessible(true);
 
             // Skip uninitialized properties
             if (!$property->isInitialized($entity)) {
@@ -46,7 +46,7 @@ class ChangeDetector
                 $data[$propertyName] = null;
             } elseif (is_scalar($value)) {
                 $data[$propertyName] = $value;
-            } elseif ($value instanceof \DateTimeInterface) {
+            } elseif ($value instanceof DateTimeInterface) {
                 $data[$propertyName] = $value->format('Y-m-d H:i:s');
             } elseif (is_object($value) && method_exists($value, 'getId')) {
                 // For entities, store a serialized reference
@@ -151,14 +151,13 @@ class ChangeDetector
         // Handle entity references (serialized format)
         if (is_array($value1) && is_array($value2)) {
             // Both are entity references
-            if (isset($value1['__entity__'], $value1['__id__']) &&
-                isset($value2['__entity__'], $value2['__id__'])) {
+            if (isset($value1['__entity__'], $value1['__id__'], $value2['__entity__'], $value2['__id__'])) {
                 return $value1['__entity__'] === $value2['__entity__'] &&
                        $value1['__id__'] === $value2['__id__'];
             }
 
             // Both are collections
-            if (isset($value1['__collection__']) && isset($value2['__collection__'])) {
+            if (isset($value1['__collection__'], $value2['__collection__'])) {
                 return $this->collectionsAreEqual($value1['__items__'] ?? [], $value2['__items__'] ?? []);
             }
 
@@ -176,8 +175,8 @@ class ChangeDetector
     }
 
     /**
-     * @param array<mixed> $items1
-     * @param array<mixed> $items2
+     * @param array<int|string, mixed> $items1
+     * @param array<int|string, mixed> $items2
      * @return bool
      */
     private function collectionsAreEqual(array $items1, array $items2): bool
@@ -187,7 +186,7 @@ class ChangeDetector
         }
 
         // Sort both arrays by entity class and ID for comparison
-        $sort = function ($a, $b) {
+        $sort = static function ($a, $b) {
             $classCompare = strcmp($a['__entity__'] ?? '', $b['__entity__'] ?? '');
             if ($classCompare !== 0) {
                 return $classCompare;

@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use DateTimeImmutable;
+use Error;
+use InvalidArgumentException;
 use MulerTech\Database\ORM\State\EntityState;
+use ReflectionClass;
+use ReflectionException;
 use SplObjectStorage;
 
 /**
@@ -44,6 +49,7 @@ final class ChangeSetManager
 
     /**
      * @return void
+     * @throws ReflectionException
      */
     public function computeChangeSets(): void
     {
@@ -67,6 +73,7 @@ final class ChangeSetManager
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     public function scheduleInsert(object $entity): void
     {
@@ -110,10 +117,10 @@ final class ChangeSetManager
                     EntityState::NEW,
                     $metadata->originalData,
                     $metadata->loadedAt,
-                    new \DateTimeImmutable()
+                    new DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
-            } catch (\InvalidArgumentException $e) {
+            } catch (InvalidArgumentException) {
                 // Créer une nouvelle métadonnée avec l'état NEW si la transition échoue
                 $newData = $this->changeDetector->extractCurrentData($entity);
                 $newMetadata = new EntityMetadata(
@@ -122,7 +129,7 @@ final class ChangeSetManager
                     EntityState::NEW,
                     $newData,
                     $metadata->loadedAt,
-                    new \DateTimeImmutable()
+                    new DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             }
@@ -172,7 +179,7 @@ final class ChangeSetManager
                 EntityState::REMOVED,
                 $metadata->originalData,
                 $metadata->loadedAt,
-                new \DateTimeImmutable()
+                new DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($entity, $newMetadata);
         }
@@ -180,22 +187,6 @@ final class ChangeSetManager
         // Remove from other schedules
         $this->removeFromSchedule($entity, 'insertions');
         $this->removeFromSchedule($entity, 'updates');
-    }
-
-    /**
-     * @return void
-     */
-    public function commit(): void
-    {
-        // Clear all schedules after commit
-        $this->scheduledInsertions = [];
-        $this->scheduledUpdates = [];
-        $this->scheduledDeletions = [];
-        $this->changeSets = new SplObjectStorage();
-        $this->visitedEntities = [];
-
-        // Update registry statistics
-        $this->registry->updateStatistics();
     }
 
     /**
@@ -218,7 +209,7 @@ final class ChangeSetManager
                 EntityState::DETACHED,
                 $metadata->originalData,
                 $metadata->loadedAt,
-                new \DateTimeImmutable()
+                new DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($entity, $newMetadata);
         }
@@ -233,6 +224,7 @@ final class ChangeSetManager
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     public function merge(object $entity): void
     {
@@ -240,7 +232,7 @@ final class ChangeSetManager
         $id = $this->extractEntityId($entity);
 
         if ($id === null) {
-            throw new \InvalidArgumentException('Cannot merge entity without identifier');
+            throw new InvalidArgumentException('Cannot merge entity without identifier');
         }
 
         // Check if entity is already managed
@@ -261,7 +253,7 @@ final class ChangeSetManager
                     EntityState::MANAGED,
                     $metadata->originalData,
                     $metadata->loadedAt,
-                    new \DateTimeImmutable()
+                    new DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             }
@@ -369,6 +361,7 @@ final class ChangeSetManager
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     private function computeEntityChangeSet(object $entity): void
     {
@@ -441,22 +434,17 @@ final class ChangeSetManager
         }
 
         // Try reflection for ID properties only if no getter methods work
-        try {
-            $reflection = new \ReflectionClass($entity);
-            foreach (['id', 'identifier', 'uuid'] as $property) {
-                if ($reflection->hasProperty($property)) {
-                    $reflectionProperty = $reflection->getProperty($property);
-                    $reflectionProperty->setAccessible(true);
-                    if ($reflectionProperty->isInitialized($entity)) {
-                        $value = $reflectionProperty->getValue($entity);
-                        if ($value !== null) {
-                            return $value;
-                        }
+        $reflection = new ReflectionClass($entity);
+        foreach (['id', 'identifier', 'uuid'] as $property) {
+            if ($reflection->hasProperty($property)) {
+                $reflectionProperty = $reflection->getProperty($property);
+                if ($reflectionProperty->isInitialized($entity)) {
+                    $value = $reflectionProperty->getValue($entity);
+                    if ($value !== null) {
+                        return $value;
                     }
                 }
             }
-        } catch (\ReflectionException $e) {
-            // If reflection fails, return null
         }
 
         return null;
@@ -466,26 +454,25 @@ final class ChangeSetManager
      * @param object $source
      * @param object $target
      * @return void
+     * @throws ReflectionException
      */
     private function copyEntityData(object $source, object $target): void
     {
         if ($source::class !== $target::class) {
-            throw new \InvalidArgumentException('Cannot copy data between different entity types');
+            throw new InvalidArgumentException('Cannot copy data between different entity types');
         }
 
-        $reflection = new \ReflectionClass($source);
+        $reflection = new ReflectionClass($source);
 
         foreach ($reflection->getProperties() as $property) {
             if ($property->isStatic() || $property->getName() === 'id') {
                 continue; // Don't copy static properties or ID
             }
 
-            $property->setAccessible(true);
-
             try {
                 $value = $property->getValue($source);
                 $property->setValue($target, $value);
-            } catch (\Error $e) {
+            } catch (Error) {
                 // Handle readonly properties or other restrictions
                 continue;
             }
@@ -501,7 +488,7 @@ final class ChangeSetManager
                 $metadata->state,
                 $newData,
                 $metadata->loadedAt,
-                new \DateTimeImmutable()
+                new DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($target, $newMetadata);
         }
