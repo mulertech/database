@@ -11,6 +11,7 @@ use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\MTerm\Command\AbstractCommand;
 use MulerTech\MTerm\Core\Terminal;
+use ReflectionException;
 use RuntimeException;
 
 /**
@@ -41,6 +42,7 @@ class MigrationGenerateCommand extends AbstractCommand
      *
      * @param array<int, string> $args Command arguments
      * @return int Return code
+     * @throws ReflectionException
      */
     public function execute(array $args = []): int
     {

@@ -83,8 +83,7 @@ enum ColumnType: string
     public function isTypeWithLength(): bool
     {
         return match($this) {
-            self::CHAR, self::VARCHAR => true,
-            self::BINARY, self::VARBINARY => true,
+            self::CHAR, self::VARCHAR, self::BINARY, self::VARBINARY => true,
             default => false
         };
     }
@@ -129,12 +128,12 @@ enum ColumnType: string
     {
         $sql = $this->value;
 
-        if ($this->requiresPrecision() && $length !== null) {
+        if (null !== $length && $this->requiresPrecision()) {
             $scale ??= 0;
             $sql .= "($length,$scale)";
-        } elseif ($this->isTypeWithLength() && $length !== null) {
+        } elseif (null !== $length && $this->isTypeWithLength()) {
             $sql .= "($length)";
-        } elseif ($this->requiresChoices() && !empty($choices)) {
+        } elseif (!empty($choices) && $this->requiresChoices()) {
             $sql .= "('" . implode("','", $choices) . "')";
         }
 

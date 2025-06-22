@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
+use DateTimeImmutable;
+use MulerTech\Database\Event\PostPersistEvent;
+use MulerTech\Database\Event\PostRemoveEvent;
+use MulerTech\Database\Event\PostUpdateEvent;
+use MulerTech\Database\Event\PrePersistEvent;
+use MulerTech\Database\Event\PreRemoveEvent;
+use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -15,6 +22,7 @@ use MulerTech\EventManager\EventManager;
 use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityState;
 use ReflectionException;
+use RuntimeException;
 
 /**
  * Main manager for entity persistence
@@ -37,7 +45,7 @@ class PersistenceManager
     /**
      * @var int
      */
-    private const MAX_FLUSH_DEPTH = 10;
+    private const int MAX_FLUSH_DEPTH = 10;
 
     /**
      * @var bool
@@ -83,11 +91,9 @@ class PersistenceManager
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     public function persist(object $entity): void
     {
-        // This is now handled by ChangeSetManager
         $this->changeSetManager->scheduleInsert($entity);
     }
 
@@ -142,7 +148,7 @@ class PersistenceManager
         $this->flushDepth++;
 
         if ($this->flushDepth > self::MAX_FLUSH_DEPTH) {
-            throw new \RuntimeException('Maximum flush depth reached. Possible circular dependency.');
+            throw new RuntimeException('Maximum flush depth reached. Possible circular dependency.');
         }
 
         // Reset processed events for each flush cycle only at the top level
@@ -280,7 +286,7 @@ class PersistenceManager
                 EntityState::MANAGED,
                 $currentData,
                 $metadata->loadedAt,
-                new \DateTimeImmutable()
+                new DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($entity, $newMetadata);
         }
@@ -306,13 +312,14 @@ class PersistenceManager
         $this->callEntityEvent($entity, 'preUpdate');
 
         // Convert ChangeSet to array format for update processor
-        $changes = [];
-        foreach ($changeSet->getChanges() as $property => $change) {
-            $changes[$property] = [
+        // old value at index 0
+        // new value at index 1
+        $changes = array_map(static function ($change) {
+            return [
                 0 => $change->oldValue, // old value at index 0
                 1 => $change->newValue,  // new value at index 1
             ];
-        }
+        }, $changeSet->getChanges());
 
         // Process the update
         $this->updateProcessor->process($entity, $changes);
@@ -327,7 +334,7 @@ class PersistenceManager
                 EntityState::MANAGED,
                 $currentData, // Use current data as new original data
                 $metadata->loadedAt,
-                new \DateTimeImmutable()
+                new DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($entity, $newMetadata);
         }
@@ -382,6 +389,7 @@ class PersistenceManager
      * @param object $entity
      * @param string $eventName
      * @return void
+     * @throws ReflectionException
      */
     private function callEntityEvent(object $entity, string $eventName): void
     {
@@ -405,10 +413,10 @@ class PersistenceManager
         if ($this->eventManager !== null) {
             switch ($eventName) {
                 case 'prePersist':
-                    $this->eventManager->dispatch(new \MulerTech\Database\Event\PrePersistEvent($entity, $this->entityManager));
+                    $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager));
                     break;
                 case 'postPersist':
-                    $this->eventManager->dispatch(new \MulerTech\Database\Event\PostPersistEvent($entity, $this->entityManager));
+                    $this->eventManager->dispatch(new PostPersistEvent($entity, $this->entityManager));
                     break;
                 case 'preUpdate':
                     $changeSet = $this->changeSetManager->getChangeSet($entity);
@@ -418,11 +426,11 @@ class PersistenceManager
                             $changes[$property] = [$change->oldValue, $change->newValue];
                         }
                     }
-                    $this->eventManager->dispatch(new \MulerTech\Database\Event\PreUpdateEvent($entity, $this->entityManager, $changes));
+                    $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changes));
                     break;
                 case 'postUpdate':
                     // IMPORTANT: For postUpdate events, we need to immediately process any new entities
-                    $this->eventManager->dispatch(new \MulerTech\Database\Event\PostUpdateEvent($entity, $this->entityManager));
+                    $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
 
                     // Check for new entities created during the event and process them immediately
                     $newInsertions = $this->changeSetManager->getScheduledInsertions();
@@ -435,7 +443,7 @@ class PersistenceManager
                     }
                     break;
                 case 'preRemove':
-                    $this->eventManager->dispatch(new \MulerTech\Database\Event\PreRemoveEvent($entity, $this->entityManager));
+                    $this->eventManager->dispatch(new PreRemoveEvent($entity, $this->entityManager));
 
                     // After PreRemove event, check if any entities need to be updated and process them immediately
                     $this->changeSetManager->computeChangeSets();
@@ -448,7 +456,7 @@ class PersistenceManager
                     }
                     break;
                 case 'postRemove':
-                    $this->eventManager->dispatch(new \MulerTech\Database\Event\PostRemoveEvent($entity, $this->entityManager));
+                    $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
 
                     // After PostRemove event, check if any entities need to be updated and process them immediately
                     $this->changeSetManager->computeChangeSets();
@@ -470,27 +478,6 @@ class PersistenceManager
                     }
                     break;
             }
-        }
-    }
-
-    /**
-     * @param object $entity
-     * @param array<string, mixed> $originalData
-     * @return void
-     */
-    public function manageNewEntity(object $entity, array $originalData): void
-    {
-        // Add to identity map
-        $this->identityMap->add($entity);
-
-        // Mark as managed
-        $this->stateManager->manage($entity);
-
-        // Store original data for change detection
-        $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null) {
-            $newMetadata = $metadata->withOriginalData($originalData);
-            $this->identityMap->updateMetadata($entity, $newMetadata);
         }
     }
 

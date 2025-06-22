@@ -9,6 +9,11 @@ use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
+/**
+ * Class DbMapping
+ * @package MulerTech\Database\Mapping
+ * @author Sébastien Muler
+ */
 class DbMapping implements DbMappingInterface
 {
     /** @var array<class-string, string> $tables */
@@ -17,7 +22,7 @@ class DbMapping implements DbMappingInterface
     private array $columns = [];
 
     /** @var string|null $entitiesPath */
-    private ?string $entitiesPath = null;
+    private ?string $entitiesPath;
 
     /**
      * @param string|null $entitiesPath
@@ -35,7 +40,6 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @return void
-     * @throws ReflectionException
      */
     private function loadEntities(): void
     {
@@ -50,13 +54,8 @@ class DbMapping implements DbMappingInterface
                 continue;
             }
 
-            try {
-                $reflection = new ReflectionClass($className);
-                $this->processEntityClass($reflection);
-            } catch (ReflectionException $e) {
-                // Skip classes that can't be reflected
-                continue;
-            }
+            $reflection = new ReflectionClass($className);
+            $this->processEntityClass($reflection);
         }
     }
 
@@ -97,15 +96,9 @@ class DbMapping implements DbMappingInterface
      */
     private function classNameToTableName(string $className): string
     {
-        try {
-            /** @var class-string $className */
-            $reflection = new ReflectionClass($className);
-            $shortName = $reflection->getShortName();
-        } catch (ReflectionException $e) {
-            // Fallback to basic conversion if reflection fails
-            $parts = explode('\\', $className);
-            $shortName = end($parts);
-        }
+        /** @var class-string $className */
+        $reflection = new ReflectionClass($className);
+        $shortName = $reflection->getShortName();
 
         // Convert CamelCase to snake_case
         $converted = preg_replace('/([a-z])([A-Z])/', '$1_$2', $shortName);
@@ -213,7 +206,7 @@ class DbMapping implements DbMappingInterface
             // For OneToOne relations, try property_id as column name
             $fkColumn = $property . '_id';
             // Check if this column exists in the mapped columns
-            foreach ($columns as $prop => $col) {
+            foreach ($columns as $col) {
                 if ($col === $fkColumn) {
                     return $col;
                 }
@@ -227,7 +220,7 @@ class DbMapping implements DbMappingInterface
             // For ManyToOne relations, try property_id as column name
             $fkColumn = $property . '_id';
             // Check if this column exists in the mapped columns
-            foreach ($columns as $prop => $col) {
+            foreach ($columns as $col) {
                 if ($col === $fkColumn) {
                     return $col;
                 }
@@ -456,7 +449,7 @@ class DbMapping implements DbMappingInterface
             }
 
             return $relations;
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException) {
             return [];
         }
     }
@@ -481,7 +474,7 @@ class DbMapping implements DbMappingInterface
             }
 
             return $relations;
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException) {
             return [];
         }
     }
@@ -506,7 +499,7 @@ class DbMapping implements DbMappingInterface
             }
 
             return $relations;
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException) {
             return [];
         }
     }
@@ -531,7 +524,7 @@ class DbMapping implements DbMappingInterface
             }
 
             return $relations;
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException) {
             return [];
         }
     }

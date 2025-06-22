@@ -65,7 +65,7 @@ class SchemaComparer
      */
     private function getTableInfo(string $tableName): ?array
     {
-        return array_find($this->databaseTables, fn ($table) => $table['TABLE_NAME'] === $tableName);
+        return array_find($this->databaseTables, static fn ($table) => $table['TABLE_NAME'] === $tableName);
     }
 
     /**
@@ -174,7 +174,7 @@ class SchemaComparer
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
             $columnType = $this->dbMapping->getColumnTypeDefinition($entityClass, $property);
             $isNullable = $this->dbMapping->isNullable($entityClass, $property);
-            $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property) ?? null;
+            $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property);
             $columnExtra = $this->dbMapping->getExtra($entityClass, $property);
             $columnKey = $this->dbMapping->getColumnKey($entityClass, $property);
 
@@ -252,6 +252,7 @@ class SchemaComparer
      * @param class-string $entityClass
      * @param SchemaDifference $diff
      * @return void
+     * @throws ReflectionException
      */
     private function compareForeignKeys(string $tableName, string $entityClass, SchemaDifference $diff): void
     {

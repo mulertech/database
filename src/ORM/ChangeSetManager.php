@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use DateTimeImmutable;
-use MulerTech\Database\ORM\ChangeTracking\EntityChange;
 use MulerTech\Database\ORM\State\EntityState;
 use SplObjectStorage;
 
@@ -304,59 +302,6 @@ final class ChangeSetManager
     public function getChangeSet(object $entity): ?ChangeSet
     {
         return $this->changeSets[$entity] ?? null;
-    }
-
-    /**
-     * Get all Changes
-     *
-     * @return ChangesSummary
-     */
-    public function getChanges(): ChangesSummary
-    {
-        // Aggregate all changes into a summary
-        $allUpdateChanges = [];
-
-        // Process scheduled insertions - they become EntityChange objects
-        foreach ($this->scheduledInsertions as $entity) {
-            $currentData = $this->changeDetector->extractCurrentData($entity);
-
-            // For insertions, all properties are "new"
-            $changes = [];
-            foreach ($currentData as $property => $value) {
-                $changes[$property] = new PropertyChange($property, null, $value);
-            }
-
-            if (!empty($changes)) {
-                $allUpdateChanges[] = new EntityChange($entity, $changes);
-            }
-        }
-
-        // Process scheduled updates
-        foreach ($this->scheduledUpdates as $entity) {
-            $changeSet = $this->changeSets[$entity] ?? null;
-            if ($changeSet !== null && !$changeSet->isEmpty()) {
-                $allUpdateChanges[] = new EntityChange($entity, $changeSet->getChanges());
-            }
-        }
-
-        // Return aggregated summary
-        return new ChangesSummary(
-            insertions: $this->scheduledInsertions,
-            updates: $allUpdateChanges,
-            deletions: $this->scheduledDeletions
-        );
-    }
-
-    /**
-     * @return array<object>
-     */
-    public function getEntitiesWithChanges(): array
-    {
-        $entities = [];
-        foreach ($this->changeSets as $entity) {
-            $entities[] = $entity;
-        }
-        return $entities;
     }
 
     /**

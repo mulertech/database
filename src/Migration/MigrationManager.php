@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Migration;
 
-use DateTime;
 use Exception;
 use MulerTech\Database\Migration\Entity\MigrationHistory;
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -12,6 +11,7 @@ use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use MulerTech\Database\Relational\Sql\InformationSchema;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
+use ReflectionException;
 use RuntimeException;
 
 /**
@@ -23,18 +23,19 @@ use RuntimeException;
 class MigrationManager
 {
     /**
-     * @var Migration[] Registered migrations
+     * @var array<string, Migration> Registered migrations eg. ['20231001-1230' => Migration]
      */
     private array $migrations = [];
 
     /**
-     * @var string[] Executed migration versions
+     * @var array<int, string> Executed migration versions
      */
     private array $executedMigrations = [];
 
     /**
      * @param EntityManagerInterface $entityManager
      * @param class-string $migrationHistory
+     * @throws ReflectionException
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -48,6 +49,7 @@ class MigrationManager
      * Ensure migration history table exists
      *
      * @return void
+     * @throws ReflectionException
      */
     private function initializeMigrationTable(): void
     {
@@ -131,7 +133,7 @@ class MigrationManager
             } else {
                 $this->executedMigrations = [];
             }
-        } catch (Exception $e) {
+        } catch (Exception) {
             // Table might not exist yet
             $this->executedMigrations = [];
         }
@@ -197,18 +199,18 @@ class MigrationManager
     /**
      * Check if a migration has been executed
      *
-     * @param string $version
+     * @param Migration $migration
      * @return bool
      */
-    public function isMigrationExecuted(string $version): bool
+    public function isMigrationExecuted(Migration $migration): bool
     {
-        return in_array($version, $this->executedMigrations, true);
+        return in_array($migration->getVersion(), $this->executedMigrations, true);
     }
 
     /**
      * Get all migrations
      *
-     * @return Migration[]
+     * @return array<string, Migration>
      */
     public function getMigrations(): array
     {
@@ -224,15 +226,9 @@ class MigrationManager
      */
     public function getPendingMigrations(): array
     {
-        $pendingMigrations = [];
-
-        foreach ($this->getMigrations() as $version => $migration) {
-            if (!$this->isMigrationExecuted($version)) {
-                $pendingMigrations[$version] = $migration;
-            }
-        }
-
-        return $pendingMigrations;
+        return array_filter($this->getMigrations(), function ($version) {
+            return !$this->isMigrationExecuted($version);
+        });
     }
 
     /**
@@ -260,10 +256,8 @@ class MigrationManager
      */
     public function executeMigration(Migration $migration): void
     {
-        $version = $migration->getVersion();
-
-        if ($this->isMigrationExecuted($version)) {
-            throw new RuntimeException("Migration {$version} has already been executed.");
+        if ($this->isMigrationExecuted($migration)) {
+            throw new RuntimeException("Migration {$migration->getVersion()} has already been executed.");
         }
 
         $startTime = microtime(true);
@@ -285,7 +279,7 @@ class MigrationManager
             }
 
             // Update executed migrations cache
-            $this->executedMigrations[] = $version;
+            $this->executedMigrations[] = $migration->getVersion();
         } catch (Exception $e) {
             // Rollback transaction if it's possible
             if ($this->entityManager->getPdm()->inTransaction()) {
@@ -293,7 +287,7 @@ class MigrationManager
             }
 
             // Re-throw exception
-            throw new RuntimeException("Migration {$version} failed: " . $e->getMessage(), 0, $e);
+            throw new RuntimeException("Migration {$migration->getVersion()} failed: " . $e->getMessage(), 0, $e);
         }
     }
 
@@ -303,6 +297,7 @@ class MigrationManager
      * @param Migration $migration
      * @param float $executionTime
      * @return void
+     * @throws ReflectionException
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
@@ -339,7 +334,7 @@ class MigrationManager
         // Find the migration
         $migration = $this->migrations[$lastVersion] ?? null;
         if ($migration === null) {
-            throw new RuntimeException("Migration {$lastVersion} is recorded as executed but cannot be found.");
+            throw new RuntimeException("Migration $lastVersion is recorded as executed but cannot be found.");
         }
 
         try {
@@ -364,7 +359,7 @@ class MigrationManager
             $this->entityManager->getPdm()->rollBack();
 
             // Re-throw exception
-            throw new RuntimeException("Migration rollback {$lastVersion} failed: " . $e->getMessage(), 0, $e);
+            throw new RuntimeException("Migration rollback $lastVersion failed: " . $e->getMessage(), 0, $e);
         }
     }
 

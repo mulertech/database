@@ -14,9 +14,6 @@ final class StateValidator
     /** @var array<class-string, array<string, callable>> */
     private array $validators = [];
 
-    /** @var array<string, string> */
-    private array $errorMessages = [];
-
     /** @var bool */
     private bool $strictMode = true;
 
@@ -25,7 +22,6 @@ final class StateValidator
 
     public function __construct()
     {
-        $this->initializeDefaultMessages();
     }
 
     /**
@@ -39,10 +35,10 @@ final class StateValidator
         return match ($operation) {
             'persist' => $this->validatePersist($entity, $currentState),
             'update' => $this->validateUpdate($entity, $currentState),
-            'remove' => $this->validateRemove($entity, $currentState),
+            'remove' => $this->validateRemove($currentState),
             'merge' => $this->validateMerge($entity, $currentState),
-            'detach' => $this->validateDetach($entity, $currentState),
-            'refresh' => $this->validateRefresh($entity, $currentState),
+            'detach' => $this->validateDetach($currentState),
+            'refresh' => $this->validateRefresh($currentState),
             default => $this->validateCustomOperation($entity, $currentState, $operation)
         };
     }
@@ -57,14 +53,6 @@ final class StateValidator
     {
         // Basic state transition validation
         if (!$from->canTransitionTo($to)) {
-            $this->setError(
-                'invalid_transition',
-                sprintf(
-                    'Cannot transition from %s to %s',
-                    $from->value,
-                    $to->value
-                )
-            );
             return false;
         }
 
@@ -77,78 +65,13 @@ final class StateValidator
             $result = $validator($entity, $from, $to, $this->validationContext);
 
             if (!$result) {
-                $this->setError(
-                    'custom_validation_failed',
-                    sprintf(
-                        'Custom validation failed for %s transition from %s to %s',
-                        $entityClass,
-                        $from->value,
-                        $to->value
-                    )
-                );
+                return false;
             }
 
             return $result;
         }
 
         return true;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param EntityState $from
-     * @param EntityState $to
-     * @param callable $validator
-     * @return void
-     */
-    public function registerTransitionValidator(
-        string $entityClass,
-        EntityState $from,
-        EntityState $to,
-        callable $validator
-    ): void {
-        $key = sprintf('%s:%s:%s', $entityClass, $from->value, $to->value);
-        $this->validators[$entityClass][$key] = $validator;
-    }
-
-    /**
-     * @param string $operation
-     * @param EntityState $requiredState
-     * @param string $errorMessage
-     * @return void
-     */
-    public function registerOperationRule(
-        string $operation,
-        EntityState $requiredState,
-        string $errorMessage
-    ): void {
-        $this->errorMessages["operation_$operation"] = $errorMessage;
-    }
-
-    /**
-     * @param bool $strict
-     * @return void
-     */
-    public function setStrictMode(bool $strict): void
-    {
-        $this->strictMode = $strict;
-    }
-
-    /**
-     * @param array<string, mixed> $context
-     * @return void
-     */
-    public function setValidationContext(array $context): void
-    {
-        $this->validationContext = $context;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getLastError(): ?string
-    {
-        return $this->errorMessages['last_error'] ?? null;
     }
 
     /**
@@ -159,13 +82,6 @@ final class StateValidator
     private function validatePersist(object $entity, EntityState $currentState): bool
     {
         if ($currentState !== EntityState::NEW && $currentState !== EntityState::DETACHED) {
-            $this->setError(
-                'persist_invalid_state',
-                sprintf(
-                    'Cannot persist entity in %s state. Entity must be NEW or DETACHED.',
-                    $currentState->value
-                )
-            );
             return false;
         }
 
@@ -180,13 +96,6 @@ final class StateValidator
     private function validateUpdate(object $entity, EntityState $currentState): bool
     {
         if ($currentState !== EntityState::MANAGED) {
-            $this->setError(
-                'update_invalid_state',
-                sprintf(
-                    'Cannot update entity in %s state. Entity must be MANAGED.',
-                    $currentState->value
-                )
-            );
             return false;
         }
 
@@ -194,25 +103,16 @@ final class StateValidator
     }
 
     /**
-     * @param object $entity
      * @param EntityState $currentState
      * @return bool
      */
-    private function validateRemove(object $entity, EntityState $currentState): bool
+    private function validateRemove(EntityState $currentState): bool
     {
         if ($currentState === EntityState::NEW) {
-            $this->setError(
-                'remove_invalid_state',
-                'Cannot remove entity in NEW state. Entity must be persisted first.'
-            );
             return false;
         }
 
         if ($currentState === EntityState::REMOVED) {
-            $this->setError(
-                'already_removed',
-                'Entity is already scheduled for removal.'
-            );
             return false;
         }
 
@@ -227,13 +127,6 @@ final class StateValidator
     private function validateMerge(object $entity, EntityState $currentState): bool
     {
         if ($currentState !== EntityState::DETACHED) {
-            $this->setError(
-                'merge_invalid_state',
-                sprintf(
-                    'Cannot merge entity in %s state. Entity must be DETACHED.',
-                    $currentState->value
-                )
-            );
             return false;
         }
 
@@ -241,45 +134,21 @@ final class StateValidator
     }
 
     /**
-     * @param object $entity
      * @param EntityState $currentState
      * @return bool
      */
-    private function validateDetach(object $entity, EntityState $currentState): bool
+    private function validateDetach(EntityState $currentState): bool
     {
-        if ($currentState !== EntityState::MANAGED) {
-            $this->setError(
-                'detach_invalid_state',
-                sprintf(
-                    'Cannot detach entity in %s state. Entity must be MANAGED.',
-                    $currentState->value
-                )
-            );
-            return false;
-        }
-
-        return true;
+        return $currentState === EntityState::MANAGED;
     }
 
     /**
-     * @param object $entity
      * @param EntityState $currentState
      * @return bool
      */
-    private function validateRefresh(object $entity, EntityState $currentState): bool
+    private function validateRefresh(EntityState $currentState): bool
     {
-        if ($currentState !== EntityState::MANAGED) {
-            $this->setError(
-                'refresh_invalid_state',
-                sprintf(
-                    'Cannot refresh entity in %s state. Entity must be MANAGED.',
-                    $currentState->value
-                )
-            );
-            return false;
-        }
-
-        return true;
+        return $currentState === EntityState::MANAGED;
     }
 
     /**
@@ -301,10 +170,6 @@ final class StateValidator
 
         // In strict mode, unknown operations are not allowed
         if ($this->strictMode) {
-            $this->setError(
-                'unknown_operation',
-                sprintf('Unknown operation "%s" in strict mode', $operation)
-            );
             return false;
         }
 
@@ -318,50 +183,8 @@ final class StateValidator
     private function validateEntityIntegrity(object $entity): bool
     {
         // Check if entity has an ID method
-        if (!method_exists($entity, 'getId') &&
+        return !($this->strictMode && !method_exists($entity, 'getId') &&
             !method_exists($entity, 'getIdentifier') &&
-            !method_exists($entity, 'getUuid')) {
-            if ($this->strictMode) {
-                $this->setError(
-                    'missing_identifier',
-                    'Entity must have an identifier method (getId, getIdentifier, or getUuid)'
-                );
-                return false;
-            }
-        }
-
-        // Additional integrity checks can be added here
-        return true;
-    }
-
-    /**
-     * @param string $code
-     * @param string $message
-     * @return void
-     */
-    private function setError(string $code, string $message): void
-    {
-        $this->errorMessages[$code] = $message;
-        $this->errorMessages['last_error'] = $message;
-    }
-
-    /**
-     * @return void
-     */
-    private function initializeDefaultMessages(): void
-    {
-        $this->errorMessages = [
-            'invalid_transition' => 'Invalid state transition',
-            'persist_invalid_state' => 'Cannot persist entity in current state',
-            'update_invalid_state' => 'Cannot update entity in current state',
-            'remove_invalid_state' => 'Cannot remove entity in current state',
-            'merge_invalid_state' => 'Cannot merge entity in current state',
-            'detach_invalid_state' => 'Cannot detach entity in current state',
-            'refresh_invalid_state' => 'Cannot refresh entity in current state',
-            'already_removed' => 'Entity is already scheduled for removal',
-            'missing_identifier' => 'Entity must have an identifier',
-            'unknown_operation' => 'Unknown operation',
-            'custom_validation_failed' => 'Custom validation failed',
-        ];
+            !method_exists($entity, 'getUuid'));
     }
 }

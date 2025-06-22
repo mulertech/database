@@ -7,6 +7,7 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
+use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
@@ -16,15 +17,15 @@ use RuntimeException;
  * @package MulerTech\Database\ORM\Engine\Persistence
  * @author Sébastien Muler
  */
-class InsertionProcessor
+readonly class InsertionProcessor
 {
     /**
      * @param EntityManagerInterface $entityManager
      * @param DbMappingInterface $dbMapping
      */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly DbMappingInterface $dbMapping
+        private EntityManagerInterface $entityManager,
+        private DbMappingInterface $dbMapping
     ) {
     }
 
@@ -72,24 +73,6 @@ class InsertionProcessor
     }
 
     /**
-     * @param array<object> $entities
-     * @return void
-     * @throws ReflectionException
-     */
-    public function executeBatch(array $entities): void
-    {
-        if (empty($entities)) {
-            return;
-        }
-
-        $entitiesByType = $this->groupEntitiesByType($entities);
-
-        foreach ($entitiesByType as $entityClass => $typeEntities) {
-            $this->executeBatchForType($entityClass, $typeEntities);
-        }
-    }
-
-    /**
      * @param object $entity
      * @param array<string, array<int, mixed>> $changes
      * @return QueryBuilder
@@ -122,44 +105,6 @@ class InsertionProcessor
     }
 
     /**
-     * @param class-string $entityClass
-     * @param array<object> $entities
-     * @return void
-     * @throws ReflectionException
-     */
-    private function executeBatchForType(string $entityClass, array $entities): void
-    {
-        $tableName = $this->getTableName($entityClass);
-        $propertiesColumns = $this->getPropertiesColumns($entityClass, false);
-
-        if (empty($propertiesColumns)) {
-            return;
-        }
-
-        $queryBuilder = new \MulerTech\Database\Query\InsertBuilder($this->entityManager->getEmEngine());
-        $queryBuilder->into($tableName);
-
-        $columns = array_values($propertiesColumns);
-        $batchData = [];
-
-        foreach ($entities as $entity) {
-            $row = [];
-            foreach ($propertiesColumns as $property => $column) {
-                $value = $this->getPropertyValue($entity, $property);
-                // Si la colonne est absente, on met null pour garder la correspondance
-                $row[$column] = $value;
-            }
-            $batchData[] = $row;
-        }
-
-        $queryBuilder->batchValues($batchData);
-
-        $pdoStatement = $queryBuilder->getResult();
-        $pdoStatement->execute();
-        $pdoStatement->closeCursor();
-    }
-
-    /**
      * @param object $entity
      * @return void
      */
@@ -179,25 +124,6 @@ class InsertionProcessor
     }
 
     /**
-     * @param array<object> $entities
-     * @return array<class-string, array<object>>
-     */
-    private function groupEntitiesByType(array $entities): array
-    {
-        $grouped = [];
-
-        foreach ($entities as $entity) {
-            $entityClass = $entity::class;
-            if (!isset($grouped[$entityClass])) {
-                $grouped[$entityClass] = [];
-            }
-            $grouped[$entityClass][] = $entity;
-        }
-
-        return $grouped;
-    }
-
-    /**
      * @param object $entity
      * @param string $property
      * @return mixed
@@ -205,7 +131,7 @@ class InsertionProcessor
      */
     private function getPropertyValue(object $entity, string $property): mixed
     {
-        $reflection = new \ReflectionClass($entity);
+        $reflection = new ReflectionClass($entity);
         return $reflection->getProperty($property)->getValue($entity);
     }
 

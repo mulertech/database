@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
+use Exception;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
@@ -17,15 +18,15 @@ use RuntimeException;
  * @package MulerTech\Database\ORM\Engine\Persistence
  * @author Sébastien Muler
  */
-class UpdateProcessor
+readonly class UpdateProcessor
 {
     /**
      * @param EntityManagerInterface $entityManager
      * @param DbMappingInterface $dbMapping
      */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly DbMappingInterface $dbMapping
+        private EntityManagerInterface $entityManager,
+        private DbMappingInterface $dbMapping
     ) {
     }
 
@@ -33,7 +34,6 @@ class UpdateProcessor
      * @param object $entity
      * @param array<string, mixed> $changes
      * @return void
-     * @throws ReflectionException
      */
     public function process(object $entity, array $changes): void
     {
@@ -44,7 +44,6 @@ class UpdateProcessor
      * @param object $entity
      * @param array<string, mixed> $changes
      * @return void
-     * @throws ReflectionException
      */
     public function execute(object $entity, array $changes): void
     {
@@ -67,37 +66,20 @@ class UpdateProcessor
             $queryBuilder = $this->buildUpdateQuery($entity, $changes);
 
             // Verify that the query has actual SET clauses
-            if (!$this->hasValidValues($queryBuilder, $entity, $changes)) {
+            if (!$this->hasValidValues($entity, $changes)) {
                 return;
             }
 
             $pdoStatement = $queryBuilder->getResult();
 
-            $success = $pdoStatement->execute();
-            $rowsAffected = $pdoStatement->rowCount();
+            $pdoStatement->execute();
             $pdoStatement->closeCursor();
-        } catch (\Exception $e) {
-            // Log error but don't fail - entity might have been deleted
-        }
-    }
-
-    /**
-     * @param array<object> $entities
-     * @param array<int, array<string, mixed>> $allChanges
-     * @return void
-     * @throws ReflectionException
-     * @todo Is this method necessary?
-     */
-    public function executeBatch(array $entities, array $allChanges): void
-    {
-        if (empty($entities)) {
-            return;
-        }
-
-        $entitiesByType = $this->groupEntitiesByType($entities);
-
-        foreach ($entitiesByType as $entityClass => $typeEntities) {
-            $this->executeBatchForType($entityClass, $typeEntities, $allChanges);
+        } catch (Exception $e) {
+            throw new RuntimeException(
+                sprintf('Failed to update entity %s: %s', $entity::class, $e->getMessage()),
+                0,
+                $e
+            );
         }
     }
 
@@ -116,7 +98,7 @@ class UpdateProcessor
             if ($directColumn !== null) {
                 return $directColumn;
             }
-        } catch (\Exception $e) {
+        } catch (Exception) {
             // If direct mapping fails, try relation-based mapping
         }
 
@@ -135,7 +117,7 @@ class UpdateProcessor
                 $foreignKeyColumn = $property . '_id';
 
                 // Verify this column exists in the entity's column mappings
-                foreach ($allPropertiesColumns as $prop => $col) {
+                foreach ($allPropertiesColumns as $col) {
                     if ($col === $foreignKeyColumn) {
                         return $col;
                     }
@@ -147,7 +129,7 @@ class UpdateProcessor
                     if ($mappedColumn !== null) {
                         return $mappedColumn;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception) {
                     // Continue with convention-based name
                 }
 
@@ -162,7 +144,7 @@ class UpdateProcessor
                 $foreignKeyColumn = $property . '_id';
 
                 // Verify this column exists in the entity's column mappings
-                foreach ($allPropertiesColumns as $prop => $col) {
+                foreach ($allPropertiesColumns as $col) {
                     if ($col === $foreignKeyColumn) {
                         return $col;
                     }
@@ -174,14 +156,14 @@ class UpdateProcessor
                     if ($mappedColumn !== null) {
                         return $mappedColumn;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception) {
                     // Continue with convention-based name
                 }
 
                 // If not found in explicit mappings, return the convention-based name
                 return $foreignKeyColumn;
             }
-        } catch (\Exception $e) {
+        } catch (Exception) {
             // If mapping fails, return null
             return null;
         }
@@ -250,11 +232,7 @@ class UpdateProcessor
             } elseif (is_object($value)) {
                 // This is an actual object, extract its ID
                 $extractedId = $this->getId($value);
-                if ($extractedId !== null) {
-                    $value = $extractedId;
-                } else {
-                    $value = null;
-                }
+                $value = $extractedId ?? null;
             }
 
             $queryBuilder->setValue($column, $value);
@@ -298,17 +276,10 @@ class UpdateProcessor
                     } elseif (is_object($value)) {
                         // This is an actual object, extract its ID
                         $extractedId = $this->getId($value);
-                        if ($extractedId !== null) {
-                            $value = $extractedId;
-                        } else {
-                            $value = null;
-                        }
-                    } elseif ($value === null) {
-                        // Keep null value
+                        $value = $extractedId ?? null;
                     }
 
                     $queryBuilder->setValue($foreignKeyColumn, $value);
-                    $hasUpdates = true;
                 }
             }
         }
@@ -325,105 +296,6 @@ class UpdateProcessor
         );
 
         return $queryBuilder;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param array<object> $entities
-     * @param array<int, array<string, mixed>> $allChanges
-     * @return void
-     * @throws ReflectionException
-     */
-    private function executeBatchForType(string $entityClass, array $entities, array $allChanges): void
-    {
-        $tableName = $this->getTableName($entityClass);
-        $propertiesColumns = $this->getPropertiesColumns($entityClass, false);
-
-        if (empty($propertiesColumns)) {
-            return;
-        }
-
-        // For batch updates, we can use CASE WHEN or individual updates
-        // Here we choose individual updates grouped in a transaction
-        foreach ($entities as $entity) {
-            $entityId = spl_object_id($entity);
-            $changes = $allChanges[$entityId] ?? [];
-
-            if (!empty($changes)) {
-                $this->execute($entity, $changes);
-            }
-        }
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param array<string, mixed> $criteria
-     * @param array<string, mixed> $updates
-     * @return int
-     * @throws ReflectionException
-     */
-    public function updateByCriteria(string $entityClass, array $criteria, array $updates): int
-    {
-        $tableName = $this->getTableName($entityClass);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder->update($tableName);
-
-        foreach ($updates as $property => $value) {
-            $column = $this->getColumnName($entityClass, $property);
-            $queryBuilder->setValue($column, $queryBuilder->addNamedParameter($value));
-        }
-
-        $this->applyCriteria($queryBuilder, $entityClass, $criteria);
-
-        $pdoStatement = $queryBuilder->getResult();
-        $pdoStatement->execute();
-        $rowCount = $pdoStatement->rowCount();
-        $pdoStatement->closeCursor();
-
-        return $rowCount;
-    }
-
-    /**
-     * @param array<object> $entities
-     * @return array<class-string, array<object>>
-     */
-    private function groupEntitiesByType(array $entities): array
-    {
-        $grouped = [];
-
-        foreach ($entities as $entity) {
-            $entityClass = $entity::class;
-            if (!isset($grouped[$entityClass])) {
-                $grouped[$entityClass] = [];
-            }
-            $grouped[$entityClass][] = $entity;
-        }
-
-        return $grouped;
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param class-string $entityClass
-     * @param array<string, mixed> $criteria
-     * @return void
-     * @throws ReflectionException
-     */
-    private function applyCriteria(QueryBuilder $queryBuilder, string $entityClass, array $criteria): void
-    {
-        $first = true;
-
-        foreach ($criteria as $property => $value) {
-            $column = $this->getColumnName($entityClass, $property);
-            $condition = SqlOperations::equal($column, $queryBuilder->addNamedParameter($value));
-
-            if ($first) {
-                $queryBuilder->where($condition);
-                $first = false;
-            } else {
-                $queryBuilder->andWhere($condition);
-            }
-        }
     }
 
     /**
@@ -462,25 +334,6 @@ class UpdateProcessor
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string
-     * @throws ReflectionException
-     */
-    private function getColumnName(string $entityName, string $property): string
-    {
-        $columnName = $this->dbMapping->getColumnName($entityName, $property);
-
-        if ($columnName === null) {
-            throw new RuntimeException(
-                sprintf('Column name not found for property %s in entity %s', $property, $entityName)
-            );
-        }
-
-        return $columnName;
-    }
-
-    /**
      * Check if an entity exists in the database
      *
      * @param object $entity
@@ -503,20 +356,19 @@ class UpdateProcessor
             $statement->closeCursor();
 
             return $count > 0;
-        } catch (\Exception $e) {
+        } catch (Exception) {
             // If we can't check, assume it exists to avoid silent failures
             return true;
         }
     }
 
     /**
-     * @param QueryBuilder $queryBuilder
      * @param object $entity
      * @param array<string, mixed> $changes
      * @return bool
      * @throws ReflectionException
      */
-    private function hasValidValues(QueryBuilder $queryBuilder, object $entity, array $changes): bool
+    private function hasValidValues(object $entity, array $changes): bool
     {
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
         $hasValues = false;

@@ -51,7 +51,7 @@ class MigrationRollbackCommand extends AbstractCommand
             // Get executed migrations
             $executedMigrations = array_filter(
                 $migrations,
-                fn ($migration) => $this->migrationManager->isMigrationExecuted($migration->getVersion()),
+                fn ($migration) => $this->migrationManager->isMigrationExecuted($migration),
             );
 
             if (empty($executedMigrations)) {
@@ -83,10 +83,10 @@ class MigrationRollbackCommand extends AbstractCommand
             if ($this->migrationManager->rollback()) {
                 $this->terminal->writeLine('Migration ' . $lastVersion . ' successfully rolled back.', 'green');
                 return 0;
-            } else {
-                $this->terminal->writeLine('No migration has been rolled back.', 'yellow');
-                return 0;
             }
+
+            $this->terminal->writeLine('No migration has been rolled back.', 'yellow');
+            return 0;
         } catch (Exception $e) {
             $this->terminal->writeLine('Error: ' . $e->getMessage(), 'red');
             return 1;
