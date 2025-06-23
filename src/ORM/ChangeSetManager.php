@@ -104,14 +104,14 @@ final class ChangeSetManager
         // Register entity in the registry
         $this->registry->register($entity);
 
-        // L'état des entités dans scheduleInsert doit être NEW seulement si elles n'ont pas d'ID
+        // Entity state in scheduleInsert should be NEW only if they don't have an ID
         if ($metadata === null) {
-            // Si l'entité n'est pas encore dans l'identity map, l'ajouter avec l'état NEW
+            // If entity is not yet in the identity map, add it with NEW state
             $this->identityMap->add($entity);
             return;
         }
 
-        // Si l'entité est déjà dans l'identity map mais n'a pas d'ID, forcer son état à NEW
+        // If entity is already in identity map but has no ID, force its state to NEW
         if ($metadata->state !== EntityState::NEW) {
             try {
                 $newMetadata = new EntityMetadata(
@@ -124,7 +124,7 @@ final class ChangeSetManager
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             } catch (InvalidArgumentException) {
-                // Créer une nouvelle métadonnée avec l'état NEW si la transition échoue
+                // Create new metadata with NEW state if transition fails
                 $newData = $this->changeDetector->extractCurrentData($entity);
                 $newMetadata = new EntityMetadata(
                     $metadata->className,

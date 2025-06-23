@@ -210,8 +210,8 @@ class EntityRelationLoader
             return new DatabaseCollection();
         }
 
-        // Pour ManyToMany: TOUJOURS recharger depuis la base de données
-        // pour s'assurer que l'état reflète les changements
+        // For ManyToMany: ALWAYS reload from database
+        // to ensure state reflects changes
 
         /** @var class-string $mappedBy */
         $mappedBy = $this->getMappedBy(get_class($entity), $relation, $property);

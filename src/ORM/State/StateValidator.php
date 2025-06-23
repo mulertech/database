@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\State;
 
 /**
- * Validateur d'état pour les opérations sur les entités
+ * State validator for entity operations
  * @package MulerTech\Database\ORM\State
  * @author Sébastien Muler
  */

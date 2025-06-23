@@ -7,7 +7,7 @@ namespace MulerTech\Database\Cache;
 use InvalidArgumentException;
 
 /**
- * Configuration du cache
+ * Cache configuration
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

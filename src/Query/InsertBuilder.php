@@ -90,7 +90,7 @@ class InsertBuilder extends AbstractQueryBuilder
             throw new RuntimeException('Batch data cannot be empty');
         }
 
-        // Déterminer la liste complète des colonnes
+        // Determine the complete list of columns
         $allColumns = [];
         foreach ($batchData as $row) {
             foreach (array_keys($row) as $col) {
@@ -100,7 +100,7 @@ class InsertBuilder extends AbstractQueryBuilder
             }
         }
 
-        // Normaliser chaque ligne pour qu'elle ait toutes les colonnes (avec null si absent)
+        // Normalize each row so it has all columns (with null if missing)
         $normalizedBatch = [];
         foreach ($batchData as $row) {
             $normalizedRow = [];

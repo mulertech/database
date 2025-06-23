@@ -94,10 +94,10 @@ final class EntityFactory
             return $entity;
         }
 
-        // Si l'entité est déjà présente mais pas en état MANAGED, essayer de mettre à jour son état
+        // If entity is already present but not in MANAGED state, try to update its state
         if ($metadata->state !== EntityState::MANAGED) {
             try {
-                // Vérifier que la transition est valide avant de l'appliquer
+                // Check that the transition is valid before applying it
                 if ($metadata->state->canTransitionTo(EntityState::MANAGED)) {
                     $managedMetadata = new EntityMetadata(
                         $metadata->className,
@@ -110,8 +110,8 @@ final class EntityFactory
                     $this->identityMap->updateMetadata($entity, $managedMetadata);
                 }
             } catch (InvalidArgumentException) {
-                // Si la transition échoue, on continue quand même
-                // L'entité sera utilisée avec son état actuel
+                // If transition fails, we continue anyway
+                // The entity will be used with its current state
             }
         }
 

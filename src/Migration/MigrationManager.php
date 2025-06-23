@@ -123,7 +123,7 @@ class MigrationManager
                 $this->migrationHistory,
             );
 
-            // Correction : extraire les versions (string) depuis les objets
+            // Extract versions (string) from objects
             if (is_iterable($results)) {
                 $versions = [];
                 foreach ($results as $row) {

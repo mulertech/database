@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Gestionnaire d'invalidation intelligent
+ * Intelligent invalidation manager
  * @package MulerTech\Database\Cache
  * @author Sébastien Muler
  */
