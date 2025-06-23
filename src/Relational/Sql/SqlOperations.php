@@ -425,8 +425,8 @@ class SqlOperations
     }
 
     /**
-     * @param string $first
-     * @param string $second
+     * @param string|SqlOperations $first
+     * @param string|SqlOperations $second
      * @param ComparisonOperator $operator
      * @param ScopeComparison|null $allAnySome
      * @return string

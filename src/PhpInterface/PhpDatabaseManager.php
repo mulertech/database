@@ -136,7 +136,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
                 // Return wrapped cached statement
                 return new Statement($cachedStatement);
-            } catch (PDOException $e) {
+            } catch (PDOException) {
                 // Connection lost, invalidate cache and reconnect
                 $this->statementCache?->delete($cacheKey);
                 $this->connection = null;
@@ -149,8 +149,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         // Cache the PDOStatement (not the wrapper)
         $this->statementCache?->set(
             $cacheKey,
-            $statement->getPdoStatement(),
-            0 // No TTL, use cache eviction policy
+            $statement->getPdoStatement()
         );
 
         // Tag for easy invalidation
@@ -211,13 +210,17 @@ class PhpDatabaseManager implements PhpDatabaseInterface
             '/DELETE\s+FROM\s+`?(\w+)`?/i',
         ];
 
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $query, $matches)) {
-                return strtolower($matches[1]);
+        $return = 'unknown';
+        array_any($patterns, static function ($pattern) use ($query, &$return) {
+            $match = preg_match($pattern, $query, $matches);
+            if ($match) {
+                $return = strtolower($matches[1]);
+                return true;
             }
-        }
+            return false;
+        });
 
-        return 'unknown';
+        return $return;
     }
 
     /**
@@ -435,7 +438,6 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         $stats = $this->statementCache?->getStatistics();
 
         // Add usage analytics
-        $topStatements = [];
         arsort($this->statementUsageCount);
         $topStatements = array_slice($this->statementUsageCount, 0, 10, true);
 
@@ -501,12 +503,11 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 parse_str($parsedParams['query'], $parsedQuery);
                 $parsedParams = array_merge($parsedParams, $parsedQuery);
             }
-            $parsedParams = array_combine(
+            /** @var array<string, mixed> $parsedParams */
+            return array_combine(
                 array_map('strval', array_keys($parsedParams)),
                 array_values($parsedParams)
             );
-            /** @var array<string, mixed> $parsedParams */
-            return $parsedParams;
         }
 
         return self::populateEnvParameters($parameters);

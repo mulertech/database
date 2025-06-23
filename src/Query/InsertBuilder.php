@@ -64,7 +64,7 @@ class InsertBuilder extends AbstractQueryBuilder
     /**
      * @param string $column
      * @param mixed $value
-     * @param int $type
+     * @param int|null $type
      * @return self
      */
     public function set(string $column, mixed $value, ?int $type = PDO::PARAM_STR): self
@@ -103,7 +103,7 @@ class InsertBuilder extends AbstractQueryBuilder
         foreach ($batchData as $row) {
             $normalizedRow = [];
             foreach ($allColumns as $col) {
-                $value = array_key_exists($col, $row) ? $row[$col] : null;
+                $value = $row[$col] ?? null;
                 // Process each value for parameterization
                 if ($value instanceof Raw) {
                     $normalizedRow[$col] = $value->getValue();
@@ -253,12 +253,12 @@ class InsertBuilder extends AbstractQueryBuilder
         $sql .= ' VALUES ';
 
         $valueGroups = [];
-        $paramCounter = 1; // compteur global pour garantir l'unicité
+        $paramCounter = 1;
         foreach ($this->batchValues as $row) {
             $valueParts = [];
             foreach ($columns as $column) {
                 $paramName = ':batchParam' . $paramCounter++;
-                $this->namedParameters[$paramName] = [$row[$column], \PDO::PARAM_STR];
+                $this->namedParameters[$paramName] = [$row[$column], PDO::PARAM_STR];
                 $valueParts[] = $paramName;
             }
             $valueGroups[] = '(' . implode(', ', $valueParts) . ')';

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Relational\Sql;
 
+use Exception;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\QueryFactory;
 use MulerTech\Database\Query\SelectBuilder;
@@ -108,7 +109,7 @@ class QueryBuilder
     public function from(string|QueryBuilder|null $table = null, ?string $alias = null): self
     {
         if ($this->currentBuilder instanceof SelectBuilder && $table !== null) {
-            if ($table instanceof QueryBuilder) {
+            if ($table instanceof self) {
                 // Convert QueryBuilder to SelectBuilder if possible
                 $selectBuilder = $table->getCurrentBuilder();
                 if ($selectBuilder instanceof SelectBuilder) {
@@ -583,7 +584,7 @@ class QueryBuilder
     {
         try {
             return $this->getQuery();
-        } catch (\Exception $e) {
+        } catch (Exception) {
             return '';
         }
     }
@@ -594,29 +595,6 @@ class QueryBuilder
     public function getType(): ?string
     {
         return $this->currentType;
-    }
-
-    /**
-     * @param string $name
-     * @return array{name: string, alias: string|null}
-     */
-    public function extractAlias(string $name): array
-    {
-        $name = trim($name);
-
-        if (str_contains($name, ' as ')) {
-            $return = explode(' as ', $name);
-            return ['name' => $return[0], 'alias' => $return[1]];
-        }
-        if (str_contains($name, ' AS ')) {
-            $return = explode(' AS ', $name);
-            return ['name' => $return[0], 'alias' => $return[1]];
-        }
-        if (str_contains($name, ' ')) {
-            $return = explode(' ', $name);
-            return ['name' => $return[0], 'alias' => $return[1]];
-        }
-        return ['name' => $name, 'alias' => null];
     }
 
     /**
@@ -633,47 +611,6 @@ class QueryBuilder
     public function getCurrentBuilder(): SelectBuilder|InsertBuilder|UpdateBuilder|DeleteBuilder|null
     {
         return $this->currentBuilder;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getStats(): array
-    {
-        return $this->queryFactory->getAllStats();
-    }
-
-    /**
-     * @param string $queryType
-     * @return void
-     */
-    public function invalidateCache(string $queryType = ''): void
-    {
-        $this->queryFactory->invalidateCache($queryType);
-    }
-
-    /**
-     * @return array{sql: string, parameters: array<string|int, mixed>}
-     */
-    public function compileWithParameters(): array
-    {
-        if ($this->currentBuilder === null) {
-            throw new RuntimeException('No query built yet');
-        }
-
-        $sql = $this->currentBuilder->toSql();
-        $namedParams = $this->currentBuilder->getNamedParameters();
-
-        // Convert named parameters to simple array for PDO binding
-        $parameters = [];
-        foreach ($namedParams as $key => $valueAndType) {
-            $parameters[$key] = $valueAndType[0]; // Extract only the value
-        }
-
-        return [
-            'sql' => $sql,
-            'parameters' => $parameters,
-        ];
     }
 
     /**

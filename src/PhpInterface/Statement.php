@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\PhpInterface;
 
-use Iterator;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -16,12 +15,12 @@ use Traversable;
  * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
-class Statement
+readonly class Statement
 {
     /**
      * @param PDOStatement $statement
      */
-    public function __construct(private readonly PDOStatement $statement)
+    public function __construct(private PDOStatement $statement)
     {
     }
 
@@ -53,7 +52,7 @@ class Statement
                 );
             }
 
-            return $result;
+            return true;
         } catch (PDOException $exception) {
             throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
         }
@@ -101,7 +100,7 @@ class Statement
             );
         }
 
-        return $result;
+        return true;
     }
 
     /**
@@ -132,7 +131,7 @@ class Statement
             );
         }
 
-        return $result;
+        return true;
     }
 
     /**
@@ -156,7 +155,7 @@ class Statement
             );
         }
 
-        return $result;
+        return true;
     }
 
     /**
@@ -232,7 +231,7 @@ class Statement
             );
         }
 
-        return $result;
+        return true;
     }
 
     /**

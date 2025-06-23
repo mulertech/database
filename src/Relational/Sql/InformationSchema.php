@@ -34,7 +34,7 @@ class InformationSchema
     /**
      * @param EmEngine $emEngine
      */
-    public function __construct(private EmEngine $emEngine)
+    public function __construct(private readonly EmEngine $emEngine)
     {
     }
 

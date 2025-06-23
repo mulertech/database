@@ -6,7 +6,7 @@ namespace MulerTech\Database\Query;
 
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperations;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use RuntimeException;
 
 /**
  * Optimized SELECT query builder with caching support
@@ -142,20 +142,18 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function from(string|SelectBuilder $table, ?string $alias = null): self
     {
-        if ($table instanceof SelectBuilder) {
+        if ($table instanceof self) {
             // Handle subquery
             $subQueryAlias = $alias ?? $table->getSubQueryAlias();
             if (empty($subQueryAlias)) {
-                throw new \RuntimeException('Subquery must have an alias');
+                throw new RuntimeException('Subquery must have an alias');
             }
             $this->from[] = ['table' => $table, 'alias' => $subQueryAlias];
+        } elseif ($alias === null) {
+            $parsed = $this->parseTableAlias($table);
+            $this->from[] = $parsed;
         } else {
-            if ($alias === null) {
-                $parsed = $this->parseTableAlias($table);
-                $this->from[] = $parsed;
-            } else {
-                $this->from[] = ['table' => $table, 'alias' => $alias];
-            }
+            $this->from[] = ['table' => $table, 'alias' => $alias];
         }
 
         return $this;
@@ -242,7 +240,7 @@ class SelectBuilder extends AbstractQueryBuilder
     public function andWhere(SqlOperations|string $condition): self
     {
         if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::AND);
+            $this->where->addOperation($condition);
         } else {
             $this->where($condition);
         }
@@ -332,7 +330,7 @@ class SelectBuilder extends AbstractQueryBuilder
     public function andHaving(SqlOperations|string $condition): self
     {
         if ($this->having !== null) {
-            $this->having->addOperation($condition, LinkOperator::AND);
+            $this->having->addOperation($condition);
         } else {
             $this->having($condition);
         }
@@ -423,7 +421,7 @@ class SelectBuilder extends AbstractQueryBuilder
     public function offset(?int $page = 1, int $manuallyOffset = 0): self
     {
         if ($this->limit <= 0) {
-            throw new \RuntimeException('Cannot set offset without a limit.');
+            throw new RuntimeException('Cannot set offset without a limit.');
         }
 
         $offset = $page === null ? $manuallyOffset : ($page - 1) * $this->limit;
@@ -488,21 +486,15 @@ class SelectBuilder extends AbstractQueryBuilder
     private function addJoin(string $type, string $table, ?string $condition, ?string $alias): self
     {
         if ($alias === null) {
-            $parsed = $this->parseTableAlias($table);
-            $this->joins[] = [
-                'type' => $type,
-                'table' => $parsed['table'],
-                'alias' => $parsed['alias'],
-                'condition' => $condition,
-            ];
-        } else {
-            $this->joins[] = [
-                'type' => $type,
-                'table' => $table,
-                'alias' => $alias,
-                'condition' => $condition,
-            ];
+            ['table' => $table, 'alias' => $alias] = $this->parseTableAlias($table);
         }
+
+        $this->joins[] = [
+            'type' => $type,
+            'table' => $table,
+            'alias' => $alias,
+            'condition' => $condition,
+        ];
 
         return $this;
     }
@@ -527,7 +519,7 @@ class SelectBuilder extends AbstractQueryBuilder
 
         // JOIN clauses
         if (!empty($this->joins)) {
-            $sql .= ' ' . $this->buildJoinClauses();
+            $sql .= ' ' . $this->buildJoinClauses($this->joins);
         }
 
         // WHERE clause
@@ -572,7 +564,7 @@ class SelectBuilder extends AbstractQueryBuilder
         $fromParts = [];
 
         foreach ($this->from as $table) {
-            if ($table['table'] instanceof SelectBuilder) {
+            if ($table['table'] instanceof self) {
                 // Handle subquery
                 $subQuery = '(' . $table['table']->toSql() . ')';
                 $part = $subQuery . ' AS ' . $table['alias'];
@@ -592,32 +584,6 @@ class SelectBuilder extends AbstractQueryBuilder
         }
 
         return implode(', ', $fromParts);
-    }
-
-    /**
-     * @return string
-     */
-    private function buildJoinClauses(): string
-    {
-        $joinParts = [];
-
-        foreach ($this->joins as $join) {
-            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
-
-            if ($join['alias'] !== null) {
-                $part .= ' AS ' . $join['alias'];
-            }
-
-            if ($join['condition'] !== null) {
-                $explodeString = str_contains($join['condition'], ' = ') ? ' = ' : '=';
-                $conditionParts = array_map([self::class, 'escapeIdentifier'], explode($explodeString, $join['condition']));
-                $part .= ' ON ' . $conditionParts[0] . '=' . $conditionParts[1];
-            }
-
-            $joinParts[] = $part;
-        }
-
-        return implode(' ', $joinParts);
     }
 
     /**

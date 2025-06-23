@@ -242,6 +242,8 @@ class ColumnDefinition
     }
 
     /**
+     * @param int $precision
+     * @param int $scale
      * @return self
      */
     public function float(int $precision = 8, int $scale = 2): self

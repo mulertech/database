@@ -31,7 +31,7 @@ class SchemaQueryGenerator
             return $this->generateCreateTable($tableName, $columns, $indexes, $foreignKeys, $options);
         }
 
-        return $this->generateAlterTable($tableName, $columns, $options, $foreignKeys);
+        return $this->generateAlterTable($tableName, $columns, $foreignKeys);
     }
 
     /**
@@ -95,11 +95,10 @@ class SchemaQueryGenerator
     /**
      * @param string $tableName
      * @param array<string, ColumnDefinition|array{drop: bool}> $columns
-     * @param array<string, mixed> $options
      * @param array<string, ForeignKeyDefinition> $foreignKeys
      * @return string
      */
-    private function generateAlterTable(string $tableName, array $columns, array $options, array $foreignKeys): string
+    private function generateAlterTable(string $tableName, array $columns, array $foreignKeys): string
     {
         $alterations = [];
 
@@ -146,7 +145,7 @@ class SchemaQueryGenerator
         if ($column->getPrecision() !== null && $column->getScale() !== null) {
             // For DECIMAL, NUMERIC, FLOAT types that use precision and scale
             $sql .= '(' . $column->getPrecision() . ',' . $column->getScale() . ')';
-        } elseif ($column->getType()->isTypeWithLength() && $column->getLength() !== null) {
+        } elseif ($column->getLength() !== null && $column->getType()->isTypeWithLength()) {
             // For VARCHAR, CHAR and other types that use length
             $sql .= '(' . $column->getLength() . ')';
         } elseif ($type === ColumnType::SET || $type === ColumnType::ENUM) {

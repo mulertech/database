@@ -13,12 +13,12 @@ use RuntimeException;
  * @package MulerTech\Database\PhpInterface
  * @author Sébastien Muler
  */
-class PdoConnector implements ConnectorInterface
+readonly class PdoConnector implements ConnectorInterface
 {
     /**
      * @param DriverInterface $driver
      */
-    public function __construct(private readonly DriverInterface $driver)
+    public function __construct(private DriverInterface $driver)
     {
     }
 

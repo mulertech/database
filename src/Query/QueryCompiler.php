@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query;
 
+use InvalidArgumentException;
 use MulerTech\Database\Cache\CacheFactory;
 use MulerTech\Database\Cache\ResultSetCache;
+use ReflectionClass;
+use ReflectionProperty;
 
 /**
  * Query compiler with unified caching system
@@ -75,7 +78,7 @@ class QueryCompiler
 
         // Store in cache with table tags
         $this->cache->set($cacheKey, $sql);
-        $this->cache->tag($cacheKey, array_map(fn ($table) => 'table:' . $table, $tables));
+        $this->cache->tag($cacheKey, array_map(static fn ($table) => 'table:' . $table, $tables));
 
         return $sql;
     }
@@ -199,7 +202,6 @@ class QueryCompiler
     private function generateCacheKey(AbstractQueryBuilder $builder): string
     {
         // Get or create query structure hash
-        $builderClass = get_class($builder);
         $builderHash = spl_object_hash($builder);
 
         if (!isset($this->queryStructureCache[$builderHash])) {
@@ -216,15 +218,14 @@ class QueryCompiler
      */
     private function extractQueryStructure(AbstractQueryBuilder $builder): array
     {
-        $reflection = new \ReflectionClass($builder);
+        $reflection = new ReflectionClass($builder);
         $structure = [
             'type' => $builder->getQueryType(),
             'class' => get_class($builder),
         ];
 
         // Extract only structural properties, not parameter values
-        foreach ($reflection->getProperties(\ReflectionProperty::IS_PRIVATE) as $property) {
-            $property->setAccessible(true);
+        foreach ($reflection->getProperties(ReflectionProperty::IS_PRIVATE) as $property) {
             $value = $property->getValue($builder);
 
             // Skip parameter arrays as they contain values, not structure
@@ -266,7 +267,7 @@ class QueryCompiler
 
         foreach ($patterns as $pattern) {
             if (preg_match_all($pattern, $sql, $matches)) {
-                $tables = array_merge($tables, $matches[1]);
+                array_push($tables, ...$matches[1]);
             }
         }
 
@@ -344,9 +345,8 @@ class QueryCompiler
     private function shouldAddQueryHints(SelectBuilder $builder): bool
     {
         // Add hints for queries that might benefit from them
-        $reflection = new \ReflectionClass($builder);
+        $reflection = new ReflectionClass($builder);
         $property = $reflection->getProperty('joins');
-        $property->setAccessible(true);
         $joins = $property->getValue($builder);
 
         return !empty($joins) && count($joins) > 2;
@@ -358,9 +358,8 @@ class QueryCompiler
      */
     private function isBulkUpdate(UpdateBuilder $builder): bool
     {
-        $reflection = new \ReflectionClass($builder);
+        $reflection = new ReflectionClass($builder);
         $property = $reflection->getProperty('where');
-        $property->setAccessible(true);
         $where = $property->getValue($builder);
 
         // If no where clause or very simple where, consider it bulk
@@ -373,9 +372,8 @@ class QueryCompiler
      */
     private function isSimpleDelete(DeleteBuilder $builder): bool
     {
-        $reflection = new \ReflectionClass($builder);
+        $reflection = new ReflectionClass($builder);
         $property = $reflection->getProperty('where');
-        $property->setAccessible(true);
         $where = $property->getValue($builder);
 
         // Simple delete has a single WHERE condition
@@ -385,13 +383,13 @@ class QueryCompiler
     /**
      * @param string $sql
      * @return void
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     private function validateSql(string $sql): void
     {
         // Basic SQL validation
         if (empty(trim($sql))) {
-            throw new \InvalidArgumentException('Generated SQL cannot be empty');
+            throw new InvalidArgumentException('Generated SQL cannot be empty');
         }
 
         // Check for dangerous patterns
@@ -403,7 +401,7 @@ class QueryCompiler
 
         foreach ($dangerousPatterns as $pattern) {
             if (preg_match($pattern, $sql)) {
-                throw new \InvalidArgumentException('Potentially dangerous SQL pattern detected');
+                throw new InvalidArgumentException('Potentially dangerous SQL pattern detected');
             }
         }
     }
