@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql;
 
 /**
@@ -423,15 +425,15 @@ class SqlOperations
     }
 
     /**
-     * @param string $first
-     * @param string $second
+     * @param string|SqlOperations $first
+     * @param string|SqlOperations $second
      * @param ComparisonOperator $operator
      * @param ScopeComparison|null $allAnySome
      * @return string
      */
     private static function generateComparisonOperation(
-        string $first,
-        string $second,
+        string|SqlOperations $first,
+        string|SqlOperations $second,
         ComparisonOperator $operator,
         ?ScopeComparison $allAnySome = null
     ): string {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql\MySql;
 
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
@@ -32,7 +34,7 @@ class DatabaseBackupManager
      * @param array<int, string>|null $tableList List of tables to backup, or null for all.
      * @return bool|string True if backup ok, false if backup ok but save nok, or error message as string.
      */
-    public function createBackup(string $pathMysqldump, string $pathBackup, ?array $tableList = null)
+    public function createBackup(string $pathMysqldump, string $pathBackup, ?array $tableList = null): bool|string
     {
         $output = [];
         $tables = (!is_null($tableList)) ? implode(' ', $tableList) . ' ' : '';

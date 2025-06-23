@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Cache en mémoire avec support LRU/LFU/FIFO et tagging
- * @package MulerTech\Database\Cache
+ * Class MemoryCache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MemoryCache implements TaggableCacheInterface
@@ -268,7 +268,6 @@ class MemoryCache implements TaggableCacheInterface
     protected function evict(): void
     {
         $keyToEvict = match ($this->config->evictionPolicy) {
-            'lru' => $this->findLruKey(),
             'lfu' => $this->findLfuKey(),
             'fifo' => $this->findFifoKey(),
             default => $this->findLruKey(),

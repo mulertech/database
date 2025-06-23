@@ -1,12 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\MtManyToMany;
-use MulerTech\Database\Mapping\MtManyToOne;
-use MulerTech\Database\Mapping\MtOneToMany;
-use MulerTech\Database\Mapping\MtOneToOne;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\EntityRelationLoader;
@@ -16,9 +15,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class RelationManager
+ *
  * Manager for relations between entities (OneToMany, ManyToMany, etc.)
  *
- * @package MulerTech\Database\ORM\Engine\Relations
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class RelationManager
@@ -73,7 +74,6 @@ class RelationManager
      * @param object $entity
      * @param array<string, mixed> $entityData
      * @return void
-     * @throws ReflectionException
      */
     public function loadEntityRelations(object $entity, array $entityData): void
     {
@@ -163,66 +163,6 @@ class RelationManager
     }
 
     /**
-     * @return array<int, array{entity: object, related: object, manyToMany: MtManyToMany, action?: string}>
-     */
-    public function getPendingManyToManyInsertions(): array
-    {
-        return $this->manyToManyInsertions;
-    }
-
-    /**
-     * @param object $entity
-     * @param string $relationProperty
-     * @return bool
-     * @throws ReflectionException
-     */
-    public function hasRelationChanges(object $entity, string $relationProperty): bool
-    {
-        $entityReflection = new ReflectionClass($entity);
-        $relationValue = $entityReflection->getProperty($relationProperty)->getValue($entity);
-
-        if ($relationValue instanceof DatabaseCollection) {
-            return $relationValue->hasChanges();
-        }
-
-        return false;
-    }
-
-    /**
-     * @param object $entity
-     * @return array<string>
-     * @throws ReflectionException
-     */
-    public function getChangedRelations(object $entity): array
-    {
-        $changedRelations = [];
-        $entityName = $entity::class;
-        $entityReflection = new ReflectionClass($entity);
-
-        // Check OneToMany relations
-        $oneToManyList = $this->entityManager->getDbMapping()->getOneToMany($entityName);
-        if (is_array($oneToManyList)) {
-            foreach ($oneToManyList as $property => $oneToMany) {
-                if ($this->hasRelationChanges($entity, $property)) {
-                    $changedRelations[] = $property;
-                }
-            }
-        }
-
-        // Check ManyToMany relations
-        $manyToManyList = $this->entityManager->getDbMapping()->getManyToMany($entityName);
-        if (is_array($manyToManyList)) {
-            foreach ($manyToManyList as $property => $manyToMany) {
-                if ($this->hasRelationChanges($entity, $property)) {
-                    $changedRelations[] = $property;
-                }
-            }
-        }
-
-        return $changedRelations;
-    }
-
-    /**
      * @return void
      */
     public function clear(): void
@@ -306,7 +246,7 @@ class RelationManager
             }
 
             foreach ($entities->items() as $relatedEntity) {
-                if ($relatedEntity !== null && is_object($relatedEntity) && $this->getId($relatedEntity) === null) {
+                if (is_object($relatedEntity) && $this->getId($relatedEntity) === null) {
                     $this->stateManager->scheduleForInsertion($relatedEntity);
                     $this->stateManager->addInsertionDependency($relatedEntity, $entity);
                 }
@@ -385,7 +325,7 @@ class RelationManager
                 'entity' => $entity,
                 'related' => $relatedEntity,
                 'manyToMany' => $manyToMany,
-                'action' => 'insert'
+                'action' => 'insert',
             ];
         }
 
@@ -395,7 +335,7 @@ class RelationManager
                 'entity' => $entity,
                 'related' => $relatedEntity,
                 'manyToMany' => $manyToMany,
-                'action' => 'delete'
+                'action' => 'delete',
             ];
         }
     }
@@ -419,7 +359,7 @@ class RelationManager
                 $this->manyToManyInsertions[] = [
                     'entity' => $entity,
                     'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany
+                    'manyToMany' => $manyToMany,
                 ];
             }
         }
@@ -428,6 +368,7 @@ class RelationManager
     /**
      * @param class-string $entityName
      * @return array<string, mixed>|false
+     * @throws ReflectionException
      */
     private function getOneToManyMapping(string $entityName): array|false
     {
@@ -442,6 +383,7 @@ class RelationManager
     /**
      * @param class-string $entityName
      * @return array<string, mixed>|false
+     * @throws ReflectionException
      */
     private function getManyToManyMapping(string $entityName): array|false
     {
@@ -451,35 +393,6 @@ class RelationManager
         }
 
         return $this->manyToManyCache[$entityName];
-    }
-
-    /**
-     * @return void
-     * @throws ReflectionException
-     */
-    private function executeManyToManyRelations(): void
-    {
-        // Process all pending many-to-many operations
-        foreach ($this->manyToManyInsertions as $operation) {
-            $entity = $operation['entity'];
-            $relatedEntity = $operation['related'];
-            $manyToMany = $operation['manyToMany'];
-            $action = $operation['action'] ?? 'insert';
-
-            if ($action === 'delete') {
-                $this->scheduleExistingLinkForDeletion($manyToMany, $entity, $relatedEntity);
-            } else {
-                $existingLink = $this->findExistingLinkRelation($manyToMany, $entity, $relatedEntity);
-
-                if ($existingLink === null) {
-                    $linkEntity = $this->createLinkEntity($manyToMany, $entity, $relatedEntity);
-                    $this->stateManager->scheduleForInsertion($linkEntity);
-                }
-            }
-        }
-
-        // Clear processed insertions
-        $this->manyToManyInsertions = [];
     }
 
     /**
@@ -500,6 +413,7 @@ class RelationManager
      * @param object $entity
      * @param object $relatedEntity
      * @return object|null
+     * @throws ReflectionException
      */
     private function findExistingLinkRelation(
         MtManyToMany $manyToMany,
@@ -570,6 +484,7 @@ class RelationManager
      * @param object $entity
      * @param object $relatedEntity
      * @return void
+     * @throws ReflectionException
      */
     private function scheduleExistingLinkForDeletion(
         MtManyToMany $manyToMany,

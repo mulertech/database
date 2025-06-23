@@ -1,12 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Mapping;
 
 use ReflectionException;
 
 /**
  * Interface DbMappingInterface
- * @package MulerTech\Database\Mapping
+ *
+ * Interface for database mapping operations and metadata retrieval.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface DbMappingInterface

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\State;
 
+use InvalidArgumentException;
 use MulerTech\EventManager\Event;
 
 /**
@@ -26,7 +27,7 @@ final class StateTransitionEvent extends Event
         private readonly string $phase
     ) {
         if (!in_array($phase, ['pre', 'post'], true)) {
-            throw new \InvalidArgumentException('Phase must be either "pre" or "post"');
+            throw new InvalidArgumentException('Phase must be either "pre" or "post"');
         }
         $this->setName($phase . 'StateTransition');
     }

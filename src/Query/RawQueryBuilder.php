@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\ORM\EmEngine;
@@ -41,7 +43,7 @@ class RawQueryBuilder extends AbstractQueryBuilder
     public function getQueryType(): string
     {
         // Extract query type from SQL
-        $sql = trim(strtoupper($this->sql));
+        $sql = strtoupper(trim($this->sql));
 
         if (str_starts_with($sql, 'SELECT')) {
             return 'SELECT';

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql;
 
 use MulerTech\Database\ORM\EmEngine;
@@ -7,6 +9,9 @@ use PDO;
 
 /**
  * Class InformationSchema
+ *
+ * Provides access to database metadata through the information_schema.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -32,7 +37,7 @@ class InformationSchema
     /**
      * @param EmEngine $emEngine
      */
-    public function __construct(private EmEngine $emEngine)
+    public function __construct(private readonly EmEngine $emEngine)
     {
     }
 

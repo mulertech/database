@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\State;
 
+use DateTimeImmutable;
+use InvalidArgumentException;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\ChangeSetManager;
@@ -30,17 +32,8 @@ final class DirectStateManager implements StateManagerInterface
         private readonly IdentityMap $identityMap,
         private readonly StateTransitionManager $transitionManager,
         private readonly StateValidator $stateValidator,
-        private ?ChangeSetManager $changeSetManager = null
+        private readonly ?ChangeSetManager $changeSetManager = null
     ) {
-    }
-
-    /**
-     * @param ChangeSetManager $changeSetManager
-     * @return void
-     */
-    public function setChangeSetManager(ChangeSetManager $changeSetManager): void
-    {
-        $this->changeSetManager = $changeSetManager;
     }
 
     /**
@@ -74,7 +67,7 @@ final class DirectStateManager implements StateManagerInterface
         $currentState = $this->getEntityState($entity);
 
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'persist')) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Cannot schedule entity in %s state for insertion',
                     $currentState->value
@@ -83,9 +76,7 @@ final class DirectStateManager implements StateManagerInterface
         }
 
         // Also schedule in ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            $this->changeSetManager->scheduleInsert($entity);
-        }
+        $this->changeSetManager?->scheduleInsert($entity);
     }
 
     /**
@@ -97,7 +88,7 @@ final class DirectStateManager implements StateManagerInterface
         $currentState = $this->getEntityState($entity);
 
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'update')) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Cannot schedule entity in %s state for update',
                     $currentState->value
@@ -106,9 +97,7 @@ final class DirectStateManager implements StateManagerInterface
         }
 
         // Also schedule in ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            $this->changeSetManager->scheduleUpdate($entity);
-        }
+        $this->changeSetManager?->scheduleUpdate($entity);
     }
 
     /**
@@ -120,7 +109,7 @@ final class DirectStateManager implements StateManagerInterface
         $currentState = $this->getEntityState($entity);
 
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'remove')) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Cannot schedule entity in %s state for deletion',
                     $currentState->value
@@ -132,9 +121,7 @@ final class DirectStateManager implements StateManagerInterface
         $this->transitionToState($entity, EntityState::REMOVED);
 
         // Also schedule in ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            $this->changeSetManager->scheduleDelete($entity);
-        }
+        $this->changeSetManager?->scheduleDelete($entity);
     }
 
     /**
@@ -146,7 +133,7 @@ final class DirectStateManager implements StateManagerInterface
         $currentState = $this->getEntityState($entity);
 
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'detach')) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Cannot detach entity in %s state',
                     $currentState->value
@@ -157,9 +144,7 @@ final class DirectStateManager implements StateManagerInterface
         $this->transitionToState($entity, EntityState::DETACHED);
 
         // Also detach in ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            $this->changeSetManager->detach($entity);
-        }
+        $this->changeSetManager?->detach($entity);
 
         // Remove from dependencies
         $oid = spl_object_id($entity);
@@ -325,9 +310,7 @@ final class DirectStateManager implements StateManagerInterface
     {
         $this->insertionDependencies = [];
 
-        if ($this->changeSetManager !== null) {
-            $this->changeSetManager->clear();
-        }
+        $this->changeSetManager?->clear();
     }
 
     /**
@@ -387,7 +370,7 @@ final class DirectStateManager implements StateManagerInterface
                 state: $newState,
                 originalData: $metadata->originalData,
                 loadedAt: $metadata->loadedAt,
-                lastModified: new \DateTimeImmutable()
+                lastModified: new DateTimeImmutable()
             );
 
             $this->identityMap->updateMetadata($entity, $newMetadata);

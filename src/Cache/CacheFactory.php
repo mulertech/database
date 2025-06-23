@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Cache;
 
+use RuntimeException;
+
 /**
- * Factory pour créer les caches appropriés
- * @package MulerTech\Database\Cache
+ * Class CacheFactory
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class CacheFactory
@@ -27,15 +29,6 @@ class CacheFactory
     private static ?CacheInvalidator $invalidator = null;
 
     /**
-     * @param CacheConfig $config
-     * @return void
-     */
-    public static function setDefaultConfig(CacheConfig $config): void
-    {
-        self::$defaultConfig = $config;
-    }
-
-    /**
      * @param string $name
      * @param CacheConfig|null $config
      * @return MemoryCache
@@ -49,7 +42,7 @@ class CacheFactory
 
         return self::$instances[$name] instanceof MemoryCache
             ? self::$instances[$name]
-            : throw new \RuntimeException("Cache instance is not of type MemoryCache");
+            : throw new RuntimeException("Cache instance is not of type MemoryCache");
     }
 
     /**
@@ -66,7 +59,7 @@ class CacheFactory
 
         return self::$instances[$name] instanceof MetadataCache
             ? self::$instances[$name]
-            : throw new \RuntimeException("Cache instance is not of type MetadataCache");
+            : throw new RuntimeException("Cache instance is not of type MetadataCache");
     }
 
     /**
@@ -88,7 +81,7 @@ class CacheFactory
 
         return self::$instances[$name] instanceof ResultSetCache
             ? self::$instances[$name]
-            : throw new \RuntimeException("Cache instance is not of type ResultSetCache");
+            : throw new RuntimeException("Cache instance is not of type ResultSetCache");
     }
 
     /**
@@ -122,47 +115,11 @@ class CacheFactory
     /**
      * @return void
      */
-    public static function clearAll(): void
-    {
-        foreach (self::$instances as $cache) {
-            $cache->clear();
-        }
-    }
-
-    /**
-     * @return void
-     */
     public static function reset(): void
     {
         self::$instances = [];
         self::$defaultConfig = null;
         self::$invalidator = null;
-    }
-
-    /**
-     * @return array<string, array{type: string, size: int, stats?: array<string, mixed>}>
-     */
-    public static function getInfo(): array
-    {
-        $info = [];
-
-        foreach (self::$instances as $name => $cache) {
-            $data = [
-                'type' => basename(str_replace('\\', '/', get_class($cache))),
-                'size' => 0,
-            ];
-
-            if (method_exists($cache, 'getStatistics')) {
-                /** @var MemoryCache $cache */
-                $stats = $cache->getStatistics();
-                $data['size'] = $stats['size'] ?? 0;
-                $data['stats'] = $stats;
-            }
-
-            $info[$name] = $data;
-        }
-
-        return $info;
     }
 
     /**

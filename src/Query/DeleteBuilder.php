@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\Relational\Sql\LinkOperator;
@@ -136,7 +138,7 @@ class DeleteBuilder extends AbstractQueryBuilder
     public function andWhere(SqlOperations|string $condition): self
     {
         if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::AND);
+            $this->where->addOperation($condition);
         } else {
             $this->where($condition);
         }
@@ -191,7 +193,7 @@ class DeleteBuilder extends AbstractQueryBuilder
 
     /**
      * @param string $column
-     * @param array<mixed> $values
+     * @param array<int, mixed> $values
      * @return self
      */
     public function whereIn(string $column, array $values): self
@@ -211,7 +213,7 @@ class DeleteBuilder extends AbstractQueryBuilder
 
     /**
      * @param string $column
-     * @param array<mixed> $values
+     * @param array<int, mixed> $values
      * @return self
      */
     public function whereNotIn(string $column, array $values): self
@@ -347,7 +349,7 @@ class DeleteBuilder extends AbstractQueryBuilder
 
         // JOINs
         if (!empty($this->joins)) {
-            $sql .= ' ' . $this->buildJoinClauses();
+            $sql .= ' ' . $this->buildJoinClauses($this->joins);
         }
 
         // WHERE clause
@@ -386,21 +388,15 @@ class DeleteBuilder extends AbstractQueryBuilder
     private function addJoin(string $type, string $table, ?string $condition, ?string $alias): self
     {
         if ($alias === null) {
-            $parsed = $this->parseTableAlias($table);
-            $this->joins[] = [
-                'type' => $type,
-                'table' => $parsed['table'],
-                'alias' => $parsed['alias'],
-                'condition' => $condition
-            ];
-        } else {
-            $this->joins[] = [
-                'type' => $type,
-                'table' => $table,
-                'alias' => $alias,
-                'condition' => $condition
-            ];
+            ['table' => $table, 'alias' => $alias] = $this->parseTableAlias($table);
         }
+
+        $this->joins[] = [
+            'type' => $type,
+            'table' => $table,
+            'alias' => $alias,
+            'condition' => $condition,
+        ];
 
         return $this;
     }
@@ -421,30 +417,6 @@ class DeleteBuilder extends AbstractQueryBuilder
         }
 
         return implode(', ', $fromParts);
-    }
-
-    /**
-     * @return string
-     */
-    private function buildJoinClauses(): string
-    {
-        $joinParts = [];
-
-        foreach ($this->joins as $join) {
-            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
-
-            if ($join['alias'] !== null) {
-                $part .= ' AS ' . $join['alias'];
-            }
-
-            if ($join['condition'] !== null) {
-                $part .= ' ON ' . $join['condition'];
-            }
-
-            $joinParts[] = $part;
-        }
-
-        return implode(' ', $joinParts);
     }
 
     /**

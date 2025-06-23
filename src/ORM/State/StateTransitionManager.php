@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\State;
 
-use MulerTech\EventManager\EventManagerInterface;
+use InvalidArgumentException;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
- * Gestionnaire des transitions d'état des entités
- * @package MulerTech\Database\ORM\State
+ * Class StateTransitionManager
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class StateTransitionManager
@@ -47,13 +47,13 @@ final class StateTransitionManager
      * @param EntityState $from
      * @param EntityState $to
      * @return void
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function transition(object $entity, EntityState $from, EntityState $to): void
     {
         // Validate transition
         if (!$this->canTransition($entity, $from, $to)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Invalid state transition from %s to %s for entity %s',
                     $from->value,
@@ -113,106 +113,6 @@ final class StateTransitionManager
     }
 
     /**
-     * @param string $hookName
-     * @param callable $callback
-     * @param EntityState|null $fromState
-     * @param EntityState|null $toState
-     * @return void
-     */
-    public function registerPreTransitionHook(
-        string $hookName,
-        callable $callback,
-        ?EntityState $fromState = null,
-        ?EntityState $toState = null
-    ): void {
-        $key = $this->getHookKey($hookName, $fromState, $toState);
-        $this->preTransitionHooks[$key] = $callback;
-    }
-
-    /**
-     * @param string $hookName
-     * @param callable $callback
-     * @param EntityState|null $fromState
-     * @param EntityState|null $toState
-     * @return void
-     */
-    public function registerPostTransitionHook(
-        string $hookName,
-        callable $callback,
-        ?EntityState $fromState = null,
-        ?EntityState $toState = null
-    ): void {
-        $key = $this->getHookKey($hookName, $fromState, $toState);
-        $this->postTransitionHooks[$key] = $callback;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param EntityState $from
-     * @param EntityState $to
-     * @param bool $allowed
-     * @return void
-     */
-    public function registerCustomTransition(
-        string $entityClass,
-        EntityState $from,
-        EntityState $to,
-        bool $allowed
-    ): void {
-        $key = $this->getCustomTransitionKey($entityClass, $from, $to);
-        $this->customTransitions[$key] = $allowed;
-    }
-
-    /**
-     * @param object $entity
-     * @return array<array{from: EntityState, to: EntityState, timestamp: int}>
-     */
-    public function getTransitionHistory(object $entity): array
-    {
-        $entityId = spl_object_id($entity);
-        $history = [];
-
-        foreach ($this->transitionHistory as $record) {
-            if (spl_object_id($record['entity']) === $entityId) {
-                $history[] = [
-                    'from' => $record['from'],
-                    'to' => $record['to'],
-                    'timestamp' => $record['timestamp']
-                ];
-            }
-        }
-
-        return $history;
-    }
-
-    /**
-     * @param bool $enable
-     * @return void
-     */
-    public function setHistoryEnabled(bool $enable): void
-    {
-        $this->enableHistory = $enable;
-    }
-
-    /**
-     * @param int $size
-     * @return void
-     */
-    public function setMaxHistorySize(int $size): void
-    {
-        $this->maxHistorySize = max(0, $size);
-        $this->pruneHistory();
-    }
-
-    /**
-     * @return void
-     */
-    public function clearHistory(): void
-    {
-        $this->transitionHistory = [];
-    }
-
-    /**
      * @param object $entity
      * @param EntityState $from
      * @param EntityState $to
@@ -253,7 +153,7 @@ final class StateTransitionManager
         $matchingHooks = [];
 
         foreach ($hooks as $key => $hook) {
-            [$hookName, $fromValue, $toValue] = explode(':', $key . '::');
+            [$fromValue, $toValue] = explode(':', $key . '::');
 
             $fromMatch = $fromValue === '*' || $fromValue === $from->value;
             $toMatch = $toValue === '*' || $toValue === $to->value;
@@ -278,7 +178,7 @@ final class StateTransitionManager
             'from' => $from,
             'to' => $to,
             'entity' => $entity,
-            'timestamp' => time()
+            'timestamp' => time(),
         ];
 
         $this->pruneHistory();
@@ -297,20 +197,6 @@ final class StateTransitionManager
                 true
             );
         }
-    }
-
-    /**
-     * @param string $hookName
-     * @param EntityState|null $from
-     * @param EntityState|null $to
-     * @return string
-     */
-    private function getHookKey(string $hookName, ?EntityState $from, ?EntityState $to): string
-    {
-        $fromValue = $from->value ?? '*';
-        $toValue = $to->value ?? '*';
-
-        return sprintf('%s:%s:%s', $hookName, $fromValue, $toValue);
     }
 
     /**

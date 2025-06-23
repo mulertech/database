@@ -1,12 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Relational\Sql\QueryBuilder;
 
 /**
  * Class EntityRepository
- * @package MulerTech\Database\ORM
+ *
+ * Base repository class for entity data access operations.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EntityRepository
@@ -43,7 +48,7 @@ class EntityRepository
      */
     protected function createQueryBuilder(): QueryBuilder
     {
-        return (new QueryBuilder($this->entityManager->getEmEngine()))->from($this->entityName);
+        return new QueryBuilder($this->entityManager->getEmEngine())->from($this->entityName);
     }
 
     /**
