@@ -6,7 +6,6 @@ namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
 use SplObjectStorage;
-use WeakReference;
 
 /**
  * Registre global des entités avec métadonnées et statistiques
@@ -112,72 +111,6 @@ final class EntityRegistry
     }
 
     /**
-     * @param object $entity
-     * @return bool
-     */
-    public function isRegistered(object $entity): bool
-    {
-        return $this->registry->contains($entity);
-    }
-
-    /**
-     * @param object $entity
-     * @return array{registeredAt: DateTimeImmutable, lastAccessed: DateTimeImmutable, accessCount: int}|null
-     */
-    public function getMetadata(object $entity): ?array
-    {
-        if (!$this->registry->contains($entity)) {
-            return null;
-        }
-
-        return $this->registry[$entity];
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @return int
-     */
-    public function getCountByClass(string $entityClass): int
-    {
-        return $this->entityCountByClass[$entityClass] ?? 0;
-    }
-
-    /**
-     * @return array<class-string, int>
-     */
-    public function getCountsByClass(): array
-    {
-        return $this->entityCountByClass;
-    }
-
-    /**
-     * @return array<object>
-     */
-    public function getAllRegisteredEntities(): array
-    {
-        $entities = [];
-        foreach ($this->registry as $entity) {
-            $entities[] = $entity;
-        }
-        return $entities;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @return array<object>
-     */
-    public function getEntitiesByClass(string $entityClass): array
-    {
-        $entities = [];
-        foreach ($this->registry as $entity) {
-            if ($entity::class === $entityClass) {
-                $entities[] = $entity;
-            }
-        }
-        return $entities;
-    }
-
-    /**
      * @return void
      */
     public function clear(): void
@@ -186,61 +119,6 @@ final class EntityRegistry
         $this->entityCountByClass = [];
         $this->entityStats = [];
         $this->operationCount = 0;
-    }
-
-    /**
-     * @return void
-     */
-    public function updateStatistics(): void
-    {
-        foreach ($this->entityCountByClass as $class => $count) {
-            $this->entityStats[$class]['currentCount'] = $count;
-            $this->entityStats[$class]['lastUpdated'] = time();
-        }
-    }
-
-    /**
-     * @return array{
-     *     totalRegistered: int,
-     *     totalUnregistered: int,
-     *     currentlyRegistered: int,
-     *     classCounts: array<class-string, int>,
-     *     memoryUsage: int,
-     *     gcEnabled: bool,
-     *     gcInterval: int,
-     *     operationCount: int
-     * }
-     */
-    public function getStatistics(): array
-    {
-        return [
-            'totalRegistered' => $this->totalEntitiesRegistered,
-            'totalUnregistered' => $this->totalEntitiesUnregistered,
-            'currentlyRegistered' => count($this->registry),
-            'classCounts' => $this->entityCountByClass,
-            'memoryUsage' => memory_get_usage(true),
-            'gcEnabled' => $this->enableGarbageCollection,
-            'gcInterval' => $this->gcInterval,
-            'operationCount' => $this->operationCount,
-        ];
-    }
-
-    /**
-     * @param bool $enable
-     * @return void
-     */
-    public function setGarbageCollection(bool $enable): void
-    {
-        $this->enableGarbageCollection = $enable;
-    }
-
-    /**
-     * @param int $interval
-     * @return void
-     */
-    public function setGarbageCollectionInterval(int $interval): void
-    {
-        $this->gcInterval = max(1, $interval);
     }
 
     /**

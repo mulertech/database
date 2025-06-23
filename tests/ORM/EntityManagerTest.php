@@ -15,6 +15,7 @@ use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -89,6 +90,18 @@ class EntityManagerTest extends TestCase
         $em = $this->entityManager;
         $repository = $em->getRepository(User::class);
         self::assertInstanceOf(UserRepository::class, $repository);
+        self::assertEquals(User::class, $repository->getEntityName());
+
+        // Sous-classe anonyme pour exposer createQueryBuilder
+        $publicRepository = new class($em) extends UserRepository {
+            public function publicCreateQueryBuilder()
+            {
+                return $this->createQueryBuilder();
+            }
+        };
+
+        $queryBuilder = $publicRepository->publicCreateQueryBuilder();
+        self::assertInstanceOf(QueryBuilder::class, $queryBuilder);
     }
 
     public function testFindEntityWithOneToOneRelation(): void
@@ -744,3 +757,4 @@ class EntityManagerTest extends TestCase
         self::assertEquals('OtherManager', $user->getManager()->getUsername());
     }
 }
+

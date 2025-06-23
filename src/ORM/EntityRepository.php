@@ -45,7 +45,7 @@ class EntityRepository
      */
     protected function createQueryBuilder(): QueryBuilder
     {
-        return (new QueryBuilder($this->entityManager->getEmEngine()))->from($this->entityName);
+        return new QueryBuilder($this->entityManager->getEmEngine())->from($this->entityName);
     }
 
     /**

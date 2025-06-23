@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
+use Error;
+use InvalidArgumentException;
 use MulerTech\Database\ORM\State\EntityState;
 use ReflectionClass;
+use ReflectionException;
 use WeakMap;
 use WeakReference;
 
@@ -163,9 +166,12 @@ final class IdentityMap
     {
         $allEntities = [];
 
-        foreach ($this->entities as $entityClass => $classEntities) {
-            $allEntities = array_merge($allEntities, $this->getByClass($entityClass));
-        }
+        array_walk(
+            $this->entities,
+            function ($references, $entityClass) use (&$allEntities) {
+                array_push($allEntities, ...$this->getByClass($entityClass));
+            }
+        );
 
         return $allEntities;
     }
@@ -204,7 +210,7 @@ final class IdentityMap
     public function updateMetadata(object $entity, EntityMetadata $newMetadata): void
     {
         if (!isset($this->metadata[$entity])) {
-            throw new \InvalidArgumentException('Entity is not managed by this IdentityMap');
+            throw new InvalidArgumentException('Entity is not managed by this IdentityMap');
         }
 
         $this->metadata[$entity] = $newMetadata;
@@ -226,45 +232,7 @@ final class IdentityMap
      */
     public function getEntityState(object $entity): ?EntityState
     {
-        $metadata = $this->getMetadata($entity);
-        return $metadata?->state;
-    }
-
-    /**
-     * @return array{entities: int, classes: int, managedEntities: int, newEntities: int, removedEntities: int, memory: int}
-     */
-    public function getStatistics(): array
-    {
-        $entityCount = 0;
-        $classCount = count($this->entities);
-        $managedCount = 0;
-        $newCount = 0;
-        $removedCount = 0;
-
-        foreach ($this->entities as $classEntities) {
-            $entityCount += count($classEntities);
-        }
-
-        foreach ($this->getAllEntities() as $entity) {
-            $metadata = $this->getMetadata($entity);
-            if ($metadata !== null) {
-                match ($metadata->state) {
-                    EntityState::MANAGED => $managedCount++,
-                    EntityState::NEW => $newCount++,
-                    EntityState::REMOVED => $removedCount++,
-                    default => null,
-                };
-            }
-        }
-
-        return [
-            'entities' => $entityCount,
-            'classes' => $classCount,
-            'managedEntities' => $managedCount,
-            'newEntities' => $newCount,
-            'removedEntities' => $removedCount,
-            'memory' => memory_get_usage(true),
-        ];
+        return $this->getMetadata($entity)?->state;
     }
 
     /**
@@ -343,12 +311,11 @@ final class IdentityMap
                 try {
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
-                    $prop->setAccessible(true);
                     $value = $prop->getValue($entity);
                     if ($value !== null) {
                         return $value;
                     }
-                } catch (\ReflectionException $e) {
+                } catch (ReflectionException) {
                     // Continue to next property
                 }
             }
@@ -390,51 +357,26 @@ final class IdentityMap
             }
 
             $propertyName = $property->getName();
-            $property->setAccessible(true);
 
             // Try getter method first
             $getterMethod = 'get' . ucfirst($propertyName);
             if (method_exists($entity, $getterMethod)) {
                 try {
                     $data[$propertyName] = $entity->$getterMethod();
-                } catch (\Error $e) {
+                    continue;
+                } catch (Error) {
                     // Getter failed, try direct property access
-                    try {
-                        $data[$propertyName] = $property->getValue($entity);
-                    } catch (\Error $e) {
-                        // Property uninitialized, store as null
-                        $data[$propertyName] = null;
-                    }
                 }
-            } else {
-                // No getter, use direct property access
-                try {
-                    $data[$propertyName] = $property->getValue($entity);
-                } catch (\Error $e) {
-                    // Property uninitialized, store as null
-                    $data[$propertyName] = null;
-                }
+            }
+
+            try {
+                $data[$propertyName] = $property->getValue($entity);
+            } catch (Error) {
+                // Property uninitialized, store as null
+                $data[$propertyName] = null;
             }
         }
 
         return $data;
-    }
-
-    /**
-     * Get all entities currently managed by the IdentityMap, regardless of class.
-     * These are entities that the PersistenceManager should consider for flushing.
-     * @return array<object>
-     */
-    public function getAllManaged(): array
-    {
-        $managedEntities = [];
-        // Iterate over the WeakMap. $entity is the object key, $metadata is its value.
-        // WeakMap automatically handles garbage collected entities, so $entity is alive here.
-        foreach ($this->metadata as $entity => $metadata) {
-            if ($metadata->isManaged() || $metadata->isNew()) {
-                $managedEntities[] = $entity;
-            }
-        }
-        return $managedEntities;
     }
 }

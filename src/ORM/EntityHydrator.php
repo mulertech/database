@@ -6,18 +6,18 @@ namespace MulerTech\Database\ORM;
 
 use DateTime;
 use Exception;
+use JsonException;
 use MulerTech\Database\Cache\CacheFactory;
 use MulerTech\Database\Cache\MetadataCache;
 use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\MtColumn;
-use MulerTech\Database\Mapping\MtOneToOne;
-use MulerTech\Database\Mapping\MtManyToOne;
 use MulerTech\Collections\Collection;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
+use TypeError;
 
 /**
  * EntityHydrator with metadata caching for improved performance
@@ -42,11 +42,6 @@ class EntityHydrator
     private array $reflectionCache = [];
 
     /**
-     * @var array<string, bool>
-     */
-    private array $setterCache = [];
-
-    /**
      * @param DbMappingInterface|null $dbMapping
      * @param MetadataCache|null $metadataCache
      */
@@ -63,6 +58,7 @@ class EntityHydrator
      * @param class-string $entityName
      * @return object
      * @throws ReflectionException
+     * @throws JsonException
      */
     public function hydrate(array $data, string $entityName): object
     {
@@ -96,13 +92,13 @@ class EntityHydrator
 
                     // Validate nullable constraints
                     if ($processedValue === null && !$this->isPropertyNullable($entityName, $property)) {
-                        throw new \TypeError("Property {$property} of {$entityName} cannot be null");
+                        throw new TypeError("Property $property of $entityName cannot be null");
                     }
 
                     $reflectionProperty = $reflection->getProperty($property);
                     $reflectionProperty->setValue($entity, $processedValue);
                 }
-            } catch (\Exception $e) {
+            } catch (Exception) {
                 // If dbMapping fails, fall back to basic hydration
                 $this->fallbackHydration($entity, $data, $reflection);
             }
@@ -112,76 +108,6 @@ class EntityHydrator
         }
 
         return $entity;
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return void
-     */
-    public function warmUpCache(string $entityName): void
-    {
-        try {
-            // Pre-load all metadata for this entity
-            $this->getColumnToPropertyMap($entityName);
-            $this->getReflectionProperties($entityName);
-
-            // Cache property types
-            if ($this->dbMapping !== null) {
-                $properties = $this->dbMapping->getPropertiesColumns($entityName);
-                foreach (array_keys($properties) as $property) {
-                    $this->dbMapping->getColumnType($entityName, $property);
-                }
-            }
-        } catch (ReflectionException $e) {
-            // Log warning but don't fail
-        }
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getCacheStats(): array
-    {
-        $stats = $this->metadataCache->getStatistics();
-
-        return [
-            'metadata_cache' => $stats,
-            'reflection_cache_size' => count($this->reflectionCache),
-            'setter_cache_size' => count($this->setterCache),
-            'total_cached_properties' => array_sum(array_map('count', $this->reflectionCache)),
-        ];
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return array<string, string>
-     * @throws ReflectionException
-     */
-    private function getColumnToPropertyMap(string $entityName): array
-    {
-        $cacheKey = 'column_map:' . $entityName;
-
-        $cached = $this->metadataCache->get($cacheKey);
-        if ($cached !== null) {
-            return $cached;
-        }
-
-        $columnToPropertyMap = [];
-        // If DbMapping is available, use it to create a column-to-property mapping
-        if ($this->dbMapping !== null) {
-            try {
-                $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityName);
-                foreach ($propertiesColumns as $property => $column) {
-                    $columnToPropertyMap[$column] = $property;
-                }
-            } catch (ReflectionException $e) {
-                // If mapping fails, we'll fall back to snake_case conversion
-            }
-        }
-
-        $this->metadataCache->setEntityMetadata($cacheKey, $columnToPropertyMap);
-
-        return $columnToPropertyMap;
     }
 
     /**
@@ -211,35 +137,13 @@ class EntityHydrator
     }
 
     /**
-     * @param class-string $entityClass
-     * @return array<string, ReflectionProperty>
-     * @throws ReflectionException
-     */
-    private function getReflectionProperties(string $entityClass): array
-    {
-        if (isset($this->reflectionCache[$entityClass])) {
-            return $this->reflectionCache[$entityClass];
-        }
-
-        $reflection = new ReflectionClass($entityClass);
-        $properties = [];
-
-        foreach ($reflection->getProperties() as $property) {
-            $properties[$property->getName()] = $property;
-        }
-
-        $this->reflectionCache[$entityClass] = $properties;
-
-        return $properties;
-    }
-
-    /**
      * Process a value according to its type (make public for external use)
      *
      * @param class-string $entityClass
      * @param string $propertyName
      * @param mixed $value
      * @return mixed
+     * @throws JsonException
      */
     public function processPropertyValue(string $entityClass, string $propertyName, mixed $value): mixed
     {
@@ -274,6 +178,7 @@ class EntityHydrator
      * @param mixed $value
      * @param ColumnType $columnType
      * @return mixed
+     * @throws JsonException
      */
     private function processValueByColumnType(mixed $value, ColumnType $columnType): mixed
     {
@@ -285,9 +190,7 @@ class EntityHydrator
             ColumnType::VARCHAR, ColumnType::CHAR, ColumnType::TEXT,
             ColumnType::TINYTEXT, ColumnType::MEDIUMTEXT, ColumnType::LONGTEXT,
             ColumnType::ENUM, ColumnType::SET, ColumnType::TIME => $this->processString($value),
-            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->processDateTime($value),
-            ColumnType::BLOB, ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB, ColumnType::LONGBLOB,
-            ColumnType::BINARY, ColumnType::VARBINARY => $value, // Keep as-is
+            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->processDateTime($value), // Keep as-is
             ColumnType::JSON => $this->processJson($value),
             default => $value,
         };
@@ -298,6 +201,7 @@ class EntityHydrator
      * @param class-string $className
      * @return mixed
      * @throws ReflectionException
+     * @throws JsonException
      */
     private function processValueByPhpType(mixed $value, string $className): mixed
     {
@@ -380,7 +284,7 @@ class EntityHydrator
 
         try {
             return new DateTime($value);
-        } catch (Exception $e) {
+        } catch (Exception) {
             // Log error or handle invalid date
             return new DateTime(); // Default to current time
         }
@@ -388,7 +292,8 @@ class EntityHydrator
 
     /**
      * @param mixed $value
-     * @return array<mixed>
+     * @return array<int|string, mixed>
+     * @throws JsonException
      */
     private function processJson(mixed $value): array
     {
@@ -397,7 +302,7 @@ class EntityHydrator
         }
 
         if (is_string($value)) {
-            $decoded = json_decode($value, true);
+            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
             if (json_last_error() === JSON_ERROR_NONE) {
                 return $decoded;
             }
@@ -410,7 +315,7 @@ class EntityHydrator
      * @param mixed $value
      * @param class-string $className
      * @return object
-     * @throws ReflectionException
+     * @throws ReflectionException|JsonException
      */
     private function processObject(mixed $value, string $className): object
     {
@@ -490,6 +395,7 @@ class EntityHydrator
      * @param class-string $entityClass
      * @param string $propertyName
      * @return bool
+     * @throws ReflectionException
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
@@ -505,11 +411,7 @@ class EntityHydrator
 
         // Check if it's a ManyToOne relation
         $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
-        if (!empty($manyToOneList) && isset($manyToOneList[$propertyName])) {
-            return true;
-        }
-
-        return false;
+        return !empty($manyToOneList) && isset($manyToOneList[$propertyName]);
     }
 
     /**
@@ -519,6 +421,7 @@ class EntityHydrator
      * @param array<string, mixed> $data
      * @param ReflectionClass<object> $reflection
      * @return void
+     * @throws JsonException
      */
     private function fallbackHydration(object $entity, array $data, ReflectionClass $reflection): void
     {
@@ -529,17 +432,12 @@ class EntityHydrator
             $propertyName = $this->snakeToCamelCase($column);
 
             if ($reflection->hasProperty($propertyName)) {
-                try {
-                    $property = $reflection->getProperty($propertyName);
+                $property = $reflection->getProperty($propertyName);
 
-                    // Process the value according to its type before assignment
-                    $processedValue = $this->processValue($entityName, $propertyName, $value);
+                // Process the value according to its type before assignment
+                $processedValue = $this->processValue($entityName, $propertyName, $value);
 
-                    $property->setValue($entity, $processedValue);
-                } catch (\ReflectionException $e) {
-                    // Skip properties that can't be set
-                    continue;
-                }
+                $property->setValue($entity, $processedValue);
             }
         }
     }
@@ -560,7 +458,7 @@ class EntityHydrator
                 if ($nullable !== null) {
                     return $nullable;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception) {
                 // Fall through to reflection check
             }
         }
@@ -574,7 +472,7 @@ class EntityHydrator
                     return $type->allowsNull();
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception) {
             // If we can't determine, assume nullable
         }
 
@@ -588,6 +486,7 @@ class EntityHydrator
      * @param string $propertyName
      * @param mixed $value
      * @return mixed
+     * @throws JsonException
      */
     private function processValue(string $entityClass, string $propertyName, mixed $value): mixed
     {
@@ -603,7 +502,7 @@ class EntityHydrator
                 if ($columnType !== null) {
                     return $this->processValueByColumnType($value, $columnType);
                 }
-            } catch (ReflectionException $e) {
+            } catch (ReflectionException) {
                 // If this fails, try the reflection-based approach
             }
         }
@@ -632,7 +531,7 @@ class EntityHydrator
                     }
                 }
             }
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException) {
             // If reflection fails, return value as-is
         }
 

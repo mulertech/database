@@ -12,7 +12,7 @@ use MulerTech\Database\ORM\State\EntityState;
  * @package MulerTech\Database\ORM
  * @author Sébastien Muler
  */
-final class EntityMetadata
+final readonly class EntityMetadata
 {
     /**
      * @param class-string $className
@@ -23,12 +23,12 @@ final class EntityMetadata
      * @param DateTimeImmutable|null $lastModified
      */
     public function __construct(
-        public readonly string $className,
-        public readonly int|string $identifier,
-        public readonly EntityState $state,
-        public readonly array $originalData,
-        public readonly DateTimeImmutable $loadedAt,
-        public readonly ?DateTimeImmutable $lastModified = null
+        public string $className,
+        public int|string $identifier,
+        public EntityState $state,
+        public array $originalData,
+        public DateTimeImmutable $loadedAt,
+        public ?DateTimeImmutable $lastModified = null
     ) {
     }
 
@@ -46,39 +46,5 @@ final class EntityMetadata
     public function isNew(): bool
     {
         return $this->state === EntityState::NEW;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isRemoved(): bool
-    {
-        return $this->state === EntityState::REMOVED;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isDetached(): bool
-    {
-        return $this->state === EntityState::DETACHED;
-    }
-
-    /**
-     * Create a new instance with updated original data
-     *
-     * @param array<string, mixed> $originalData
-     * @return self
-     */
-    public function withOriginalData(array $originalData): self
-    {
-        return new self(
-            $this->className,
-            $this->identifier,
-            $this->state,
-            $originalData,
-            $this->loadedAt,
-            $this->lastModified
-        );
     }
 }

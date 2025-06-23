@@ -33,9 +33,9 @@ class EntityManager implements EntityManagerInterface
      * @param EventManager|null $eventManager
      */
     public function __construct(
-        private PhpDatabaseInterface $pdm,
-        private DbMappingInterface $dbMapping,
-        private ?EventManager $eventManager = null
+        private readonly PhpDatabaseInterface $pdm,
+        private readonly DbMappingInterface $dbMapping,
+        private readonly ?EventManager $eventManager = null
     ) {
         $this->emEngine = new EmEngine($this);
     }
@@ -67,6 +67,7 @@ class EntityManager implements EntityManagerInterface
     /**
      * @param class-string $entity
      * @return EntityRepository
+     * @throws ReflectionException
      */
     public function getRepository(string $entity): EntityRepository
     {
@@ -100,6 +101,7 @@ class EntityManager implements EntityManagerInterface
      * @param class-string $entityName
      * @param string|null $where
      * @return int
+     * @throws ReflectionException
      */
     public function rowCount(string $entityName, ?string $where = null): int
     {
@@ -149,7 +151,7 @@ class EntityManager implements EntityManagerInterface
 
         // Filter results to handle MySQL numeric comparison edge cases
         $getter = 'get' . ucfirst($property);
-        $matchingResults = array_filter($results, function ($item) use ($getter, $search) {
+        $matchingResults = array_filter($results, static function ($item) use ($getter, $search) {
             $value = $item->$getter();
             return !(is_numeric($value) && is_numeric($search) && $value != $search);
         });

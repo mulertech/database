@@ -49,7 +49,7 @@ final class EntityFactory
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $data
      * @param bool $useConstructor
-     * @return T
+     * @return object
      * @throws ReflectionException
      */
     public function create(string $entityClass, array $data = [], bool $useConstructor = true): object
@@ -80,7 +80,8 @@ final class EntityFactory
      * @template T of object
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $data
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     public function createAndManage(string $entityClass, array $data = []): object
     {
@@ -189,6 +190,7 @@ final class EntityFactory
     /**
      * @param object $entity
      * @return object
+     * @throws ReflectionException
      */
     public function clone(object $entity): object
     {
@@ -241,7 +243,7 @@ final class EntityFactory
      * @template T of object
      * @param ReflectionClass<T> $reflection
      * @param array<string, mixed> $data
-     * @return T
+     * @return object
      * @throws ReflectionException
      */
     private function createWithConstructor(ReflectionClass $reflection, array $data): object
@@ -280,7 +282,7 @@ final class EntityFactory
     /**
      * @template T of object
      * @param ReflectionClass<T> $reflection
-     * @return T
+     * @return object
      * @throws ReflectionException
      */
     private function createWithoutConstructor(ReflectionClass $reflection): object
@@ -322,7 +324,8 @@ final class EntityFactory
      * @template T of object
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $dbData
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     public function createFromDbData(string $entityClass, array $dbData): object
     {
@@ -529,6 +532,7 @@ final class EntityFactory
      * @param ReflectionProperty $property
      * @return mixed
      * @throws JsonException
+     * @throws ReflectionException
      */
     private function convertDatabaseValue(mixed $value, ReflectionProperty $property): mixed
     {
