@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Cache;
 
-use MulerTech\Database\Cache\MemoryCache;
+use Exception;
 use MulerTech\Database\Mapping\DbMappingInterface;
+use ReflectionClass;
+use ReflectionIntersectionType;
+use ReflectionNamedType;
+use ReflectionUnionType;
+use RuntimeException;
 
 /**
- * Cache spécialisé pour les métadonnées d'entités
- * @package MulerTech\Database\Cache
+ * Class MetadataCache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class MetadataCache extends MemoryCache
@@ -22,7 +27,6 @@ final class MetadataCache extends MemoryCache
         ?CacheConfig $config = null,
         private readonly ?DbMappingInterface $dbMapping = null
     ) {
-        // Metadata cache needs larger size and no TTL by default
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
             ttl: 0, // No expiration for metadata
@@ -42,15 +46,6 @@ final class MetadataCache extends MemoryCache
     public function setMetadata(string $key, mixed $metadata, bool $isPermanent = false): void
     {
         $this->set($key, $metadata, $isPermanent ? 0 : $this->config->ttl);
-    }
-
-    /**
-     * @param string $entityClass
-     * @return mixed
-     */
-    public function getEntityMetadata(string $entityClass): mixed
-    {
-        return $this->get($this->getEntityKey($entityClass));
     }
 
     /**
@@ -88,73 +83,6 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * @param string $entityClass
-     * @param string $relation
-     * @return mixed
-     */
-    public function getRelationMetadata(string $entityClass, string $relation): mixed
-    {
-        return $this->get($this->getRelationKey($entityClass, $relation));
-    }
-
-    /**
-     * @param string $entityClass
-     * @param string $relation
-     * @param mixed $metadata
-     * @return void
-     */
-    public function setRelationMetadata(string $entityClass, string $relation, mixed $metadata): void
-    {
-        $key = $this->getRelationKey($entityClass, $relation);
-        $this->setMetadata($key, $metadata, true);
-        $this->tag($key, ['relation_metadata', $entityClass]);
-    }
-
-    /**
-     * @param string $entityClass
-     * @return array<string, mixed>
-     */
-    public function getAllMetadataForEntity(string $entityClass): array
-    {
-        $result = [
-            'warmed' => $this->isWarmedUp($entityClass),
-            'table' => $this->getTableName($entityClass),
-            'properties' => $this->getPropertiesColumns($entityClass),
-            'primaryKey' => $this->getPrimaryKey($entityClass),
-            'relations' => $this->getRelations($entityClass),
-            'reflection' => $this->getReflectionData($entityClass),
-            'entity' => $this->getEntityMetadata($entityClass),
-            'custom' => []
-        ];
-
-        // Get all cached keys for this entity
-        foreach ($this->getAllKeys() as $key) {
-            if (str_starts_with($key, $entityClass . ':')) {
-                $metadataType = substr($key, strlen($entityClass . ':'));
-                // Skip already included metadata
-                if (!in_array($metadataType, ['warmed', 'table', 'properties', 'primaryKey', 'relations', 'reflection'], true)) {
-                    $result['custom'][$metadataType] = $this->get($key);
-                }
-            }
-        }
-
-        return array_filter($result, fn ($value) => $value !== null);
-    }
-
-    /**
-     * @param string $entityClass
-     * @return void
-     */
-    public function invalidateEntityMetadata(string $entityClass): void
-    {
-        $this->invalidateTag($entityClass);
-        $this->invalidateTag('entity_metadata');
-
-        // Also remove warmed status
-        $this->delete($entityClass . ':warmed');
-    }
-
-    /**
      * Check if entity metadata has been warmed up
      * @param string $entityClass
      * @return bool
@@ -165,28 +93,10 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * Pre-load metadata for entity classes to improve performance
-     * @param array<class-string> $entityClasses
-     * @return void
-     */
-    public function warmUp(array $entityClasses = []): void
-    {
-        if ($this->dbMapping === null || empty($entityClasses)) {
-            // Cannot warm up without mapping and entity classes
-            // Note: DbMapping doesn't have a getEntityClasses method,
-            // so entity classes must be provided explicitly
-            return;
-        }
-
-        foreach ($entityClasses as $entityClass) {
-            $this->warmUpEntity($entityClass);
-        }
-    }
-
-    /**
      * Warm up a single entity class
      * @param class-string $entityClass
      * @return void
+     * @throws Exception
      */
     private function warmUpEntity(string $entityClass): void
     {
@@ -244,12 +154,12 @@ final class MetadataCache extends MemoryCache
             }
 
             // Cache reflection data
-            $reflection = new \ReflectionClass($entityClass);
+            $reflection = new ReflectionClass($entityClass);
             $reflectionData = [
                 'isInstantiable' => $reflection->isInstantiable(),
                 'hasConstructor' => $reflection->getConstructor() !== null,
                 'constructorParams' => [],
-                'properties' => []
+                'properties' => [],
             ];
 
             if ($reflection->getConstructor() !== null) {
@@ -258,7 +168,7 @@ final class MetadataCache extends MemoryCache
                         'name' => $param->getName(),
                         'isOptional' => $param->isOptional(),
                         'hasDefault' => $param->isDefaultValueAvailable(),
-                        'default' => $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null
+                        'default' => $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null,
                     ];
                 }
             }
@@ -267,15 +177,15 @@ final class MetadataCache extends MemoryCache
                 if (!$property->isStatic()) {
                     $type = $property->getType();
                     $typeName = null;
-                    if ($type instanceof \ReflectionNamedType) {
+                    if ($type instanceof ReflectionNamedType) {
                         $typeName = $type->getName();
-                    } elseif ($type instanceof \ReflectionUnionType) {
-                        $typeName = implode('|', array_map(function ($t) {
-                            return $t instanceof \ReflectionNamedType ? $t->getName() : (string)$t;
+                    } elseif ($type instanceof ReflectionUnionType) {
+                        $typeName = implode('|', array_map(static function ($t) {
+                            return $t instanceof ReflectionNamedType ? $t->getName() : (string)$t;
                         }, $type->getTypes()));
-                    } elseif ($type instanceof \ReflectionIntersectionType) {
-                        $typeName = implode('&', array_map(function ($t) {
-                            return $t instanceof \ReflectionNamedType ? $t->getName() : (string)$t;
+                    } elseif ($type instanceof ReflectionIntersectionType) {
+                        $typeName = implode('&', array_map(static function ($t) {
+                            return $t instanceof ReflectionNamedType ? $t->getName() : (string)$t;
                         }, $type->getTypes()));
                     }
 
@@ -283,7 +193,7 @@ final class MetadataCache extends MemoryCache
                         'isPublic' => $property->isPublic(),
                         'isProtected' => $property->isProtected(),
                         'isPrivate' => $property->isPrivate(),
-                        'type' => $typeName
+                        'type' => $typeName,
                     ];
                 }
             }
@@ -293,7 +203,12 @@ final class MetadataCache extends MemoryCache
             // Mark entity as warmed up
             $this->setEntityMetadata($entityClass . ':warmed', true);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
+            throw new RuntimeException(
+                sprintf('Failed to warm up entity metadata for %s: %s', $entityClass, $e->getMessage()),
+                0,
+                $e
+            );
             // Log error but continue with other entities
             // In production, you'd want to log this properly
         }
@@ -319,19 +234,10 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * @param string $entityClass
-     * @param string $relation
-     * @return string
-     */
-    private function getRelationKey(string $entityClass, string $relation): string
-    {
-        return sprintf('relation:%s:%s', $entityClass, $relation);
-    }
-
-    /**
      * Get cached table name for entity or load it if not cached
      * @param string $entityClass
      * @return string|null
+     * @throws Exception
      */
     public function getTableName(string $entityClass): ?string
     {
@@ -350,6 +256,7 @@ final class MetadataCache extends MemoryCache
      * Get cached properties to columns mapping or load it if not cached
      * @param string $entityClass
      * @return array<string, string>|null
+     * @throws Exception
      */
     public function getPropertiesColumns(string $entityClass): ?array
     {
@@ -362,82 +269,6 @@ final class MetadataCache extends MemoryCache
         }
 
         return $cached;
-    }
-
-    /**
-     * Get cached primary key or load it if not cached
-     * @param string $entityClass
-     * @return string|null
-     */
-    public function getPrimaryKey(string $entityClass): ?string
-    {
-        $cached = $this->get($entityClass . ':primaryKey');
-
-        if ($cached === null && !$this->isWarmedUp($entityClass)) {
-            /** @var class-string $entityClass */
-            $this->warmUpEntity($entityClass);
-            $cached = $this->get($entityClass . ':primaryKey');
-        }
-
-        return $cached;
-    }
-
-    /**
-     * Get cached relations or load them if not cached
-     * @param string $entityClass
-     * @return array<string, mixed>|null
-     */
-    public function getRelations(string $entityClass): ?array
-    {
-        $cached = $this->get($entityClass . ':relations');
-
-        if ($cached === null && !$this->isWarmedUp($entityClass)) {
-            /** @var class-string $entityClass */
-            $this->warmUpEntity($entityClass);
-            $cached = $this->get($entityClass . ':relations');
-        }
-
-        return $cached;
-    }
-
-    /**
-     * Get cached reflection data or load it if not cached
-     * @param string $entityClass
-     * @return array<string, mixed>|null
-     */
-    public function getReflectionData(string $entityClass): ?array
-    {
-        $cached = $this->get($entityClass . ':reflection');
-
-        if ($cached === null && !$this->isWarmedUp($entityClass)) {
-            /** @var class-string $entityClass */
-            $this->warmUpEntity($entityClass);
-            $cached = $this->get($entityClass . ':reflection');
-        }
-
-        return $cached;
-    }
-
-    /**
-     * Get all warmed up entity classes
-     * @return array<class-string>
-     */
-    public function getWarmedUpClasses(): array
-    {
-        /** @var array<class-string> $warmedClasses */
-        $warmedClasses = [];
-
-        // This would need access to internal cache structure
-        // For now, we'll check known patterns
-        foreach ($this->cache as $key => $value) {
-            if (str_ends_with($key, ':warmed') && $value === true) {
-                $entityClass = str_replace(':warmed', '', $key);
-                /** @var class-string $entityClass */
-                $warmedClasses[] = $entityClass;
-            }
-        }
-
-        return $warmedClasses;
     }
 
     /**
@@ -467,16 +298,8 @@ final class MetadataCache extends MemoryCache
             }
 
             return null;
-        } catch (\Exception $e) {
+        } catch (Exception) {
             return null;
         }
-    }
-
-    /**
-     * @return array<string>
-     */
-    private function getAllKeys(): array
-    {
-        return array_keys($this->cache);
     }
 }

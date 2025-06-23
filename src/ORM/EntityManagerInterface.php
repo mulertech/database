@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
@@ -9,9 +11,8 @@ use MulerTech\EventManager\EventManager;
 use ReflectionException;
 
 /**
- * Entity Manager Interface
- *
- * @package MulerTech\Database\ORM
+ * Interface EntityManagerInterface
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface EntityManagerInterface
@@ -47,7 +48,7 @@ interface EntityManagerInterface
      * @param string|int|SqlOperations $idOrWhere
      * @return Object|null
      */
-    public function find(string $entity, string|int|SqlOperations $idOrWhere): ?Object;
+    public function find(string $entity, string|int|SqlOperations $idOrWhere): ?object;
 
     /**
      * Checks if a property value is unique for an entity type, with option to exclude one entity by ID.

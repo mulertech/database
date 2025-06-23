@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Migration;
 
 use MulerTech\Database\Migration\Schema\SchemaComparer;
@@ -9,9 +11,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class MigrationGenerator
+ *
  * Generate migrations based on schema differences
  *
- * @package MulerTech\Database\Migration
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationGenerator
@@ -20,33 +24,33 @@ class MigrationGenerator
      * @var string Template for migration class
      */
     private const string MIGRATION_TEMPLATE = <<<'EOT'
-<?php
+        <?php
 
-use MulerTech\Database\Migration\Migration;
-use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
+        use MulerTech\Database\Migration\Migration;
+        use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
 
-/**
- * Auto-generated migration
- */
-class Migration%date% extends Migration
-{
-    /**
-     * {@inheritdoc}
-     */
-    public function up(): void
-    {
-%up_code%
-    }
+        /**
+         * Auto-generated migration
+         */
+        class Migration%date% extends Migration
+        {
+            /**
+             * {@inheritdoc}
+             */
+            public function up(): void
+            {
+        %up_code%
+            }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function down(): void
-    {
-%down_code%
-    }
-}
-EOT;
+            /**
+             * {@inheritdoc}
+             */
+            public function down(): void
+            {
+        %down_code%
+            }
+        }
+        EOT;
 
     /**
      * @param SchemaComparer $schemaComparer
@@ -70,7 +74,7 @@ EOT;
      */
     public function generateMigration(?string $datetime = null): ?string
     {
-        if ($datetime !== null && !preg_match('/^(\d{8})(\d{4})$/', $datetime, $matches)) {
+        if ($datetime !== null && !preg_match('/^(\d{8})(\d{4})$/', $datetime)) {
             throw new RuntimeException('Invalid datetime format. Expected: YYYYMMDDHHMM');
         }
         $date = $datetime ?? date('YmdHi');
@@ -90,7 +94,7 @@ EOT;
         $migrationContent = strtr(self::MIGRATION_TEMPLATE, [
             '%date%' => $date,
             '%up_code%' => $upCode,
-            '%down_code%' => $downCode
+            '%down_code%' => $downCode,
         ]);
 
         $fileName = $this->migrationsDirectory . DIRECTORY_SEPARATOR . 'Migration' . $date . '.php';
@@ -202,7 +206,7 @@ EOT;
             $code[] = $this->generateDropTableStatement($tableName);
         }
 
-        return implode("\n\n", array_map(fn ($line) => "        $line", $code));
+        return implode("\n\n", array_map(static fn ($line) => "        $line", $code));
     }
 
     /**
@@ -249,7 +253,7 @@ EOT;
 
         return empty($code)
             ? '        // No rollback operations defined'
-            : implode("\n\n", array_map(fn ($line) => "        $line", $code));
+            : implode("\n\n", array_map(static fn ($line) => "        $line", $code));
     }
 
     /**
@@ -309,27 +313,27 @@ EOT;
 
         if ($columnType === null || $columnType === '') {
             $code .= '->string()';
-        } elseif (preg_match('/^tinyint/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "tinyint")) {
             $code .= '->tinyInt()';
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
-        } elseif (preg_match('/^smallint/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "smallint")) {
             $code .= '->smallInt()';
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
-        } elseif (preg_match('/^mediumint/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "mediumint")) {
             $code .= '->mediumInt()';
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
-        } elseif (preg_match('/^bigint/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "bigint")) {
             $code .= '->bigInteger()';
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
             }
-        } elseif (preg_match('/^int/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "int")) {
             $code .= '->integer()';
             if (str_contains($columnType, 'unsigned')) {
                 $code .= '->unsigned()';
@@ -344,59 +348,59 @@ EOT;
             $code .= '->numeric(' . $matches[1] . ', ' . $matches[2] . ')';
         } elseif (preg_match('/^float\((\d+),(\d+)\)/i', $columnType, $matches)) {
             $code .= '->float(' . $matches[1] . ', ' . $matches[2] . ')';
-        } elseif (preg_match('/^double/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "double")) {
             $code .= '->double()';
-        } elseif (preg_match('/^real/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "real")) {
             $code .= '->real()';
-        } elseif (preg_match('/^text/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "text")) {
             $code .= '->text()';
-        } elseif (preg_match('/^tinytext/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "tinytext")) {
             $code .= '->tinyText()';
-        } elseif (preg_match('/^mediumtext/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "mediumtext")) {
             $code .= '->mediumText()';
-        } elseif (preg_match('/^longtext/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "longtext")) {
             $code .= '->longText()';
         } elseif (preg_match('/^binary\((\d+)\)/i', $columnType, $matches)) {
             $code .= '->binary(' . $matches[1] . ')';
         } elseif (preg_match('/^varbinary\((\d+)\)/i', $columnType, $matches)) {
             $code .= '->varbinary(' . $matches[1] . ')';
-        } elseif (preg_match('/^blob/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "blob")) {
             $code .= '->blob()';
-        } elseif (preg_match('/^tinyblob/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "tinyblob")) {
             $code .= '->tinyBlob()';
-        } elseif (preg_match('/^mediumblob/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "mediumblob")) {
             $code .= '->mediumBlob()';
-        } elseif (preg_match('/^longblob/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "longblob")) {
             $code .= '->longBlob()';
-        } elseif (preg_match('/^datetime/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "datetime")) {
             $code .= '->datetime()';
-        } elseif (preg_match('/^date/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "date")) {
             $code .= '->date()';
-        } elseif (preg_match('/^timestamp/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "timestamp")) {
             $code .= '->timestamp()';
-        } elseif (preg_match('/^time/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "time")) {
             $code .= '->time()';
-        } elseif (preg_match('/^year/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "year")) {
             $code .= '->year()';
         } elseif (preg_match('/^(boolean|bool)/i', $columnType)) {
             $code .= '->boolean()';
         } elseif (preg_match('/^enum\((.*)\)/i', $columnType, $matches)) {
             // Parse ENUM values from the string
             $enumValues = $this->parseEnumSetValues($matches[1]);
-            $code .= '->enum([' . implode(', ', array_map(fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
+            $code .= '->enum([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
         } elseif (preg_match('/^set\((.*)\)/i', $columnType, $matches)) {
             // Parse SET values from the string
             $setValues = $this->parseEnumSetValues($matches[1]);
-            $code .= '->set([' . implode(', ', array_map(fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
-        } elseif (preg_match('/^json/i', $columnType)) {
+            $code .= '->set([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
+        } elseif (0 === stripos($columnType, "json")) {
             $code .= '->json()';
-        } elseif (preg_match('/^geometry/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "geometry")) {
             $code .= '->geometry()';
-        } elseif (preg_match('/^point/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "point")) {
             $code .= '->point()';
-        } elseif (preg_match('/^linestring/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "linestring")) {
             $code .= '->linestring()';
-        } elseif (preg_match('/^polygon/i', $columnType)) {
+        } elseif (0 === stripos($columnType, "polygon")) {
             $code .= '->polygon()';
         } else {
             // Default fallback

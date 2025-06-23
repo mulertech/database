@@ -148,7 +148,8 @@ class MigrationTest extends TestCase
         // Test migration execution
         $this->migrationManager->registerMigrations($this->migrationsDirectory);
         $this->migrationManager->migrate();
-        $this->assertTrue($this->migrationManager->isMigrationExecuted('20250501-1024'));
+        $migrations = $this->migrationManager->getMigrations();
+        $this->assertTrue($this->migrationManager->isMigrationExecuted($migrations['20250501-1024']));
     }
 
     /**
@@ -1093,7 +1094,7 @@ class MigrationTest extends TestCase
         
         $this->migrationManager->executeMigration($migration);
         
-        $this->assertTrue($this->migrationManager->isMigrationExecuted('20230101-0001'));
+        $this->assertTrue($this->migrationManager->isMigrationExecuted($migration));
     }
 
     /**

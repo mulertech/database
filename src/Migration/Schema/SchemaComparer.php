@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Migration\Schema;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
@@ -63,7 +65,7 @@ class SchemaComparer
      */
     private function getTableInfo(string $tableName): ?array
     {
-        return array_find($this->databaseTables, fn ($table) => $table['TABLE_NAME'] === $tableName);
+        return array_find($this->databaseTables, static fn ($table) => $table['TABLE_NAME'] === $tableName);
     }
 
     /**
@@ -172,7 +174,7 @@ class SchemaComparer
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
             $columnType = $this->dbMapping->getColumnTypeDefinition($entityClass, $property);
             $isNullable = $this->dbMapping->isNullable($entityClass, $property);
-            $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property) ?? null;
+            $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property);
             $columnExtra = $this->dbMapping->getExtra($entityClass, $property);
             $columnKey = $this->dbMapping->getColumnKey($entityClass, $property);
 
@@ -181,7 +183,7 @@ class SchemaComparer
                 'IS_NULLABLE' => $isNullable === false ? 'NO' : 'YES',
                 'COLUMN_DEFAULT' => $columnDefault,
                 'EXTRA' => $columnExtra,
-                'COLUMN_KEY' => $columnKey
+                'COLUMN_KEY' => $columnKey,
             ];
         }
 
@@ -206,14 +208,14 @@ class SchemaComparer
             if ($columnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
                 $columnDifferences['COLUMN_TYPE'] = [
                     'from' => $dbColumnInfo['COLUMN_TYPE'],
-                    'to' => $columnInfo['COLUMN_TYPE']
+                    'to' => $columnInfo['COLUMN_TYPE'],
                 ];
             }
 
             if ($columnInfo['IS_NULLABLE'] !== $dbColumnInfo['IS_NULLABLE']) {
                 $columnDifferences['IS_NULLABLE'] = [
                     'from' => $dbColumnInfo['IS_NULLABLE'],
-                    'to' => $columnInfo['IS_NULLABLE']
+                    'to' => $columnInfo['IS_NULLABLE'],
                 ];
             }
 
@@ -226,7 +228,7 @@ class SchemaComparer
                 ($dbDefault !== null && $mappingDefault !== null && $dbDefault !== $mappingDefault)) {
                 $columnDifferences['COLUMN_DEFAULT'] = [
                     'from' => $dbDefault,
-                    'to' => $mappingDefault
+                    'to' => $mappingDefault,
                 ];
             }
 
@@ -250,6 +252,7 @@ class SchemaComparer
      * @param class-string $entityClass
      * @param SchemaDifference $diff
      * @return void
+     * @throws ReflectionException
      */
     private function compareForeignKeys(string $tableName, string $entityClass, SchemaDifference $diff): void
     {
@@ -273,7 +276,7 @@ class SchemaComparer
                     'REFERENCED_TABLE_NAME' => $this->dbMapping->getReferencedTable($entityClass, $property),
                     'REFERENCED_COLUMN_NAME' => $this->dbMapping->getReferencedColumn($entityClass, $property),
                     'DELETE_RULE' => $this->dbMapping->getDeleteRule($entityClass, $property),
-                    'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property)
+                    'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property),
                 ];
             }
         }

@@ -1,7 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql;
 
+/**
+ * SQL operators for conditions in queries
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 enum SqlOperator: string
 {
     case NOT = 'NOT';

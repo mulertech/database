@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Migration;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -7,9 +9,11 @@ use MulerTech\Database\Relational\Sql\QueryBuilder;
 use RuntimeException;
 
 /**
+ * Class Migration
+ *
  * Abstract Migration class that all migrations must extend
  *
- * @package MulerTech\Database\Migration
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 abstract class Migration

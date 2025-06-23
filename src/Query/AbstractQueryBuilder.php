@@ -1,17 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\PhpInterface\Statement;
-use MulerTech\Database\Relational\Sql\Raw;
 use PDO;
 use RuntimeException;
 
 /**
+ * Class AbstractQueryBuilder
+ *
  * Abstract base class for all query builders providing common functionality
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 abstract class AbstractQueryBuilder
@@ -24,7 +27,7 @@ abstract class AbstractQueryBuilder
     /**
      * @var string
      */
-    protected const NAMED_PARAMETERS_PREFIX = 'namedParam';
+    protected const string NAMED_PARAMETERS_PREFIX = 'namedParam';
 
     /**
      * @param EmEngine|null $emEngine
@@ -179,10 +182,33 @@ abstract class AbstractQueryBuilder
     }
 
     /**
-     * @return void
+     * @param array<int, array{type: string, table: string, alias: string|null, condition: string|null}> $joins
+     * @return string
      */
-    protected function resetParameters(): void
+    protected function buildJoinClauses(array $joins): string
     {
-        $this->namedParameters = [];
+        if ($this->getQueryType() === 'INSERT') {
+            throw new RuntimeException('Joins are not allowed in INSERT queries.');
+        }
+
+        $joinParts = [];
+
+        foreach ($joins as $join) {
+            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
+
+            if ($join['alias'] !== null) {
+                $part .= ' AS ' . $join['alias'];
+            }
+
+            if ($join['condition'] !== null) {
+                $explodeString = str_contains($join['condition'], ' = ') ? ' = ' : '=';
+                $conditionParts = array_map([self::class, 'escapeIdentifier'], explode($explodeString, $join['condition']));
+                $part .= ' ON ' . $conditionParts[0] . '=' . $conditionParts[1];
+            }
+
+            $joinParts[] = $part;
+        }
+
+        return implode(' ', $joinParts);
     }
 }

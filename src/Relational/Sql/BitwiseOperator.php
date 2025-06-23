@@ -1,7 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql;
 
+/**
+ * Bitwise operators for SQL queries
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 enum BitwiseOperator: string
 {
     case BITWISE_AND = '&';

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\Mapping\DbMapping;

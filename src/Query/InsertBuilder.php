@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\Relational\Sql\Raw;
@@ -7,9 +9,11 @@ use PDO;
 use RuntimeException;
 
 /**
+ * Class InsertBuilder
+ *
  * INSERT query builder with batch operation support
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class InsertBuilder extends AbstractQueryBuilder
@@ -62,7 +66,7 @@ class InsertBuilder extends AbstractQueryBuilder
     /**
      * @param string $column
      * @param mixed $value
-     * @param int $type
+     * @param int|null $type
      * @return self
      */
     public function set(string $column, mixed $value, ?int $type = PDO::PARAM_STR): self
@@ -86,7 +90,7 @@ class InsertBuilder extends AbstractQueryBuilder
             throw new RuntimeException('Batch data cannot be empty');
         }
 
-        // Déterminer la liste complète des colonnes
+        // Determine the complete list of columns
         $allColumns = [];
         foreach ($batchData as $row) {
             foreach (array_keys($row) as $col) {
@@ -96,12 +100,12 @@ class InsertBuilder extends AbstractQueryBuilder
             }
         }
 
-        // Normaliser chaque ligne pour qu'elle ait toutes les colonnes (avec null si absent)
+        // Normalize each row so it has all columns (with null if missing)
         $normalizedBatch = [];
         foreach ($batchData as $row) {
             $normalizedRow = [];
             foreach ($allColumns as $col) {
-                $value = array_key_exists($col, $row) ? $row[$col] : null;
+                $value = $row[$col] ?? null;
                 // Process each value for parameterization
                 if ($value instanceof Raw) {
                     $normalizedRow[$col] = $value->getValue();
@@ -251,12 +255,12 @@ class InsertBuilder extends AbstractQueryBuilder
         $sql .= ' VALUES ';
 
         $valueGroups = [];
-        $paramCounter = 1; // compteur global pour garantir l'unicité
+        $paramCounter = 1;
         foreach ($this->batchValues as $row) {
             $valueParts = [];
             foreach ($columns as $column) {
                 $paramName = ':batchParam' . $paramCounter++;
-                $this->namedParameters[$paramName] = [$row[$column], \PDO::PARAM_STR];
+                $this->namedParameters[$paramName] = [$row[$column], PDO::PARAM_STR];
                 $valueParts[] = $paramName;
             }
             $valueGroups[] = '(' . implode(', ', $valueParts) . ')';

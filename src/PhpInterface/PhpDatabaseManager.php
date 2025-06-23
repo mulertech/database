@@ -14,8 +14,11 @@ use PDOStatement;
 use RuntimeException;
 
 /**
+ * Class PhpDatabaseManager
+ *
  * Enhanced PhpDatabaseManager with prepared statement caching
- * @package MulerTech\Database\PhpInterface
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PhpDatabaseManager implements PhpDatabaseInterface
@@ -136,7 +139,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
                 // Return wrapped cached statement
                 return new Statement($cachedStatement);
-            } catch (PDOException $e) {
+            } catch (PDOException) {
                 // Connection lost, invalidate cache and reconnect
                 $this->statementCache?->delete($cacheKey);
                 $this->connection = null;
@@ -149,8 +152,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         // Cache the PDOStatement (not the wrapper)
         $this->statementCache?->set(
             $cacheKey,
-            $statement->getPdoStatement(),
-            0 // No TTL, use cache eviction policy
+            $statement->getPdoStatement()
         );
 
         // Tag for easy invalidation
@@ -211,13 +213,17 @@ class PhpDatabaseManager implements PhpDatabaseInterface
             '/DELETE\s+FROM\s+`?(\w+)`?/i',
         ];
 
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $query, $matches)) {
-                return strtolower($matches[1]);
+        $return = 'unknown';
+        array_any($patterns, static function ($pattern) use ($query, &$return) {
+            $match = preg_match($pattern, $query, $matches);
+            if ($match) {
+                $return = strtolower($matches[1]);
+                return true;
             }
-        }
+            return false;
+        });
 
-        return 'unknown';
+        return $return;
     }
 
     /**
@@ -435,7 +441,6 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         $stats = $this->statementCache?->getStatistics();
 
         // Add usage analytics
-        $topStatements = [];
         arsort($this->statementUsageCount);
         $topStatements = array_slice($this->statementUsageCount, 0, 10, true);
 
@@ -487,7 +492,13 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 throw new RuntimeException('Invalid DATABASE_URL format.');
             }
 
-            $parsedParams = self::decodeUrl($parsedUrl);
+            // Decode URL components inline
+            array_walk($parsedUrl, static function (&$urlPart) {
+                if (is_string($urlPart)) {
+                    $urlPart = urldecode($urlPart);
+                }
+            });
+            $parsedParams = $parsedUrl;
             if (isset($parsedParams['path'])) {
                 $parsedParams['dbname'] = substr($parsedParams['path'], 1);
             }
@@ -495,12 +506,11 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 parse_str($parsedParams['query'], $parsedQuery);
                 $parsedParams = array_merge($parsedParams, $parsedQuery);
             }
-            $parsedParams = array_combine(
+            /** @var array<string, mixed> $parsedParams */
+            return array_combine(
                 array_map('strval', array_keys($parsedParams)),
                 array_values($parsedParams)
             );
-            /** @var array<string, mixed> $parsedParams */
-            return $parsedParams;
         }
 
         return self::populateEnvParameters($parameters);
@@ -547,32 +557,5 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 
         /** @var array<string, mixed> $parameters */
         return $parameters;
-    }
-
-    /**
-     * @param array<string, mixed> $url Parsed URL components
-     * @return array<string, mixed>
-     */
-    private static function decodeUrl(array $url): array
-    {
-        array_walk($url, static function (&$urlPart) {
-            if (is_string($urlPart)) {
-                $urlPart = urldecode($urlPart);
-            }
-        });
-        return $url;
-    }
-
-    /**
-     * @return void
-     */
-    public function __destruct()
-    {
-        // Log cache statistics on destruction if enabled
-        if ($this->statementCache !== null && $this->statementCache->getStatistics()['hits'] > 0) {
-            // You can log these stats to your monitoring system
-            $stats = $this->getStatementCacheStats();
-            // Example: error_log('Statement cache stats: ' . json_encode($stats));
-        }
     }
 }

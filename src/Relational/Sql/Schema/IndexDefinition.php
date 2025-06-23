@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql\Schema;
 
 use InvalidArgumentException;
@@ -192,7 +194,7 @@ class IndexDefinition
             throw new InvalidArgumentException("The index must have at least one column.");
         }
 
-        $columnList = implode(', ', array_map(function ($col) {
+        $columnList = implode(', ', array_map(static function ($col) {
             return AbstractQueryBuilder::escapeIdentifier($col);
         }, $this->columns));
 

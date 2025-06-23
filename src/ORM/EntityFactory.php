@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use DateTimeImmutable;
+use Error;
+use Exception;
+use InvalidArgumentException;
+use JsonException;
 use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Collections\Collection;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
-use ReflectionType;
+use RuntimeException;
+use TypeError;
 
 /**
- * Factory optimisée pour la création et l'hydratation d'entités
- * @package MulerTech\Database\ORM
+ * Class EntityFactory
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class EntityFactory
@@ -42,7 +49,8 @@ final class EntityFactory
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $data
      * @param bool $useConstructor
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     public function create(string $entityClass, array $data = [], bool $useConstructor = true): object
     {
@@ -72,11 +80,12 @@ final class EntityFactory
      * @template T of object
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $data
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     public function createAndManage(string $entityClass, array $data = []): object
     {
-        $entity = $this->create($entityClass, $data, true);
+        $entity = $this->create($entityClass, $data);
 
         // Add to identity map if not already present
         $metadata = $this->identityMap->getMetadata($entity);
@@ -85,10 +94,10 @@ final class EntityFactory
             return $entity;
         }
 
-        // Si l'entité est déjà présente mais pas en état MANAGED, essayer de mettre à jour son état
+        // If entity is already present but not in MANAGED state, try to update its state
         if ($metadata->state !== EntityState::MANAGED) {
             try {
-                // Vérifier que la transition est valide avant de l'appliquer
+                // Check that the transition is valid before applying it
                 if ($metadata->state->canTransitionTo(EntityState::MANAGED)) {
                     $managedMetadata = new EntityMetadata(
                         $metadata->className,
@@ -96,13 +105,13 @@ final class EntityFactory
                         EntityState::MANAGED,
                         $metadata->originalData,
                         $metadata->loadedAt,
-                        new \DateTimeImmutable()
+                        new DateTimeImmutable()
                     );
                     $this->identityMap->updateMetadata($entity, $managedMetadata);
                 }
-            } catch (\InvalidArgumentException $e) {
-                // Si la transition échoue, on continue quand même
-                // L'entité sera utilisée avec son état actuel
+            } catch (InvalidArgumentException) {
+                // If transition fails, we continue anyway
+                // The entity will be used with its current state
             }
         }
 
@@ -113,6 +122,7 @@ final class EntityFactory
      * @param object $entity
      * @param array<string, mixed> $data
      * @return void
+     * @throws ReflectionException
      */
     public function hydrate(object $entity, array $data): void
     {
@@ -132,9 +142,9 @@ final class EntityFactory
                     // Convert value if needed based on property type
                     $convertedValue = $this->convertValue($value, $property);
                     $property->setValue($entity, $convertedValue);
-                } catch (\TypeError $e) {
+                } catch (TypeError $e) {
                     // Log or handle type conversion errors
-                    throw new \RuntimeException(
+                    throw new RuntimeException(
                         sprintf(
                             'Failed to hydrate property "%s" of class "%s": %s',
                             $propertyName,
@@ -152,6 +162,7 @@ final class EntityFactory
     /**
      * @param object $entity
      * @return array<string, mixed>
+     * @throws ReflectionException
      */
     public function extract(object $entity): array
     {
@@ -167,7 +178,7 @@ final class EntityFactory
         foreach ($properties as $propertyName => $property) {
             try {
                 $data[$propertyName] = $property->getValue($entity);
-            } catch (\Error $e) {
+            } catch (Error) {
                 // Handle uninitialized properties
                 $data[$propertyName] = null;
             }
@@ -179,6 +190,7 @@ final class EntityFactory
     /**
      * @param object $entity
      * @return object
+     * @throws ReflectionException
      */
     public function clone(object $entity): object
     {
@@ -206,6 +218,7 @@ final class EntityFactory
     /**
      * @param class-string $entityClass
      * @return void
+     * @throws ReflectionException
      */
     private function cacheReflectionData(string $entityClass): void
     {
@@ -220,7 +233,6 @@ final class EntityFactory
         $properties = [];
         foreach ($reflection->getProperties() as $property) {
             if (!$property->isStatic()) {
-                $property->setAccessible(true);
                 $properties[$property->getName()] = $property;
             }
         }
@@ -231,7 +243,8 @@ final class EntityFactory
      * @template T of object
      * @param ReflectionClass<T> $reflection
      * @param array<string, mixed> $data
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     private function createWithConstructor(ReflectionClass $reflection, array $data): object
     {
@@ -253,7 +266,7 @@ final class EntityFactory
             } elseif ($parameter->allowsNull()) {
                 $parameters[] = null;
             } else {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     sprintf(
                         'Cannot create entity %s: missing required constructor parameter "%s"',
                         $reflection->getName(),
@@ -269,7 +282,8 @@ final class EntityFactory
     /**
      * @template T of object
      * @param ReflectionClass<T> $reflection
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     private function createWithoutConstructor(ReflectionClass $reflection): object
     {
@@ -310,7 +324,8 @@ final class EntityFactory
      * @template T of object
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $dbData
-     * @return T
+     * @return object
+     * @throws ReflectionException
      */
     public function createFromDbData(string $entityClass, array $dbData): object
     {
@@ -318,7 +333,15 @@ final class EntityFactory
         $entity = $this->create($entityClass, [], false);
 
         // Map database columns to entity properties
-        $this->hydrateFromDatabase($entity, $dbData);
+        try {
+            $this->hydrateFromDatabase($entity, $dbData);
+        } catch (JsonException|ReflectionException $e) {
+            throw new RuntimeException(
+                sprintf('Failed to hydrate entity %s from database data: %s', $entityClass, $e->getMessage()),
+                0,
+                $e
+            );
+        }
 
         /** @var T $entity */
         return $entity;
@@ -328,6 +351,8 @@ final class EntityFactory
      * @param object $entity
      * @param array<string, mixed> $dbData
      * @return void
+     * @throws ReflectionException
+     * @throws JsonException
      */
     private function hydrateFromDatabase(object $entity, array $dbData): void
     {
@@ -342,13 +367,13 @@ final class EntityFactory
                 $this->cacheReflectionData($entityClass);
             }
 
-            foreach ($this->propertiesCache[$entityClass] as $propertyName => $property) {
+            foreach ($this->propertiesCache[$entityClass] as $property) {
                 try {
                     if ($property->isInitialized($hydratedEntity)) {
                         $value = $property->getValue($hydratedEntity);
                         $property->setValue($entity, $value);
                     }
-                } catch (\Error $e) {
+                } catch (Error) {
                     // Handle uninitialized properties
                     continue;
                 }
@@ -357,7 +382,7 @@ final class EntityFactory
             // Ensure all collections are DatabaseCollection instances
             $this->ensureCollectionsAreDatabaseCollection($entity);
 
-        } catch (\Exception $e) {
+        } catch (Exception) {
             // If EntityHydrator fails (e.g., no dbMapping), fall back to manual conversion
             $this->fallbackHydration($entity, $dbData);
         }
@@ -368,6 +393,7 @@ final class EntityFactory
      *
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     private function ensureCollectionsAreDatabaseCollection(object $entity): void
     {
@@ -377,7 +403,7 @@ final class EntityFactory
             $this->cacheReflectionData($entityClass);
         }
 
-        foreach ($this->propertiesCache[$entityClass] as $propertyName => $property) {
+        foreach ($this->propertiesCache[$entityClass] as $property) {
             try {
                 if ($property->isInitialized($entity)) {
                     $value = $property->getValue($entity);
@@ -387,10 +413,10 @@ final class EntityFactory
                         $property->setValue($entity, new DatabaseCollection($value->items()));
                     }
                 }
-            } catch (\Error $e) {
+            } catch (Error) {
                 // Handle uninitialized properties - initialize with empty DatabaseCollection if it's a collection property
                 $type = $property->getType();
-                if ($type instanceof \ReflectionNamedType && $type->getName() === Collection::class) {
+                if ($type instanceof ReflectionNamedType && $type->getName() === Collection::class) {
                     $property->setValue($entity, new DatabaseCollection());
                 }
             }
@@ -403,6 +429,8 @@ final class EntityFactory
      * @param object $entity
      * @param array<string, mixed> $dbData
      * @return void
+     * @throws ReflectionException
+     * @throws JsonException
      */
     private function fallbackHydration(object $entity, array $dbData): void
     {
@@ -428,7 +456,7 @@ final class EntityFactory
                     // Convert database value to property type
                     $convertedValue = $this->convertDatabaseValue($value, $property);
                     $property->setValue($entity, $convertedValue);
-                } catch (\TypeError $e) {
+                } catch (TypeError) {
                     // Log or handle type conversion error
                     continue;
                 }
@@ -446,7 +474,7 @@ final class EntityFactory
     {
         $type = $property->getType();
 
-        if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
             return false;
         }
 
@@ -503,6 +531,8 @@ final class EntityFactory
      * @param mixed $value
      * @param ReflectionProperty $property
      * @return mixed
+     * @throws JsonException
+     * @throws ReflectionException
      */
     private function convertDatabaseValue(mixed $value, ReflectionProperty $property): mixed
     {
@@ -535,13 +565,13 @@ final class EntityFactory
                 return $value;
             case 'array':
                 if (is_string($value)) {
-                    return json_decode($value, true) ?: [];
+                    return json_decode($value, true, 512, JSON_THROW_ON_ERROR) ?: [];
                 }
                 return $value;
             default:
                 // For object types, check if it's a JSON encoded value
                 if (is_string($value) && class_exists($typeName)) {
-                    $decoded = json_decode($value, true);
+                    $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
                     if ($decoded !== null) {
                         // Attempt to reconstruct object from array
                         return $this->create($typeName, $decoded);

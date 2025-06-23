@@ -9,16 +9,16 @@ use PDOException;
 use RuntimeException;
 
 /**
- * PDO connector implementation
- * @package MulerTech\Database\PhpInterface
+ * Class PdoConnector
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PdoConnector implements ConnectorInterface
+readonly class PdoConnector implements ConnectorInterface
 {
     /**
      * @param DriverInterface $driver
      */
-    public function __construct(private readonly DriverInterface $driver)
+    public function __construct(private DriverInterface $driver)
     {
     }
 

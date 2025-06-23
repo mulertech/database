@@ -1,7 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\Relational\Sql;
 
+/**
+ * Comparison operators for SQL queries
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 enum ComparisonOperator: string
 {
     case EQUAL = '=';
@@ -19,11 +27,9 @@ enum ComparisonOperator: string
             self::EQUAL => self::NOT_EQUAL,
             self::NOT_EQUAL => self::EQUAL,
             self::GREATER_THAN => self::LESS_THAN_OR_EQUAL,
-            self::GREATER_THAN_OR_EQUAL => self::LESS_THAN,
-            self::NOT_GREATER_THAN => self::LESS_THAN_OR_EQUAL,
+            self::GREATER_THAN_OR_EQUAL, self::NOT_LESS_THAN => self::LESS_THAN,
             self::LESS_THAN => self::GREATER_THAN_OR_EQUAL,
-            self::LESS_THAN_OR_EQUAL => self::GREATER_THAN,
-            self::NOT_LESS_THAN => self::GREATER_THAN_OR_EQUAL,
+            self::LESS_THAN_OR_EQUAL, self::NOT_GREATER_THAN => self::GREATER_THAN,
         };
     }
 }

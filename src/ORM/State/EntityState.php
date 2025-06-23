@@ -31,22 +31,6 @@ enum EntityState: string
     }
 
     /**
-     * @return bool
-     */
-    public function isTransient(): bool
-    {
-        return $this === self::NEW || $this === self::DETACHED;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isPersistent(): bool
-    {
-        return $this === self::MANAGED || $this === self::REMOVED;
-    }
-
-    /**
      * @return string
      */
     public function getDescription(): string

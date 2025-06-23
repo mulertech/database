@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MulerTech\Database\PhpInterface;
 
 use PDO;
 
 /**
  * Interface PhpDatabaseInterface
+ *
+ * Interface for database connection management and query execution.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
