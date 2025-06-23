@@ -15,9 +15,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class RelationManager
+ *
  * Manager for relations between entities (OneToMany, ManyToMany, etc.)
  *
- * @package MulerTech\Database\ORM\Engine\Relations
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class RelationManager

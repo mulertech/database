@@ -8,7 +8,10 @@ use MulerTech\Database\Relational\Sql\QueryBuilder;
 
 /**
  * Class EntityRepository
- * @package MulerTech\Database\ORM
+ *
+ * Base repository class for entity data access operations.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EntityRepository

@@ -8,7 +8,10 @@ use MulerTech\Collections\Collection;
 
 /**
  * Class DatabaseCollection
- * @package MulerTech\Database\ORM
+ *
+ * Collection class for database-managed entities with change tracking.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  * @template TKey of array-key
  * @template TValue of object

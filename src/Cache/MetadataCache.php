@@ -13,8 +13,8 @@ use ReflectionUnionType;
 use RuntimeException;
 
 /**
- * Cache spécialisé pour les métadonnées d'entités
- * @package MulerTech\Database\Cache
+ * Class MetadataCache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class MetadataCache extends MemoryCache
@@ -27,7 +27,6 @@ final class MetadataCache extends MemoryCache
         ?CacheConfig $config = null,
         private readonly ?DbMappingInterface $dbMapping = null
     ) {
-        // Metadata cache needs larger size and no TTL by default
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
             ttl: 0, // No expiration for metadata

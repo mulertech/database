@@ -9,8 +9,8 @@ use PDOException;
 use RuntimeException;
 
 /**
- * PDO connector implementation
- * @package MulerTech\Database\PhpInterface
+ * Class PdoConnector
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class PdoConnector implements ConnectorInterface

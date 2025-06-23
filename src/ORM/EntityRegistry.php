@@ -8,8 +8,8 @@ use DateTimeImmutable;
 use SplObjectStorage;
 
 /**
- * Registre global des entités avec métadonnées et statistiques
- * @package MulerTech\Database\ORM
+ * Class EntityRegistry
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class EntityRegistry

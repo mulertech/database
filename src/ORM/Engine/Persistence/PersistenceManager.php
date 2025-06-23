@@ -25,9 +25,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class PersistenceManager
+ *
  * Main manager for entity persistence
  *
- * @package MulerTech\Database\ORM\Engine\Persistence
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PersistenceManager

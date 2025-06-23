@@ -10,9 +10,11 @@ use PDO;
 use RuntimeException;
 
 /**
+ * Class AbstractQueryBuilder
+ *
  * Abstract base class for all query builders providing common functionality
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 abstract class AbstractQueryBuilder

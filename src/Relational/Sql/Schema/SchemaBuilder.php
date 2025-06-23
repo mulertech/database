@@ -8,6 +8,9 @@ use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
  * Class SchemaBuilder
+ *
+ * Builder for database schema operations including table creation, modification and deletion.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

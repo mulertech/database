@@ -9,6 +9,9 @@ use PDO;
 
 /**
  * Class InformationSchema
+ *
+ * Provides access to database metadata through the information_schema.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

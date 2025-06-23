@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace MulerTech\Database\Migration\Schema;
 
 /**
+ * Class SchemaDifference
+ *
  * Holds differences between database schema and entity mappings
  *
- * @package MulerTech\Database\Migration\Schema
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SchemaDifference

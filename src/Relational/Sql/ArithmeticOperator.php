@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Relational\Sql;
 
 /**
+ * Enum ArithmeticOperator
+ *
  * Arithmetic operators for SQL queries
  *
  * @package MulerTech\Database

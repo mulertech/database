@@ -25,7 +25,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
- * @package MulerTech\Database\ORM
+ * Class EmEngine
+ *
+ * Core engine for entity management and ORM operations.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EmEngine

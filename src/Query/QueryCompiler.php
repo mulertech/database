@@ -11,8 +11,11 @@ use ReflectionClass;
 use ReflectionProperty;
 
 /**
+ * Class QueryCompiler
+ *
  * Query compiler with unified caching system
- * @package MulerTech\Database\Query
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class QueryCompiler

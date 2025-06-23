@@ -11,9 +11,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class MigrationGenerator
+ *
  * Generate migrations based on schema differences
  *
- * @package MulerTech\Database\Migration
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationGenerator

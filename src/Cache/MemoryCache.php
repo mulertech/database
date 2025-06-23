@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Cache en mémoire avec support LRU/LFU/FIFO et tagging
- * @package MulerTech\Database\Cache
+ * Class MemoryCache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MemoryCache implements TaggableCacheInterface

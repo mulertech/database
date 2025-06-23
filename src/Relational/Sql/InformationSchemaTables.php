@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace MulerTech\Database\Relational\Sql;
 
 /**
- * Class InformationSchemaTables
+ * Enum InformationSchemaTables
  *
  * Enum representing all available tables in the MySQL information schema.
  *
- * @package MulerTech\Database\Relational\Sql
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum InformationSchemaTables: string

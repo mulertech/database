@@ -9,9 +9,11 @@ use PDO;
 use RuntimeException;
 
 /**
+ * Class InsertBuilder
+ *
  * INSERT query builder with batch operation support
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class InsertBuilder extends AbstractQueryBuilder

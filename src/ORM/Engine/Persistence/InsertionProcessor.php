@@ -12,9 +12,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class InsertionProcessor
+ *
  * Specialized processor for entity insertions
  *
- * @package MulerTech\Database\ORM\Engine\Persistence
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class InsertionProcessor

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 /**
- * Représente un ensemble de changements pour une entité
- * @package MulerTech\Database\ORM
+ * Class ChangeSet
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final readonly class ChangeSet

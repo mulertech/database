@@ -16,7 +16,11 @@ use PDO;
 use RuntimeException;
 
 /**
- * @package MulerTech\Database\Relational\Sql
+ * Class QueryBuilder
+ *
+ * Main query builder for SQL operations, providing a fluent interface for building SQL queries.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class QueryBuilder

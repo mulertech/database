@@ -14,8 +14,8 @@ use WeakMap;
 use WeakReference;
 
 /**
- * Identity Map pour éviter les doublons d'entités en mémoire
- * @package MulerTech\Database\ORM
+ * Class IdentityMap
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class IdentityMap

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Cache optimisé pour les résultats de requêtes
- * @package MulerTech\Database\Cache
+ * Class ResultSetCache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class ResultSetCache implements TaggableCacheInterface

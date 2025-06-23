@@ -13,8 +13,11 @@ use ReflectionException;
 use SplObjectStorage;
 
 /**
+ * Class ChangeSetManager
+ *
  * Optimised manager for tracking changes in entities
- * @package MulerTech\Database\ORM
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class ChangeSetManager

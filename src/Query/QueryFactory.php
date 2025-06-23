@@ -7,7 +7,11 @@ namespace MulerTech\Database\Query;
 use MulerTech\Database\ORM\EmEngine;
 
 /**
- * @package MulerTech\Database\Query
+ * Class QueryFactory
+ *
+ * Factory for creating query builders
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class QueryFactory

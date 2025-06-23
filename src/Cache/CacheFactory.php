@@ -7,8 +7,8 @@ namespace MulerTech\Database\Cache;
 use RuntimeException;
 
 /**
- * Factory pour créer les caches appropriés
- * @package MulerTech\Database\Cache
+ * Class CacheFactory
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class CacheFactory

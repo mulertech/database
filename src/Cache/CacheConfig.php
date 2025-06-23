@@ -8,7 +8,7 @@ use InvalidArgumentException;
 
 /**
  * Configuration du cache
- * @package MulerTech\Database\Cache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final readonly class CacheConfig

@@ -8,6 +8,9 @@ use PDO;
 
 /**
  * Interface PhpDatabaseInterface
+ *
+ * Interface for database connection management and query execution.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

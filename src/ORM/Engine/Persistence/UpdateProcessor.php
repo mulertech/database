@@ -13,9 +13,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class UpdateProcessor
+ *
  * Specialized processor for entity updates
  *
- * @package MulerTech\Database\ORM\Engine\Persistence
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class UpdateProcessor

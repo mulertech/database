@@ -15,9 +15,11 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class MigrationManager
+ *
  * Migration manager for executing and tracking migrations
  *
- * @package MulerTech\Database\Migration
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationManager

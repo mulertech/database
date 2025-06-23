@@ -15,6 +15,8 @@ use ReflectionException;
 use RuntimeException;
 
 /**
+ * Class MigrationGenerateCommand
+ *
  * Command to generate a migration from entity definitions
  *
  * @package MulerTech\Database

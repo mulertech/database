@@ -14,8 +14,11 @@ use PDOStatement;
 use RuntimeException;
 
 /**
+ * Class PhpDatabaseManager
+ *
  * Enhanced PhpDatabaseManager with prepared statement caching
- * @package MulerTech\Database\PhpInterface
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PhpDatabaseManager implements PhpDatabaseInterface

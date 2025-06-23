@@ -8,8 +8,8 @@ use InvalidArgumentException;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
- * Gestionnaire des transitions d'état des entités
- * @package MulerTech\Database\ORM\State
+ * Class StateTransitionManager
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class StateTransitionManager

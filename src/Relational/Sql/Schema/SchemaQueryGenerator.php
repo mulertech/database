@@ -9,6 +9,9 @@ use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
  * Class SchemaQueryGenerator
+ *
+ * Generates SQL queries for schema operations like CREATE TABLE, ALTER TABLE, etc.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

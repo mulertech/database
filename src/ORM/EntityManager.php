@@ -15,7 +15,9 @@ use ReflectionException;
 /**
  * Class EntityManager
  *
- * @package MainPackageName
+ * Main entity manager implementation for ORM operations.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EntityManager implements EntityManagerInterface

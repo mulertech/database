@@ -7,6 +7,8 @@ namespace MulerTech\Database\PhpInterface;
 /**
  * Interface DriverInterface
  *
+ * Interface for database drivers to generate DSN strings.
+ *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

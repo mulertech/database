@@ -19,8 +19,8 @@ use RuntimeException;
 use TypeError;
 
 /**
- * Factory optimisée pour la création et l'hydratation d'entités
- * @package MulerTech\Database\ORM
+ * Class EntityFactory
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class EntityFactory

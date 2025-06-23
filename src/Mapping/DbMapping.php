@@ -11,7 +11,10 @@ use RuntimeException;
 
 /**
  * Class DbMapping
- * @package MulerTech\Database\Mapping
+ *
+ * Main implementation of database mapping functionality.
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class DbMapping implements DbMappingInterface

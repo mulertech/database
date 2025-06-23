@@ -20,8 +20,11 @@ use ReflectionProperty;
 use TypeError;
 
 /**
+ * Class EntityHydrator
+ *
  * EntityHydrator with metadata caching for improved performance
- * @package MulerTech\Database\ORM
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EntityHydrator
