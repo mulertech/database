@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query;
 
+use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use RuntimeException;
@@ -60,6 +62,22 @@ class DeleteBuilder extends AbstractQueryBuilder
      * @var bool
      */
     private bool $lowPriority = false;
+
+    /**
+     * @var WhereClauseBuilder
+     */
+    private WhereClauseBuilder $whereBuilder;
+
+    /**
+     * DeleteBuilder constructor.
+     *
+     * @param EmEngine|null $emEngine
+     */
+    public function __construct(?EmEngine $emEngine = null)
+    {
+        parent::__construct($emEngine);
+        $this->whereBuilder = new WhereClauseBuilder($this->parameterBag);
+    }
 
     /**
      * @param string $table
@@ -315,6 +333,25 @@ class DeleteBuilder extends AbstractQueryBuilder
     {
         $this->lowPriority = $lowPriority;
         return $this;
+    }
+
+    protected function buildSql(): string
+    {
+        $parts = [];
+        $parts[] = 'DELETE FROM ' . $this->formatTable($this->table);
+
+        // WHERE clause - Utiliser whereBuilder
+        $whereSql = $this->whereBuilder->toSql();
+        if ($whereSql !== '') {
+            $parts[] = 'WHERE ' . $whereSql;
+        }
+
+        // LIMIT clause
+        if ($this->limit !== null) {
+            $parts[] = 'LIMIT ' . $this->limit;
+        }
+
+        return implode(' ', $parts);
     }
 
     /**

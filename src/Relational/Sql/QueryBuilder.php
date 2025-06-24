@@ -226,20 +226,6 @@ class QueryBuilder
      * @param SqlOperations|string $condition
      * @return self
      */
-    public function where(SqlOperations|string $condition): self
-    {
-        if ($this->currentBuilder instanceof SelectBuilder ||
-            $this->currentBuilder instanceof UpdateBuilder ||
-            $this->currentBuilder instanceof DeleteBuilder) {
-            $this->currentBuilder->where($condition);
-        }
-        return $this;
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
     public function andWhere(SqlOperations|string $condition): self
     {
         if ($this->currentBuilder instanceof SelectBuilder ||

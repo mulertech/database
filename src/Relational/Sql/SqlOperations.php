@@ -123,7 +123,7 @@ class SqlOperations
      */
     public function notIn(string $column, array|string|QueryBuilder $list, LinkOperator $link = LinkOperator::AND): self
     {
-        $this->addOperation($this->formatInOperation($column, $list, SqlOperator::IN->not()), $link);
+        $this->addOperation($this->formatInOperation($column, $list, SqlOperator::NOT_IN), $link);
         return $this;
     }
 

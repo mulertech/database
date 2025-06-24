@@ -4,22 +4,67 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query;
 
+use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\Query\Clause\JoinClauseBuilder;
+use MulerTech\Database\Query\Clause\WhereClauseBuilder;
+use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\LinkOperator;
-use MulerTech\Database\Relational\Sql\SqlOperations;
-use RuntimeException;
+use MulerTech\Database\Relational\Sql\SqlOperator;
 
 /**
- * Optimized SELECT query builder with caching support
+ * Class SelectBuilder
  *
- * @package MulerTech\Database\Query
+ * Refactored SELECT query builder using new components
+ *
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SelectBuilder extends AbstractQueryBuilder
 {
     /**
-     * @var array<int, string>
+     * @var WhereClauseBuilder
      */
-    private array $select = ['*'];
+    private WhereClauseBuilder $whereBuilder;
+
+    /**
+     * @var JoinClauseBuilder
+     */
+    private JoinClauseBuilder $joinBuilder;
+
+    /**
+     * @var array<string>
+     */
+    private array $select = [];
+
+    /**
+     * @var array<string>
+     */
+    private array $from = [];
+
+    /**
+     * @var array<string>
+     */
+    private array $groupBy = [];
+
+    /**
+     * @var array<string>
+     */
+    private array $orderBy = [];
+
+    /**
+     * @var WhereClauseBuilder|null
+     */
+    private ?WhereClauseBuilder $havingBuilder = null;
+
+    /**
+     * @var int|null
+     */
+    private ?int $limit = null;
+
+    /**
+     * @var int|null
+     */
+    private ?int $offset = null;
 
     /**
      * @var bool
@@ -27,64 +72,22 @@ class SelectBuilder extends AbstractQueryBuilder
     private bool $distinct = false;
 
     /**
-     * @var array<int, array{table: string|SelectBuilder, alias: string|null}>
+     * @inheritDoc
      */
-    private array $from = [];
+    public function __construct(?EmEngine $emEngine = null)
+    {
+        parent::__construct($emEngine);
+        $this->whereBuilder = new WhereClauseBuilder($this->parameterBag);
+        $this->joinBuilder = new JoinClauseBuilder($this->parameterBag);
+    }
 
     /**
-     * @var array<int, array{type: string, table: string, alias: string|null, condition: string|null}>
+     * @inheritDoc
      */
-    private array $joins = [];
-
-    /**
-     * @var SqlOperations|null
-     */
-    private ?SqlOperations $where = null;
-
-    /**
-     * @var array<int, string>
-     */
-    private array $groupBy = [];
-
-    /**
-     * @var bool
-     */
-    private bool $withRollup = false;
-
-    /**
-     * @var SqlOperations|null
-     */
-    private ?SqlOperations $having = null;
-
-    /**
-     * @var array<int, string>
-     */
-    private array $orderBy = [];
-
-    /**
-     * @var int
-     */
-    private int $limit = 0;
-
-    /**
-     * @var int
-     */
-    private int $offset = 0;
-
-    /**
-     * @var array<int, SelectBuilder>
-     */
-    private array $unionQueries = [];
-
-    /**
-     * @var bool
-     */
-    private bool $unionAll = false;
-
-    /**
-     * @var string
-     */
-    private string $subQueryAlias = '';
+    public function getQueryType(): string
+    {
+        return 'SELECT';
+    }
 
     /**
      * @param string ...$columns
@@ -92,204 +95,169 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function select(string ...$columns): self
     {
-        if (empty($columns)) {
-            $this->select = ['*'];
-            return $this;
-        }
-
-        // Handle DISTINCT
-        if (str_starts_with($columns[0], 'DISTINCT ')) {
-            $this->distinct = true;
-            $columns[0] = substr($columns[0], 9);
-        }
-
-        $this->select = array_values(array_map([self::class, 'escapeIdentifier'], $columns));
-        return $this;
-    }
-
-    /**
-     * @param string $subQueryAlias
-     * @return self
-     */
-    public function alias(string $subQueryAlias): self
-    {
-        $this->subQueryAlias = $subQueryAlias;
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getSubQueryAlias(): string
-    {
-        return $this->subQueryAlias;
-    }
-
-    /**
-     * @param bool $distinct
-     * @return self
-     */
-    public function distinct(bool $distinct = true): self
-    {
-        $this->distinct = $distinct;
-        return $this;
-    }
-
-    /**
-     * @param string|SelectBuilder $table
-     * @param string|null $alias
-     * @return self
-     */
-    public function from(string|SelectBuilder $table, ?string $alias = null): self
-    {
-        if ($table instanceof self) {
-            // Handle subquery
-            $subQueryAlias = $alias ?? $table->getSubQueryAlias();
-            if (empty($subQueryAlias)) {
-                throw new RuntimeException('Subquery must have an alias');
-            }
-            $this->from[] = ['table' => $table, 'alias' => $subQueryAlias];
-        } elseif ($alias === null) {
-            $parsed = $this->parseTableAlias($table);
-            $this->from[] = $parsed;
-        } else {
-            $this->from[] = ['table' => $table, 'alias' => $alias];
-        }
-
+        $this->select = array_merge($this->select, $columns);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
      * @param string $table
-     * @param string|null $condition
      * @param string|null $alias
      * @return self
      */
-    public function innerJoin(string $table, ?string $condition = null, ?string $alias = null): self
+    public function from(string $table, ?string $alias = null): self
     {
-        return $this->addJoin('INNER JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    public function leftJoin(string $table, ?string $condition = null, ?string $alias = null): self
-    {
-        return $this->addJoin('LEFT JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    public function rightJoin(string $table, ?string $condition = null, ?string $alias = null): self
-    {
-        return $this->addJoin('RIGHT JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    public function fullJoin(string $table, ?string $condition = null, ?string $alias = null): self
-    {
-        return $this->addJoin('FULL OUTER JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return self
-     */
-    public function crossJoin(string $table, ?string $alias = null): self
-    {
-        return $this->addJoin('CROSS JOIN', $table, null, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return self
-     */
-    public function naturalJoin(string $table, ?string $alias = null): self
-    {
-        return $this->addJoin('NATURAL JOIN', $table, null, $alias);
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function where(SqlOperations|string $condition): self
-    {
-        $this->where = is_string($condition) ? new SqlOperations($condition) : $condition;
+        $this->from[] = $this->formatTable($table, $alias);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param mixed $value
+     * @param ComparisonOperator|SqlOperator $operator
+     * @param LinkOperator $link
      * @return self
      */
-    public function andWhere(SqlOperations|string $condition): self
-    {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition);
-        } else {
-            $this->where($condition);
-        }
-
+    public function where(
+        string $column,
+        mixed $value = null,
+        ComparisonOperator|SqlOperator $operator = ComparisonOperator::EQUAL,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->add($column, $value, $operator, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param callable(WhereClauseBuilder): void $callback
+     * @param LinkOperator $link
      * @return self
      */
-    public function orWhere(SqlOperations|string $condition): self
+    public function whereGroup(callable $callback, LinkOperator $link = LinkOperator::AND): self
     {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::OR);
-        } else {
-            $this->where($condition);
-        }
-
+        $this->whereBuilder->group($callback, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param array<mixed> $values
      * @return self
      */
-    public function andNotWhere(SqlOperations|string $condition): self
+    public function whereIn(string $column, array|SelectBuilder $values): self
     {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::AND_NOT);
-        } else {
-            $this->where($condition);
-        }
-
+        $this->whereBuilder->in($column, $values);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param array<mixed> $values
      * @return self
      */
-    public function orNotWhere(SqlOperations|string $condition): self
+    public function whereNotIn(string $column, array|SelectBuilder $values): self
     {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::OR_NOT);
-        } else {
-            $this->where($condition);
-        }
+        $this->whereBuilder->notIn($column, $values);
+        $this->isDirty = true;
+        return $this;
+    }
 
+    /**
+     * @param string $column
+     * @param mixed $start
+     * @param mixed $end
+     * @return self
+     */
+    public function whereBetween(string $column, mixed $start, mixed $end): self
+    {
+        $this->whereBuilder->between($column, $start, $end);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @return self
+     */
+    public function whereNull(string $column): self
+    {
+        $this->whereBuilder->isNull($column);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @return self
+     */
+    public function whereNotNull(string $column): self
+    {
+        $this->whereBuilder->isNotNull($column);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function innerJoin(string $table, string $leftColumn, string $rightColumn, ?string $alias = null): self
+    {
+        $this->joinBuilder->inner($table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function leftJoin(string $table, string $leftColumn, string $rightColumn, ?string $alias = null): self
+    {
+        $this->joinBuilder->left($table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function rightJoin(string $table, string $leftColumn, string $rightColumn, ?string $alias = null): self
+    {
+        $this->joinBuilder->right($table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string|null $leftColumn
+     * @param string|null $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function crossJoin(string $table, ?string $leftColumn = null, ?string $rightColumn = null, ?string $alias = null): self
+    {
+        $join = $this->joinBuilder->cross($table, $alias);
+
+        if ($leftColumn !== null && $rightColumn !== null) {
+            $join->on($leftColumn, $rightColumn);
+        }
+        $this->isDirty = true;
         return $this;
     }
 
@@ -299,87 +267,24 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function groupBy(string ...$columns): self
     {
-        $this->groupBy = array_values(array_map([self::class, 'escapeIdentifier'], $columns));
+        $this->groupBy = array_merge($this->groupBy, $columns);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param bool $withRollup
+     * @param string $column
+     * @param mixed $value
+     * @param ComparisonOperator|SqlOperator $operator
      * @return self
      */
-    public function withRollup(bool $withRollup = true): self
+    public function having(string $column, mixed $value = null, ComparisonOperator|SqlOperator $operator = ComparisonOperator::EQUAL): self
     {
-        $this->withRollup = $withRollup;
-        return $this;
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function having(SqlOperations|string $condition): self
-    {
-        $this->having = is_string($condition) ? new SqlOperations($condition) : $condition;
-        return $this;
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function andHaving(SqlOperations|string $condition): self
-    {
-        if ($this->having !== null) {
-            $this->having->addOperation($condition);
-        } else {
-            $this->having($condition);
+        if ($this->havingBuilder === null) {
+            $this->havingBuilder = new WhereClauseBuilder($this->parameterBag);
         }
-
-        return $this;
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function orHaving(SqlOperations|string $condition): self
-    {
-        if ($this->having !== null) {
-            $this->having->addOperation($condition, LinkOperator::OR);
-        } else {
-            $this->having($condition);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function andNotHaving(SqlOperations|string $condition): self
-    {
-        if ($this->having !== null) {
-            $this->having->addOperation($condition, LinkOperator::AND_NOT);
-        } else {
-            $this->having($condition);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function orNotHaving(SqlOperations|string $condition): self
-    {
-        if ($this->having !== null) {
-            $this->having->addOperation($condition, LinkOperator::OR_NOT);
-        } else {
-            $this->having($condition);
-        }
-
+        $this->havingBuilder->add($column, $value, $operator);
+        $this->isDirty = true;
         return $this;
     }
 
@@ -390,8 +295,8 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
-        $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $this->orderBy[] = self::escapeIdentifier($column) . ' ' . $direction;
+        $this->orderBy[] = $this->formatIdentifier($column) . ' ' . strtoupper($direction);
+        $this->isDirty = true;
         return $this;
     }
 
@@ -401,209 +306,106 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function limit(int $limit): self
     {
-        $this->limit = max(0, $limit);
+        $this->limit = $limit;
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @return int
-     */
-    public function getLimit(): int
-    {
-        return $this->limit;
-    }
-
-    /**
-     * @param int|null $page
-     * @param int $manuallyOffset
+     * @param int $offset
      * @return self
      */
-    public function offset(?int $page = 1, int $manuallyOffset = 0): self
+    public function offset(int $offset): self
     {
-        if ($this->limit <= 0) {
-            throw new RuntimeException('Cannot set offset without a limit.');
-        }
-
-        $offset = $page === null ? $manuallyOffset : ($page - 1) * $this->limit;
-
-        $this->offset = max(0, $offset);
+        $this->offset = $offset;
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SelectBuilder ...$queries
+     * @param bool $distinct
      * @return self
      */
-    public function union(SelectBuilder ...$queries): self
+    public function distinct(bool $distinct = true): self
     {
-        foreach ($queries as $query) {
-            $this->unionQueries[] = $query;
-        }
-        $this->unionAll = false;
+        $this->distinct = $distinct;
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SelectBuilder ...$queries
-     * @return self
+     * @inheritDoc
      */
-    public function unionAll(SelectBuilder ...$queries): self
+    protected function buildSql(): string
     {
-        foreach ($queries as $query) {
-            $this->unionQueries[] = $query;
-        }
-        $this->unionAll = true;
-        return $this;
-    }
+        $parts = [];
 
-    /**
-     * @return string
-     */
-    public function toSql(): string
-    {
-        if (!empty($this->unionQueries)) {
-            return $this->buildUnionQuery();
-        }
-
-        return $this->buildSelectQuery();
-    }
-
-    /**
-     * @return string
-     */
-    public function getQueryType(): string
-    {
-        return 'SELECT';
-    }
-
-    /**
-     * @param string $type
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    private function addJoin(string $type, string $table, ?string $condition, ?string $alias): self
-    {
-        if ($alias === null) {
-            ['table' => $table, 'alias' => $alias] = $this->parseTableAlias($table);
-        }
-
-        $this->joins[] = [
-            'type' => $type,
-            'table' => $table,
-            'alias' => $alias,
-            'condition' => $condition,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    private function buildSelectQuery(): string
-    {
-        $sql = 'SELECT';
-
-        if ($this->distinct) {
-            $sql .= ' DISTINCT';
-        }
-
-        $sql .= ' ' . implode(', ', $this->select);
+        // SELECT clause
+        $selectClause = $this->distinct ? 'SELECT DISTINCT ' : 'SELECT ';
+        $selectClause .= !empty($this->select)
+            ? implode(', ', array_map([$this, 'formatIdentifier'], $this->select))
+            : '*';
+        $parts[] = $selectClause;
 
         // FROM clause
         if (!empty($this->from)) {
-            $sql .= ' FROM ' . $this->buildFromClause();
+            $parts[] = 'FROM ' . implode(', ', $this->from);
         }
 
         // JOIN clauses
-        if (!empty($this->joins)) {
-            $sql .= ' ' . $this->buildJoinClauses($this->joins);
+        $joinSql = $this->joinBuilder->toSql();
+        if ($joinSql !== '') {
+            $parts[] = $joinSql;
         }
 
         // WHERE clause
-        if ($this->where !== null) {
-            $sql .= ' WHERE' . $this->where->generateOperation();
+        $whereSql = $this->whereBuilder->toSql();
+        if ($whereSql !== '') {
+            $parts[] = 'WHERE ' . $whereSql;
         }
 
         // GROUP BY clause
         if (!empty($this->groupBy)) {
-            $sql .= ' GROUP BY ' . implode(', ', $this->groupBy);
-            if ($this->withRollup) {
-                $sql .= ' WITH ROLLUP';
-            }
+            $parts[] = 'GROUP BY ' . implode(', ', array_map([$this, 'formatIdentifier'], $this->groupBy));
         }
 
         // HAVING clause
-        if ($this->having !== null) {
-            $sql .= ' HAVING' . $this->having->generateOperation();
+        if ($this->havingBuilder !== null) {
+            $havingSql = $this->havingBuilder->toSql();
+            if ($havingSql !== '') {
+                $parts[] = 'HAVING ' . $havingSql;
+            }
         }
 
         // ORDER BY clause
         if (!empty($this->orderBy)) {
-            $sql .= ' ORDER BY ' . implode(', ', $this->orderBy);
+            $parts[] = 'ORDER BY ' . implode(', ', $this->orderBy);
         }
 
         // LIMIT clause
         if ($this->limit > 0) {
-            $sql .= ' LIMIT ' . $this->limit;
+            $parts[] = 'LIMIT ' . $this->limit;
             if ($this->offset > 0) {
-                $sql .= ' OFFSET ' . $this->offset;
+                $parts[] = 'OFFSET ' . $this->offset;
             }
         }
 
-        return $sql;
+        return implode(' ', $parts);
     }
 
     /**
-     * @return string
+     * @return WhereClauseBuilder
      */
-    private function buildFromClause(): string
+    public function getWhereBuilder(): WhereClauseBuilder
     {
-        $fromParts = [];
-
-        foreach ($this->from as $table) {
-            if ($table['table'] instanceof self) {
-                // Handle subquery
-                $subQuery = '(' . $table['table']->toSql() . ')';
-                $part = $subQuery . ' AS ' . $table['alias'];
-
-                // Merge named parameters from subquery
-                $subQueryParams = $table['table']->getNamedParameters();
-                foreach ($subQueryParams as $key => $value) {
-                    $this->namedParameters[$key] = $value;
-                }
-            } else {
-                $part = self::escapeIdentifier($table['table']);
-                if ($table['alias'] !== null) {
-                    $part .= ' AS ' . $table['alias'];
-                }
-            }
-            $fromParts[] = $part;
-        }
-
-        return implode(', ', $fromParts);
+        return $this->whereBuilder;
     }
 
     /**
-     * @return string
+     * @return JoinClauseBuilder
      */
-    private function buildUnionQuery(): string
+    public function getJoinBuilder(): JoinClauseBuilder
     {
-        $queries = [$this->buildSelectQuery()];
-
-        foreach ($this->unionQueries as $unionQuery) {
-            $queries[] = $unionQuery->toSql();
-
-            // Merge named parameters from union queries
-            $unionParams = $unionQuery->getNamedParameters();
-            foreach ($unionParams as $key => $value) {
-                $this->namedParameters[$key] = $value;
-            }
-        }
-
-        $operator = $this->unionAll ? ' UNION ALL ' : ' UNION ';
-        return implode($operator, $queries);
+        return $this->joinBuilder;
     }
 }

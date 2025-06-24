@@ -4,42 +4,70 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query;
 
+use MulerTech\Database\Core\Cache\QueryStructureCache;
+use MulerTech\Database\Core\Parameters\QueryParameterBag;
+use MulerTech\Database\Core\Traits\ParameterHandlerTrait;
+use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\PhpInterface\Statement;
 use PDO;
 use RuntimeException;
+use stdClass;
 
 /**
  * Class AbstractQueryBuilder
  *
- * Abstract base class for all query builders providing common functionality
+ * Base class for all query builders with enhanced functionality
  *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
 abstract class AbstractQueryBuilder
 {
-    /**
-     * @var array<string, array{0: mixed, 1: int}>
-     */
-    protected array $namedParameters = [];
+    use ParameterHandlerTrait;
+    use SqlFormatterTrait;
 
     /**
-     * @var string
+     * @var QueryParameterBag
      */
-    protected const string NAMED_PARAMETERS_PREFIX = 'namedParam';
+    protected QueryParameterBag $parameterBag;
+
+    /**
+     * @var QueryStructureCache|null
+     */
+    protected static ?QueryStructureCache $structureCache = null;
+
+    /**
+     * @var QueryCompiler|null
+     */
+    protected ?QueryCompiler $compiler = null;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $queryParts = [];
+
+    /**
+     * @var bool
+     */
+    protected bool $isDirty = true;
+
+    /**
+     * @var string|null
+     */
+    protected ?string $cachedSql = null;
 
     /**
      * @param EmEngine|null $emEngine
      */
-    public function __construct(protected readonly ?EmEngine $emEngine = null)
+    public function __construct(protected ?EmEngine $emEngine = null)
     {
-    }
+        $this->parameterBag = new QueryParameterBag();
 
-    /**
-     * @return string
-     */
-    abstract public function toSql(): string;
+        if (self::$structureCache === null) {
+            self::$structureCache = new QueryStructureCache();
+        }
+    }
 
     /**
      * @return string
@@ -47,43 +75,37 @@ abstract class AbstractQueryBuilder
     abstract public function getQueryType(): string;
 
     /**
-     * @param mixed $value
-     * @param int $type
      * @return string
      */
-    public function addNamedParameter(mixed $value, int $type = PDO::PARAM_STR): string
-    {
-        $number = count($this->namedParameters) + 1;
-        $paramName = ':' . self::NAMED_PARAMETERS_PREFIX . $number;
-        $this->namedParameters[$paramName] = [$value, $type];
-
-        return $paramName;
-    }
+    abstract protected function buildSql(): string;
 
     /**
-     * @return array<string, array{0: mixed, 1: int}>
+     * @return string
      */
-    public function getNamedParameters(): array
+    public function toSql(): string
     {
-        return $this->namedParameters;
-    }
-
-    /**
-     * @return array<int, array{0: int|string, 1: mixed, 2: int}>|null
-     */
-    public function getBindParameters(): ?array
-    {
-        $parameters = $this->namedParameters;
-
-        if (empty($parameters)) {
-            return null;
+        if (!$this->isDirty && $this->cachedSql !== null) {
+            return $this->cachedSql;
         }
 
-        $bindParams = [];
-        foreach ($parameters as $key => $value) {
-            $bindParams[] = [$key, $value[0], $value[1]];
+        // Check cache first
+        $cachedSql = self::$structureCache?->get($this);
+        if ($cachedSql !== null) {
+            $this->cachedSql = $cachedSql;
+            $this->isDirty = false;
+            return $cachedSql;
         }
-        return $bindParams;
+
+        // Build SQL
+        $sql = $this->buildSql();
+
+        // Cache the result
+        self::$structureCache?->set($this, $sql);
+
+        $this->cachedSql = $sql;
+        $this->isDirty = false;
+
+        return $sql;
     }
 
     /**
@@ -92,123 +114,156 @@ abstract class AbstractQueryBuilder
     public function getResult(): Statement
     {
         if ($this->emEngine === null) {
-            throw new RuntimeException('EmEngine is not defined.');
+            throw new RuntimeException('EmEngine is not set. Cannot prepare statement.');
         }
 
-        $pdo = $this->emEngine->getEntityManager()->getPdm();
-        $statement = $pdo->prepare($this->toSql());
+        $sql = $this->toSql();
+        $stmt = $this->emEngine->getEntityManager()->getPdm()->prepare($sql);
 
-        if (!empty($this->namedParameters)) {
-            foreach ($this->namedParameters as $key => $value) {
-                $statement->bindParam($key, $value[0], $value[1]);
-            }
-        }
+        $this->bindAllParameters($stmt);
 
-        return $statement;
+        return $stmt;
     }
 
     /**
+     * @return int
+     */
+    public function execute(): int
+    {
+        $stmt = $this->getResult();
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @param string $fetchClass
+     * @return array<object>
+     */
+    public function fetchAll(string $fetchClass = stdClass::class): array
+    {
+        $stmt = $this->getResult();
+        $stmt->execute();
+
+        if ($fetchClass === stdClass::class) {
+            return $stmt->fetchAll(PDO::FETCH_OBJ);
+        }
+
+        return $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
+    }
+
+    /**
+     * @param string $fetchClass
+     * @return object|null
+     */
+    public function fetchOne(string $fetchClass = stdClass::class): ?object
+    {
+        $stmt = $this->getResult();
+        $stmt->execute();
+
+        if ($fetchClass === stdClass::class) {
+            $result = $stmt->fetch(PDO::FETCH_OBJ);
+        } else {
+            $stmt->setFetchMode(PDO::FETCH_CLASS, $fetchClass);
+            $result = $stmt->fetch();
+        }
+
+        return $result !== false ? $result : null;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function fetchScalar(): mixed
+    {
+        $stmt = $this->getResult();
+        $stmt->execute();
+        return $stmt->fetchColumn();
+    }
+
+    /**
+     * @param Statement $stmt
      * @return void
      */
-    public function execute(): void
+    protected function bindAllParameters(Statement $stmt): void
     {
-        $statement = $this->getResult();
-        $statement->execute();
-        $statement->closeCursor();
+        // Bind from trait
+        $this->bindParameters($stmt);
+
+        // Bind from parameter bag
+        $this->parameterBag->bind($stmt);
     }
 
     /**
-     * @return string
+     * @param string $key
+     * @param mixed $value
+     * @return self
      */
-    public function __toString(): string
+    protected function setQueryPart(string $key, mixed $value): self
     {
-        return $this->toSql();
+        $this->queryParts[$key] = $value;
+        $this->isDirty = true;
+        return $this;
     }
 
     /**
-     * @param string $identifier
-     * @return string
+     * @param string $key
+     * @return mixed
      */
-    public static function escapeIdentifier(string $identifier): string
+    protected function getQueryPart(string $key): mixed
     {
-        if ($identifier === '*' || str_contains($identifier, '(')) {
-            return $identifier;
-        }
-
-        if (str_contains($identifier, '.')) {
-            if (str_contains($identifier, ' ')) {
-                $spaceParts = explode(' ', $identifier, 2);
-                return self::escapeIdentifier($spaceParts[0]) . ' ' . $spaceParts[1];
-            }
-
-            $parts = explode('.', $identifier, 2);
-
-            return self::escapeIdentifier($parts[0]) . '.' . self::escapeIdentifier($parts[1]);
-        }
-
-        if (str_contains($identifier, ' ')) {
-            $as = str_contains(strtolower($identifier), ' as ') ? ' ' : ' AS ';
-            $parts = explode(' ', $identifier, 2);
-            return self::escapeIdentifier($parts[0]) . $as . $parts[1];
-        }
-
-        return '`' . str_replace('`', '``', $identifier) . '`';
+        return $this->queryParts[$key] ?? null;
     }
 
     /**
-     * @param string $tableWithAlias
-     * @return array{table: string, alias: string|null}
+     * @param string $key
+     * @return bool
      */
-    protected function parseTableAlias(string $tableWithAlias): array
+    protected function hasQueryPart(string $key): bool
     {
-        $tableWithAlias = trim($tableWithAlias);
-
-        if (str_contains($tableWithAlias, ' as ')) {
-            [$table, $alias] = explode(' as ', $tableWithAlias, 2);
-            return ['table' => trim($table), 'alias' => trim($alias)];
-        }
-
-        if (str_contains($tableWithAlias, ' AS ')) {
-            [$table, $alias] = explode(' AS ', $tableWithAlias, 2);
-            return ['table' => trim($table), 'alias' => trim($alias)];
-        }
-
-        if (str_contains($tableWithAlias, ' ')) {
-            [$table, $alias] = explode(' ', $tableWithAlias, 2);
-            return ['table' => trim($table), 'alias' => trim($alias)];
-        }
-
-        return ['table' => $tableWithAlias, 'alias' => null];
+        return isset($this->queryParts[$key]);
     }
 
     /**
-     * @param array<int, array{type: string, table: string, alias: string|null, condition: string|null}> $joins
-     * @return string
+     * @return QueryParameterBag
      */
-    protected function buildJoinClauses(array $joins): string
+    public function getParameterBag(): QueryParameterBag
     {
-        if ($this->getQueryType() === 'INSERT') {
-            throw new RuntimeException('Joins are not allowed in INSERT queries.');
-        }
+        return $this->parameterBag;
+    }
 
-        $joinParts = [];
+    /**
+     * @param QueryCompiler $compiler
+     * @return self
+     */
+    public function setCompiler(QueryCompiler $compiler): self
+    {
+        $this->compiler = $compiler;
+        return $this;
+    }
 
-        foreach ($joins as $join) {
-            $part = $join['type'] . ' ' . self::escapeIdentifier($join['table']);
+    /**
+     * @return self
+     */
+    public function clone(): self
+    {
+        $clone = clone $this;
+        $clone->parameterBag = clone $this->parameterBag;
+        $clone->resetParameters();
+        $clone->isDirty = true;
+        $clone->cachedSql = null;
+        return $clone;
+    }
 
-            if ($join['alias'] !== null) {
-                $part .= ' AS ' . $join['alias'];
-            }
-
-            if ($join['condition'] !== null) {
-                $explodeString = str_contains($join['condition'], ' = ') ? ' = ' : '=';
-                $conditionParts = array_map([self::class, 'escapeIdentifier'], explode($explodeString, $join['condition']));
-                $part .= ' ON ' . $conditionParts[0] . '=' . $conditionParts[1];
-            }
-
-            $joinParts[] = $part;
-        }
-
-        return implode(' ', $joinParts);
+    /**
+     * @return array<string, mixed>
+     */
+    public function getDebugInfo(): array
+    {
+        return [
+            'sql' => $this->toSql(),
+            'parameters' => $this->parameterBag->toArray(),
+            'type' => $this->getQueryType(),
+            'cached' => !$this->isDirty
+        ];
     }
 }

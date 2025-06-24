@@ -177,13 +177,13 @@ class InsertBuilder extends AbstractQueryBuilder
     /**
      * @return string
      */
-    public function toSql(): string
+    public function buildSql(): string
     {
         if (empty($this->table)) {
             throw new RuntimeException('Table name must be specified');
         }
 
-        $sql = $this->getInsertKeyword() . ' INTO ' . self::escapeIdentifier($this->table);
+        $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatTable($this->table);
 
         if ($this->selectQuery !== null) {
             return $this->buildInsertFromSelect($sql);

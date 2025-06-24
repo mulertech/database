@@ -2,6 +2,8 @@
 
 namespace MulerTech\Database\Tests\Relational;
 
+use MulerTech\Database\Query\QueryFactory;
+use MulerTech\Database\Query\SelectBuilder;
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\QueryBuilder;
@@ -84,16 +86,21 @@ class SqlOperationsTest extends TestCase
 
     public function testInWithQueryBuilder(): void
     {
-        $sqlOperation = new SqlOperations();
-        $query = new QueryBuilder();
-        $query
-            ->select('city')
+        $subQuery = new QueryFactory()->select('city')
             ->from('address')
-            ->where(SqlOperations::equal('department', '\'paris\''));
-        $sqlOperation->in('city', $query);
+            ->where('department', 'paris');
         self::assertEquals(
-            ' city IN (SELECT `city` FROM `address` WHERE department=\'paris\')',
-            $sqlOperation
+            'SELECT `city` FROM `address` WHERE `department` = :param0',
+            $subQuery->toSql()
+        );
+        /** @var SelectBuilder $query */
+        $query = new QueryFactory()->select('username');
+        $query
+            ->from('users')
+            ->whereIn('city', $subQuery);
+        self::assertEquals(
+            'SELECT `users` WHERE `city` IN (SELECT `city` FROM `address` WHERE `department`= :param0)',
+            $query->toSql()
         );
     }
 
