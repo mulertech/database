@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Relational\Sql\Schema;
 
 use InvalidArgumentException;
+use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
@@ -14,6 +15,8 @@ use MulerTech\Database\Query\AbstractQueryBuilder;
  */
 class IndexDefinition
 {
+    use SqlFormatterTrait;
+
     /**
      * @var array<int, string>
      */
@@ -195,12 +198,12 @@ class IndexDefinition
         }
 
         $columnList = implode(', ', array_map(static function ($col) {
-            return AbstractQueryBuilder::escapeIdentifier($col);
+            return $this->escapeIdentifier($col);
         }, $this->columns));
 
         // Fix: avoid repeating INDEX keyword for standard indexes
-        $name = AbstractQueryBuilder::escapeIdentifier($this->name);
-        $table = AbstractQueryBuilder::escapeIdentifier($this->table);
+        $name = $this->escapeIdentifier($this->name);
+        $table = $this->escapeIdentifier($this->table);
         if ($this->type === IndexType::INDEX) {
             $sql = "CREATE INDEX $name ON $table ($columnList)";
         } else {

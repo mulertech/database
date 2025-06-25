@@ -14,10 +14,9 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Relational\Sql\InformationSchema;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Tests\Files\Migrations\Migration202504201358;
-use MulerTech\MTerm\Core\Terminal;
 use PHPUnit\Framework\MockObject\Exception;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -555,14 +554,6 @@ class MigrationTest extends TestCase
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0001'); // Last migration, will be rolled back
         $migration2->expects($this->once())->method('down');
-
-        $queryBuilder = $this->getMockBuilder(QueryBuilder::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-
-        $queryBuilder->method('delete')->willReturnSelf();
-        $queryBuilder->method('where')->willReturnSelf();
-        $queryBuilder->method('addNamedParameter')->willReturn(':namedParam1');
 
         $this->migrationManager->registerMigration($migration1);
         $this->migrationManager->registerMigration($migration2);

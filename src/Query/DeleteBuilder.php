@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace MulerTech\Database\Query;
 
 use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
+use MulerTech\Database\Relational\Sql\ComparisonOperator;
+use MulerTech\Database\Relational\Sql\JoinType;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperations;
+use MulerTech\Database\Relational\Sql\SqlOperator;
 use RuntimeException;
 
 /**
@@ -22,21 +26,6 @@ class DeleteBuilder extends AbstractQueryBuilder
      * @var array<int, array{table: string, alias: string|null}>
      */
     private array $from = [];
-
-    /**
-     * @var array<int|string, string>
-     */
-    private array $deleteFrom = [];
-
-    /**
-     * @var array<int, array{type: string, table: string, alias: string|null, condition: string|null}>
-     */
-    private array $joins = [];
-
-    /**
-     * @var SqlOperations|null
-     */
-    private ?SqlOperations $where = null;
 
     /**
      * @var array<int, string>
@@ -69,6 +58,11 @@ class DeleteBuilder extends AbstractQueryBuilder
     private WhereClauseBuilder $whereBuilder;
 
     /**
+     * @var JoinClauseBuilder
+     */
+    private JoinClauseBuilder $joinBuilder;
+
+    /**
      * DeleteBuilder constructor.
      *
      * @param EmEngine|null $emEngine
@@ -77,6 +71,7 @@ class DeleteBuilder extends AbstractQueryBuilder
     {
         parent::__construct($emEngine);
         $this->whereBuilder = new WhereClauseBuilder($this->parameterBag);
+        $this->joinBuilder = new JoinClauseBuilder($this->parameterBag);
     }
 
     /**
@@ -86,201 +81,379 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function from(string $table, ?string $alias = null): self
     {
-        if ($alias === null) {
-            $parsed = $this->parseTableAlias($table);
-            $this->from[] = $parsed;
-        } else {
-            $this->from[] = ['table' => $table, 'alias' => $alias];
-        }
+        $this->from[] = $this->formatTable($table, $alias);
+        $this->isDirty = true;
+        return $this;
+    }
 
+    // WhereClauseBuilder methods
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param ComparisonOperator|SqlOperator $operator
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function where(
+        string $column,
+        mixed $value = null,
+        ComparisonOperator|SqlOperator $operator = ComparisonOperator::EQUAL,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->add($column, $value, $operator, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param string ...$tables
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
      * @return self
      */
-    public function deleteFrom(string ...$tables): self
-    {
-        $this->deleteFrom = array_merge($this->deleteFrom, $tables);
+    public function whereEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->equal($column, $value, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
      * @return self
      */
-    public function innerJoin(string $table, ?string $condition = null, ?string $alias = null): self
-    {
-        return $this->addJoin('INNER JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    public function leftJoin(string $table, ?string $condition = null, ?string $alias = null): self
-    {
-        return $this->addJoin('LEFT JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    public function rightJoin(string $table, ?string $condition = null, ?string $alias = null): self
-    {
-        return $this->addJoin('RIGHT JOIN', $table, $condition, $alias);
-    }
-
-    /**
-     * @param SqlOperations|string $condition
-     * @return self
-     */
-    public function where(SqlOperations|string $condition): self
-    {
-        $this->where = is_string($condition) ? new SqlOperations($condition) : $condition;
+    public function whereNotEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notEqual($column, $value, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
      * @return self
      */
-    public function andWhere(SqlOperations|string $condition): self
-    {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition);
-        } else {
-            $this->where($condition);
-        }
-
+    public function whereGreaterThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->greaterThan($column, $value, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
      * @return self
      */
-    public function orWhere(SqlOperations|string $condition): self
-    {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::OR);
-        } else {
-            $this->where($condition);
-        }
-
+    public function whereLessThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->lessThan($column, $value, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
      * @return self
      */
-    public function andNotWhere(SqlOperations|string $condition): self
-    {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::AND_NOT);
-        } else {
-            $this->where($condition);
-        }
-
+    public function whereGreaterOrEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->greaterOrEqual($column, $value, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param SqlOperations|string $condition
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
      * @return self
      */
-    public function orNotWhere(SqlOperations|string $condition): self
-    {
-        if ($this->where !== null) {
-            $this->where->addOperation($condition, LinkOperator::OR_NOT);
-        } else {
-            $this->where($condition);
-        }
+    public function whereNotGreaterThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notGreaterThan($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
 
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereLessOrEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->lessOrEqual($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotLessThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notLessThan($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $pattern
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereLike(
+        string $column,
+        mixed $pattern = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->like($column, $pattern, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $pattern
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotLike(
+        string $column,
+        mixed $pattern = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notLike($column, $pattern, $link);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
      * @param string $column
      * @param array<int, mixed> $values
+     * @param LinkOperator $link
      * @return self
      */
-    public function whereIn(string $column, array $values): self
+    public function whereIn(string $column, array|SelectBuilder $values, LinkOperator $link = LinkOperator::AND): self
     {
-        if (empty($values)) {
-            throw new RuntimeException('WHERE IN values cannot be empty');
-        }
-
-        $placeholders = [];
-        foreach ($values as $value) {
-            $placeholders[] = $this->addNamedParameter($value);
-        }
-
-        $condition = self::escapeIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
-        return $this->andWhere($condition);
+        $this->whereBuilder->in($column, $values, $link);
+        $this->isDirty = true;
+        return $this;
     }
 
     /**
      * @param string $column
      * @param array<int, mixed> $values
+     * @param LinkOperator $link
      * @return self
      */
-    public function whereNotIn(string $column, array $values): self
+    public function whereNotIn(string $column, array|SelectBuilder $values, LinkOperator $link = LinkOperator::AND): self
     {
-        if (empty($values)) {
-            throw new RuntimeException('WHERE NOT IN values cannot be empty');
+        $this->whereBuilder->notIn($column, $values, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $start
+     * @param mixed $end
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereBetween(string $column, mixed $start, mixed $end, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->between($column, $start, $end, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $start
+     * @param mixed $end
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotBetween(string $column, mixed $start, mixed $end, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->notBetween($column, $start, $end, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNull(string $column, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->isNull($column, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotNull(string $column, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->isNotNull($column, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    public function whereRaw(string $rawCondition, array $parameters = [], LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->raw($rawCondition, $parameters, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param callable(WhereClauseBuilder): void $callback
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereGroup(callable $callback, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->group($callback, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param SelectBuilder $subQuery
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereExists(SelectBuilder $subQuery, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->exists($subQuery, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    // JoinClauseBuilder methods
+
+    /**
+     * @param JoinType $type
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function join(
+        JoinType $type,
+        string $table,
+        string $leftColumn,
+        string $rightColumn,
+        ?string $alias = null
+    ): self {
+        $this->joinBuilder->add($type, $table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+    /**
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function innerJoin(string $table, string $leftColumn, string $rightColumn, ?string $alias = null): self
+    {
+        $this->joinBuilder->inner($table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function leftJoin(string $table, string $leftColumn, string $rightColumn, ?string $alias = null): self
+    {
+        $this->joinBuilder->left($table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function rightJoin(string $table, string $leftColumn, string $rightColumn, ?string $alias = null): self
+    {
+        $this->joinBuilder->right($table, $alias)->on($leftColumn, $rightColumn);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param string|null $leftColumn
+     * @param string|null $rightColumn
+     * @param string|null $alias
+     * @return self
+     */
+    public function crossJoin(string $table, ?string $leftColumn = null, ?string $rightColumn = null, ?string $alias = null): self
+    {
+        $join = $this->joinBuilder->cross($table, $alias);
+
+        if ($leftColumn !== null && $rightColumn !== null) {
+            $join->on($leftColumn, $rightColumn);
         }
-
-        $placeholders = [];
-        foreach ($values as $value) {
-            $placeholders[] = $this->addNamedParameter($value);
-        }
-
-        $condition = self::escapeIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
-        return $this->andWhere($condition);
-    }
-
-    /**
-     * @param string $column
-     * @param mixed $min
-     * @param mixed $max
-     * @return self
-     */
-    public function whereBetween(string $column, mixed $min, mixed $max): self
-    {
-        $condition = self::escapeIdentifier($column) . ' BETWEEN ' .
-            $this->addNamedParameter($min) . ' AND ' .
-            $this->addNamedParameter($max);
-        return $this->andWhere($condition);
-    }
-
-    /**
-     * @param string $column
-     * @return self
-     */
-    public function whereNull(string $column): self
-    {
-        $condition = self::escapeIdentifier($column) . ' IS NULL';
-        return $this->andWhere($condition);
-    }
-
-    /**
-     * @param string $column
-     * @return self
-     */
-    public function whereNotNull(string $column): self
-    {
-        $condition = self::escapeIdentifier($column) . ' IS NOT NULL';
-        return $this->andWhere($condition);
+        $this->isDirty = true;
+        return $this;
     }
 
     /**
@@ -290,8 +463,8 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
-        $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $this->orderBy[] = self::escapeIdentifier($column) . ' ' . $direction;
+        $this->orderBy[] = $this->formatIdentifier($column) . ' ' . strtoupper($direction);
+        $this->isDirty = true;
         return $this;
     }
 
@@ -301,7 +474,8 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function limit(int $limit): self
     {
-        $this->limit = max(0, $limit);
+        $this->limit = $limit;
+        $this->isDirty = true;
         return $this;
     }
 
@@ -338,16 +512,40 @@ class DeleteBuilder extends AbstractQueryBuilder
     protected function buildSql(): string
     {
         $parts = [];
-        $parts[] = 'DELETE FROM ' . $this->formatTable($this->table);
+        $parts[] = 'DELETE';
 
-        // WHERE clause - Utiliser whereBuilder
+        // Modifiers
+        if ($this->lowPriority) {
+            $parts[] = 'LOW_PRIORITY';
+        }
+        if ($this->quick) {
+            $parts[] = 'QUICK';
+        }
+        if ($this->ignore) {
+            $parts[] = 'IGNORE';
+        }
+
+        $parts[] = 'FROM ' . implode(', ', $this->from);
+
+        // JOIN clauses
+        $joinSql = $this->joinBuilder->toSql();
+        if ($joinSql !== '') {
+            $parts[] = $joinSql;
+        }
+
+        // WHERE clause
         $whereSql = $this->whereBuilder->toSql();
         if ($whereSql !== '') {
             $parts[] = 'WHERE ' . $whereSql;
         }
 
+        // ORDER BY clause
+        if (!empty($this->orderBy)) {
+            $parts[] = 'ORDER BY ' . implode(', ', $this->orderBy);
+        }
+
         // LIMIT clause
-        if ($this->limit !== null) {
+        if ($this->limit > 0) {
             $parts[] = 'LIMIT ' . $this->limit;
         }
 
@@ -357,143 +555,8 @@ class DeleteBuilder extends AbstractQueryBuilder
     /**
      * @return string
      */
-    public function toSql(): string
-    {
-        if (empty($this->from)) {
-            throw new RuntimeException('No table specified for DELETE');
-        }
-
-        $sql = 'DELETE';
-
-        // Modifiers
-        if ($this->lowPriority) {
-            $sql .= ' LOW_PRIORITY';
-        }
-        if ($this->quick) {
-            $sql .= ' QUICK';
-        }
-        if ($this->ignore) {
-            $sql .= ' IGNORE';
-        }
-
-        // DELETE FROM specific tables (for multi-table deletes)
-        if (!empty($this->deleteFrom)) {
-            $sql .= ' ' . implode(', ', array_map([self::class, 'escapeIdentifier'], $this->deleteFrom));
-        }
-
-        // FROM clause
-        $sql .= ' FROM ' . $this->buildFromClause();
-
-        // JOINs
-        if (!empty($this->joins)) {
-            $sql .= ' ' . $this->buildJoinClauses($this->joins);
-        }
-
-        // WHERE clause
-        if ($this->where !== null) {
-            $sql .= ' WHERE' . $this->where->generateOperation();
-        }
-
-        // ORDER BY clause (only for single-table deletes without JOINs)
-        if (!empty($this->orderBy) && empty($this->joins) && empty($this->deleteFrom)) {
-            $sql .= ' ORDER BY ' . implode(', ', $this->orderBy);
-        }
-
-        // LIMIT clause (only for single-table deletes without JOINs)
-        if ($this->limit > 0 && empty($this->joins) && empty($this->deleteFrom)) {
-            $sql .= ' LIMIT ' . $this->limit;
-        }
-
-        return $sql;
-    }
-
-    /**
-     * @return string
-     */
     public function getQueryType(): string
     {
         return 'DELETE';
-    }
-
-    /**
-     * @param string $type
-     * @param string $table
-     * @param string|null $condition
-     * @param string|null $alias
-     * @return self
-     */
-    private function addJoin(string $type, string $table, ?string $condition, ?string $alias): self
-    {
-        if ($alias === null) {
-            ['table' => $table, 'alias' => $alias] = $this->parseTableAlias($table);
-        }
-
-        $this->joins[] = [
-            'type' => $type,
-            'table' => $table,
-            'alias' => $alias,
-            'condition' => $condition,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    private function buildFromClause(): string
-    {
-        $fromParts = [];
-
-        foreach ($this->from as $table) {
-            $part = self::escapeIdentifier($table['table']);
-            if ($table['alias'] !== null) {
-                $part .= ' AS ' . $table['alias'];
-            }
-            $fromParts[] = $part;
-        }
-
-        return implode(', ', $fromParts);
-    }
-
-    /**
-     * @return bool
-     */
-    public function isMultiTable(): bool
-    {
-        return !empty($this->deleteFrom) || !empty($this->joins);
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasJoins(): bool
-    {
-        return !empty($this->joins);
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasWhere(): bool
-    {
-        return $this->where !== null;
-    }
-
-    /**
-     * @return array<string>
-     */
-    public function getDeleteTables(): array
-    {
-        if (!empty($this->deleteFrom)) {
-            return $this->deleteFrom;
-        }
-
-        // For single table delete, return the first table
-        if (!empty($this->from)) {
-            return [$this->from[0]['table']];
-        }
-
-        return [];
     }
 }

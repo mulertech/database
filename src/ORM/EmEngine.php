@@ -17,7 +17,8 @@ use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
+use MulerTech\Database\Query\SelectBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use PDO;
 use ReflectionClass;
@@ -117,9 +118,10 @@ class EmEngine
             return $managed;
         }
 
-        $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->select('*')->from($this->getTableName($entityName));
-        $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($idOrWhere));
+        $queryBuilder = new QueryBuilder($this)
+            ->select('*')
+            ->from($this->getTableName($entityName))
+            ->where('id', $idOrWhere);
 
         $result = $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
 
@@ -137,8 +139,10 @@ class EmEngine
      */
     private function findByStringCondition(string $entityName, string|SqlOperations $condition): ?object
     {
-        $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->select('*')->from($this->getTableName($entityName))->where($condition);
+        $queryBuilder = new QueryBuilder($this)
+            ->select('*')
+            ->from($this->getTableName($entityName))
+            ->where($condition);
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
@@ -172,14 +176,14 @@ class EmEngine
     }
 
     /**
-     * @param QueryBuilder $queryBuilder
+     * @param SelectBuilder $queryBuilder
      * @param class-string $entityName
      * @param bool $loadRelations
      * @return object|null
      * @throws ReflectionException
      */
     public function getQueryBuilderObjectResult(
-        QueryBuilder $queryBuilder,
+        SelectBuilder $queryBuilder,
         string $entityName,
         bool $loadRelations = true
     ): ?object {
@@ -216,14 +220,14 @@ class EmEngine
     }
 
     /**
-     * @param QueryBuilder $queryBuilder
+     * @param SelectBuilder $queryBuilder
      * @param class-string $entityName
      * @param bool $loadRelations
      * @return array<object>|null
      * @throws ReflectionException
      */
     public function getQueryBuilderListResult(
-        QueryBuilder $queryBuilder,
+        SelectBuilder $queryBuilder,
         string $entityName,
         bool $loadRelations = true
     ): ?array {
@@ -321,13 +325,14 @@ class EmEngine
      */
     public function rowCount(string $entityName, ?string $where = null): int
     {
-        $queryBuilder = new QueryBuilder($this);
-        $queryBuilder->select('*')->from($this->getTableName($entityName));
+        $queryBuilder = new QueryBuilder($this)
+            ->select('*')
+            ->from($this->getTableName($entityName));
 
         if (is_numeric($where)) {
-            $queryBuilder->where('id = ' . $queryBuilder->addNamedParameter($where));
+            $queryBuilder->where('id', $where);
         } elseif (is_string($where)) {
-            $queryBuilder->where($where);
+            $queryBuilder->whereLike('id', '%' . $where . '%');
         }
 
         $statement = $queryBuilder->getResult();

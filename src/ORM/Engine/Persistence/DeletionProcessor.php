@@ -6,8 +6,8 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\Database\Relational\Sql\SqlOperations;
+use MulerTech\Database\Query\DeleteBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use ReflectionException;
 use RuntimeException;
 
@@ -46,24 +46,22 @@ readonly class DeletionProcessor
      */
     public function execute(object $entity): void
     {
-        $queryBuilder = $this->buildDeleteQuery($entity);
+        $deleteBuilder = $this->buildDeleteQuery($entity);
 
-        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement = $deleteBuilder->getResult();
         $pdoStatement->execute();
         $pdoStatement->closeCursor();
     }
 
     /**
      * @param object $entity
-     * @return QueryBuilder
+     * @return DeleteBuilder
      * @throws ReflectionException
      */
-    private function buildDeleteQuery(object $entity): QueryBuilder
+    private function buildDeleteQuery(object $entity): DeleteBuilder
     {
         $tableName = $this->getTableName($entity::class);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-
-        $queryBuilder->delete($tableName);
+        $deleteBuilder = new QueryBuilder($this->entityManager->getEmEngine())->delete($tableName);
 
         $entityId = $this->getId($entity);
         if ($entityId === null) {
@@ -72,11 +70,9 @@ readonly class DeletionProcessor
             );
         }
 
-        $queryBuilder->where(
-            SqlOperations::equal('id', $queryBuilder->addNamedParameter($entityId))
-        );
+        $deleteBuilder->where('id', $entityId);
 
-        return $queryBuilder;
+        return $deleteBuilder;
     }
 
     /**

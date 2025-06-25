@@ -2,11 +2,11 @@
 
 namespace MulerTech\Database\Tests\Relational;
 
-use MulerTech\Database\Query\QueryFactory;
+use MulerTech\Database\Query\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Query\SelectBuilder;
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\LinkOperator;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use PHPUnit\Framework\TestCase;
 
@@ -86,7 +86,7 @@ class SqlOperationsTest extends TestCase
 
     public function testInWithQueryBuilder(): void
     {
-        $subQuery = new QueryFactory()->select('city')
+        $subQuery = new QueryBuilder()->select('city')
             ->from('address')
             ->where('department', 'paris');
         self::assertEquals(
@@ -94,7 +94,7 @@ class SqlOperationsTest extends TestCase
             $subQuery->toSql()
         );
         /** @var SelectBuilder $query */
-        $query = new QueryFactory()->select('username');
+        $query = new QueryBuilder()->select('username');
         $query
             ->from('users')
             ->whereIn('city', $subQuery);

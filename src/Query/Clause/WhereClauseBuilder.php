@@ -50,6 +50,24 @@ class WhereClauseBuilder
     /**
      * @param string $column
      * @param mixed $value
+     * @param SqlOperator $operator
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function add(
+        string $column,
+        mixed $value,
+        ComparisonOperator|SqlOperator $operator = ComparisonOperator::EQUAL,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $condition = $this->buildCondition($column, $value, $operator);
+        $this->conditions[] = ['condition' => $condition, 'link' => $link];
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
      * @param LinkOperator $link
      * @return self
      */
@@ -397,24 +415,6 @@ class WhereClauseBuilder
             $this->nestedGroups[] = $group;
         }
 
-        return $this;
-    }
-
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param SqlOperator $operator
-     * @param LinkOperator $link
-     * @return self
-     */
-    public function add(
-        string $column,
-        mixed $value,
-        ComparisonOperator|SqlOperator $operator = ComparisonOperator::EQUAL,
-        LinkOperator $link = LinkOperator::AND
-    ): self {
-        $condition = $this->buildCondition($column, $value, $operator);
-        $this->conditions[] = ['condition' => $condition, 'link' => $link];
         return $this;
     }
 }

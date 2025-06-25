@@ -8,6 +8,7 @@ use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
+use MulerTech\Database\Relational\Sql\JoinType;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperator;
 
@@ -112,6 +113,8 @@ class SelectBuilder extends AbstractQueryBuilder
         return $this;
     }
 
+    // WhereClauseBuilder methods
+
     /**
      * @param string $column
      * @param mixed $value
@@ -131,6 +134,251 @@ class SelectBuilder extends AbstractQueryBuilder
     }
 
     /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->equal($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notEqual($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereGreaterThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->greaterThan($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereLessThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->lessThan($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereGreaterOrEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->greaterOrEqual($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotGreaterThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notGreaterThan($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereLessOrEqual(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->lessOrEqual($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $value
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotLessThan(
+        string $column,
+        mixed $value = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notLessThan($column, $value, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $pattern
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereLike(
+        string $column,
+        mixed $pattern = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->like($column, $pattern, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $pattern
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotLike(
+        string $column,
+        mixed $pattern = null,
+        LinkOperator $link = LinkOperator::AND
+    ): self {
+        $this->whereBuilder->notLike($column, $pattern, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param array<int, mixed> $values
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereIn(string $column, array|SelectBuilder $values, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->in($column, $values, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param array<int, mixed> $values
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotIn(string $column, array|SelectBuilder $values, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->notIn($column, $values, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $start
+     * @param mixed $end
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereBetween(string $column, mixed $start, mixed $end, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->between($column, $start, $end, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param mixed $start
+     * @param mixed $end
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotBetween(string $column, mixed $start, mixed $end, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->notBetween($column, $start, $end, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNull(string $column, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->isNull($column, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param LinkOperator $link
+     * @return self
+     */
+    public function whereNotNull(string $column, LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->isNotNull($column, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    public function whereRaw(string $rawCondition, array $parameters = [], LinkOperator $link = LinkOperator::AND): self
+    {
+        $this->whereBuilder->raw($rawCondition, $parameters, $link);
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
      * @param callable(WhereClauseBuilder): void $callback
      * @param LinkOperator $link
      * @return self
@@ -143,64 +391,38 @@ class SelectBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param string $column
-     * @param array<mixed> $values
+     * @param SelectBuilder $subQuery
+     * @param LinkOperator $link
      * @return self
      */
-    public function whereIn(string $column, array|SelectBuilder $values): self
+    public function whereExists(SelectBuilder $subQuery, LinkOperator $link = LinkOperator::AND): self
     {
-        $this->whereBuilder->in($column, $values);
+        $this->whereBuilder->exists($subQuery, $link);
         $this->isDirty = true;
         return $this;
     }
+
+    // JoinClauseBuilder methods
 
     /**
-     * @param string $column
-     * @param array<mixed> $values
+     * @param JoinType $type
+     * @param string $table
+     * @param string $leftColumn
+     * @param string $rightColumn
+     * @param string|null $alias
      * @return self
      */
-    public function whereNotIn(string $column, array|SelectBuilder $values): self
-    {
-        $this->whereBuilder->notIn($column, $values);
+    public function join(
+        JoinType $type,
+        string $table,
+        string $leftColumn,
+        string $rightColumn,
+        ?string $alias = null
+    ): self {
+        $this->joinBuilder->add($type, $table, $alias)->on($leftColumn, $rightColumn);
         $this->isDirty = true;
         return $this;
     }
-
-    /**
-     * @param string $column
-     * @param mixed $start
-     * @param mixed $end
-     * @return self
-     */
-    public function whereBetween(string $column, mixed $start, mixed $end): self
-    {
-        $this->whereBuilder->between($column, $start, $end);
-        $this->isDirty = true;
-        return $this;
-    }
-
-    /**
-     * @param string $column
-     * @return self
-     */
-    public function whereNull(string $column): self
-    {
-        $this->whereBuilder->isNull($column);
-        $this->isDirty = true;
-        return $this;
-    }
-
-    /**
-     * @param string $column
-     * @return self
-     */
-    public function whereNotNull(string $column): self
-    {
-        $this->whereBuilder->isNotNull($column);
-        $this->isDirty = true;
-        return $this;
-    }
-
     /**
      * @param string $table
      * @param string $leftColumn
@@ -391,21 +613,5 @@ class SelectBuilder extends AbstractQueryBuilder
         }
 
         return implode(' ', $parts);
-    }
-
-    /**
-     * @return WhereClauseBuilder
-     */
-    public function getWhereBuilder(): WhereClauseBuilder
-    {
-        return $this->whereBuilder;
-    }
-
-    /**
-     * @return JoinClauseBuilder
-     */
-    public function getJoinBuilder(): JoinClauseBuilder
-    {
-        return $this->joinBuilder;
     }
 }

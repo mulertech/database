@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Relational;
 
 use MulerTech\Database\Query\AbstractQueryBuilder;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -12,21 +12,23 @@ class QueryBuilderTest extends TestCase
 {
     public function testQueryBuilderInsertOneNameParameter(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder
+        $queryBuilder = new QueryBuilder()
             ->insert('atable')
-            ->setValue('column1', 'data column 1');
-        self::assertEquals('INSERT INTO `atable` (`column1`) VALUES (:namedParam1)', $queryBuilder->getQuery());
+            ->set('column1', 'data column 1');
+        self::assertEquals('INSERT INTO `atable` (`column1`) VALUES (:param0)', $queryBuilder->toSql());
     }
 
     public function testQueryBuilderGetExecuteNamedParameter(): void
     {
-        $queryBuilder = new QueryBuilder();
-        $queryBuilder->insert('atable');
-        $queryBuilder->setValue('column1', 'data column 1');
-        $queryBuilder->setValue('column2', 'data column 2');
+        $queryBuilder = new QueryBuilder()
+            ->insert('atable')
+            ->set('column1', 'data column 1')
+            ->set('column2', 'data column 2');
         self::assertEquals(
-            [':namedParam1' => ['data column 1', 2], ':namedParam2' => ['data column 2', 2]],
+            [
+                ':param0' => ['value' => 'data column 1', 'type' => 2],
+                ':param1' => ['value' => 'data column 2', 'type' => 2]
+            ],
             $queryBuilder->getNamedParameters()
         );
     }

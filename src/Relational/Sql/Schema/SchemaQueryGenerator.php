@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
+use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\Mapping\ColumnType;
-use MulerTech\Database\Query\AbstractQueryBuilder;
 
 /**
  * Class SchemaQueryGenerator
@@ -17,6 +17,8 @@ use MulerTech\Database\Query\AbstractQueryBuilder;
  */
 class SchemaQueryGenerator
 {
+    use SqlFormatterTrait;
+
     /**
      * @param TableDefinition $tableDefinition
      * @return string
@@ -62,12 +64,12 @@ class SchemaQueryGenerator
 
         foreach ($indexes as $name => $index) {
             if ($name === 'PRIMARY') {
-                $columnsList = array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $index['columns']);
+                $columnsList = array_map([$this, 'escapeIdentifier'], $index['columns']);
                 $parts[] = "    PRIMARY KEY (" . implode(', ', $columnsList) . ")";
             } else {
                 $type = $index['type'] ?? 'INDEX';
-                $escapedName = AbstractQueryBuilder::escapeIdentifier($name);
-                $columnsList = array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $index['columns']);
+                $escapedName = $this->escapeIdentifier($name);
+                $columnsList = array_map([$this, 'escapeIdentifier'], $index['columns']);
                 $parts[] = "    $type $escapedName (" . implode(', ', $columnsList) . ")";
             }
         }
@@ -208,8 +210,8 @@ class SchemaQueryGenerator
         $onUpdate = $foreignKey->getOnUpdate();
         $onDelete = $foreignKey->getOnDelete();
 
-        $columnsList = implode(', ', array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $columns));
-        $refColumnsList = implode(', ', array_map([AbstractQueryBuilder::class, 'escapeIdentifier'], $referencedColumns));
+        $columnsList = implode(', ', array_map([$this, 'escapeIdentifier'], $columns));
+        $refColumnsList = implode(', ', array_map([$this, 'escapeIdentifier'], $referencedColumns));
 
         $constraint = "CONSTRAINT `$name` ";
         $fkDef = "FOREIGN KEY ($columnsList) REFERENCES `$referencedTable` ($refColumnsList)";

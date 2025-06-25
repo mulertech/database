@@ -11,8 +11,7 @@ use MulerTech\Database\Mapping\MtManyToMany;
 use MulerTech\Database\Mapping\MtManyToOne;
 use MulerTech\Database\Mapping\MtOneToMany;
 use MulerTech\Database\Mapping\MtOneToOne;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\Database\Relational\Sql\SqlOperations;
+use MulerTech\Database\Query\QueryBuilder;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
@@ -164,18 +163,12 @@ class EntityRelationLoader
         }
         $mappedByColumn = $this->getColumnName($targetEntity, $mappedByProperty);
 
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder->select('*')
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
+            ->select('*')
             ->from($this->getTableName($targetEntity))
-            ->where(SqlOperations::equal(
-                $mappedByColumn,
-                $queryBuilder->addNamedParameter($entityId)
-            ));
+            ->where($mappedByColumn, $entityId);
 
-        $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
-            $queryBuilder, // Pass the QueryBuilder instance
-            $targetEntity  // Pass the target entity class string
-        );
+        $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult($queryBuilder, $targetEntity);
 
         $collection = new DatabaseCollection(); // Default to empty collection
         if ($result !== null) {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Migration;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use RuntimeException;
 
 /**

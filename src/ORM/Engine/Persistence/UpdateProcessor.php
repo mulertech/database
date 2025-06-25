@@ -7,7 +7,8 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 use Exception;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
+use MulerTech\Database\Query\UpdateBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use ReflectionException;
 use RuntimeException;
@@ -65,14 +66,14 @@ readonly class UpdateProcessor
         }
 
         try {
-            $queryBuilder = $this->buildUpdateQuery($entity, $changes);
+            $updateBuilder = $this->buildUpdateQuery($entity, $changes);
 
             // Verify that the query has actual SET clauses
             if (!$this->hasValidValues($entity, $changes)) {
                 return;
             }
 
-            $pdoStatement = $queryBuilder->getResult();
+            $pdoStatement = $updateBuilder->getResult();
 
             $pdoStatement->execute();
             $pdoStatement->closeCursor();
@@ -191,14 +192,13 @@ readonly class UpdateProcessor
     /**
      * @param object $entity
      * @param array<string, mixed> $changes
-     * @return QueryBuilder
+     * @return UpdateBuilder
      * @throws ReflectionException
      */
-    private function buildUpdateQuery(object $entity, array $changes): QueryBuilder
+    private function buildUpdateQuery(object $entity, array $changes): UpdateBuilder
     {
         $tableName = $this->getTableName($entity::class);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder->update($tableName);
+        $updateBuilder = new QueryBuilder($this->entityManager->getEmEngine())->update($tableName);
 
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
         $hasUpdates = false;
@@ -237,7 +237,7 @@ readonly class UpdateProcessor
                 $value = $extractedId ?? null;
             }
 
-            $queryBuilder->setValue($column, $value);
+            $updateBuilder->set($column, $value);
             $hasUpdates = true;
         }
 
@@ -281,7 +281,7 @@ readonly class UpdateProcessor
                         $value = $extractedId ?? null;
                     }
 
-                    $queryBuilder->setValue($foreignKeyColumn, $value);
+                    $updateBuilder->set($foreignKeyColumn, $value);
                 }
             }
         }
@@ -293,11 +293,9 @@ readonly class UpdateProcessor
             );
         }
 
-        $queryBuilder->where(
-            SqlOperations::equal('id', $queryBuilder->addNamedParameter($entityId))
-        );
+        $updateBuilder->where('id', $entityId);
 
-        return $queryBuilder;
+        return $updateBuilder;
     }
 
     /**

@@ -8,8 +8,10 @@ use Exception;
 use MulerTech\Database\Migration\Entity\MigrationHistory;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\Query\DeleteBuilder;
+use MulerTech\Database\Query\InsertBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Relational\Sql\InformationSchema;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use ReflectionException;
 use RuntimeException;
@@ -317,6 +319,7 @@ class MigrationManager
             ->set('executed_at', date('Y-m-d H:i:s'))
             ->set('execution_time', (int)($executionTime * 1000)); // Convert to milliseconds
 
+        /** @var InsertBuilder $queryBuilder */
         $queryBuilder->execute();
     }
 
@@ -373,12 +376,10 @@ class MigrationManager
      */
     protected function removeMigrationRecord(string $version): void
     {
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder
-            ->delete('migration_history')
-            ->where(SqlOperations::equal('version', $queryBuilder->addNamedParameter($version)));
+        $deleteBuilder = new QueryBuilder($this->entityManager->getEmEngine())->delete('migration_history');
+        $deleteBuilder->where('version', $version);
 
-        $statement = $queryBuilder->getResult();
+        $statement = $deleteBuilder->getResult();
         $statement->execute();
     }
 }

@@ -2,16 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Relational\Sql;
+namespace MulerTech\Database\Query;
 
 use Exception;
 use MulerTech\Database\ORM\EmEngine;
-use MulerTech\Database\Query\QueryFactory;
-use MulerTech\Database\Query\SelectBuilder;
-use MulerTech\Database\Query\InsertBuilder;
-use MulerTech\Database\Query\UpdateBuilder;
-use MulerTech\Database\Query\DeleteBuilder;
 use MulerTech\Database\PhpInterface\Statement;
+use MulerTech\Database\Relational\Sql\Raw;
+use MulerTech\Database\Relational\Sql\SqlOperations;
 use PDO;
 use RuntimeException;
 
@@ -23,12 +20,12 @@ use RuntimeException;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class QueryBuilder
+class QueryBuilderOld
 {
     /**
-     * @var QueryFactory
+     * @var QueryBuilder
      */
-    private readonly QueryFactory $queryFactory;
+    private readonly QueryBuilder $queryFactory;
 
     /**
      * @var SelectBuilder|InsertBuilder|UpdateBuilder|DeleteBuilder|null
@@ -45,7 +42,7 @@ class QueryBuilder
      */
     public function __construct(?EmEngine $emEngine = null)
     {
-        $this->queryFactory = new QueryFactory($emEngine);
+        $this->queryFactory = new QueryBuilder($emEngine);
     }
 
     /**
@@ -588,9 +585,9 @@ class QueryBuilder
     }
 
     /**
-     * @return QueryFactory
+     * @return QueryBuilder
      */
-    public function getQueryFactory(): QueryFactory
+    public function getQueryFactory(): QueryBuilder
     {
         return $this->queryFactory;
     }

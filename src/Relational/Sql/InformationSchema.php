@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Relational\Sql;
 
 use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\Query\QueryBuilder;
 use PDO;
 
 /**
@@ -89,7 +90,7 @@ class InformationSchema
         $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('TABLE_NAME', 'AUTO_INCREMENT')
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::TABLES->value)
-            ->where(SqlOperations::equal('TABLE_SCHEMA', "'$database'"));
+            ->where('TABLE_SCHEMA', $database);
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
@@ -113,7 +114,7 @@ class InformationSchema
                 'COLUMN_KEY'
             )
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::COLUMNS->value)
-            ->where(SqlOperations::equal('TABLE_SCHEMA', "'$database'"));
+            ->where('TABLE_SCHEMA', $database);
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
@@ -139,13 +140,15 @@ class InformationSchema
             )
             ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value, 'k')
             ->leftJoin(
-                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value . ' r',
-                'k.CONSTRAINT_NAME=r.CONSTRAINT_NAME'
+                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value,
+                'k.CONSTRAINT_NAME',
+                'r.CONSTRAINT_NAME',
+                'r'
             )
             ->where(SqlOperations::equal('k.CONSTRAINT_SCHEMA', "'$database'"))
-            ->andWhere('k.REFERENCED_TABLE_SCHEMA IS NOT NULL')
-            ->andWhere('k.REFERENCED_TABLE_NAME IS NOT NULL')
-            ->andWhere('k.REFERENCED_COLUMN_NAME IS NOT NULL');
+            ->whereNotNull('k.REFERENCED_TABLE_SCHEMA')
+            ->whereNotNull('k.REFERENCED_TABLE_NAME')
+            ->whereNotNull('k.REFERENCED_COLUMN_NAME');
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();

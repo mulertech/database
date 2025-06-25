@@ -15,7 +15,7 @@ use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;

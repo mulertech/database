@@ -183,7 +183,7 @@ class InsertBuilder extends AbstractQueryBuilder
             throw new RuntimeException('Table name must be specified');
         }
 
-        $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatTable($this->table);
+        $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatIdentifier($this->table);
 
         if ($this->selectQuery !== null) {
             return $this->buildInsertFromSelect($sql);
@@ -232,7 +232,7 @@ class InsertBuilder extends AbstractQueryBuilder
     private function buildSingleInsert(string $sql): string
     {
         $columns = array_keys($this->values);
-        $sql .= ' (' . implode(', ', array_map([self::class, 'escapeIdentifier'], $columns)) . ')';
+        $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
         $sql .= ' VALUES (';
 
         $sql .= implode(', ', array_values($this->values)) . ')';
@@ -251,7 +251,7 @@ class InsertBuilder extends AbstractQueryBuilder
         }
 
         $columns = array_keys($this->batchValues[0]);
-        $sql .= ' (' . implode(', ', array_map([self::class, 'escapeIdentifier'], $columns)) . ')';
+        $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
         $sql .= ' VALUES ';
 
         $valueGroups = [];
@@ -279,7 +279,7 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         if (!empty($this->values)) {
             $columns = array_keys($this->values);
-            $sql .= ' (' . implode(', ', array_map([self::class, 'escapeIdentifier'], $columns)) . ')';
+            $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
         }
 
         // Vérification de nullité avant d'appeler les méthodes
@@ -310,7 +310,7 @@ class InsertBuilder extends AbstractQueryBuilder
 
         $updateParts = [];
         foreach ($this->onDuplicateUpdate as $column => $value) {
-            $escapedColumn = self::escapeIdentifier($column);
+            $escapedColumn = $this->formatIdentifier($column);
 
             if ($value === 'VALUES') {
                 $updateParts[] = "$escapedColumn = VALUES($escapedColumn)";

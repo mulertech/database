@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Relational\Sql;
 
+use MulerTech\Database\Query\QueryBuilder;
+
 /**
  * Class SqlOperations
+ * @todo Is this class still needed?
  *
  * Represents one or more SQL operations, for example:
  * age > 25 AND size > 180cm

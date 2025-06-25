@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Relational\Sql\Schema;
 
-use MulerTech\Database\Query\AbstractQueryBuilder;
+use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 
 /**
  * Class SchemaBuilder
@@ -16,6 +16,8 @@ use MulerTech\Database\Query\AbstractQueryBuilder;
  */
 class SchemaBuilder
 {
+    use SqlFormatterTrait;
+
     /**
      * @param string $tableName
      * @return TableDefinition
@@ -40,7 +42,7 @@ class SchemaBuilder
      */
     public function dropTable(string $tableName): string
     {
-        return "DROP TABLE " . AbstractQueryBuilder::escapeIdentifier($tableName);
+        return "DROP TABLE " . $this->escapeIdentifier($tableName);
     }
 
     /**
@@ -60,6 +62,6 @@ class SchemaBuilder
      */
     public function dropIndex(string $indexName, string $tableName): string
     {
-        return "DROP INDEX " . AbstractQueryBuilder::escapeIdentifier($indexName) . " ON " . AbstractQueryBuilder::escapeIdentifier($tableName);
+        return "DROP INDEX " . $this->escapeIdentifier($indexName) . " ON " . $this->escapeIdentifier($tableName);
     }
 }

@@ -7,7 +7,7 @@ namespace MulerTech\Database\ORM;
 use InvalidArgumentException;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
@@ -131,18 +131,15 @@ class EntityManager implements EntityManagerInterface
         $column = $this->dbMapping->getColumnName($entity, $property);
         $searchValue = is_int($search) ? $search : "'$search'";
 
-        // Build query condition with case sensitivity option
-        $whereCondition = $matchCase ? "BINARY $column = $searchValue" : "$column = $searchValue";
-
         // Create and execute query
         $tableName = $this->dbMapping->getTableName($entity);
         if ($tableName === null) {
             throw new InvalidArgumentException("Entity '$entity' does not have a valid table mapping.");
         }
-        $queryBuilder = new QueryBuilder($this->emEngine);
-        $queryBuilder->select('*')
-                    ->from($tableName)
-                    ->where($whereCondition);
+        $queryBuilder = new QueryBuilder($this->emEngine)
+            ->select('*')
+            ->from($tableName)
+            ->where('BINARY ' . $column, $searchValue);
 
         $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
 
