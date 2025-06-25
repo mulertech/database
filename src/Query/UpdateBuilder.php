@@ -99,7 +99,7 @@ class UpdateBuilder extends AbstractQueryBuilder
             $this->setValues[$column] = $value->getValue();
         } else {
             $this->setValues[$column] = $type !== null
-                ? $this->addNamedParameter($value, $type) : $this->addNamedParameter($value);
+                ? $this->parameterBag->add($value, $type) : $this->parameterBag->add($value);
         }
 
         return $this;
@@ -113,7 +113,7 @@ class UpdateBuilder extends AbstractQueryBuilder
     public function increment(string $column, int|float $value = 1): self
     {
         $escapedColumn = $this->escapeIdentifier($column);
-        $paramValue = $this->addNamedParameter($value);
+        $paramValue = $this->parameterBag->add($value);
         $this->setValues[$column] = "$escapedColumn + $paramValue";
         return $this;
     }
@@ -126,7 +126,7 @@ class UpdateBuilder extends AbstractQueryBuilder
     public function decrement(string $column, int|float $value = 1): self
     {
         $escapedColumn = $this->escapeIdentifier($column);
-        $paramValue = $this->addNamedParameter($value);
+        $paramValue = $this->parameterBag->add($value);
         $this->setValues[$column] = "$escapedColumn - $paramValue";
         return $this;
     }

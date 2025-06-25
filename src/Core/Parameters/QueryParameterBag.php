@@ -111,11 +111,9 @@ class QueryParameterBag
      */
     public function getNamedValues(): array
     {
-        $values = [];
-        foreach ($this->namedParameters as $placeholder => $param) {
-            $values[$placeholder] = $param['value'];
-        }
-        return $values;
+        return array_map(function ($param) {
+            return $param['value'];
+        }, $this->namedParameters);
     }
 
     /**
@@ -189,7 +187,6 @@ class QueryParameterBag
             is_int($value) => PDO::PARAM_INT,
             is_bool($value) => PDO::PARAM_BOOL,
             is_null($value) => PDO::PARAM_NULL,
-            $value instanceof \DateTimeInterface => PDO::PARAM_STR,
             is_resource($value) => PDO::PARAM_LOB,
             default => PDO::PARAM_STR
         };
@@ -202,7 +199,7 @@ class QueryParameterBag
     {
         return [
             'named' => $this->namedParameters,
-            'positional' => $this->positionalParameters
+            'positional' => $this->positionalParameters,
         ];
     }
 }

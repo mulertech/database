@@ -55,7 +55,7 @@ class JoinClauseBuilder
             'type' => $type,
             'table' => $table,
             'alias' => $alias,
-            'conditions' => []
+            'conditions' => [],
         ];
 
         return new JoinConditionBuilder($this, $index);
@@ -124,7 +124,7 @@ class JoinClauseBuilder
             'left' => $leftColumn,
             'operator' => $operator,
             'right' => $rightColumn,
-            'link' => $link
+            'link' => $link,
         ];
     }
 
@@ -190,7 +190,7 @@ class JoinClauseBuilder
         // Check if value looks like a column reference (table.column or just column name)
         return preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $value) === 1
             && !is_numeric($value)
-            && !in_array(strtoupper($value), ['TRUE', 'FALSE', 'NULL']);
+            && !in_array(strtoupper($value), ['TRUE', 'FALSE', 'NULL'], true);
     }
 
     /**
@@ -227,7 +227,7 @@ class JoinClauseBuilder
             return [
                 'type' => $join['type'],
                 'table' => $join['table'],
-                'alias' => $join['alias']
+                'alias' => $join['alias'],
             ];
         }, $this->joins);
     }

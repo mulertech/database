@@ -29,6 +29,21 @@ trait SqlFormatterTrait
         return $this->escapeIdentifier($identifier);
     }
 
+    protected function formatIdentifierWithAlias(string $identifier): string
+    {
+        if (str_contains(strtolower($identifier), ' as ')) {
+            $parts = explode(' as ', strtolower($identifier));
+            return $this->formatTable($parts[0], $parts[1]);
+        }
+
+        if (str_contains($identifier, ' ')) {
+            $parts = explode(' ', $identifier);
+            return $this->formatTable($parts[0], $parts[1]);
+        }
+
+        return $this->formatIdentifier($identifier);
+    }
+
     /**
      * @param string $identifier
      * @return string

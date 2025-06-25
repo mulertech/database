@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query;
 
+use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\Relational\Sql\Raw;
 use PDO;
 use RuntimeException;
@@ -72,10 +73,9 @@ class InsertBuilder extends AbstractQueryBuilder
     public function set(string $column, mixed $value, ?int $type = PDO::PARAM_STR): self
     {
         if ($value instanceof Raw) {
-            $this->values[$column] = $value->getValue();
+            $this->values[$column] = $this->parameterBag->add($value, $type);
         } else {
-            $this->values[$column] = $type !== null
-                ? $this->addNamedParameter($value, $type) : $this->addNamedParameter($value);
+            $this->values[$column] = $this->parameterBag->add($value, $type);
         }
         return $this;
     }
@@ -145,6 +145,7 @@ class InsertBuilder extends AbstractQueryBuilder
     /**
      * @param array<string, mixed> $updates
      * @return self
+     * @todo : use parameterBag for values ?
      */
     public function onDuplicateKeyUpdate(array $updates): self
     {
@@ -177,10 +178,14 @@ class InsertBuilder extends AbstractQueryBuilder
     /**
      * @return string
      */
-    public function buildSql(): string
+    public function buildSql(?QueryParameterBag $parameterBag = null): string
     {
         if (empty($this->table)) {
             throw new RuntimeException('Table name must be specified');
+        }
+
+        if ($parameterBag !== null) {
+            $this->parameterBag = $parameterBag;
         }
 
         $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatIdentifier($this->table);
@@ -284,7 +289,7 @@ class InsertBuilder extends AbstractQueryBuilder
 
         // Vérification de nullité avant d'appeler les méthodes
         if ($this->selectQuery !== null) {
-            $sql .= ' ' . $this->selectQuery->toSql();
+            $sql .= ' ' . $this->selectQuery->toSql($this->parameterBag);
 
             // Merge named parameters from SELECT query
             $selectNamedParams = $this->selectQuery->getNamedParameters();
@@ -319,7 +324,7 @@ class InsertBuilder extends AbstractQueryBuilder
                 $value = $value->getValue();
                 $updateParts[] = "$escapedColumn = $value";
             } else {
-                $updateParts[] = "$escapedColumn = " . $this->addNamedParameter($value);
+                $updateParts[] = "$escapedColumn = " . $this->parameterBag->add($value);
             }
         }
 

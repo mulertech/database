@@ -3,7 +3,6 @@
 namespace MulerTech\Database\Tests\Relational;
 
 use MulerTech\Database\Query\QueryBuilder;
-use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Query\SelectBuilder;
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\LinkOperator;

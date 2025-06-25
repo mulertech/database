@@ -114,8 +114,7 @@ class MigrationManager
     private function loadExecutedMigrations(): void
     {
         try {
-            $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-            $queryBuilder
+            $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
                 ->select('version')
                 ->from('migration_history')
                 ->orderBy('version');
@@ -305,7 +304,6 @@ class MigrationManager
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
         $tableName = $this->entityManager->getDbMapping()->getTableName($this->migrationHistory);
 
         if ($tableName === null) {
@@ -313,13 +311,12 @@ class MigrationManager
             $tableName = 'migration_history';
         }
 
-        $queryBuilder
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->insert($tableName)
             ->set('version', $migration->getVersion())
             ->set('executed_at', date('Y-m-d H:i:s'))
             ->set('execution_time', (int)($executionTime * 1000)); // Convert to milliseconds
 
-        /** @var InsertBuilder $queryBuilder */
         $queryBuilder->execute();
     }
 

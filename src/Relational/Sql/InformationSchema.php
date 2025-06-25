@@ -145,7 +145,7 @@ class InformationSchema
                 'r.CONSTRAINT_NAME',
                 'r'
             )
-            ->where(SqlOperations::equal('k.CONSTRAINT_SCHEMA', "'$database'"))
+            ->where('k.CONSTRAINT_SCHEMA', $database)
             ->whereNotNull('k.REFERENCED_TABLE_SCHEMA')
             ->whereNotNull('k.REFERENCED_TABLE_NAME')
             ->whereNotNull('k.REFERENCED_COLUMN_NAME');

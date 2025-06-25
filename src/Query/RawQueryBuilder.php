@@ -91,7 +91,7 @@ class RawQueryBuilder extends AbstractQueryBuilder
     public function bind(array $bindings): self
     {
         foreach ($bindings as $value) {
-            $this->addNamedParameter($value);
+            $this->parameterBag->add($value);
         }
 
         return $this;

@@ -82,27 +82,11 @@ abstract class AbstractQueryBuilder
     /**
      * @return string
      */
-    public function toSql(): string
+    public function toSql(?QueryParameterBag $parameterBag = null): string
     {
-        if (!$this->isDirty && $this->cachedSql !== null) {
-            return $this->cachedSql;
-        }
-
-        // Check cache first
-        $cachedSql = self::$structureCache?->get($this);
-        if ($cachedSql !== null) {
-            $this->cachedSql = $cachedSql;
-            $this->isDirty = false;
-            return $cachedSql;
-        }
-
         // Build SQL
-        $sql = $this->buildSql();
+        $sql = $this->buildSql($parameterBag);
 
-        // Cache the result
-        self::$structureCache?->set($this, $sql);
-
-        $this->cachedSql = $sql;
         $this->isDirty = false;
 
         return $sql;
@@ -263,7 +247,7 @@ abstract class AbstractQueryBuilder
             'sql' => $this->toSql(),
             'parameters' => $this->parameterBag->toArray(),
             'type' => $this->getQueryType(),
-            'cached' => !$this->isDirty
+            'cached' => !$this->isDirty,
         ];
     }
 }

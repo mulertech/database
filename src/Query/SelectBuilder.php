@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query;
 
+use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
@@ -11,6 +12,7 @@ use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\JoinType;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperator;
+use RuntimeException;
 
 /**
  * Class SelectBuilder
@@ -96,6 +98,10 @@ class SelectBuilder extends AbstractQueryBuilder
      */
     public function select(string ...$columns): self
     {
+        $columns = array_map(
+            fn (string $column) => $this->formatIdentifierWithAlias($column),
+            $columns
+        );
         $this->select = array_merge($this->select, $columns);
         $this->isDirty = true;
         return $this;
@@ -106,9 +112,11 @@ class SelectBuilder extends AbstractQueryBuilder
      * @param string|null $alias
      * @return self
      */
-    public function from(string $table, ?string $alias = null): self
+    public function from(string|SelectBuilder $table, ?string $alias = null): self
     {
-        $this->from[] = $this->formatTable($table, $alias);
+        $this->from[] = $table instanceof SelectBuilder
+            ? ['subquery' => $table, 'alias' => $alias]
+            : $this->formatTable($table, $alias);
         $this->isDirty = true;
         return $this;
     }
@@ -537,9 +545,15 @@ class SelectBuilder extends AbstractQueryBuilder
      * @param int $offset
      * @return self
      */
-    public function offset(int $offset): self
+    public function offset(?int $offset, ?int $page = null): self
     {
-        $this->offset = $offset;
+        if ($this->limit <= 0) {
+            throw new RuntimeException('Cannot set offset without a limit.');
+        }
+
+        $offset = $page === null ? $offset : ($page - 1) * $this->limit;
+
+        $this->offset = max(0, $offset);
         $this->isDirty = true;
         return $this;
     }
@@ -558,8 +572,12 @@ class SelectBuilder extends AbstractQueryBuilder
     /**
      * @inheritDoc
      */
-    protected function buildSql(): string
+    protected function buildSql(?QueryParameterBag $parameterBag = null): string
     {
+        if ($parameterBag !== null) {
+            $this->parameterBag = $parameterBag;
+        }
+
         $parts = [];
 
         // SELECT clause
@@ -571,7 +589,7 @@ class SelectBuilder extends AbstractQueryBuilder
 
         // FROM clause
         if (!empty($this->from)) {
-            $parts[] = 'FROM ' . implode(', ', $this->from);
+            $parts[] = 'FROM ' . implode(', ', $this->generateFromParts());
         }
 
         // JOIN clauses
@@ -613,5 +631,44 @@ class SelectBuilder extends AbstractQueryBuilder
         }
 
         return implode(' ', $parts);
+    }
+
+    public function generateFromParts(): array
+    {
+        $fromParts = [];
+        foreach ($this->from as $table) {
+            if (is_array($table)) {
+                // Handle subquery with alias
+                $subQuery = $table['subquery'];
+                $alias = $table['alias'] ?? null;
+                $fromParts[] = '(' . $subQuery->toSql($this->parameterBag) . ')' . ($alias ? ' AS ' . $this->formatIdentifier($alias) : '');
+            } else {
+                // Regular table with optional alias
+                $fromParts[] = $table;
+            }
+        }
+        return $fromParts;
+    }
+
+    /**
+     * Change named parameter index based on the provided mapping.
+     *
+     * @param array<string, string> $namedParamChanged
+     */
+    private function changeNamedParamIndex(array $namedParamChanged): void
+    {
+        if (empty($namedParamChanged)) {
+            return;
+        }
+
+        if (empty($this->values)) {
+            return;
+        }
+
+        foreach ($this->values as $column => &$value) {
+            if (is_string($value) && str_starts_with($value, ':') && in_array($value, $namedParamChanged, true)) {
+                $value = $namedParamChanged[$value];
+            }
+        }
     }
 }

@@ -34,31 +34,6 @@ trait ParameterHandlerTrait
     protected int $parameterCounter = 0;
 
     /**
-     * @param mixed $value
-     * @param int $type
-     * @return string
-     */
-    protected function addNamedParameter(mixed $value, int $type = PDO::PARAM_STR): string
-    {
-        $parameterName = ':param' . $this->parameterCounter++;
-        $this->namedParameters[$parameterName] = [
-            'value' => $value,
-            'type' => $type
-        ];
-        return $parameterName;
-    }
-
-    /**
-     * @param mixed $value
-     * @return self
-     */
-    protected function addDynamicParameter(mixed $value): self
-    {
-        $this->dynamicParameters[] = $value;
-        return $this;
-    }
-
-    /**
      * @param Statement $statement
      * @return void
      */

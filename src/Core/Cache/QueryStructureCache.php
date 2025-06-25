@@ -107,7 +107,7 @@ class QueryStructureCache
         $this->cache[$key] = [
             'sql' => $sql,
             'structure' => $this->extractStructure($builder),
-            'timestamp' => time()
+            'timestamp' => time(),
         ];
     }
 
@@ -163,7 +163,7 @@ class QueryStructureCache
             'hits' => $hits,
             'misses' => $misses,
             'size' => $this->size(),
-            'enabled' => $this->enabled
+            'enabled' => $this->enabled,
         ];
     }
 
