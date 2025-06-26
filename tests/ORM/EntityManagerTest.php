@@ -2,7 +2,6 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Debug\DebugEmptyInsertions;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;

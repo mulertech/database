@@ -178,14 +178,10 @@ class InsertBuilder extends AbstractQueryBuilder
     /**
      * @return string
      */
-    public function buildSql(?QueryParameterBag $parameterBag = null): string
+    public function buildSql(): string
     {
         if (empty($this->table)) {
             throw new RuntimeException('Table name must be specified');
-        }
-
-        if ($parameterBag !== null) {
-            $this->parameterBag = $parameterBag;
         }
 
         $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatIdentifier($this->table);
@@ -288,8 +284,9 @@ class InsertBuilder extends AbstractQueryBuilder
         }
 
         // Vérification de nullité avant d'appeler les méthodes
-        if ($this->selectQuery !== null) {
-            $sql .= ' ' . $this->selectQuery->toSql($this->parameterBag);
+        if ($this->selectQuery instanceof SelectBuilder) {
+            $this->selectQuery->setParameterBag($this->parameterBag);
+            $sql .= ' ' . $this->selectQuery->toSql();
 
             // Merge named parameters from SELECT query
             $selectNamedParams = $this->selectQuery->getNamedParameters();

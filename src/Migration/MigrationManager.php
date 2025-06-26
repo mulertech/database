@@ -8,11 +8,8 @@ use Exception;
 use MulerTech\Database\Migration\Entity\MigrationHistory;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Query\DeleteBuilder;
-use MulerTech\Database\Query\InsertBuilder;
 use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Relational\Sql\InformationSchema;
-use MulerTech\Database\Relational\Sql\SqlOperations;
 use ReflectionException;
 use RuntimeException;
 

@@ -10,7 +10,6 @@ use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\JoinType;
 use MulerTech\Database\Relational\Sql\LinkOperator;
-use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\Database\Relational\Sql\SqlOperator;
 use RuntimeException;
 

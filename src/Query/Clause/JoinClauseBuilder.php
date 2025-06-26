@@ -25,7 +25,17 @@ class JoinClauseBuilder
     use SqlFormatterTrait;
 
     /**
-     * @var array<int, array{type: JoinType, table: string, alias: string|null, conditions: array<array{left: string, operator: SqlOperator, right: string, link: LinkOperator}>}>
+     * @var array<int, array{
+     *       type: JoinType,
+     *       table: string,
+     *       alias: string|null,
+     *       conditions: array<array{
+     *         left: string,
+     *         operator: SqlOperator|ComparisonOperator,
+     *         right: string,
+     *         link: LinkOperator
+     *       }>
+     *     }>
      */
     private array $joins = [];
 
@@ -154,7 +164,11 @@ class JoinClauseBuilder
     }
 
     /**
-     * @param array<array{left: string, operator: SqlOperator, right: string|mixed, link: LinkOperator}> $conditions
+     * @param array<array{
+     *     left: string,
+     *     operator: SqlOperator|ComparisonOperator,
+     *     right: string|mixed,
+     *     link: LinkOperator}> $conditions
      * @return string
      */
     private function buildConditions(array $conditions): string

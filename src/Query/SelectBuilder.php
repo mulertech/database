@@ -572,12 +572,8 @@ class SelectBuilder extends AbstractQueryBuilder
     /**
      * @inheritDoc
      */
-    protected function buildSql(?QueryParameterBag $parameterBag = null): string
+    protected function buildSql(): string
     {
-        if ($parameterBag !== null) {
-            $this->parameterBag = $parameterBag;
-        }
-
         $parts = [];
 
         // SELECT clause
@@ -637,17 +633,30 @@ class SelectBuilder extends AbstractQueryBuilder
     {
         $fromParts = [];
         foreach ($this->from as $table) {
-            if (is_array($table)) {
+            if (is_array($table) && $table['subquery'] instanceof SelectBuilder) {
                 // Handle subquery with alias
                 $subQuery = $table['subquery'];
+                $subQuery->setParameterBag($this->parameterBag);
                 $alias = $table['alias'] ?? null;
-                $fromParts[] = '(' . $subQuery->toSql($this->parameterBag) . ')' . ($alias ? ' AS ' . $this->formatIdentifier($alias) : '');
+                $fromParts[] = '(' . $subQuery->toSql() . ')' . ($alias ? ' AS ' . $this->formatIdentifier($alias) : '');
             } else {
                 // Regular table with optional alias
                 $fromParts[] = $table;
             }
         }
         return $fromParts;
+    }
+
+    /**
+     * Set the parameter bag for this query.
+     *
+     * @param QueryParameterBag $parameterBag
+     * @return self
+     */
+    public function setParameterBag(QueryParameterBag $parameterBag): self
+    {
+        $this->parameterBag = $parameterBag;
+        return $this;
     }
 
     /**

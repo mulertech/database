@@ -19,7 +19,6 @@ use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Query\SelectBuilder;
-use MulerTech\Database\Relational\Sql\SqlOperations;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
@@ -99,15 +98,15 @@ class EmEngine
 
     /**
      * @param class-string $entityName
-     * @param int|string|SqlOperations $idOrWhere
+     * @param int|string $idOrWhere
      * @return object|null
      * @throws ReflectionException
      */
-    public function find(string $entityName, int|string|SqlOperations $idOrWhere): ?object
+    public function find(string $entityName, int|string $idOrWhere): ?object
     {
         // Pour les recherches par SqlOperations ou string non-numeric, toujours aller en base
         // car l'IdentityMap est indexée par ID, pas par autres critères
-        if ($idOrWhere instanceof SqlOperations || (is_string($idOrWhere) && !is_numeric($idOrWhere))) {
+        if (is_string($idOrWhere) && !is_numeric($idOrWhere)) {
             return $this->findByStringCondition($entityName, $idOrWhere);
         }
 
@@ -133,16 +132,16 @@ class EmEngine
      * Find entity by string condition, always going to database
      *
      * @param class-string $entityName
-     * @param string|SqlOperations $condition
+     * @param string $condition
      * @return object|null
      * @throws ReflectionException
      */
-    private function findByStringCondition(string $entityName, string|SqlOperations $condition): ?object
+    private function findByStringCondition(string $entityName, string $condition): ?object
     {
         $queryBuilder = new QueryBuilder($this)
             ->select('*')
             ->from($this->getTableName($entityName))
-            ->where($condition);
+            ->whereRaw($condition);
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();

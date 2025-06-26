@@ -9,7 +9,6 @@ use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Query\UpdateBuilder;
-use MulerTech\Database\Relational\Sql\SqlOperations;
 use ReflectionException;
 use RuntimeException;
 

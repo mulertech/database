@@ -8,7 +8,6 @@ use InvalidArgumentException;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
 use MulerTech\Database\Query\QueryBuilder;
-use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 
@@ -87,11 +86,11 @@ class EntityManager implements EntityManagerInterface
 
     /**
      * @param class-string $entity
-     * @param string|int|SqlOperations $idOrWhere
+     * @param string|int $idOrWhere
      * @return object|null
      * @throws ReflectionException
      */
-    public function find(string $entity, string|int|SqlOperations $idOrWhere): ?object
+    public function find(string $entity, string|int $idOrWhere): ?object
     {
         $result = $this->emEngine->find($entity, $idOrWhere);
         // Ensure we never return false, only null or object
@@ -129,7 +128,6 @@ class EntityManager implements EntityManagerInterface
     ): bool {
         // Get column name and prepare search value
         $column = $this->dbMapping->getColumnName($entity, $property);
-        $searchValue = is_int($search) ? $search : "'$search'";
 
         // Create and execute query
         $tableName = $this->dbMapping->getTableName($entity);
@@ -139,7 +137,7 @@ class EntityManager implements EntityManagerInterface
         $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('*')
             ->from($tableName)
-            ->where('BINARY ' . $column, $searchValue);
+            ->whereRaw('BINARY `' . $column . '` = :param0', [':param0' => $search]);
 
         $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
 

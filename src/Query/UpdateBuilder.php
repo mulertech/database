@@ -10,7 +10,6 @@ use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\JoinType;
 use MulerTech\Database\Relational\Sql\LinkOperator;
-use MulerTech\Database\Relational\Sql\SqlOperations;
 use MulerTech\Database\Relational\Sql\Raw;
 use MulerTech\Database\Relational\Sql\SqlOperator;
 use PDO;
@@ -33,16 +32,6 @@ class UpdateBuilder extends AbstractQueryBuilder
      * @var array<string, mixed>
      */
     private array $setValues = [];
-
-    /**
-     * @var array<int, array{type: string, table: string, alias: string|null, condition: string|null}>
-     */
-    private array $joins = [];
-
-    /**
-     * @var SqlOperations|null
-     */
-    private ?SqlOperations $where = null;
 
     /**
      * @var array<string>

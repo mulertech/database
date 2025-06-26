@@ -82,10 +82,10 @@ abstract class AbstractQueryBuilder
     /**
      * @return string
      */
-    public function toSql(?QueryParameterBag $parameterBag = null): string
+    public function toSql(): string
     {
         // Build SQL
-        $sql = $this->buildSql($parameterBag);
+        $sql = $this->buildSql();
 
         $this->isDirty = false;
 
