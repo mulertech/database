@@ -60,8 +60,8 @@ readonly class DeletionProcessor
      */
     private function buildDeleteQuery(object $entity): DeleteBuilder
     {
-        $tableName = $this->getTableName($entity::class);
-        $deleteBuilder = new QueryBuilder($this->entityManager->getEmEngine())->delete($tableName);
+        $deleteBuilder = new QueryBuilder($this->entityManager->getEmEngine())
+            ->delete($this->getTableName($entity::class));
 
         $entityId = $this->getId($entity);
         if ($entityId === null) {

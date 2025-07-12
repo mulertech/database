@@ -106,55 +106,26 @@ readonly class UpdateProcessor
             // Check if it's a ManyToOne relation that should have a foreign key column
             $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
             if (is_array($manyToOneList) && isset($manyToOneList[$property])) {
-                // For ManyToOne, the foreign key column is typically property_id
-                $foreignKeyColumn = $property . '_id';
-
-                // Verify this column exists in the entity's column mappings
-                foreach ($allPropertiesColumns as $col) {
-                    if ($col === $foreignKeyColumn) {
-                        return $col;
-                    }
-                }
-
-                // Check if the property itself maps to a column (direct FK mapping)
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
                         return $mappedColumn;
                     }
                 } catch (Exception) {
-                    // Continue with convention-based name
+                    // Continue
                 }
-
-                // If not found in explicit mappings, return the convention-based name
-                // This handles cases where the FK column isn't explicitly mapped to a property
-                return $foreignKeyColumn;
             }
 
             $oneToOneList = $this->dbMapping->getOneToOne($entityClass);
             if (is_array($oneToOneList) && isset($oneToOneList[$property])) {
-                // For OneToOne, the foreign key column is typically property_id
-                $foreignKeyColumn = $property . '_id';
-
-                // Verify this column exists in the entity's column mappings
-                foreach ($allPropertiesColumns as $col) {
-                    if ($col === $foreignKeyColumn) {
-                        return $col;
-                    }
-                }
-
-                // Check if the property itself maps to a column (direct FK mapping)
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
                         return $mappedColumn;
                     }
                 } catch (Exception) {
-                    // Continue with convention-based name
+                    // Continue
                 }
-
-                // If not found in explicit mappings, return the convention-based name
-                return $foreignKeyColumn;
             }
         } catch (Exception) {
             // If mapping fails, return null
@@ -199,19 +170,7 @@ readonly class UpdateProcessor
             }
 
             $propertyChange = $changes[$property];
-            $value = $propertyChange->newValue;
-
-            // CRITICAL FIX: Handle serialized arrays from ChangeDetector
-            if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
-                // This is a serialized entity reference from ChangeDetector
-                $value = $value['__id__'];
-            } elseif (is_object($value)) {
-                // This is an actual object, extract its ID
-                $extractedId = $this->getId($value);
-                $value = $extractedId ?? null;
-            }
-
-            $updateBuilder->set($column, $value);
+            $updateBuilder->set($column, $this->getReferenceForeignKeyId($propertyChange->newValue));
             $hasUpdates = true;
         }
 
@@ -226,19 +185,7 @@ readonly class UpdateProcessor
                 // Try to find a foreign key column for this relation property
                 $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
                 if ($foreignKeyColumn !== null) {
-                    $value = $propertyChange->newValue;
-
-                    // CRITICAL FIX: Handle serialized arrays from ChangeDetector
-                    if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
-                        // This is a serialized entity reference from ChangeDetector
-                        $value = $value['__id__'];
-                    } elseif (is_object($value)) {
-                        // This is an actual object, extract its ID
-                        $extractedId = $this->getId($value);
-                        $value = $extractedId ?? null;
-                    }
-
-                    $updateBuilder->set($foreignKeyColumn, $value);
+                    $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($propertyChange->newValue));
                 }
             }
         }
@@ -253,6 +200,28 @@ readonly class UpdateProcessor
         $updateBuilder->where('id', $entityId);
 
         return $updateBuilder;
+    }
+
+    /**
+     * Get the foreign key ID from a serialized entity reference or an actual object
+     *
+     * @param array<string, mixed>|object|string|null $value
+     * @return int|string|array<string, mixed>|null
+     */
+    private function getReferenceForeignKeyId(array|object|string|null $value): int|string|array|null
+    {
+        if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
+            // This is a serialized entity reference from ChangeDetector
+            return $value['__id__'];
+        }
+
+        if (is_object($value)) {
+            // This is an actual object, extract its ID
+            $extractedId = $this->getId($value);
+            return $extractedId ?? null;
+        }
+
+        return $value;
     }
 
     /**

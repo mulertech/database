@@ -83,8 +83,8 @@ readonly class InsertionProcessor
      */
     private function buildInsertQuery(object $entity, array $changes): InsertBuilder
     {
-        $tableName = $this->getTableName($entity::class);
-        $insertBuilder = new QueryBuilder($this->entityManager->getEmEngine())->insert($tableName);
+        $insertBuilder = new QueryBuilder($this->entityManager->getEmEngine())
+            ->insert($this->getTableName($entity::class));
 
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
 

@@ -92,7 +92,7 @@ trait ParameterHandlerTrait
 
     /**
      * @param array<string, mixed> $params
-     * @return AbstractQueryBuilder|ParameterHandlerTrait
+     * @return static
      */
     protected function mergeNamedParameters(array $params): self
     {
@@ -102,7 +102,7 @@ trait ParameterHandlerTrait
 
     /**
      * @param array<int, mixed> $params
-     * @return AbstractQueryBuilder|ParameterHandlerTrait
+     * @return static
      */
     protected function mergeDynamicParameters(array $params): self
     {

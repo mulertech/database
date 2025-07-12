@@ -86,7 +86,7 @@ trait SqlFormatterTrait
             '/\s*,\s*/',               // Multiple columns
         ];
 
-        return array_any($patterns, static fn($pattern) => preg_match($pattern, $identifier));
+        return array_any($patterns, static fn ($pattern) => (bool) preg_match($pattern, $identifier));
     }
 
     /**
