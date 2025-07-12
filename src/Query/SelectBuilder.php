@@ -40,7 +40,7 @@ class SelectBuilder extends AbstractQueryBuilder
     private array $select = [];
 
     /**
-     * @var array<string>
+     * @var array<int, array{table: string, alias: string|null}|array{subquery: SelectBuilder, alias: string|null}>
      */
     private array $from = [];
 
@@ -108,15 +108,18 @@ class SelectBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param string $table
+     * @param string|SelectBuilder $table
      * @param string|null $alias
      * @return self
      */
     public function from(string|SelectBuilder $table, ?string $alias = null): self
     {
-        $this->from[] = $table instanceof SelectBuilder
+        $this->from[] = $table instanceof self
             ? ['subquery' => $table, 'alias' => $alias]
-            : $this->formatTable($table, $alias);
+            : [
+                'table' => $this->formatIdentifier($table),
+                'alias' => $alias !== null ? $this->formatIdentifier($alias) : null,
+            ];
         $this->isDirty = true;
         return $this;
     }
@@ -379,6 +382,12 @@ class SelectBuilder extends AbstractQueryBuilder
         return $this;
     }
 
+    /**
+     * @param string $rawCondition
+     * @param array<string, mixed> $parameters
+     * @param LinkOperator $link
+     * @return self
+     */
     public function whereRaw(string $rawCondition, array $parameters = [], LinkOperator $link = LinkOperator::AND): self
     {
         $this->whereBuilder->raw($rawCondition, $parameters, $link);
@@ -629,20 +638,31 @@ class SelectBuilder extends AbstractQueryBuilder
         return implode(' ', $parts);
     }
 
+    /**
+     * Generate the FROM clause parts.
+     *
+     * @return array<string>
+     * @throws RuntimeException
+     */
     public function generateFromParts(): array
     {
         $fromParts = [];
         foreach ($this->from as $table) {
-            if (is_array($table) && $table['subquery'] instanceof SelectBuilder) {
-                // Handle subquery with alias
-                $subQuery = $table['subquery'];
-                $subQuery->setParameterBag($this->parameterBag);
-                $alias = $table['alias'] ?? null;
-                $fromParts[] = '(' . $subQuery->toSql() . ')' . ($alias ? ' AS ' . $this->formatIdentifier($alias) : '');
-            } else {
-                // Regular table with optional alias
-                $fromParts[] = $table;
+            $fromSubject = $table['table'] ?? $table['subquery'] ?? null;
+
+            if ($fromSubject === null) {
+                throw new RuntimeException('Invalid FROM clause: missing table or subquery.');
             }
+
+            $aliasPart = $table['alias'] !== null ? ' AS ' . $this->formatIdentifier($table['alias']) : '';
+
+            if ($fromSubject instanceof self) {
+                $fromSubject->setParameterBag($this->parameterBag);
+                $fromParts[] = '(' . $fromSubject->toSql() . ')' . $aliasPart;
+                continue;
+            }
+
+            $fromParts[] = $this->formatIdentifier($fromSubject) . $aliasPart;
         }
         return $fromParts;
     }
@@ -657,27 +677,5 @@ class SelectBuilder extends AbstractQueryBuilder
     {
         $this->parameterBag = $parameterBag;
         return $this;
-    }
-
-    /**
-     * Change named parameter index based on the provided mapping.
-     *
-     * @param array<string, string> $namedParamChanged
-     */
-    private function changeNamedParamIndex(array $namedParamChanged): void
-    {
-        if (empty($namedParamChanged)) {
-            return;
-        }
-
-        if (empty($this->values)) {
-            return;
-        }
-
-        foreach ($this->values as $column => &$value) {
-            if (is_string($value) && str_starts_with($value, ':') && in_array($value, $namedParamChanged, true)) {
-                $value = $namedParamChanged[$value];
-            }
-        }
     }
 }

@@ -378,6 +378,12 @@ class UpdateBuilder extends AbstractQueryBuilder
         return $this;
     }
 
+    /**
+     * @param string $rawCondition
+     * @param array<string, mixed> $parameters
+     * @param LinkOperator $link
+     * @return self
+     */
     public function whereRaw(string $rawCondition, array $parameters = [], LinkOperator $link = LinkOperator::AND): self
     {
         $this->whereBuilder->raw($rawCondition, $parameters, $link);

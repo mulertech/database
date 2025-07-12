@@ -11,7 +11,6 @@ use MulerTech\Database\Relational\Sql\ComparisonOperator;
 use MulerTech\Database\Relational\Sql\JoinType;
 use MulerTech\Database\Relational\Sql\LinkOperator;
 use MulerTech\Database\Relational\Sql\SqlOperator;
-use RuntimeException;
 
 /**
  * DELETE query builder with JOIN support and batch operations
@@ -22,7 +21,7 @@ use RuntimeException;
 class DeleteBuilder extends AbstractQueryBuilder
 {
     /**
-     * @var array<int, array{table: string, alias: string|null}>
+     * @var array<int, string>
      */
     private array $from = [];
 
@@ -80,7 +79,7 @@ class DeleteBuilder extends AbstractQueryBuilder
      */
     public function from(string $table, ?string $alias = null): self
     {
-        $this->from[] = $this->formatTable($table, $alias);
+        $this->from[] = $this->formatIdentifier($table) . ($alias ? ' AS ' . $this->formatIdentifier($alias) : '');
         $this->isDirty = true;
         return $this;
     }
@@ -343,6 +342,12 @@ class DeleteBuilder extends AbstractQueryBuilder
         return $this;
     }
 
+    /**
+     * @param string $rawCondition
+     * @param array<string, mixed> $parameters
+     * @param LinkOperator $link
+     * @return self
+     */
     public function whereRaw(string $rawCondition, array $parameters = [], LinkOperator $link = LinkOperator::AND): self
     {
         $this->whereBuilder->raw($rawCondition, $parameters, $link);

@@ -32,7 +32,7 @@ class RawQueryBuilder extends AbstractQueryBuilder
     /**
      * @return string
      */
-    public function toSql(): string
+    public function buildSql(): string
     {
         return $this->sql;
     }
