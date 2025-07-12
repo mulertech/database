@@ -9,7 +9,7 @@ use MulerTech\Database\ORM\EmEngine;
 /**
  * Raw SQL query builder for complex queries
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class RawQueryBuilder extends AbstractQueryBuilder

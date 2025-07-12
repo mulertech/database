@@ -12,7 +12,7 @@ use Traversable;
 
 /**
  * A wrapper around PDOStatement providing type-safe operations and error handling
- * @package MulerTech\Database\PhpInterface
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class Statement

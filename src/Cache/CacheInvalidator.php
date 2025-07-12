@@ -6,7 +6,7 @@ namespace MulerTech\Database\Cache;
 
 /**
  * Intelligent invalidation manager
- * @package MulerTech\Database\Cache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class CacheInvalidator

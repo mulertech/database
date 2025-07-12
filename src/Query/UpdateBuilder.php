@@ -18,7 +18,7 @@ use RuntimeException;
 /**
  * UPDATE query builder with complex conditions and JOIN support
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class UpdateBuilder extends AbstractQueryBuilder

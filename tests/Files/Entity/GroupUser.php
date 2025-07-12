@@ -12,7 +12,7 @@ use MulerTech\Database\Mapping\MtManyToOne;
 
 /**
  * Link entity for User-Group many-to-many relationship
- * @package MulerTech\Database\Tests\Files\Entity
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[MtEntity(tableName: "link_user_group_test")]

@@ -10,6 +10,7 @@ use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\DbMapping;
+use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\PhpInterface\PdoConnector;
 use MulerTech\Database\PhpInterface\PdoMysql\Driver;
@@ -453,8 +454,16 @@ class EntityManagerTest extends TestCase
         
         $this->eventManager->addListener(DbEvents::preUpdate->value, static function (PreUpdateEvent $event) {
             $user = $event->getEntity();
+            /** @var ChangeSet|null $update */
             $update = $event->getEntityChanges();
-            $updateTag = implode('->', $update['username']);
+            if ($update === null) {
+                return;
+            }
+            $username = $update->getFieldChange('username');
+            if ($username === null || $username->oldValue === null || $username->newValue === null) {
+                return;
+            }
+            $updateTag = implode('->', [$username->oldValue, $username->newValue]);
             $user->setUsername('BeforeUpdate' . $updateTag . $user->getUsername());
         });
         

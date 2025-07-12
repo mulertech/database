@@ -86,13 +86,7 @@ trait SqlFormatterTrait
             '/\s*,\s*/',               // Multiple columns
         ];
 
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $identifier)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($patterns, static fn($pattern) => preg_match($pattern, $identifier));
     }
 
     /**
@@ -119,8 +113,6 @@ trait SqlFormatterTrait
      */
     protected function formatColumn(string $column, ?string $tableAlias = null, ?string $columnAlias = null): string
     {
-        $formatted = $column;
-
         if ($tableAlias !== null && !str_contains($column, '.')) {
             $formatted = $this->formatIdentifier($tableAlias) . '.' . $this->formatIdentifier($column);
         } else {

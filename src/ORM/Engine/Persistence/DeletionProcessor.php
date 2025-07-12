@@ -14,7 +14,7 @@ use RuntimeException;
 /**
  * Specialized processor for entity deletions
  *
- * @package MulerTech\Database\ORM\Engine\Persistence
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class DeletionProcessor

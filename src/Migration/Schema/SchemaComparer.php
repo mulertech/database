@@ -12,7 +12,7 @@ use RuntimeException;
 /**
  * Compare database schema with entity mappings
  *
- * @package MulerTech\Database\Migration\Schema
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SchemaComparer

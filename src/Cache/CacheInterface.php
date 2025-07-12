@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Interface principale du système de cache
- * @package MulerTech\Database\Cache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface CacheInterface

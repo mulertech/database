@@ -6,7 +6,7 @@ namespace MulerTech\Database\Mapping;
 
 /**
  * Enum FkRule
- * @package MulerTech\Database\Mapping
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum FkRule: string

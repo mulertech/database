@@ -8,7 +8,7 @@ use Attribute;
 
 /**
  * Class MtManyToMany
- * @package MulerTech\Database\Mapping
+ * @package MulerTech\Database
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class MtManyToMany

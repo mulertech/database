@@ -17,7 +17,7 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
 
 /**
  * Class User
- * @package MulerTech\Database\Tests\Files
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[MtEntity(repository: UserRepository::class, tableName: "users_test", autoIncrement: 100)]

@@ -9,7 +9,7 @@ use MulerTech\Database\ORM\State\EntityState;
 
 /**
  * Metadata for entities in the ORM
- * @package MulerTech\Database\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final readonly class EntityMetadata

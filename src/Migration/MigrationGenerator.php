@@ -473,6 +473,35 @@ class MigrationGenerator
         $columnDefault = $columnDefinition['COLUMN_DEFAULT'] ?? null;
         $columnExtra = $columnDefinition['EXTRA'] ?? null;
 
+        return $this->generateAlterTableStatement(
+            $tableName,
+            $columnType,
+            $columnName,
+            $isNullable,
+            $columnDefault,
+            $columnExtra
+        );
+    }
+
+    /**
+     * Generate code to alter a table and add/modify a column
+     *
+     * @param string $tableName
+     * @param string|null $columnType
+     * @param string $columnName
+     * @param bool $isNullable
+     * @param mixed $columnDefault
+     * @param string|null $columnExtra
+     * @return string
+     */
+    private function generateAlterTableStatement(
+        string $tableName,
+        ?string $columnType,
+        string $columnName,
+        bool $isNullable,
+        mixed $columnDefault,
+        ?string $columnExtra
+    ): string {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
@@ -511,23 +540,14 @@ class MigrationGenerator
             ? $differences['EXTRA']['to']
             : null;
 
-        $code = [];
-        $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
-
-        $columnDefinitionCode = $this->parseColumnType(
+        return $this->generateAlterTableStatement(
+            $tableName,
             $columnType,
             $columnName,
             $isNullable,
             $columnDefault,
             $columnExtra
         );
-
-        $code[] = '    ' . $columnDefinitionCode;
-        $code[] = '        $sql = $tableDefinition->toSql();';
-        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
-
-        return implode("\n", $code);
     }
 
     /**

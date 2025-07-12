@@ -16,7 +16,7 @@ use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 
 /**
  * Class Group
- * @package MulerTech\Database\Tests\Files
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[MtEntity(repository: GroupRepository::class, tableName: 'groups_test')]

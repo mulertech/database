@@ -9,7 +9,7 @@ use MulerTech\Database\Mapping\MtEntity;
 
 /**
  * Class Groups
- * @package MulerTech\Database\Tests\Files
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[MtEntity]

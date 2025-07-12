@@ -12,7 +12,7 @@ use MulerTech\Database\ORM\ChangeSetManager;
 
 /**
  * Direct state manager using enum-based state system with ChangeSetManager integration
- * @package MulerTech\Database\ORM\State
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class DirectStateManager implements StateManagerInterface

@@ -8,7 +8,7 @@ use Attribute;
 
 /**
  * Class MtFk
- * @package MulerTech\Database\Mapping
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]

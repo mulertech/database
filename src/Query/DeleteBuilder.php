@@ -15,7 +15,7 @@ use MulerTech\Database\Relational\Sql\SqlOperator;
 /**
  * DELETE query builder with JOIN support and batch operations
  *
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class DeleteBuilder extends AbstractQueryBuilder

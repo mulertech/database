@@ -9,6 +9,7 @@ use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\QueryBuilder;
 use MulerTech\Database\Query\UpdateBuilder;
+use MulerTech\Database\ORM\PropertyChange;
 use ReflectionException;
 use RuntimeException;
 
@@ -34,20 +35,10 @@ readonly class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $changes
+     * @param array<string, PropertyChange> $changes
      * @return void
      */
     public function process(object $entity, array $changes): void
-    {
-        $this->execute($entity, $changes);
-    }
-
-    /**
-     * @param object $entity
-     * @param array<string, mixed> $changes
-     * @return void
-     */
-    public function execute(object $entity, array $changes): void
     {
         if (empty($changes)) {
             return;
@@ -190,7 +181,7 @@ readonly class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $changes
+     * @param array<string, PropertyChange> $changes
      * @return UpdateBuilder
      * @throws ReflectionException
      */
@@ -207,24 +198,8 @@ readonly class UpdateProcessor
                 continue;
             }
 
-            // Handle both array format [old, new] and [key => old, key => new] format
-            $changeData = $changes[$property];
-            $value = null;
-
-            if (is_array($changeData)) {
-                if (isset($changeData[1])) {
-                    // Format: [old, new]
-                    $value = $changeData[1];
-                } elseif (isset($changeData['new'])) {
-                    // Format: ['old' => old, 'new' => new]
-                    $value = $changeData['new'];
-                } else {
-                    // Fallback: take the last value
-                    $value = end($changeData);
-                }
-            } else {
-                $value = $changeData;
-            }
+            $propertyChange = $changes[$property];
+            $value = $propertyChange->newValue;
 
             // CRITICAL FIX: Handle serialized arrays from ChangeDetector
             if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
@@ -242,7 +217,7 @@ readonly class UpdateProcessor
 
         if (!$hasUpdates) {
             // Check for relation property changes that map to foreign key columns
-            foreach ($changes as $property => $change) {
+            foreach ($changes as $property => $propertyChange) {
                 // Skip if this property is already handled above
                 if (isset($propertiesColumns[$property])) {
                     continue;
@@ -251,24 +226,7 @@ readonly class UpdateProcessor
                 // Try to find a foreign key column for this relation property
                 $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
                 if ($foreignKeyColumn !== null) {
-                    // Handle both array format [old, new] and [key => old, key => new] format
-                    $changeData = $change;
-                    $value = null;
-
-                    if (is_array($changeData)) {
-                        if (isset($changeData[1])) {
-                            // Format: [old, new]
-                            $value = $changeData[1];
-                        } elseif (isset($changeData['new'])) {
-                            // Format: ['old' => old, 'new' => new]
-                            $value = $changeData['new'];
-                        } else {
-                            // Fallback: take the last value
-                            $value = end($changeData);
-                        }
-                    } else {
-                        $value = $changeData;
-                    }
+                    $value = $propertyChange->newValue;
 
                     // CRITICAL FIX: Handle serialized arrays from ChangeDetector
                     if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
@@ -363,7 +321,7 @@ readonly class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $changes
+     * @param array<string, PropertyChange> $changes
      * @return bool
      * @throws ReflectionException
      */
@@ -382,7 +340,7 @@ readonly class UpdateProcessor
 
         // Check for relation properties that might have foreign key columns
         if (!$hasValues) {
-            foreach ($changes as $property => $change) {
+            foreach ($changes as $property => $propertyChange) {
                 // Skip if this property is already handled above
                 if (isset($propertiesColumns[$property])) {
                     continue;

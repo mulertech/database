@@ -211,7 +211,7 @@ MulerTech\Database\
 ```php
 /**
  * Pool de connexions avec gestion automatique
- * @package MulerTech\Database\Connection
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class ConnectionPool
@@ -231,7 +231,7 @@ class ConnectionPool
 ```php
 /**
  * Builder SELECT optimisé avec cache
- * @package MulerTech\Database\Query
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SelectBuilder extends AbstractQueryBuilder
@@ -252,7 +252,7 @@ class SelectBuilder extends AbstractQueryBuilder
 ```php
 /**
  * Cache intelligent des entités chargées
- * @package MulerTech\Database\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class IdentityMap
@@ -272,7 +272,7 @@ class IdentityMap
 ```php
 /**
  * Gestionnaire des modifications d'entités
- * @package MulerTech\Database\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class UnitOfWork
@@ -299,7 +299,7 @@ class UnitOfWork
 ```php
 /**
  * Interface pour les processeurs de relations
- * @package MulerTech\Database\Relations
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface RelationProcessorInterface
@@ -310,8 +310,7 @@ interface RelationProcessorInterface
 }
 
 /**
- * Processeur OneToMany optimisé
- * @package MulerTech\Database\Relations
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class OneToManyProcessor implements RelationProcessorInterface

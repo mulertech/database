@@ -13,8 +13,7 @@ use MulerTech\Database\ORM\State\EntityState;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test d'intégration pour le nouveau système ORM Core
- * @package MulerTech\Database\Tests\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class OrmCoreIntegrationTest extends TestCase

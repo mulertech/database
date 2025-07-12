@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Unit tests for PhpDatabaseManager with cache functionality
- * @package MulerTech\Database\Tests\PhpInterface
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PhpDatabaseManagerCacheTest extends TestCase

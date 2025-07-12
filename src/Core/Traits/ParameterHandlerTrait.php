@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Core\Traits;
 
 use MulerTech\Database\PhpInterface\Statement;
+use MulerTech\Database\Query\AbstractQueryBuilder;
 use PDO;
-use PDOStatement;
 
 /**
  * Trait ParameterHandlerTrait
@@ -92,7 +92,7 @@ trait ParameterHandlerTrait
 
     /**
      * @param array<string, mixed> $params
-     * @return self
+     * @return AbstractQueryBuilder|ParameterHandlerTrait
      */
     protected function mergeNamedParameters(array $params): self
     {
@@ -102,7 +102,7 @@ trait ParameterHandlerTrait
 
     /**
      * @param array<int, mixed> $params
-     * @return self
+     * @return AbstractQueryBuilder|ParameterHandlerTrait
      */
     protected function mergeDynamicParameters(array $params): self
     {

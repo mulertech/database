@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Cache;
 
 /**
- * Interface pour les caches avec support des tags
- * @package MulerTech\Database\Cache
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface TaggableCacheInterface extends CacheInterface

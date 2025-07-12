@@ -7,7 +7,7 @@ namespace MulerTech\Database\Relational\Sql;
 /**
  * Raw SQL value wrapper to bypass automatic parameterization
  *
- * @package MulerTech\Database\Relational\Sql
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class Raw

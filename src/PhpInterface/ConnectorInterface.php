@@ -8,7 +8,7 @@ use PDO;
 
 /**
  * Interface for database connectors
- * @package MulerTech\Database\PhpInterface
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface ConnectorInterface

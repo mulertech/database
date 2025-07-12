@@ -533,28 +533,18 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
-     * @param class-string $entity
      * @return void
      * @throws ReflectionException
      */
-    private function initializeTables(?string $entity = null): void
+    private function initializeTables(): void
     {
-        if (empty($this->tables)) {
-            if ($this->entitiesPath !== null) {
-                $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
-                foreach ($classNames as $className) {
-                    $table = $this->generateTableName($className);
-                    if ($table) {
-                        $this->tables[$className] = $table;
-                    }
+        if (empty($this->tables) && $this->entitiesPath !== null) {
+            $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
+            foreach ($classNames as $className) {
+                $table = $this->generateTableName($className);
+                if ($table) {
+                    $this->tables[$className] = $table;
                 }
-            }
-        }
-
-        if ($entity !== null && !isset($this->tables[$entity])) {
-            $table = $this->generateTableName($entity);
-            if ($table) {
-                $this->tables[$entity] = $table;
             }
         }
     }

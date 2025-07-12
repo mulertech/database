@@ -11,7 +11,7 @@ use ReflectionException;
 
 /**
  * Detects changes in entities for ORM tracking
- * @package MulerTech\Database\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class ChangeDetector

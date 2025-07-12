@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Cache;
 
+use DateTimeInterface;
 use MulerTech\Database\Query\AbstractQueryBuilder;
+use ReflectionClass;
 
 /**
  * Class QueryStructureCache
@@ -189,14 +191,13 @@ class QueryStructureCache
      */
     private function extractStructure(AbstractQueryBuilder $builder): array
     {
-        $reflection = new \ReflectionClass($builder);
+        $reflection = new ReflectionClass($builder);
         $structure = [
             'type' => $builder->getQueryType(),
             'class' => get_class($builder),
         ];
 
         foreach ($reflection->getProperties() as $property) {
-            $property->setAccessible(true);
             $value = $property->getValue($builder);
 
             // Skip runtime values
@@ -207,7 +208,7 @@ class QueryStructureCache
             // Extract structural information
             if (is_array($value)) {
                 $structure[$property->getName()] = $this->extractArrayStructure($value);
-            } elseif (is_object($value) && !$value instanceof \DateTimeInterface) {
+            } elseif (is_object($value) && !$value instanceof DateTimeInterface) {
                 $structure[$property->getName()] = get_class($value);
             } elseif (!is_resource($value)) {
                 $structure[$property->getName()] = $value;
@@ -218,8 +219,8 @@ class QueryStructureCache
     }
 
     /**
-     * @param array<mixed> $array
-     * @return array<mixed>
+     * @param array<int, mixed> $array
+     * @return array<int, mixed>
      */
     private function extractArrayStructure(array $array): array
     {

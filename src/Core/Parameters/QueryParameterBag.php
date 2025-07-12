@@ -6,7 +6,6 @@ namespace MulerTech\Database\Core\Parameters;
 
 use MulerTech\Database\PhpInterface\Statement;
 use PDO;
-use PDOStatement;
 
 /**
  * Class QueryParameterBag
@@ -36,7 +35,7 @@ class QueryParameterBag
     /**
      * @var bool
      */
-    private bool $useNamedParameters = true;
+    private bool $useNamedParameters;
 
     /**
      * @param bool $useNamedParameters
@@ -111,7 +110,7 @@ class QueryParameterBag
      */
     public function getNamedValues(): array
     {
-        return array_map(function ($param) {
+        return array_map(static function ($param) {
             return $param['value'];
         }, $this->namedParameters);
     }

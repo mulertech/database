@@ -12,7 +12,7 @@ use MulerTech\MTerm\Core\Terminal;
 /**
  * Command to rollback the last executed migration
  *
- * @package MulerTech\Database\Migration\Command
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationRollbackCommand extends AbstractCommand
