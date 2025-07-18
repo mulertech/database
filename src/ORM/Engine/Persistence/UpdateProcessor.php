@@ -7,8 +7,9 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 use Exception;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
-use MulerTech\Database\Relational\Sql\SqlOperations;
+use MulerTech\Database\Query\Builder\QueryBuilder;
+use MulerTech\Database\Query\Builder\UpdateBuilder;
+use MulerTech\Database\ORM\PropertyChange;
 use ReflectionException;
 use RuntimeException;
 
@@ -34,20 +35,10 @@ readonly class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $changes
+     * @param array<string, PropertyChange> $changes
      * @return void
      */
     public function process(object $entity, array $changes): void
-    {
-        $this->execute($entity, $changes);
-    }
-
-    /**
-     * @param object $entity
-     * @param array<string, mixed> $changes
-     * @return void
-     */
-    public function execute(object $entity, array $changes): void
     {
         if (empty($changes)) {
             return;
@@ -65,14 +56,14 @@ readonly class UpdateProcessor
         }
 
         try {
-            $queryBuilder = $this->buildUpdateQuery($entity, $changes);
+            $updateBuilder = $this->buildUpdateQuery($entity, $changes);
 
             // Verify that the query has actual SET clauses
             if (!$this->hasValidValues($entity, $changes)) {
                 return;
             }
 
-            $pdoStatement = $queryBuilder->getResult();
+            $pdoStatement = $updateBuilder->getResult();
 
             $pdoStatement->execute();
             $pdoStatement->closeCursor();
@@ -115,55 +106,26 @@ readonly class UpdateProcessor
             // Check if it's a ManyToOne relation that should have a foreign key column
             $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
             if (is_array($manyToOneList) && isset($manyToOneList[$property])) {
-                // For ManyToOne, the foreign key column is typically property_id
-                $foreignKeyColumn = $property . '_id';
-
-                // Verify this column exists in the entity's column mappings
-                foreach ($allPropertiesColumns as $col) {
-                    if ($col === $foreignKeyColumn) {
-                        return $col;
-                    }
-                }
-
-                // Check if the property itself maps to a column (direct FK mapping)
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
                         return $mappedColumn;
                     }
                 } catch (Exception) {
-                    // Continue with convention-based name
+                    // Continue
                 }
-
-                // If not found in explicit mappings, return the convention-based name
-                // This handles cases where the FK column isn't explicitly mapped to a property
-                return $foreignKeyColumn;
             }
 
             $oneToOneList = $this->dbMapping->getOneToOne($entityClass);
             if (is_array($oneToOneList) && isset($oneToOneList[$property])) {
-                // For OneToOne, the foreign key column is typically property_id
-                $foreignKeyColumn = $property . '_id';
-
-                // Verify this column exists in the entity's column mappings
-                foreach ($allPropertiesColumns as $col) {
-                    if ($col === $foreignKeyColumn) {
-                        return $col;
-                    }
-                }
-
-                // Check if the property itself maps to a column (direct FK mapping)
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
                         return $mappedColumn;
                     }
                 } catch (Exception) {
-                    // Continue with convention-based name
+                    // Continue
                 }
-
-                // If not found in explicit mappings, return the convention-based name
-                return $foreignKeyColumn;
             }
         } catch (Exception) {
             // If mapping fails, return null
@@ -190,15 +152,14 @@ readonly class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $changes
-     * @return QueryBuilder
+     * @param array<string, PropertyChange> $changes
+     * @return UpdateBuilder
      * @throws ReflectionException
      */
-    private function buildUpdateQuery(object $entity, array $changes): QueryBuilder
+    private function buildUpdateQuery(object $entity, array $changes): UpdateBuilder
     {
         $tableName = $this->getTableName($entity::class);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder->update($tableName);
+        $updateBuilder = new QueryBuilder($this->entityManager->getEmEngine())->update($tableName);
 
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
         $hasUpdates = false;
@@ -208,42 +169,14 @@ readonly class UpdateProcessor
                 continue;
             }
 
-            // Handle both array format [old, new] and [key => old, key => new] format
-            $changeData = $changes[$property];
-            $value = null;
-
-            if (is_array($changeData)) {
-                if (isset($changeData[1])) {
-                    // Format: [old, new]
-                    $value = $changeData[1];
-                } elseif (isset($changeData['new'])) {
-                    // Format: ['old' => old, 'new' => new]
-                    $value = $changeData['new'];
-                } else {
-                    // Fallback: take the last value
-                    $value = end($changeData);
-                }
-            } else {
-                $value = $changeData;
-            }
-
-            // CRITICAL FIX: Handle serialized arrays from ChangeDetector
-            if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
-                // This is a serialized entity reference from ChangeDetector
-                $value = $value['__id__'];
-            } elseif (is_object($value)) {
-                // This is an actual object, extract its ID
-                $extractedId = $this->getId($value);
-                $value = $extractedId ?? null;
-            }
-
-            $queryBuilder->setValue($column, $value);
+            $propertyChange = $changes[$property];
+            $updateBuilder->set($column, $this->getReferenceForeignKeyId($propertyChange->newValue));
             $hasUpdates = true;
         }
 
         if (!$hasUpdates) {
             // Check for relation property changes that map to foreign key columns
-            foreach ($changes as $property => $change) {
+            foreach ($changes as $property => $propertyChange) {
                 // Skip if this property is already handled above
                 if (isset($propertiesColumns[$property])) {
                     continue;
@@ -252,36 +185,7 @@ readonly class UpdateProcessor
                 // Try to find a foreign key column for this relation property
                 $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
                 if ($foreignKeyColumn !== null) {
-                    // Handle both array format [old, new] and [key => old, key => new] format
-                    $changeData = $change;
-                    $value = null;
-
-                    if (is_array($changeData)) {
-                        if (isset($changeData[1])) {
-                            // Format: [old, new]
-                            $value = $changeData[1];
-                        } elseif (isset($changeData['new'])) {
-                            // Format: ['old' => old, 'new' => new]
-                            $value = $changeData['new'];
-                        } else {
-                            // Fallback: take the last value
-                            $value = end($changeData);
-                        }
-                    } else {
-                        $value = $changeData;
-                    }
-
-                    // CRITICAL FIX: Handle serialized arrays from ChangeDetector
-                    if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
-                        // This is a serialized entity reference from ChangeDetector
-                        $value = $value['__id__'];
-                    } elseif (is_object($value)) {
-                        // This is an actual object, extract its ID
-                        $extractedId = $this->getId($value);
-                        $value = $extractedId ?? null;
-                    }
-
-                    $queryBuilder->setValue($foreignKeyColumn, $value);
+                    $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($propertyChange->newValue));
                 }
             }
         }
@@ -293,11 +197,31 @@ readonly class UpdateProcessor
             );
         }
 
-        $queryBuilder->where(
-            SqlOperations::equal('id', $queryBuilder->addNamedParameter($entityId))
-        );
+        $updateBuilder->where('id', $entityId);
 
-        return $queryBuilder;
+        return $updateBuilder;
+    }
+
+    /**
+     * Get the foreign key ID from a serialized entity reference or an actual object
+     *
+     * @param array<string, mixed>|object|string|null $value
+     * @return int|string|array<string, mixed>|null
+     */
+    private function getReferenceForeignKeyId(array|object|string|null $value): int|string|array|null
+    {
+        if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
+            // This is a serialized entity reference from ChangeDetector
+            return $value['__id__'];
+        }
+
+        if (is_object($value)) {
+            // This is an actual object, extract its ID
+            $extractedId = $this->getId($value);
+            return $extractedId ?? null;
+        }
+
+        return $value;
     }
 
     /**
@@ -366,7 +290,7 @@ readonly class UpdateProcessor
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $changes
+     * @param array<string, PropertyChange> $changes
      * @return bool
      * @throws ReflectionException
      */
@@ -385,7 +309,7 @@ readonly class UpdateProcessor
 
         // Check for relation properties that might have foreign key columns
         if (!$hasValues) {
-            foreach ($changes as $property => $change) {
+            foreach ($changes as $property => $propertyChange) {
                 // Skip if this property is already handled above
                 if (isset($propertiesColumns[$property])) {
                     continue;

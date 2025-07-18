@@ -1,0 +1,19 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MulerTech\Database\SQL\Operator;
+
+/**
+ * Bitwise operators for SQL queries
+ *
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
+enum BitwiseOperator: string
+{
+    case BITWISE_AND = '&';
+    case BITWISE_OR = '|';
+    case BITWISE_XOR = '^';
+    case BITWISE_NOT = '~';
+}

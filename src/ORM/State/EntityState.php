@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM\State;
 
 /**
  * Entity states in the ORM lifecycle
- * @package MulerTech\Database\ORM\State
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum EntityState: string

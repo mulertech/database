@@ -2,8 +2,8 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\Schema\ColumnDefinition;
-use MulerTech\Database\Mapping\ColumnType;
+use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Schema\ColumnDefinition;
 use PHPUnit\Framework\TestCase;
 
 class ColumnDefinitionTest extends TestCase

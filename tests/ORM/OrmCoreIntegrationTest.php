@@ -9,12 +9,12 @@ use MulerTech\Database\ORM\EntityFactory;
 use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\ORM\EntityRegistry;
 use MulerTech\Database\ORM\IdentityMap;
+use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityState;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test d'intégration pour le nouveau système ORM Core
- * @package MulerTech\Database\Tests\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class OrmCoreIntegrationTest extends TestCase
@@ -226,7 +226,7 @@ class OrmCoreIntegrationTest extends TestCase
             $metadata = $this->identityMap->getMetadata($user);
             if ($metadata !== null) {
                 $currentData = $this->changeDetector->extractCurrentData($user);
-                $updatedMetadata = new \MulerTech\Database\ORM\EntityMetadata(
+                $updatedMetadata = new EntityMetadata(
                     className: $metadata->className,
                     identifier: $metadata->identifier,
                     state: EntityState::MANAGED,

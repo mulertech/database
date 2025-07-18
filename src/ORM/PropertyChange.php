@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM;
 
 /**
  * Represents a change in a property of an entity.
- * @package MulerTech\Database\ORM
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final readonly class PropertyChange

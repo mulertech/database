@@ -9,7 +9,7 @@ use MulerTech\EventManager\Event;
 
 /**
  * Event dispatched during entity state transitions
- * @package MulerTech\Database\ORM\State
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class StateTransitionEvent extends Event

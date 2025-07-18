@@ -3,9 +3,9 @@
 namespace MulerTech\Database\Tests\Migration\Command;
 
 use Exception;
-use MulerTech\Database\Migration\Command\MigrationRunCommand;
-use MulerTech\Database\Migration\Migration;
-use MulerTech\Database\Migration\MigrationManager;
+use MulerTech\Database\Schema\Migration\Command\MigrationRunCommand;
+use MulerTech\Database\Schema\Migration\Migration;
+use MulerTech\Database\Schema\Migration\MigrationManager;
 use MulerTech\MTerm\Core\Terminal;
 use PHPUnit\Framework\TestCase;
 

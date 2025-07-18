@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\Schema\IndexType;
+use MulerTech\Database\Schema\IndexType;
 use PHPUnit\Framework\TestCase;
 use ValueError;
 

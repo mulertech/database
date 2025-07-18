@@ -6,7 +6,8 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\Builder\InsertBuilder;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
@@ -64,9 +65,9 @@ readonly class InsertionProcessor
             return;
         }
 
-        $queryBuilder = $this->buildInsertQuery($entity, $changes);
+        $insertBuilder = $this->buildInsertQuery($entity, $changes);
 
-        $pdoStatement = $queryBuilder->getResult();
+        $pdoStatement = $insertBuilder->getResult();
         $pdoStatement->execute();
 
         $this->setGeneratedId($entity);
@@ -77,14 +78,13 @@ readonly class InsertionProcessor
     /**
      * @param object $entity
      * @param array<string, array<int, mixed>> $changes
-     * @return QueryBuilder
+     * @return InsertBuilder
      * @throws ReflectionException
      */
-    private function buildInsertQuery(object $entity, array $changes): QueryBuilder
+    private function buildInsertQuery(object $entity, array $changes): InsertBuilder
     {
-        $tableName = $this->getTableName($entity::class);
-        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
-        $queryBuilder->insert($tableName);
+        $insertBuilder = new QueryBuilder($this->entityManager->getEmEngine())
+            ->insert($this->getTableName($entity::class));
 
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
 
@@ -100,10 +100,10 @@ readonly class InsertionProcessor
                 $value = $this->getId($value);
             }
 
-            $queryBuilder->setValue($column, $value);
+            $insertBuilder->set($column, $value);
         }
 
-        return $queryBuilder;
+        return $insertBuilder;
     }
 
     /**

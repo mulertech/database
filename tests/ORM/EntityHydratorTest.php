@@ -3,10 +3,8 @@
 namespace MulerTech\Database\Tests\ORM;
 
 use DateTime;
-use MulerTech\Database\Mapping\ColumnType;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\Mapping\MtColumn;
 use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;

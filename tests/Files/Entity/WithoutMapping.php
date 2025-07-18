@@ -4,7 +4,7 @@ namespace MulerTech\Database\Tests\Files\Entity;
 
 /**
  * Class WithoutMapping
- * @package MulerTech\Database\Tests\Files
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class WithoutMapping

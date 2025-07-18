@@ -4,19 +4,19 @@ namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\ColumnType;
-use MulerTech\Database\Mapping\MtColumn;
-use MulerTech\Database\Mapping\MtEntity;
-use MulerTech\Database\Mapping\MtFk;
-use MulerTech\Database\Mapping\MtManyToMany;
-use MulerTech\Database\Mapping\MtManyToOne;
-use MulerTech\Database\Mapping\MtOneToMany;
+use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 
 /**
  * Class Group
- * @package MulerTech\Database\Tests\Files
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[MtEntity(repository: GroupRepository::class, tableName: 'groups_test')]

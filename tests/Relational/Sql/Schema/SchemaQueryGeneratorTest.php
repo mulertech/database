@@ -2,11 +2,11 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\Schema\ColumnDefinition;
-use MulerTech\Database\Relational\Sql\Schema\ForeignKeyDefinition;
-use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;
-use MulerTech\Database\Relational\Sql\Schema\SchemaQueryGenerator;
-use MulerTech\Database\Relational\Sql\Schema\TableDefinition;
+use MulerTech\Database\Schema\ColumnDefinition;
+use MulerTech\Database\Schema\ForeignKeyDefinition;
+use MulerTech\Database\Schema\ReferentialAction;
+use MulerTech\Database\Schema\SchemaQueryGenerator;
+use MulerTech\Database\Schema\TableDefinition;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -179,8 +179,7 @@ class SchemaQueryGeneratorTest extends TestCase
     public function testGenerateColumnDefinition(): void
     {
         $method = new ReflectionMethod(SchemaQueryGenerator::class, 'generateColumnDefinition');
-        $method->setAccessible(true);
-        
+
         // Test basic column
         $column = new ColumnDefinition('name');
         $column->string(50)->notNull();
@@ -224,7 +223,6 @@ class SchemaQueryGeneratorTest extends TestCase
     public function testGenerateForeignKey(): void
     {
         $method = new ReflectionMethod(SchemaQueryGenerator::class, 'generateForeignKey');
-        $method->setAccessible(true);
 
         // Test basic foreign key
         $fk = new ForeignKeyDefinition('fk_test');
@@ -255,8 +253,7 @@ class SchemaQueryGeneratorTest extends TestCase
     public function testQuoteValue(): void
     {
         $method = new ReflectionMethod(SchemaQueryGenerator::class, 'quoteValue');
-        $method->setAccessible(true);
-        
+
         // Test numeric values
         $this->assertEquals(123, $method->invoke($this->generator, 123));
         $this->assertEquals(123.45, $method->invoke($this->generator, 123.45));

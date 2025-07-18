@@ -6,7 +6,7 @@ namespace MulerTech\Database\Mapping;
 
 /**
  * Enum ColumnKey
- * @package MulerTech\Database\Mapping
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum ColumnKey: string

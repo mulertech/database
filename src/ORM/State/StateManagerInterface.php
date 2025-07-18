@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM\State;
 
 /**
  * Interface for state management systems
- * @package MulerTech\Database\ORM\State
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface StateManagerInterface

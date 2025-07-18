@@ -2,8 +2,8 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Mapping\MtManyToMany;
-use MulerTech\Database\Mapping\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\Group;
@@ -15,10 +15,6 @@ use InvalidArgumentException;
 class DatabaseCollectionTest extends TestCase
 {
     private array $testEntities;
-    private EntityManagerInterface $entityManager;
-    private MtOneToMany $oneToManyMapping;
-    private MtManyToMany $manyToManyMappingWithMappedBy;
-    private MtManyToMany $manyToManyMappingWithJoinTable;
 
     protected function setUp(): void
     {

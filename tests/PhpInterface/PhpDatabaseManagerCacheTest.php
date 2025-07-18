@@ -2,17 +2,17 @@
 
 namespace MulerTech\Database\Tests\PhpInterface;
 
-use MulerTech\Database\Cache\CacheConfig;
-use MulerTech\Database\PhpInterface\ConnectorInterface;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\PhpInterface\Statement;
+use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Database\Driver\Driver;
+use MulerTech\Database\Database\Interface\ConnectorInterface;
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\Interface\Statement;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Unit tests for PhpDatabaseManager with cache functionality
- * @package MulerTech\Database\Tests\PhpInterface
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PhpDatabaseManagerCacheTest extends TestCase
@@ -23,7 +23,7 @@ class PhpDatabaseManagerCacheTest extends TestCase
     protected function tearDown(): void
     {
         parent::tearDown();
-        \MulerTech\Database\Cache\CacheFactory::reset();
+        \MulerTech\Database\Core\Cache\CacheFactory::reset();
     }
 
     /**

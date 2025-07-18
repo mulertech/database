@@ -9,7 +9,7 @@ use MulerTech\EventManager\Event;
 
 /**
  * Class PostFlushEvent
- * @package MulerTech\Database\Event
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class PostFlushEvent extends Event

@@ -2,7 +2,9 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Debug\DebugEmptyInsertions;
+use MulerTech\Database\Database\Driver\Driver;
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
@@ -11,11 +13,9 @@ use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\DbMapping;
+use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -454,8 +454,16 @@ class EntityManagerTest extends TestCase
         
         $this->eventManager->addListener(DbEvents::preUpdate->value, static function (PreUpdateEvent $event) {
             $user = $event->getEntity();
+            /** @var ChangeSet|null $update */
             $update = $event->getEntityChanges();
-            $updateTag = implode('->', $update['username']);
+            if ($update === null) {
+                return;
+            }
+            $username = $update->getFieldChange('username');
+            if ($username === null || $username->oldValue === null || $username->newValue === null) {
+                return;
+            }
+            $updateTag = implode('->', [$username->oldValue, $username->newValue]);
             $user->setUsername('BeforeUpdate' . $updateTag . $user->getUsername());
         });
         

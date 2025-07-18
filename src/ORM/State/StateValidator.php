@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM\State;
 
 /**
  * State validator for entity operations
- * @package MulerTech\Database\ORM\State
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class StateValidator

@@ -9,6 +9,7 @@ use Error;
 use Exception;
 use InvalidArgumentException;
 use JsonException;
+use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Collections\Collection;
 use ReflectionClass;
