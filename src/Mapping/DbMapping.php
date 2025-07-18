@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
+use MulerTech\Database\Mapping\Metadata\ColumnType;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
 
 /**
  * Class DbMapping

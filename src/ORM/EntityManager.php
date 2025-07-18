@@ -6,8 +6,9 @@ namespace MulerTech\Database\ORM;
 
 use InvalidArgumentException;
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
-use MulerTech\Database\Query\QueryBuilder;
+use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\ORM\Repository\EntityRepository;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 

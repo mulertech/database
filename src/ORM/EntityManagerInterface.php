@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\PhpInterface\PhpDatabaseInterface;
+use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\ORM\Repository\EntityRepository;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 

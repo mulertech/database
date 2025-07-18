@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Files\Repository;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\ORM\EntityRepository;
+use MulerTech\Database\ORM\Repository\EntityRepository;
 use MulerTech\Database\Tests\Files\Entity\User;
 
 class UserRepository extends EntityRepository

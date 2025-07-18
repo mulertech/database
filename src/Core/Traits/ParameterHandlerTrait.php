@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Traits;
 
-use MulerTech\Database\PhpInterface\Statement;
-use MulerTech\Database\Query\AbstractQueryBuilder;
+use MulerTech\Database\Database\Interface\Statement;
 use PDO;
 
 /**

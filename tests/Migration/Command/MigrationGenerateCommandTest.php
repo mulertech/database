@@ -2,14 +2,15 @@
 
 namespace MulerTech\Database\Tests\Migration\Command;
 
+use MulerTech\Database\Database\Driver\Driver;
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Migration\Command\MigrationGenerateCommand;
-use MulerTech\Database\Migration\MigrationGenerator;
-use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
+use MulerTech\Database\Schema\Diff\SchemaComparer;
+use MulerTech\Database\Schema\Diff\SchemaDifference;
+use MulerTech\Database\Schema\Migration\Command\MigrationGenerateCommand;
+use MulerTech\Database\Schema\Migration\MigrationGenerator;
 use MulerTech\MTerm\Core\Terminal;
 use PHPUnit\Framework\MockObject\Exception;
 use PHPUnit\Framework\TestCase;
@@ -20,7 +21,6 @@ class MigrationGenerateCommandTest extends TestCase
     private Terminal $terminal;
     private EntityManager $entityManager;
     private string $migrationsDirectory;
-    private MigrationGenerateCommand $command;
 
     /**
      * @throws Exception
@@ -90,7 +90,7 @@ class MigrationGenerateCommandTest extends TestCase
         // Créer un mock pour SchemaComparer qui indique qu'il n'y a pas de différences
         $schemaComparer = $this->createMock(SchemaComparer::class);
         $schemaComparer->method('compare')->willReturn(
-            new \MulerTech\Database\Migration\Schema\SchemaDifference([], [], [], [], [], [], [], [])
+            new SchemaDifference([], [], [], [], [], [], [], [])
         );
 
         // Créer un mock pour MigrationGenerator qui utilise notre SchemaComparer mocké
@@ -201,11 +201,9 @@ class MigrationGenerateCommandTest extends TestCase
         $reflectionClass = new \ReflectionClass($command);
 
         $nameProperty = $reflectionClass->getProperty('name');
-        $nameProperty->setAccessible(true);
         $this->assertEquals('migration:generate', $nameProperty->getValue($command));
 
         $descriptionProperty = $reflectionClass->getProperty('description');
-        $descriptionProperty->setAccessible(true);
         $this->assertEquals('Generates a new migration from entity definitions', $descriptionProperty->getValue($command));
     }
 

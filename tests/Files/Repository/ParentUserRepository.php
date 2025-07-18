@@ -1,10 +1,10 @@
 <?php
 
-namespace MulerTech\Database\Tests\Files;
+namespace MulerTech\Database\Tests\Files\Repository;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\ORM\EntityRepository;
-use MulerTech\Database\Tests\Files\Entity\ParentUser;
+use MulerTech\Database\ORM\Repository\EntityRepository;
+use MulerTech\FileManipulation\Tests\Files\Entity\ParentUser;
 
 class ParentUserRepository extends EntityRepository
 {
@@ -15,5 +15,4 @@ class ParentUserRepository extends EntityRepository
     {
         parent::__construct($entityManager, ParentUser::class);
     }
-
 }

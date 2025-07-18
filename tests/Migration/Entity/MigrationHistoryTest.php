@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Migration\Entity;
 
-use MulerTech\Database\Migration\Entity\MigrationHistory;
+use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
 use PHPUnit\Framework\TestCase;
 
 class MigrationHistoryTest extends TestCase

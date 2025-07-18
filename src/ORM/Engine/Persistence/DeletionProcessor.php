@@ -6,8 +6,8 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\Query\DeleteBuilder;
-use MulerTech\Database\Query\QueryBuilder;
+use MulerTech\Database\Query\Builder\DeleteBuilder;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 use ReflectionException;
 use RuntimeException;
 

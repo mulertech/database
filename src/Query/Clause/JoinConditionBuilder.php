@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Clause;
 
-use MulerTech\Database\Relational\Sql\ComparisonOperator;
-use MulerTech\Database\Relational\Sql\LinkOperator;
+use MulerTech\Database\SQL\Operator\ComparisonOperator;
+use MulerTech\Database\SQL\Operator\LinkOperator;
 
 /**
  * Class JoinConditionBuilder

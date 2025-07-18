@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Parameters;
 
-use MulerTech\Database\PhpInterface\Statement;
+use MulerTech\Database\Database\Interface\Statement;
 use PDO;
 
 /**

@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Migration\Schema;
 
-use MulerTech\Database\Migration\Schema\SchemaDifference;
+use MulerTech\Database\Schema\Diff\SchemaDifference;
 use PHPUnit\Framework\TestCase;
 
 class SchemaDifferenceTest extends TestCase

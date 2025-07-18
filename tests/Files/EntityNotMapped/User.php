@@ -3,10 +3,10 @@
 namespace MulerTech\Database\Tests\Files\EntityNotMapped;
 
 use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\ColumnType;
-use MulerTech\Database\Mapping\MtColumn;
-use MulerTech\Database\Mapping\MtEntity;
-use MulerTech\Database\Mapping\MtFk;
+use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 
 /**

@@ -7,7 +7,7 @@ namespace MulerTech\Database\ORM\State;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use MulerTech\Database\ORM\IdentityMap;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\ChangeSetManager;
 
 /**

@@ -19,7 +19,7 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\EventManager\EventManager;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityState;
 use ReflectionException;
 use RuntimeException;

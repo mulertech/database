@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Core\Cache;
 
 use DateTimeInterface;
-use MulerTech\Database\Query\AbstractQueryBuilder;
+use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
 use ReflectionClass;
 
 /**

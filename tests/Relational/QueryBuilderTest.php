@@ -2,9 +2,9 @@
 
 namespace MulerTech\Database\Tests\Relational;
 
-use MulerTech\Database\Query\QueryBuilder;
-use MulerTech\Database\Relational\Sql\ComparisonOperator;
-use MulerTech\Database\Relational\Sql\LinkOperator;
+use MulerTech\Database\Query\Builder\QueryBuilder;
+use MulerTech\Database\SQL\Operator\ComparisonOperator;
+use MulerTech\Database\SQL\Operator\LinkOperator;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -116,7 +116,6 @@ class QueryBuilderTest extends TestCase
 
     public function testQueryBuilderSelectMultipleFromWithAlias(): void
     {
-        var_dump('testQueryBuilderSelectMultipleFromWithAlias');
         $selectBuilder = new QueryBuilder()
             ->select('name', 'price', 'options', 'photo')
             ->from('food', 'foodas')

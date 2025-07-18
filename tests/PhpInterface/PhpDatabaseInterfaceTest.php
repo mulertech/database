@@ -2,13 +2,12 @@
 
 namespace MulerTech\Database\Tests\PhpInterface;
 
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
 use PDO;
 use PDOException;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Driver\Driver;
 
 class PhpDatabaseInterfaceTest extends TestCase
 {

@@ -6,11 +6,11 @@ namespace MulerTech\Database\Query\Clause;
 
 use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
-use MulerTech\Database\Query\SelectBuilder;
-use MulerTech\Database\Relational\Sql\ComparisonOperator;
-use MulerTech\Database\Relational\Sql\LinkOperator;
-use MulerTech\Database\Relational\Sql\Raw;
-use MulerTech\Database\Relational\Sql\SqlOperator;
+use MulerTech\Database\Query\Builder\SelectBuilder;
+use MulerTech\Database\SQL\Operator\ComparisonOperator;
+use MulerTech\Database\SQL\Operator\LinkOperator;
+use MulerTech\Database\SQL\Expression\Raw;
+use MulerTech\Database\SQL\Operator\SqlOperator;
 
 /**
  * Class WhereClauseBuilder

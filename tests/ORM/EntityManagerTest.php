@@ -2,6 +2,9 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\Database\Driver\Driver;
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
@@ -12,10 +15,7 @@ use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Query\QueryBuilder;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
