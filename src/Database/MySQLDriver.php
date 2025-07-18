@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Database\Driver;
+namespace MulerTech\Database\Database;
 
 use MulerTech\Database\Database\Interface\DriverInterface;
 
@@ -12,7 +12,7 @@ use MulerTech\Database\Database\Interface\DriverInterface;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class Driver implements DriverInterface
+class MySQLDriver implements DriverInterface
 {
     /**
      * Generates a DSN string for MySQL PDO connection.

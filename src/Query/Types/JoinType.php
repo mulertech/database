@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\SQL\Type;
+namespace MulerTech\Database\Query\Types;
 
 /**
  * Enum JoinType

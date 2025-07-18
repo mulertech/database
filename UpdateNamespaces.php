@@ -32,21 +32,21 @@ class NamespaceUpdater
 
         // SQL
         'MulerTech\\Database\\Relational\\Sql\\SqlOperations' => 'MulerTech\\Database\\SQL\\Operator\\SqlOperations',
-        'MulerTech\\Database\\Relational\\Sql\\SqlOperator' => 'MulerTech\\Database\\SQL\\Operator\\SqlOperator',
-        'MulerTech\\Database\\Relational\\Sql\\Raw' => 'MulerTech\\Database\\SQL\\Expression\\Raw',
-        'MulerTech\\Database\\Relational\\Sql\\JoinType' => 'MulerTech\\Database\\SQL\\Type\\JoinType',
+        'MulerTech\\Database\\Relational\\Sql\\SqlOperator' => 'MulerTech\\Database\\Query\\Types\\SqlOperator',
+        'MulerTech\\Database\\Relational\\Sql\\Raw' => 'MulerTech\\Database\\Query\\Builder\\Raw',
+        'MulerTech\\Database\\Relational\\Sql\\JoinType' => 'MulerTech\\Database\\Query\\Types\\JoinType',
         'MulerTech\\Database\\Relational\\Sql\\LinkOperator' => 'MulerTech\\Database\\SQL\\Type\\LinkOperator',
 
         // Mapping attributes
         'MulerTech\\Database\\Mapping\\Mt' => 'MulerTech\\Database\\Mapping\\Attributes\\Mt',
         'MulerTech\\Database\\Mapping\\ColumnType' => 'MulerTech\\Database\\Mapping\\Metadata\\ColumnType',
-        'MulerTech\\Database\\Mapping\\ColumnKey' => 'MulerTech\\Database\\Mapping\\Metadata\\ColumnKey',
+        'MulerTech\\Database\\Mapping\\Types\\ColumnKey' => 'MulerTech\\Database\\Mapping\\Metadata\\ColumnKey',
         'MulerTech\\Database\\Mapping\\FetchType' => 'MulerTech\\Database\\Mapping\\Metadata\\FetchType',
         'MulerTech\\Database\\Mapping\\OnActionType' => 'MulerTech\\Database\\Mapping\\Metadata\\OnActionType',
 
         // ORM
-        'MulerTech\\Database\\ORM\\EntityRepository' => 'MulerTech\\Database\\ORM\\Repository\\EntityRepository',
-        'MulerTech\\Database\\ORM\\EntityMetadata' => 'MulerTech\\Database\\ORM\\Metadata\\EntityMetadata',
+        'MulerTech\\Database\\ORM\\EntityRepository' => 'MulerTech\\Database\\ORM\\EntityRepository',
+        'MulerTech\\Database\\ORM\\EntityMetadata' => 'MulerTech\\Database\\ORM\\EntityMetadata',
     ];
 
     /**

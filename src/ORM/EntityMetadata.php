@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\ORM\Metadata;
+namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
 use MulerTech\Database\ORM\State\EntityState;

@@ -12,7 +12,7 @@ use MulerTech\Database\Core\Cache\CacheFactory;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;

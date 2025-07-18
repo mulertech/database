@@ -8,7 +8,6 @@ use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\ORM\EntityRelationLoader;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use ReflectionClass;
 use ReflectionException;

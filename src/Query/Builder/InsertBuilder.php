@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder;
 
-use MulerTech\Database\SQL\Expression\Raw;
 use PDO;
 use RuntimeException;
 

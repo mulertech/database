@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use DateTimeImmutable;
+use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
@@ -13,14 +14,13 @@ use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
+use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\IdentityMap;
-use MulerTech\Database\Event\PostFlushEvent;
-use MulerTech\EventManager\EventManager;
-use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\StateManagerInterface;
+use MulerTech\EventManager\EventManager;
 use ReflectionException;
 use RuntimeException;
 

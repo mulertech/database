@@ -2,10 +2,10 @@
 
 namespace MulerTech\Database\Tests\Files\Entity\SubDirectory;
 
-use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Types\ColumnKey;
+use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * Class Groups

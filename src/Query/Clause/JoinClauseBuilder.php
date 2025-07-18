@@ -6,10 +6,9 @@ namespace MulerTech\Database\Query\Clause;
 
 use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
-use MulerTech\Database\SQL\Operator\ComparisonOperator;
-use MulerTech\Database\SQL\Type\JoinType;
-use MulerTech\Database\SQL\Operator\LinkOperator;
-use MulerTech\Database\SQL\Operator\SqlOperator;
+use MulerTech\Database\Query\Types\JoinType;
+use MulerTech\Database\Query\Types\LinkOperator;
+use MulerTech\Database\Query\Types\SqlOperator;
 use RuntimeException;
 
 /**

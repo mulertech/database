@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema;
 
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Schema\Builder\TableDefinition;
 
 /**
  * Class SchemaQueryGenerator

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema;
 
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * Class ColumnDefinition

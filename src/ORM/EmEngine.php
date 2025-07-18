@@ -12,7 +12,6 @@ use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
-use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\State\DirectStateManager;
 use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Database\ORM\State\StateManagerInterface;

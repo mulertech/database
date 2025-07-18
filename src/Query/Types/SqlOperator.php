@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\SQL\Operator;
+namespace MulerTech\Database\Query\Types;
 
 /**
  * SQL operators for conditions in queries

@@ -27,7 +27,7 @@ class MigrationGenerator
         <?php
 
         use MulerTech\Database\Schema\Migration\Migration;
-        use MulerTech\Database\Schema\SchemaBuilder;
+        use MulerTech\Database\Schema\Builder\SchemaBuilder;
 
         /**
          * Auto-generated migration

@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\ORM\Repository;
+namespace MulerTech\Database\ORM;
 
-use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 
 /**

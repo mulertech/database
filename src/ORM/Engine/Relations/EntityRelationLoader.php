@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\ORM;
+namespace MulerTech\Database\ORM\Engine\Relations;
 
 use Exception;
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
+use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\ORM\DatabaseCollection;
+use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use PDO;
 use ReflectionClass;

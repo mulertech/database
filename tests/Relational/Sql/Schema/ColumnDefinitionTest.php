@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Schema\ColumnDefinition;
 use PHPUnit\Framework\TestCase;
 

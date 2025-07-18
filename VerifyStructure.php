@@ -41,7 +41,7 @@ class StructureVerifier
         'src/Mapping/Attributes' => 'MulerTech\\Database\\Mapping\\Attributes',
         'src/Mapping/Metadata' => 'MulerTech\\Database\\Mapping\\Metadata',
         'src/Database/Connection' => 'MulerTech\\Database\\Database\\Connection',
-        'src/Database/Driver' => 'MulerTech\\Database\\Database\\Driver',
+        'src/Database/Driver' => 'MulerTech\\Database\\Database\\MySQLDriver',
         'src/Database/Interface' => 'MulerTech\\Database\\Database\\Interface',
         'src/SQL/Operator' => 'MulerTech\\Database\\SQL\\Operator',
         'src/SQL/Expression' => 'MulerTech\\Database\\SQL\\Expression',

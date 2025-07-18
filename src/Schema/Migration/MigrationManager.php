@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Migration;
 
 use Exception;
-use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Schema\Information\InformationSchema;
 use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;

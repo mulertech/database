@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\SQL\Expression;
+namespace MulerTech\Database\Query\Builder;
 
 /**
  * Raw SQL value wrapper to bypass automatic parameterization

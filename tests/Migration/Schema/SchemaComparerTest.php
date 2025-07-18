@@ -2,9 +2,10 @@
 
 namespace MulerTech\Database\Tests\Migration\Schema;
 
-use MulerTech\Database\Database\Driver\Driver;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManager;
@@ -19,7 +20,6 @@ use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use MulerTech\Database\Mapping\Attributes\MtFk;
 
 class SchemaComparerTest extends TestCase
 {
@@ -34,7 +34,7 @@ class SchemaComparerTest extends TestCase
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             $this->dbMapping,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());
