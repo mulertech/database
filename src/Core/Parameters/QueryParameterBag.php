@@ -23,27 +23,9 @@ class QueryParameterBag
     private array $namedParameters = [];
 
     /**
-     * @var array<int, array{value: mixed, type: int}>
-     */
-    private array $positionalParameters = [];
-
-    /**
      * @var int
      */
     private int $parameterCounter = 0;
-
-    /**
-     * @var bool
-     */
-    private bool $useNamedParameters;
-
-    /**
-     * @param bool $useNamedParameters
-     */
-    public function __construct(bool $useNamedParameters = true)
-    {
-        $this->useNamedParameters = $useNamedParameters;
-    }
 
     /**
      * @param mixed $value
@@ -54,14 +36,9 @@ class QueryParameterBag
     {
         $type ??= $this->detectType($value);
 
-        if ($this->useNamedParameters) {
-            $placeholder = $this->generateNamedPlaceholder();
-            $this->namedParameters[$placeholder] = ['value' => $value, 'type' => $type];
-            return $placeholder;
-        }
-
-        $this->positionalParameters[] = ['value' => $value, 'type' => $type];
-        return count($this->positionalParameters);
+        $placeholder = $this->generateNamedPlaceholder();
+        $this->namedParameters[$placeholder] = ['value' => $value, 'type' => $type];
+        return $placeholder;
     }
 
     /**
@@ -79,18 +56,6 @@ class QueryParameterBag
     }
 
     /**
-     * @param mixed $value
-     * @param int|null $type
-     * @return int
-     */
-    public function addPositional(mixed $value, ?int $type = null): int
-    {
-        $type ??= $this->detectType($value);
-        $this->positionalParameters[] = ['value' => $value, 'type' => $type];
-        return count($this->positionalParameters);
-    }
-
-    /**
      * @param Statement $statement
      * @return void
      */
@@ -98,10 +63,6 @@ class QueryParameterBag
     {
         foreach ($this->namedParameters as $placeholder => $param) {
             $statement->bindValue($placeholder, $param['value'], $param['type']);
-        }
-
-        foreach ($this->positionalParameters as $index => $param) {
-            $statement->bindValue($index + 1, $param['value'], $param['type']);
         }
     }
 
@@ -116,14 +77,6 @@ class QueryParameterBag
     }
 
     /**
-     * @return array<int, mixed>
-     */
-    public function getPositionalValues(): array
-    {
-        return array_column($this->positionalParameters, 'value');
-    }
-
-    /**
      * @param QueryParameterBag $other
      * @return self
      */
@@ -135,10 +88,6 @@ class QueryParameterBag
             $merged->namedParameters[$placeholder] = $param;
         }
 
-        foreach ($other->positionalParameters as $param) {
-            $merged->positionalParameters[] = $param;
-        }
-
         return $merged;
     }
 
@@ -148,7 +97,6 @@ class QueryParameterBag
     public function clear(): void
     {
         $this->namedParameters = [];
-        $this->positionalParameters = [];
         $this->parameterCounter = 0;
     }
 
@@ -157,7 +105,7 @@ class QueryParameterBag
      */
     public function count(): int
     {
-        return count($this->namedParameters) + count($this->positionalParameters);
+        return count($this->namedParameters);
     }
 
     /**
@@ -192,13 +140,10 @@ class QueryParameterBag
     }
 
     /**
-     * @return array{named: array<string, array{value: mixed, type: int}>, positional: array<int, array{value: mixed, type: int}>}
+     * @return array<string, array{value: mixed, type: int}>
      */
     public function toArray(): array
     {
-        return [
-            'named' => $this->namedParameters,
-            'positional' => $this->positionalParameters,
-        ];
+        return $this->namedParameters;
     }
 }

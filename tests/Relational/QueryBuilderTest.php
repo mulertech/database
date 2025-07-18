@@ -39,11 +39,11 @@ class QueryBuilderTest extends TestCase
             ->set('column2', 'data column 2', PDO::PARAM_INT);
 
         $parameters = $insertBuilder->getParameterBag()->toArray();
-        self::assertCount(2, $parameters['named']);
-        self::assertEquals('data column 1', $parameters['named'][':param0']['value']);
-        self::assertEquals(PDO::PARAM_STR, $parameters['named'][':param0']['type']);
-        self::assertEquals('data column 2', $parameters['named'][':param1']['value']);
-        self::assertEquals(PDO::PARAM_INT, $parameters['named'][':param1']['type']);
+        self::assertCount(2, $parameters);
+        self::assertEquals('data column 1', $parameters[':param0']['value']);
+        self::assertEquals(PDO::PARAM_STR, $parameters[':param0']['type']);
+        self::assertEquals('data column 2', $parameters[':param1']['value']);
+        self::assertEquals(PDO::PARAM_INT, $parameters[':param1']['type']);
     }
 
     public function testQueryBuilderNullGetBindParameters(): void

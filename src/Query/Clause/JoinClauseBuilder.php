@@ -237,7 +237,7 @@ class JoinClauseBuilder
      */
     public function getJoins(): array
     {
-        return array_map(function ($join) {
+        return array_map(static function ($join) {
             return [
                 'type' => $join['type'],
                 'table' => $join['table'],

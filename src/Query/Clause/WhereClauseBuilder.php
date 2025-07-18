@@ -50,7 +50,7 @@ class WhereClauseBuilder
     /**
      * @param string $column
      * @param mixed $value
-     * @param SqlOperator $operator
+     * @param ComparisonOperator|SqlOperator $operator
      * @param LinkOperator $link
      * @return self
      */
@@ -195,7 +195,6 @@ class WhereClauseBuilder
             }
             $condition = $this->formatIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
         }
-        var_dump($condition);
 
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
         return $this;
