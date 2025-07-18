@@ -1,6 +1,6 @@
 <?php
 
-use MulerTech\Database\Migration\Migration;
+use MulerTech\Database\Schema\Migration\Migration;
 use MulerTech\Database\Schema\SchemaBuilder;
 
 /**
