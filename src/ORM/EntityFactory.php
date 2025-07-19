@@ -309,11 +309,11 @@ final class EntityFactory
 
         $typeName = $type->getName();
 
-        // Handle basic type conversions
+        // Handle basic type conversions with proper validation
         return match ($typeName) {
-            'int' => (int) $value,
-            'float' => (float) $value,
-            'string' => (string) $value,
+            'int' => is_numeric($value) ? (int) $value : 0,
+            'float' => is_numeric($value) ? (float) $value : 0.0,
+            'string' => is_scalar($value) ? (string) $value : '',
             'bool' => (bool) $value,
             'array' => is_array($value) ? $value : [$value],
             default => $value

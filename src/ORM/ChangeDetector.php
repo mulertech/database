@@ -80,10 +80,14 @@ class ChangeDetector
                 $data[$propertyName] = $value;
             } else {
                 // For other objects, try to serialize or store class name
-                $data[$propertyName] = [
-                    '__object__' => $value::class,
-                    '__serialized__' => serialize($value),
-                ];
+                if (is_object($value)) {
+                    $data[$propertyName] = [
+                        '__object__' => $value::class,
+                        '__serialized__' => serialize($value),
+                    ];
+                } else {
+                    $data[$propertyName] = $value;
+                }
             }
         }
 

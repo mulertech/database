@@ -249,7 +249,7 @@ final class MetadataCache extends MemoryCache
             $cached = $this->get($entityClass . ':table');
         }
 
-        return $cached;
+        return is_string($cached) ? $cached : null;
     }
 
     /**
@@ -268,7 +268,19 @@ final class MetadataCache extends MemoryCache
             $cached = $this->get($entityClass . ':properties');
         }
 
-        return $cached;
+        // Ensure we return the correct type
+        if (is_array($cached)) {
+            // Validate that all keys and values are strings
+            foreach ($cached as $key => $value) {
+                if (!is_string($key) || !is_string($value)) {
+                    return null;
+                }
+            }
+            /** @var array<string, string> $cached */
+            return $cached;
+        }
+
+        return null;
     }
 
     /**

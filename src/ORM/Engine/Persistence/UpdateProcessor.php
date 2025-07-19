@@ -136,10 +136,12 @@ readonly class UpdateProcessor
     }
 
     /**
+     * Get the ID of the entity, trying multiple methods
+     *
      * @param object $entity
-     * @return int|null
+     * @return int|string|null
      */
-    private function getId(object $entity): ?int
+    private function getId(object $entity): int|string|null
     {
         if (!method_exists($entity, 'getId')) {
             throw new RuntimeException(
@@ -185,7 +187,11 @@ readonly class UpdateProcessor
                 // Try to find a foreign key column for this relation property
                 $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
                 if ($foreignKeyColumn !== null) {
-                    $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($propertyChange->newValue));
+                    // Validate that newValue has the expected type before processing
+                    $newValue = $propertyChange->newValue;
+                    if (is_array($newValue) || is_object($newValue) || is_string($newValue) || $newValue === null) {
+                        $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
+                    }
                 }
             }
         }
@@ -212,7 +218,8 @@ readonly class UpdateProcessor
     {
         if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
             // This is a serialized entity reference from ChangeDetector
-            return $value['__id__'];
+            $id = $value['__id__'];
+            return (is_int($id) || is_string($id)) ? $id : null;
         }
 
         if (is_object($value)) {
@@ -221,7 +228,12 @@ readonly class UpdateProcessor
             return $extractedId ?? null;
         }
 
-        return $value;
+        if (is_string($value)) {
+            // String value (could be a UUID or string ID)
+            return $value;
+        }
+
+        return null;
     }
 
     /**

@@ -130,10 +130,13 @@ abstract class AbstractQueryBuilder
         $stmt->execute();
 
         if ($fetchClass === stdClass::class) {
-            return $stmt->fetchAll(PDO::FETCH_OBJ);
+            $result = $stmt->fetchAll(PDO::FETCH_OBJ);
+        } else {
+            $result = $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
         }
 
-        return $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
+        // Ensure we return an array of objects
+        return is_array($result) ? array_filter($result, 'is_object') : [];
     }
 
     /**
@@ -152,7 +155,7 @@ abstract class AbstractQueryBuilder
             $result = $stmt->fetch();
         }
 
-        return $result !== false ? $result : null;
+        return ($result !== false && is_object($result)) ? $result : null;
     }
 
     /**

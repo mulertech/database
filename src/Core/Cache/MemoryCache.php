@@ -29,7 +29,7 @@ class MemoryCache implements TaggableCacheInterface
     /** @var array<string, array<string, bool>> */
     protected array $taggedKeys = [];
 
-    /** @var array<string, mixed> */
+    /** @var array<string, int> */
     protected array $stats = [
         'hits' => 0,
         'misses' => 0,
@@ -232,8 +232,8 @@ class MemoryCache implements TaggableCacheInterface
      */
     public function getStatistics(): array
     {
-        $hits = (int)$this->stats['hits'];
-        $misses = (int)$this->stats['misses'];
+        $hits = $this->stats['hits'];
+        $misses = $this->stats['misses'];
         $totalRequests = $hits + $misses;
 
         $hitRate = $totalRequests > 0

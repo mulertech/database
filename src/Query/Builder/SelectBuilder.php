@@ -283,7 +283,8 @@ class SelectBuilder extends AbstractQueryBuilder
         mixed $pattern = null,
         LinkOperator $link = LinkOperator::AND
     ): self {
-        $this->whereBuilder->like($column, $pattern, $link);
+        $patternStr = is_string($pattern) ? $pattern : (string)$pattern;
+        $this->whereBuilder->like($column, $patternStr, $link);
         $this->isDirty = true;
         return $this;
     }
@@ -299,7 +300,8 @@ class SelectBuilder extends AbstractQueryBuilder
         mixed $pattern = null,
         LinkOperator $link = LinkOperator::AND
     ): self {
-        $this->whereBuilder->notLike($column, $pattern, $link);
+        $patternStr = is_string($pattern) ? $pattern : (string)$pattern;
+        $this->whereBuilder->notLike($column, $patternStr, $link);
         $this->isDirty = true;
         return $this;
     }

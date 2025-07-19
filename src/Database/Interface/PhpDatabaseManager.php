@@ -86,10 +86,17 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     {
         if (!isset($this->connection)) {
             $parameters = self::populateParameters($this->parameters);
+            $username = $parameters['user'] ?? '';
+            $password = $parameters['pass'] ?? '';
+
+            // Ensure username and password are strings
+            $username = is_string($username) ? $username : '';
+            $password = is_string($password) ? $password : '';
+
             $this->connection = $this->connector->connect(
                 $parameters,
-                $parameters['user'],
-                $parameters['pass']
+                $username,
+                $password
             );
         }
 
@@ -394,7 +401,9 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     public function errorCode(): string|int|false
     {
-        return $this->getConnection()->errorCode();
+        $errorCode = $this->getConnection()->errorCode();
+        // PDO::errorCode() returns string|null, but we need string|int|false
+        return $errorCode ?? false;
     }
 
     /**
@@ -435,6 +444,10 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     {
         if (!empty($parameters[self::DATABASE_URL])) {
             $url = $parameters[self::DATABASE_URL];
+            if (!is_string($url)) {
+                throw new RuntimeException('DATABASE_URL must be a string');
+            }
+
             $parsedUrl = parse_url($url);
             if ($parsedUrl === false) {
                 throw new RuntimeException('Invalid DATABASE_URL format.');
@@ -447,10 +460,10 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 }
             });
             $parsedParams = $parsedUrl;
-            if (isset($parsedParams['path'])) {
+            if (isset($parsedParams['path']) && is_string($parsedParams['path'])) {
                 $parsedParams['dbname'] = substr($parsedParams['path'], 1);
             }
-            if (isset($parsedParams['query'])) {
+            if (isset($parsedParams['query']) && is_string($parsedParams['query'])) {
                 parse_str($parsedParams['query'], $parsedQuery);
                 $parsedParams = array_merge($parsedParams, $parsedQuery);
             }

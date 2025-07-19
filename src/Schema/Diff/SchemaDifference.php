@@ -30,7 +30,11 @@ class SchemaDifference
     private array $columnsToAdd = [];
 
     /**
-     * @var array<string, array<string, array<string, mixed>>> Columns to modify [tableName => [columnName => differences]]
+     * @var array<string, array<string, array{
+     *      COLUMN_TYPE: array{from: string, to: string},
+     *      IS_NULLABLE: array{from: string, to: string},
+     *      COLUMN_DEFAULT: array{from: string|null, to: string|null},
+     *      }>> Columns to modify [tableName => [columnName => differences]]
      */
     private array $columnsToModify = [];
 
@@ -97,7 +101,11 @@ class SchemaDifference
      *
      * @param string $tableName
      * @param string $columnName
-     * @param array<string, mixed> $differences
+     * @param array{
+     *     COLUMN_TYPE: array{from: string, to: string},
+     *     IS_NULLABLE: array{from: string, to: string},
+     *     COLUMN_DEFAULT: array{from: string|null, to: string|null},
+     *     } $differences
      * @return $this
      */
     public function addColumnToModify(string $tableName, string $columnName, array $differences): self

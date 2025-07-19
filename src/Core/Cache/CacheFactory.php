@@ -24,11 +24,6 @@ class CacheFactory
     private static ?CacheConfig $defaultConfig = null;
 
     /**
-     * @var CacheInvalidator|null
-     */
-    private static ?CacheInvalidator $invalidator = null;
-
-    /**
      * @param string $name
      * @param CacheConfig|null $config
      * @return MemoryCache
@@ -38,7 +33,6 @@ class CacheFactory
         if (!isset(self::$instances[$name])) {
             $config ??= self::getDefaultConfig();
             self::$instances[$name] = new MemoryCache($config);
-            self::registerWithInvalidator($name, self::$instances[$name]);
         }
 
         if (!self::$instances[$name] instanceof MemoryCache) {
@@ -58,7 +52,6 @@ class CacheFactory
         if (!isset(self::$instances[$name])) {
             $config ??= self::getDefaultConfig();
             self::$instances[$name] = new MetadataCache($config);
-            self::registerWithInvalidator($name, self::$instances[$name]);
         }
 
         if (!self::$instances[$name] instanceof MetadataCache) {
@@ -80,7 +73,6 @@ class CacheFactory
             // ResultSetCache needs a CacheInterface as first parameter, not CacheConfig
             $baseCache = new MemoryCache($config);
             self::$instances[$name] = new ResultSetCache($baseCache, 1024);
-            self::registerWithInvalidator($name, self::$instances[$name]);
         }
 
         if (!self::$instances[$name] instanceof ResultSetCache) {
@@ -121,32 +113,12 @@ class CacheFactory
     }
 
     /**
-     * @return CacheInvalidator
-     */
-    public static function getInvalidator(): CacheInvalidator
-    {
-        if (self::$invalidator === null) {
-            self::$invalidator = new CacheInvalidator();
-
-            // Register all existing caches
-            foreach (self::$instances as $name => $cache) {
-                if ($cache instanceof TaggableCacheInterface) {
-                    self::$invalidator->registerCache($name, $cache);
-                }
-            }
-        }
-
-        return self::$invalidator;
-    }
-
-    /**
      * @return void
      */
     public static function reset(): void
     {
         self::$instances = [];
         self::$defaultConfig = null;
-        self::$invalidator = null;
     }
 
     /**
@@ -159,17 +131,5 @@ class CacheFactory
         }
 
         return self::$defaultConfig;
-    }
-
-    /**
-     * @param string $name
-     * @param CacheInterface $cache
-     * @return void
-     */
-    private static function registerWithInvalidator(string $name, CacheInterface $cache): void
-    {
-        if ($cache instanceof TaggableCacheInterface) {
-            self::getInvalidator()->registerCache($name, $cache);
-        }
     }
 }

@@ -219,8 +219,8 @@ class QueryStructureCache
     }
 
     /**
-     * @param array<int, mixed> $array
-     * @return array<int, mixed>
+     * @param array<mixed, mixed> $array
+     * @return array<mixed, mixed>
      */
     private function extractArrayStructure(array $array): array
     {

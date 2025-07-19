@@ -426,24 +426,15 @@ final class ChangeSetManager
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        // Try common ID methods
-        foreach (['getId', 'getIdentifier', 'getUuid'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
-                }
-            }
-        }
-
-        // Try reflection for ID properties only if no getter methods work
         $reflection = new ReflectionClass($entity);
+
+        // Try common ID property names
         foreach (['id', 'identifier', 'uuid'] as $property) {
             if ($reflection->hasProperty($property)) {
                 $reflectionProperty = $reflection->getProperty($property);
                 if ($reflectionProperty->isInitialized($entity)) {
                     $value = $reflectionProperty->getValue($entity);
-                    if ($value !== null) {
+                    if ($value !== null && (is_int($value) || is_string($value))) {
                         return $value;
                     }
                 }

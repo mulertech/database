@@ -183,13 +183,25 @@ class MigrationGenerator
         // Add new columns
         foreach ($columnsToAdd as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
+                // Ensure columnDefinition is an array before accessing offsets
+                if (!is_array($columnDefinition)) {
+                    continue;
+                }
+
+                $columnType = is_string($columnDefinition['COLUMN_TYPE'] ?? null)
+                    ? $columnDefinition['COLUMN_TYPE']
+                    : 'VARCHAR(255)';
+                $columnExtra = is_string($columnDefinition['EXTRA'] ?? null)
+                    ? $columnDefinition['EXTRA']
+                    : null;
+
                 $code[] = $this->generateAlterTableStatement(
                     $tableName,
-                    $columnDefinition['COLUMN_TYPE'] ?? 'VARCHAR(255)',
+                    $columnType,
                     $columnName,
                     ($columnDefinition['IS_NULLABLE'] ?? 'YES') === 'YES',
                     $columnDefinition['COLUMN_DEFAULT'] ?? null,
-                    $columnDefinition['EXTRA'] ?? null
+                    $columnExtra
                 );
             }
         }
@@ -197,6 +209,11 @@ class MigrationGenerator
         // Modify columns
         foreach ($diff->getColumnsToModify() as $tableName => $columns) {
             foreach ($columns as $columnName => $differences) {
+                // Ensure differences is an array before accessing offsets
+                if (!is_array($differences)) {
+                    continue;
+                }
+
                 $code[] = $this->generateModifyColumnStatement($tableName, $columnName, $differences);
             }
         }

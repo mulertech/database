@@ -45,6 +45,13 @@ readonly class ResultSetCache implements TaggableCacheInterface
             return null;
         }
 
+        // Validate data structure before decompressing
+        if (!is_array($data) || !isset($data['compressed'], $data['data']) ||
+            !is_bool($data['compressed']) || !is_string($data['data'])) {
+            return null;
+        }
+
+        /** @var array{compressed: bool, data: string} $data */
         return $this->decompress($data);
     }
 
@@ -95,7 +102,18 @@ readonly class ResultSetCache implements TaggableCacheInterface
         $compressed = $this->cache->getMultiple($keys);
 
         return array_map(function ($data) {
-            return $data !== null ? $this->decompress($data) : null;
+            if ($data === null) {
+                return null;
+            }
+
+            // Validate data structure before decompressing
+            if (!is_array($data) || !isset($data['compressed'], $data['data']) ||
+                !is_bool($data['compressed']) || !is_string($data['data'])) {
+                return null;
+            }
+
+            /** @var array{compressed: bool, data: string} $data */
+            return $this->decompress($data);
         }, $compressed);
     }
 

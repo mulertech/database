@@ -122,7 +122,7 @@ class JoinClauseBuilder
     public function addCondition(
         int $index,
         string $leftColumn,
-        ComparisonOperator $operator,
+        ComparisonOperator|SqlOperator $operator,
         mixed $rightColumn,
         LinkOperator $link = LinkOperator::AND
     ): void {
@@ -130,10 +130,13 @@ class JoinClauseBuilder
             throw new RuntimeException('Invalid join index: ' . $index);
         }
 
+        // Ensure right column is a string
+        $rightColumnStr = is_string($rightColumn) ? $rightColumn : (string)$rightColumn;
+
         $this->joins[$index]['conditions'][] = [
             'left' => $leftColumn,
             'operator' => $operator,
-            'right' => $rightColumn,
+            'right' => $rightColumnStr,
             'link' => $link,
         ];
     }

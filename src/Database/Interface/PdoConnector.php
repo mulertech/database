@@ -23,7 +23,13 @@ readonly class PdoConnector implements ConnectorInterface
     }
 
     /**
-     * @param array<string, mixed> $parameters
+     * @param array{
+     *      host?: string,
+     *      port?: int|string,
+     *      dbname?: string,
+     *      unix_socket?: string,
+     *      charset?: string
+     *  } $parameters
      * @param string $username
      * @param string $password
      * @param array<int|string, mixed>|null $options

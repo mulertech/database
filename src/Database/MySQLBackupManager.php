@@ -77,7 +77,10 @@ class MySQLBackupManager
      */
     private function checkPasswordQuotes(): void
     {
-        if (str_contains($this->dbParameters['pass'], "'") && str_contains($this->dbParameters['pass'], '"')) {
+        $password = $this->dbParameters['pass'] ?? '';
+        $passwordStr = is_string($password) ? $password : '';
+
+        if (str_contains($passwordStr, "'") && str_contains($passwordStr, '"')) {
             throw new RuntimeException(
                 'The password have both single and double quote, please change the password to use only one type of quote.'
             );
@@ -89,7 +92,8 @@ class MySQLBackupManager
      */
     private function getHostCommand(): string
     {
-        return '--host=' . $this->dbParameters['host'] . ' ';
+        $host = $this->dbParameters['host'] ?? '';
+        return '--host=' . (is_string($host) ? $host : '') . ' ';
     }
 
     /**
@@ -97,7 +101,8 @@ class MySQLBackupManager
      */
     private function getUserCommand(): string
     {
-        return '--user=' . $this->dbParameters['user'] . ' ';
+        $user = $this->dbParameters['user'] ?? '';
+        return '--user=' . (is_string($user) ? $user : '') . ' ';
     }
 
     /**
@@ -105,9 +110,14 @@ class MySQLBackupManager
      */
     private function getPasswordCommand(): string
     {
-        return str_contains($this->dbParameters['pass'], "'")
-            ? '"' . $this->dbParameters['pass'] . '" '
-            : "'" . $this->dbParameters['pass'] . "' ";
+        $password = $this->dbParameters['pass'] ?? '';
+        $passwordStr = is_string($password) ? $password : '';
+
+        if (str_contains($passwordStr, "'")) {
+            return '"' . $passwordStr . '" ';
+        }
+
+        return "'" . $passwordStr . "' ";
     }
 
     /**
@@ -115,6 +125,7 @@ class MySQLBackupManager
      */
     private function getDbNameCommand(): string
     {
-        return $this->dbParameters['dbname'] . ' ';
+        $dbname = $this->dbParameters['dbname'] ?? '';
+        return (is_string($dbname) ? $dbname : '') . ' ';
     }
 }

@@ -61,18 +61,13 @@ class QueryCompiler
     public function compile(AbstractQueryBuilder $builder): string
     {
         $queryType = $builder->getQueryType();
-        $this->incrementStat($queryType);
+        $this->incrementStat($queryType . '_requests');
 
-        if (!$this->enableCache) {
-            return $this->doCompile($builder);
-        }
-
-        // Generate cache key based on query structure
         $cacheKey = $this->generateCacheKey($builder);
 
         // Try to get from cache
         $cachedSql = $this->cache->get($cacheKey);
-        if ($cachedSql !== null) {
+        if (is_string($cachedSql)) {
             $this->incrementStat($queryType . '_cached');
             return $cachedSql;
         }
@@ -420,5 +415,39 @@ class QueryCompiler
     private function incrementStat(string $statType): void
     {
         $this->compilationStats[$statType] = ($this->compilationStats[$statType] ?? 0) + 1;
+    }
+
+    /**
+     * @param string $name
+     * @param mixed $value
+     * @return bool
+     */
+    private function validateQueryPart(string $name, mixed $value): bool
+    {
+        switch ($name) {
+            case 'select':
+            case 'from':
+            case 'joins':
+            case 'orderBy':
+            case 'groupBy':
+                // These should be arrays
+                if (!is_array($value)) {
+                    return false;
+                }
+                return is_countable($value) ? count($value) > 0 : false;
+
+            case 'where':
+            case 'having':
+                // These should be WhereClauseBuilder instances or similar
+                return $value !== null;
+
+            case 'limit':
+            case 'offset':
+                // These should be positive integers
+                return is_int($value) && $value > 0;
+
+            default:
+                return true;
+        }
     }
 }

@@ -296,12 +296,18 @@ class RelationManager
             if ($entities instanceof DatabaseCollection) {
                 // Only process if there are actual changes
                 if ($entities->hasChanges()) {
-                    $this->processDatabaseCollectionChanges($entity, $entities, $manyToMany);
+                    // Validate that manyToMany is the correct type
+                    if ($manyToMany instanceof MtManyToMany) {
+                        $this->processDatabaseCollectionChanges($entity, $entities, $manyToMany);
+                    }
                 }
             } elseif ($entities instanceof Collection && $entities->count() > 0) {
                 // For new collections, only process if entity is being inserted
                 if ($this->stateManager->isScheduledForInsertion($entity)) {
-                    $this->processNewCollectionRelations($entity, $entities, $manyToMany);
+                    // Validate that manyToMany is the correct type
+                    if ($manyToMany instanceof MtManyToMany) {
+                        $this->processNewCollectionRelations($entity, $entities, $manyToMany);
+                    }
                 }
             }
         }

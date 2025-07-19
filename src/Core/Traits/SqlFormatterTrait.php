@@ -136,7 +136,9 @@ trait SqlFormatterTrait
             is_null($value) => 'NULL',
             is_bool($value) => $value ? '1' : '0',
             is_numeric($value) => (string)$value,
-            default => $this->quoteString((string)$value)
+            is_string($value) => $this->quoteString($value),
+            is_scalar($value) => $this->quoteString((string)$value),
+            default => $this->quoteString('')
         };
     }
 

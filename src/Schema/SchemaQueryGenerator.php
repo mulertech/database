@@ -231,17 +231,13 @@ class SchemaQueryGenerator
     }
 
     /**
-     * @param mixed $value
+     * @param string|float|int|null $value
      * @return string|float|int
      */
-    private function quoteValue(mixed $value): string|float|int
+    private function quoteValue(string|float|int|null $value): string|float|int
     {
         if (is_numeric($value)) {
             return $value;
-        }
-
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
         }
 
         if (is_null($value)) {

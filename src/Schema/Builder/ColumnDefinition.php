@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Builder;
 
 use MulerTech\Database\Mapping\Types\ColumnType;
+use InvalidArgumentException;
 
 /**
  * Class ColumnDefinition
@@ -44,9 +45,9 @@ class ColumnDefinition
     private bool $nullable = true;
 
     /**
-     * @var mixed
+     * @var string|null
      */
-    private mixed $default = null;
+    private string|null $default = null;
 
     /**
      * @var bool
@@ -135,9 +136,9 @@ class ColumnDefinition
     }
 
     /**
-     * @return mixed
+     * @return string|int|float|null
      */
-    public function getDefault(): mixed
+    public function getDefault(): string|int|float|null
     {
         return $this->default;
     }
@@ -273,10 +274,10 @@ class ColumnDefinition
     }
 
     /**
-     * @param mixed $value
+     * @param string|null $value
      * @return self
      */
-    public function default(mixed $value): self
+    public function default(string|null $value): self
     {
         $this->default = $value;
         return $this;

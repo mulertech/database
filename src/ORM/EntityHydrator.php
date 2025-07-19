@@ -164,7 +164,7 @@ class EntityHydrator
         $cacheKey = 'column_type:' . $entityClass . ':' . $propertyName;
 
         $cached = $this->metadataCache->getPropertyMetadata($entityClass, $cacheKey);
-        if ($cached !== null) {
+        if ($cached instanceof ColumnType) {
             return $cached;
         }
 

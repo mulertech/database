@@ -94,7 +94,10 @@ class InformationSchema
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $this->tables = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+
+        // Ensure we have the correct array type
+        $this->tables = is_array($result) ? array_filter($result, 'is_array') : [];
     }
 
     /**
@@ -118,7 +121,10 @@ class InformationSchema
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $this->columns = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+
+        // Ensure we have the correct array type
+        $this->columns = is_array($result) ? array_filter($result, 'is_array') : [];
     }
 
     /**
@@ -152,6 +158,9 @@ class InformationSchema
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $this->foreignKeys = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+
+        // Ensure we have the correct array type
+        $this->foreignKeys = is_array($result) ? array_filter($result, 'is_array') : [];
     }
 }

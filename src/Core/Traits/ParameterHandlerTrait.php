@@ -40,7 +40,10 @@ trait ParameterHandlerTrait
     {
         // Bind named parameters
         foreach ($this->namedParameters as $key => $param) {
-            $statement->bindValue($key, $param['value'], $param['type']);
+            if (is_array($param) && isset($param['value'], $param['type'])) {
+                $type = is_int($param['type']) ? $param['type'] : PDO::PARAM_STR;
+                $statement->bindValue($key, $param['value'], $type);
+            }
         }
 
         // Bind dynamic parameters

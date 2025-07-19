@@ -141,7 +141,10 @@ class SchemaComparer
             }
 
             if (!isset($entityTables[$tableName])) {
-                $diff->addTableToDrop($tableName);
+                // Ensure tableName is a string before adding to drop
+                if (is_string($tableName)) {
+                    $diff->addTableToDrop($tableName);
+                }
             }
         }
 

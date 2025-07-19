@@ -52,7 +52,7 @@ class User
     #[MtColumn(columnName: "big_number", columnType: ColumnType::BIGINT, unsigned: true, isNullable: true)]
     private ?int $bigNumber = null;
 
-    #[MtColumn(columnName: "decimal_value", columnType: ColumnType::DECIMAL, length: 10, scale: 2, isNullable: true)]
+    #[MtColumn(columnName: "decimal_value", columnType: ColumnType::DECIMAL, length: 10, scale: 2, isNullable: true, columnDefault: '0.00')]
     private ?float $decimalValue = null;
 
     #[MtColumn(columnName: "double_value", columnType: ColumnType::DOUBLE, isNullable: true)]
@@ -103,10 +103,10 @@ class User
     #[MtColumn(columnName: "work_time", columnType: ColumnType::TIME, isNullable: true)]
     private ?string $workTime = null;
 
-    #[MtColumn(columnName: "birth_year", columnType: ColumnType::YEAR, isNullable: true)]
+    #[MtColumn(columnName: "birth_year", columnType: ColumnType::YEAR, isNullable: true, columnDefault: null)]
     private ?int $birthYear = null;
 
-    #[MtColumn(columnName: "is_active", columnType: ColumnType::TINYINT, length: 1, isNullable: true, columnDefault: 0)]
+    #[MtColumn(columnName: "is_active", columnType: ColumnType::TINYINT, length: 1, isNullable: true, columnDefault: '0')]
     private ?bool $isActive = null;
 
     #[MtColumn(columnName: "is_verified", columnType: ColumnType::TINYINT, length: 1, isNullable: true)]

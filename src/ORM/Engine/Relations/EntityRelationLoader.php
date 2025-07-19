@@ -42,33 +42,45 @@ class EntityRelationLoader
 
         if (!empty($entityOneToOne = $this->dbMapping->getOneToOne($entityName))) {
             foreach ($entityOneToOne as $property => $oneToOne) {
-                $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
-                if ($result !== null) {
-                    $entitiesToLoad[] = $result;
+                // Validate that oneToOne is the correct type
+                if ($oneToOne instanceof MtOneToOne) {
+                    $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
+                    if ($result !== null) {
+                        $entitiesToLoad[] = $result;
+                    }
                 }
             }
         }
 
         if (!empty($entityOneToMany = $this->dbMapping->getOneToMany($entityName))) {
             foreach ($entityOneToMany as $property => $oneToMany) {
-                $result = $this->loadOneToMany($entity, $oneToMany, $property);
-                $entitiesToLoad[] = $result;
+                // Validate that oneToMany is the correct type
+                if ($oneToMany instanceof MtOneToMany) {
+                    $result = $this->loadOneToMany($entity, $oneToMany, $property);
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
 
         if (!empty($entityManyToOne = $this->dbMapping->getManyToOne($entityName))) {
             foreach ($entityManyToOne as $property => $manyToOne) {
-                $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
-                if ($result !== null) {
-                    $entitiesToLoad[] = $result;
+                // Validate that manyToOne is the correct type
+                if ($manyToOne instanceof MtManyToOne) {
+                    $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
+                    if ($result !== null) {
+                        $entitiesToLoad[] = $result;
+                    }
                 }
             }
         }
 
         if (!empty($entityManyToMany = $this->dbMapping->getManyToMany($entityName))) {
             foreach ($entityManyToMany as $property => $manyToMany) {
-                $result = $this->loadManyToMany($entity, $manyToMany, $property);
-                $entitiesToLoad[] = $result;
+                // Validate that manyToMany is the correct type
+                if ($manyToMany instanceof MtManyToMany) {
+                    $result = $this->loadManyToMany($entity, $manyToMany, $property);
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
 
@@ -428,5 +440,61 @@ class EntityRelationLoader
 
         // Check if the parameter allows null
         return $type->allowsNull();
+    }
+
+    /**
+     * @param class-string $entityClass
+     * @param int|string $idOrWhere
+     * @return object|null
+     */
+    private function loadRelatedEntity(string $entityClass, mixed $idOrWhere): ?object
+    {
+        // Validate that idOrWhere is the correct type
+        if (!is_int($idOrWhere) && !is_string($idOrWhere)) {
+            return null;
+        }
+
+        try {
+            return $this->entityManager->find($entityClass, $idOrWhere);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * @param class-string $entityClass
+     * @param array<int, array<string, mixed>> $entitiesData
+     * @return array<int, object>
+     */
+    private function loadCollectionEntities(string $entityClass, array $entitiesData): array
+    {
+        $entities = [];
+
+        foreach ($entitiesData as $entityData) {
+            // Validate that entityData is an array and has an id
+            if (!is_array($entityData) || !isset($entityData['id'])) {
+                continue;
+            }
+
+            $entityId = $entityData['id'];
+            if (!is_int($entityId) && !is_string($entityId)) {
+                continue;
+            }
+
+            // Check if entity is already in identity map
+            $managed = $this->entityManager->getEmEngine()->getIdentityMap()->get($entityClass, $entityId);
+            if ($managed !== null) {
+                $entities[] = $managed;
+                continue;
+            }
+
+            // Create and manage new entity
+            if (is_array($entityData)) {
+                $entity = $this->entityManager->getEmEngine()->createManagedEntity($entityData, $entityClass, false);
+                $entities[] = $entity;
+            }
+        }
+
+        return $entities;
     }
 }

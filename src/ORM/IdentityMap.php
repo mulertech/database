@@ -286,33 +286,24 @@ final class IdentityMap
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        $entityClass = $entity::class;
-
-        // Use cached methods if available
-        if (!isset($this->identifierMethodsCache[$entityClass])) {
-            $this->cacheIdentifierMethods($entityClass);
-        }
-
-        $methods = $this->identifierMethodsCache[$entityClass];
-
-        // Try ID methods
-        foreach ($methods['methods'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
-                }
+        // Try common getter methods first
+        if (method_exists($entity, 'getId')) {
+            $id = $entity->getId();
+            if (is_int($id) || is_string($id)) {
+                return $id;
             }
         }
 
-        // Try ID properties
-        foreach ($methods['properties'] as $property) {
+        // Try direct property access
+        $commonIdProperties = ['id', 'uuid', 'identifier'];
+
+        foreach ($commonIdProperties as $property) {
             if (property_exists($entity, $property)) {
                 try {
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
                     $value = $prop->getValue($entity);
-                    if ($value !== null) {
+                    if ($value !== null && (is_int($value) || is_string($value))) {
                         return $value;
                     }
                 } catch (ReflectionException) {

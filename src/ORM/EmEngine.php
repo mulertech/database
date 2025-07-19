@@ -151,25 +151,32 @@ class EmEngine
         }
 
         // Check if the entity is already in identity map
-        if (isset($fetch['id'])) {
-            $managed = $this->identityMap->get($entityName, $fetch['id']);
-            if ($managed !== null) {
-                // Update the managed entity with fresh data from database
-                $this->updateManagedEntityFromDbData($managed, $fetch);
+        if (is_array($fetch) && isset($fetch['id'])) {
+            $entityId = $fetch['id'];
+            if (is_int($entityId) || is_string($entityId)) {
+                $managed = $this->identityMap->get($entityName, $entityId);
+                if ($managed !== null) {
+                    // Update the managed entity with fresh data from database
+                    $this->updateManagedEntityFromDbData($managed, $fetch);
 
-                // Force reload of relations to ensure fresh state
-                if ($loadRelations) {
-                    try {
-                        $this->relationManager->loadEntityRelations($managed, $fetch);
-                    } catch (Exception) {
-                        // Continue silently on relation loading errors
+                    // Force reload of relations to ensure fresh state
+                    if ($loadRelations) {
+                        try {
+                            $this->relationManager->loadEntityRelations($managed, $fetch);
+                        } catch (Exception) {
+                            // Continue silently on relation loading errors
+                        }
                     }
+                    return $managed;
                 }
-                return $managed;
             }
         }
 
-        return $this->createManagedEntity($fetch, $entityName, $loadRelations);
+        if (is_array($fetch)) {
+            return $this->createManagedEntity($fetch, $entityName, $loadRelations);
+        }
+
+        return null;
     }
 
     /**
@@ -433,19 +440,21 @@ class EmEngine
             $reflection = new ReflectionClass($entity);
             $reflectionProperty = $reflection->getProperty($property);
 
-            if ($reflectionProperty->isInitialized($entity)) {
-                $value = $reflectionProperty->getValue($entity);
-
-                // Convert Collections to DatabaseCollection
-                if ($value instanceof Collection && !($value instanceof DatabaseCollection)) {
-                    $reflectionProperty->setValue($entity, new DatabaseCollection($value->items()));
-                }
+            // ALWAYS use DatabaseCollection for all relation collections to ensure change tracking
+            if (!$reflectionProperty->isInitialized($entity)) {
+                $reflectionProperty->setValue($entity, new DatabaseCollection([]));
             } else {
-                // Initialize uninitialized collection properties with empty DatabaseCollection
-                $reflectionProperty->setValue($entity, new DatabaseCollection());
+                // If already initialized, ALWAYS convert to DatabaseCollection
+                $currentValue = $reflectionProperty->getValue($entity);
+                if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
+                    $reflectionProperty->setValue($entity, new DatabaseCollection($currentValue->items()));
+                } elseif (!($currentValue instanceof DatabaseCollection)) {
+                    // Initialize with empty DatabaseCollection if it's not a Collection at all
+                    $reflectionProperty->setValue($entity, new DatabaseCollection([]));
+                }
             }
         } catch (ReflectionException) {
-            // Property doesn't exist or can't be accessed, ignore
+            // Property doesn't exist, ignore
         }
     }
 
@@ -461,6 +470,11 @@ class EmEngine
         $entities = [];
 
         foreach ($entitiesData as $entityData) {
+            // Ensure entityData is an array before processing
+            if (!is_array($entityData)) {
+                continue;
+            }
+
             if (isset($entityData['id'])) {
                 // Check if entity is already in identity map
                 $managed = $this->identityMap->get($entityName, $entityData['id']);
@@ -627,15 +641,24 @@ class EmEngine
     {
         // Try common getter methods
         if (method_exists($entity, 'getId')) {
-            return $entity->getId();
+            $id = $entity->getId();
+            if (is_int($id) || is_string($id)) {
+                return $id;
+            }
         }
 
         if (method_exists($entity, 'getIdentifier')) {
-            return $entity->getIdentifier();
+            $id = $entity->getIdentifier();
+            if (is_int($id) || is_string($id)) {
+                return $id;
+            }
         }
 
         if (method_exists($entity, 'getUuid')) {
-            return $entity->getUuid();
+            $id = $entity->getUuid();
+            if (is_int($id) || is_string($id)) {
+                return $id;
+            }
         }
 
         // Try direct property access
@@ -645,7 +668,7 @@ class EmEngine
             if ($reflection->hasProperty($property)) {
                 $prop = $reflection->getProperty($property);
                 $value = $prop->getValue($entity);
-                if ($value !== null) {
+                if ($value !== null && (is_int($value) || is_string($value))) {
                     return $value;
                 }
             }
