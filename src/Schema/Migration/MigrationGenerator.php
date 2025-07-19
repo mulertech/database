@@ -183,11 +183,6 @@ class MigrationGenerator
         // Add new columns
         foreach ($columnsToAdd as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
-                // Ensure columnDefinition is an array before accessing offsets
-                if (!is_array($columnDefinition)) {
-                    continue;
-                }
-
                 $columnType = is_string($columnDefinition['COLUMN_TYPE'] ?? null)
                     ? $columnDefinition['COLUMN_TYPE']
                     : 'VARCHAR(255)';
@@ -209,10 +204,6 @@ class MigrationGenerator
         // Modify columns
         foreach ($diff->getColumnsToModify() as $tableName => $columns) {
             foreach ($columns as $columnName => $differences) {
-                // Ensure differences is an array before accessing offsets
-                if (!is_array($differences)) {
-                    continue;
-                }
 
                 $code[] = $this->generateModifyColumnStatement($tableName, $columnName, $differences);
             }
@@ -267,9 +258,11 @@ class MigrationGenerator
         // Restore columns modifications if possible
         foreach ($diff->getColumnsToModify() as $tableName => $columns) {
             foreach ($columns as $columnName => $differences) {
-                if (isset($differences['COLUMN_TYPE']['from']) ||
-                    isset($differences['IS_NULLABLE']['from']) ||
-                    isset($differences['COLUMN_DEFAULT']['from'])) {
+                $hasColumnTypeFrom = is_array($differences['COLUMN_TYPE'] ?? null) && isset($differences['COLUMN_TYPE']['from']);
+                $hasNullableFrom = is_array($differences['IS_NULLABLE'] ?? null) && isset($differences['IS_NULLABLE']['from']);
+                $hasDefaultFrom = is_array($differences['COLUMN_DEFAULT'] ?? null) && isset($differences['COLUMN_DEFAULT']['from']);
+
+                if ($hasColumnTypeFrom || $hasNullableFrom || $hasDefaultFrom) {
                     $code[] = $this->generateRestoreColumnStatement($tableName, $columnName, $differences);
                 }
             }
@@ -296,12 +289,19 @@ class MigrationGenerator
         // Get all columns for this entity
         foreach ($columnsToAdd as $columnName => $columnDefinition) {
             // Parse column type to determine the appropriate method
+            $columnType = is_string($columnDefinition['COLUMN_TYPE'] ?? null)
+                ? $columnDefinition['COLUMN_TYPE']
+                : null;
+            $columnExtra = is_string($columnDefinition['EXTRA'] ?? null)
+                ? $columnDefinition['EXTRA']
+                : null;
+
             $columnDefinitionCode = $this->parseColumnType(
-                $columnDefinition['COLUMN_TYPE'] ?? null,
+                $columnType,
                 $columnName,
                 $columnDefinition['IS_NULLABLE'] === 'YES',
                 $columnDefinition['COLUMN_DEFAULT'] ?? null,
-                $columnDefinition['EXTRA'] ?? null
+                $columnExtra
             );
             $code[] = '    ' . $columnDefinitionCode;
 
@@ -436,7 +436,14 @@ class MigrationGenerator
         }
 
         if ($columnDefault !== null && $columnDefault !== '') {
-            $code .= '->default("' . addslashes($columnDefault) . '")';
+            if (is_string($columnDefault)) {
+                $defaultValue = $columnDefault;
+            } elseif (is_scalar($columnDefault)) {
+                $defaultValue = (string)$columnDefault;
+            } else {
+                $defaultValue = '';
+            }
+            $code .= '->default("' . addslashes($defaultValue) . '")';
         }
 
         if ($columnExtra !== null && str_contains($columnExtra, 'auto_increment')) {
@@ -530,18 +537,30 @@ class MigrationGenerator
      */
     private function generateModifyColumnStatement(string $tableName, string $columnName, array $differences): string
     {
-        $columnType = $differences['COLUMN_TYPE']['to'] ?? 'VARCHAR(255)';
-        $isNullable = !isset($differences['IS_NULLABLE']) || $differences['IS_NULLABLE']['to'] === 'YES';
-        $columnDefault = isset($differences['COLUMN_DEFAULT'])
-            ? $differences['COLUMN_DEFAULT']['to']
-            : null;
-        $columnExtra = isset($differences['EXTRA'])
-            ? $differences['EXTRA']['to']
-            : null;
+        $columnType = null;
+        $isNullable = true;
+        $columnDefault = null;
+        $columnExtra = null;
+
+        if (isset($differences['COLUMN_TYPE']) && is_array($differences['COLUMN_TYPE'])) {
+            $columnType = $differences['COLUMN_TYPE']['to'] ?? 'VARCHAR(255)';
+        }
+
+        if (isset($differences['IS_NULLABLE']) && is_array($differences['IS_NULLABLE'])) {
+            $isNullable = $differences['IS_NULLABLE']['to'] === 'YES';
+        }
+
+        if (isset($differences['COLUMN_DEFAULT']) && is_array($differences['COLUMN_DEFAULT'])) {
+            $columnDefault = $differences['COLUMN_DEFAULT']['to'];
+        }
+
+        if (isset($differences['EXTRA']) && is_array($differences['EXTRA'])) {
+            $columnExtra = is_string($differences['EXTRA']['to']) ? $differences['EXTRA']['to'] : null;
+        }
 
         return $this->generateAlterTableStatement(
             $tableName,
-            $columnType,
+            is_string($columnType) ? $columnType : 'VARCHAR(255)',
             $columnName,
             $isNullable,
             $columnDefault,
@@ -559,22 +578,35 @@ class MigrationGenerator
      */
     private function generateRestoreColumnStatement(string $tableName, string $columnName, array $differences): string
     {
-        $columnType = $differences['COLUMN_TYPE']['from'] ?? 'VARCHAR(255)';
-        $isNullable = !isset($differences['IS_NULLABLE'])
-            || (isset($differences['IS_NULLABLE']['from']) && $differences['IS_NULLABLE']['from'] === 'YES');
-        $columnDefault = isset($differences['COLUMN_DEFAULT'])
-            ? $differences['COLUMN_DEFAULT']['from']
-            : null;
-        $columnExtra = isset($differences['EXTRA'])
-            ? $differences['EXTRA']['from']
-            : null;
+        $columnType = null;
+        $isNullable = true;
+        $columnDefault = null;
+        $columnExtra = null;
+
+        if (isset($differences['COLUMN_TYPE']) && is_array($differences['COLUMN_TYPE'])) {
+            $columnType = $differences['COLUMN_TYPE']['from'] ?? 'VARCHAR(255)';
+        }
+
+        if (isset($differences['IS_NULLABLE']) && is_array($differences['IS_NULLABLE'])) {
+            $isNullable = $differences['IS_NULLABLE']['from'] === 'YES';
+        } elseif (!isset($differences['IS_NULLABLE'])) {
+            $isNullable = true;
+        }
+
+        if (isset($differences['COLUMN_DEFAULT']) && is_array($differences['COLUMN_DEFAULT'])) {
+            $columnDefault = $differences['COLUMN_DEFAULT']['from'];
+        }
+
+        if (isset($differences['EXTRA']) && is_array($differences['EXTRA'])) {
+            $columnExtra = is_string($differences['EXTRA']['from']) ? $differences['EXTRA']['from'] : null;
+        }
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '");';
 
         $columnDefinitionCode = $this->parseColumnType(
-            $columnType,
+            is_string($columnType) ? $columnType : 'VARCHAR(255)',
             $columnName,
             $isNullable,
             $columnDefault,
@@ -613,19 +645,33 @@ class MigrationGenerator
      */
     private function generateAddForeignKeyStatement(string $tableName, string $constraintName, array $foreignKeyInfo): string
     {
-        $onDeleteRule = $foreignKeyInfo['DELETE_RULE']
-            ? ReferentialAction::from($foreignKeyInfo['DELETE_RULE'])->toEnumCallString()
+        $deleteRule = $foreignKeyInfo['DELETE_RULE'] ?? null;
+        $updateRule = $foreignKeyInfo['UPDATE_RULE'] ?? null;
+
+        // Get string values for referential actions
+        $onDeleteRule = ($deleteRule && (is_string($deleteRule) || is_int($deleteRule)))
+            ? ReferentialAction::from($deleteRule)->toEnumCallString()
             : ReferentialAction::CASCADE->toEnumCallString();
-        $onUpdateRule = $foreignKeyInfo['UPDATE_RULE']
-            ? ReferentialAction::from($foreignKeyInfo['UPDATE_RULE'])->toEnumCallString()
+        $onUpdateRule = ($updateRule && (is_string($updateRule) || is_int($updateRule)))
+            ? ReferentialAction::from($updateRule)->toEnumCallString()
             : ReferentialAction::CASCADE->toEnumCallString();
+
+        $columnName = is_string($foreignKeyInfo['COLUMN_NAME'] ?? '')
+            ? $foreignKeyInfo['COLUMN_NAME']
+            : '';
+        $referencedTableName = is_string($foreignKeyInfo['REFERENCED_TABLE_NAME'] ?? '')
+            ? $foreignKeyInfo['REFERENCED_TABLE_NAME']
+            : '';
+        $referencedColumnName = is_string($foreignKeyInfo['REFERENCED_COLUMN_NAME'] ?? '')
+            ? $foreignKeyInfo['REFERENCED_COLUMN_NAME']
+            : '';
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
         $code[] = '        $tableDefinition->foreignKey("' . $constraintName . '")';
-        $code[] = '            ->columns("' . $foreignKeyInfo['COLUMN_NAME'] . '")';
-        $code[] = '            ->references("' . $foreignKeyInfo['REFERENCED_TABLE_NAME'] . '", "' . $foreignKeyInfo['REFERENCED_COLUMN_NAME'] . '")';
+        $code[] = '            ->columns("' . $columnName . '")';
+        $code[] = '            ->references("' . $referencedTableName . '", "' . $referencedColumnName . '")';
         $code[] = '            ->onDelete(' . $onDeleteRule . ')';
         $code[] = '            ->onUpdate(' . $onUpdateRule . ');';
         $code[] = '        $sql = $tableDefinition->toSql();';

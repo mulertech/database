@@ -34,11 +34,6 @@ class MigrationManager
     private array $executedMigrations = [];
 
     /**
-     * @var array<int, array<string, mixed>> Database tables
-     */
-    private array $tables = [];
-
-    /**
      * @param EntityManagerInterface $entityManager
      * @param class-string $migrationHistory
      * @throws ReflectionException
