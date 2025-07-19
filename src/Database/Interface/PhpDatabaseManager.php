@@ -200,30 +200,25 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param string $query
-     * @return string
+     * @param string $query SQL query to extract table from
+     * @return string Table name or 'unknown'
      */
     private function extractTableFromQuery(string $query): string
     {
-        // Simple regex to extract main table name
-        $patterns = [
-            '/FROM\s+`?(\w+)`?/i',
-            '/INSERT\s+INTO\s+`?(\w+)`?/i',
-            '/UPDATE\s+`?(\w+)`?/i',
-            '/DELETE\s+FROM\s+`?(\w+)`?/i',
-        ];
+        // Simple extraction logic - can be enhanced
+        $query = strtolower(trim($query));
 
-        $return = 'unknown';
-        array_any($patterns, static function ($pattern) use ($query, &$return) {
-            $match = preg_match($pattern, $query, $matches);
-            if ($match) {
-                $return = strtolower($matches[1]);
-                return true;
-            }
-            return false;
-        });
+        // For INSERT, UPDATE, DELETE
+        if (preg_match('/(?:insert\s+into|update|delete\s+from)\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
+            return $matches[1];
+        }
 
-        return $return;
+        // For SELECT
+        if (preg_match('/from\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
+            return $matches[1];
+        }
+
+        return 'unknown';
     }
 
     /**
@@ -429,53 +424,6 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         return $this->getConnection()->getAttribute($attribute);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function getStatementCacheStats(): array
-    {
-        if (!$this->enableStatementCache) {
-            return ['enabled' => false];
-        }
-
-        $stats = $this->statementCache?->getStatistics();
-
-        // Add usage analytics
-        arsort($this->statementUsageCount);
-        $topStatements = array_slice($this->statementUsageCount, 0, 10, true);
-
-        return [
-            'enabled' => true,
-            'cache_stats' => $stats,
-            'total_statements_prepared' => array_sum($this->statementUsageCount),
-            'unique_statements' => count($this->statementUsageCount),
-            'top_statements' => $topStatements,
-        ];
-    }
-
-    /**
-     * Clear the statement cache
-     * @return void
-     */
-    public function clearStatementCache(): void
-    {
-        if ($this->enableStatementCache) {
-            $this->statementCache?->clear();
-            $this->statementUsageCount = [];
-        }
-    }
-
-    /**
-     * Invalidate cached statements for a specific table
-     * @param string $table
-     * @return void
-     */
-    public function invalidateTableStatements(string $table): void
-    {
-        if ($this->enableStatementCache) {
-            $this->statementCache?->invalidateTag(strtolower($table));
-        }
-    }
 
     /**
      * Parse DATABASE_URL or individual environment variables

@@ -198,6 +198,27 @@ class DbMapping implements DbMappingInterface
     }
 
     /**
+     * Get foreign key column name for relation properties
+     * @param string $property
+     * @param array<string, string> $columns
+     * @return string
+     */
+    private function getRelationColumnName(string $property, array $columns): string
+    {
+        $fkColumn = $property . '_id';
+
+        // Check if this column exists in the mapped columns
+        foreach ($columns as $col) {
+            if ($col === $fkColumn) {
+                return $col;
+            }
+        }
+
+        // If not found in mapped columns, return the convention-based name
+        return $fkColumn;
+    }
+
+    /**
      * @param class-string $entityName
      * @param string $property
      * @return string|null
@@ -210,34 +231,15 @@ class DbMapping implements DbMappingInterface
             return $columns[$property];
         }
 
-        // If direct mapping not found, check if it's a relation property
-        // and try to find the foreign key column
+        // Check if it's a relation property
         $oneToOneList = $this->getOneToOne($entityName);
         if (!empty($oneToOneList) && isset($oneToOneList[$property])) {
-            // For OneToOne relations, try property_id as column name
-            $fkColumn = $property . '_id';
-            // Check if this column exists in the mapped columns
-            foreach ($columns as $col) {
-                if ($col === $fkColumn) {
-                    return $col;
-                }
-            }
-            // If not found in mapped columns, return the convention-based name
-            return $fkColumn;
+            return $this->getRelationColumnName($property, $columns);
         }
 
         $manyToOneList = $this->getManyToOne($entityName);
         if (!empty($manyToOneList) && isset($manyToOneList[$property])) {
-            // For ManyToOne relations, try property_id as column name
-            $fkColumn = $property . '_id';
-            // Check if this column exists in the mapped columns
-            foreach ($columns as $col) {
-                if ($col === $fkColumn) {
-                    return $col;
-                }
-            }
-            // If not found in mapped columns, return the convention-based name
-            return $fkColumn;
+            return $this->getRelationColumnName($property, $columns);
         }
 
         return null;

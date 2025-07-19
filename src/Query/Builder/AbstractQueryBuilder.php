@@ -251,4 +251,68 @@ abstract class AbstractQueryBuilder
             'cached' => !$this->isDirty,
         ];
     }
+
+    /**
+     * Common method for handling parameter binding across all builders
+     * @param mixed $value
+     * @param int|null $type
+     * @return string Parameter placeholder
+     */
+    protected function bindParameter(mixed $value, ?int $type = PDO::PARAM_STR): string
+    {
+        if ($value instanceof Raw) {
+            return $value->getValue();
+        }
+        return $this->parameterBag->add($value, $type);
+    }
+
+    /**
+     * Common method for validating table names
+     * @param string $table
+     * @return void
+     * @throws RuntimeException
+     */
+    protected function validateTableName(string $table): void
+    {
+        if (empty($table)) {
+            throw new RuntimeException('Table name cannot be empty');
+        }
+
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) {
+            throw new RuntimeException('Invalid table name format');
+        }
+    }
+
+    /**
+     * Common method for validating column names
+     * @param string $column
+     * @return void
+     * @throws RuntimeException
+     */
+    protected function validateColumnName(string $column): void
+    {
+        if (empty($column)) {
+            throw new RuntimeException('Column name cannot be empty');
+        }
+
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $column)) {
+            throw new RuntimeException('Invalid column name format');
+        }
+    }
+
+    /**
+     * Common method for building SET clauses
+     * @param array<string, mixed> $data
+     * @return string
+     */
+    protected function buildSetClause(array $data): string
+    {
+        $setParts = [];
+        foreach ($data as $column => $value) {
+            $this->validateColumnName($column);
+            $placeholder = $this->bindParameter($value);
+            $setParts[] = "`{$column}` = {$placeholder}";
+        }
+        return implode(', ', $setParts);
+    }
 }

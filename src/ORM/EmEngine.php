@@ -104,14 +104,17 @@ class EmEngine
      */
     public function find(string $entityName, int|string $idOrWhere): ?object
     {
-        // Pour les recherches par SqlOperations ou string non-numeric, toujours aller en base
-        // car l'IdentityMap est indexée par ID, pas par autres critères
+        // Pour les recherches par string non-numeric, utiliser whereRaw directement
         if (is_string($idOrWhere) && !is_numeric($idOrWhere)) {
-            return $this->findByStringCondition($entityName, $idOrWhere);
+            $queryBuilder = new QueryBuilder($this)
+                ->select('*')
+                ->from($this->getTableName($entityName))
+                ->whereRaw($idOrWhere);
+
+            return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
         }
 
-        // At this point, $idOrWhere is numeric (int or numeric string)
-        // Check identity map first
+        // Check identity map first for numeric IDs
         $managed = $this->identityMap->get($entityName, $idOrWhere);
         if ($managed !== null) {
             return $managed;
@@ -122,56 +125,7 @@ class EmEngine
             ->from($this->getTableName($entityName))
             ->where('id', $idOrWhere);
 
-        $result = $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
-
-        // Ensure we return null instead of false or any other falsy value
-        return $result ?: null;
-    }
-
-    /**
-     * Find entity by string condition, always going to database
-     *
-     * @param class-string $entityName
-     * @param string $condition
-     * @return object|null
-     * @throws ReflectionException
-     */
-    private function findByStringCondition(string $entityName, string $condition): ?object
-    {
-        $queryBuilder = new QueryBuilder($this)
-            ->select('*')
-            ->from($this->getTableName($entityName))
-            ->whereRaw($condition);
-
-        $pdoStatement = $queryBuilder->getResult();
-        $pdoStatement->execute();
-
-        $fetch = $pdoStatement->fetch(PDO::FETCH_ASSOC);
-        $pdoStatement->closeCursor();
-
-        if ($fetch === false || $fetch === null) {
-            return null;
-        }
-
-        // Check if the entity is already in identity map
-        if (isset($fetch['id'])) {
-            $managed = $this->identityMap->get($entityName, $fetch['id']);
-            if ($managed !== null) {
-                // Update the managed entity with fresh data from database
-                $this->updateManagedEntityFromDbData($managed, $fetch);
-
-                // Force reload of relations to ensure fresh state
-                try {
-                    $this->relationManager->loadEntityRelations($managed, $fetch);
-                } catch (Exception) {
-                    // Continue silently on relation loading errors
-                }
-                return $managed;
-            }
-        }
-
-        // Create new managed entity if not found in identity map
-        return $this->createManagedEntity($fetch, $entityName, true);
+        return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
     }
 
     /**
