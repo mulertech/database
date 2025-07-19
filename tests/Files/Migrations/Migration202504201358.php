@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Files\Migrations;
 
-use MulerTech\Database\Migration\Migration;
+use MulerTech\Database\Schema\Migration\Migration;
 
 /**
  * Auto-generated migration

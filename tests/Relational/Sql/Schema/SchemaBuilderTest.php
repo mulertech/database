@@ -2,9 +2,9 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\Schema\IndexDefinition;
-use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
-use MulerTech\Database\Relational\Sql\Schema\TableDefinition;
+use MulerTech\Database\Schema\Builder\SchemaBuilder;
+use MulerTech\Database\Schema\Builder\TableDefinition;
+use MulerTech\Database\Schema\IndexDefinition;
 use PHPUnit\Framework\TestCase;
 
 /**

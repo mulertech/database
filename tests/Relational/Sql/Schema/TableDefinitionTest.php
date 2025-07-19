@@ -2,11 +2,10 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\Schema\ColumnDefinition;
-use MulerTech\Database\Relational\Sql\Schema\ForeignKeyDefinition;
-use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;
-use MulerTech\Database\Relational\Sql\Schema\SchemaQueryGenerator;
-use MulerTech\Database\Relational\Sql\Schema\TableDefinition;
+use MulerTech\Database\Schema\Builder\TableDefinition;
+use MulerTech\Database\Schema\ColumnDefinition;
+use MulerTech\Database\Schema\ForeignKeyDefinition;
+use MulerTech\Database\Schema\ReferentialAction;
 use PHPUnit\Framework\TestCase;
 
 /**

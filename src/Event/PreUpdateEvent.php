@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Event;
 
+use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManagerInterface;
 
 /**
@@ -15,20 +16,20 @@ class PreUpdateEvent extends AbstractEntityEvent
     /**
      * @param Object $entity
      * @param EntityManagerInterface $entityManager
-     * @param array<string, array<int, string>> $entityChanges
+     * @param ChangeSet|null $entityChanges
      */
     public function __construct(
         Object $entity,
         EntityManagerInterface $entityManager,
-        private readonly array $entityChanges
+        private readonly ?ChangeSet $entityChanges
     ) {
         parent::__construct($entity, $entityManager, DbEvents::preUpdate);
     }
 
     /**
-     * @return array<string, array<int, string>>
+     * @return ChangeSet|null
      */
-    public function getEntityChanges(): array
+    public function getEntityChanges(): ?ChangeSet
     {
         return $this->entityChanges;
     }

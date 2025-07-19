@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 
 /**
  * Class EntityRepository
@@ -48,7 +48,7 @@ class EntityRepository
      */
     protected function createQueryBuilder(): QueryBuilder
     {
-        return new QueryBuilder($this->entityManager->getEmEngine())->from($this->entityName);
+        return new QueryBuilder($this->entityManager->getEmEngine());
     }
 
     /**

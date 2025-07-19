@@ -6,13 +6,13 @@ namespace MulerTech\Database\ORM\State;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
-use MulerTech\Database\ORM\IdentityMap;
-use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\ChangeSetManager;
+use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\IdentityMap;
 
 /**
  * Direct state manager using enum-based state system with ChangeSetManager integration
- * @package MulerTech\Database\ORM\State
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class DirectStateManager implements StateManagerInterface

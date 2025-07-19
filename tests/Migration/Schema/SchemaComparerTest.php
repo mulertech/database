@@ -2,16 +2,16 @@
 
 namespace MulerTech\Database\Tests\Migration\Schema;
 
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
-use MulerTech\Database\Mapping\MtFk;
-use MulerTech\Database\Migration\MigrationManager;
-use MulerTech\Database\Migration\Schema\SchemaComparer;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Relational\Sql\InformationSchema;
+use MulerTech\Database\Schema\Diff\SchemaComparer;
+use MulerTech\Database\Schema\Information\InformationSchema;
+use MulerTech\Database\Schema\Migration\MigrationManager;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\GroupUser;
 use MulerTech\Database\Tests\Files\Entity\SameTableName;
@@ -34,7 +34,7 @@ class SchemaComparerTest extends TestCase
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             $this->dbMapping,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());
@@ -215,10 +215,10 @@ class SchemaComparerTest extends TestCase
     public function testMissingConstraintNameThrowsException(): void
     {
         // Créer un mock de DbMapping qui simule une clé étrangère sans nom de contrainte
-        $dbMapping = $this->createMock(\MulerTech\Database\Mapping\DbMappingInterface::class);
+        $dbMapping = $this->createMock(DbMappingInterface::class);
 
         // Créer un mock de MtFk pour simuler une clé étrangère
-        $foreignKey = $this->createMock(\MulerTech\Database\Mapping\MtFk::class);
+        $foreignKey = $this->createMock(MtFk::class);
 
         // Configurer le mock pour simuler une entité avec une clé étrangère
         $entityClass = 'TestEntity';
@@ -234,7 +234,7 @@ class SchemaComparerTest extends TestCase
         $dbMapping->method('getConstraintName')->willReturn(null);
 
         // Créer le SchemaComparer avec notre mock
-        $informationSchema = $this->createMock(\MulerTech\Database\Relational\Sql\InformationSchema::class);
+        $informationSchema = $this->createMock(InformationSchema::class);
         $informationSchema->method('getTables')->willReturn([]);
         $informationSchema->method('getColumns')->willReturn([]);
         $informationSchema->method('getForeignKeys')->willReturn([]);

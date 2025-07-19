@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use DateTimeImmutable;
+use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
@@ -13,14 +14,13 @@ use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\ORM\IdentityMap;
-use MulerTech\Database\Event\PostFlushEvent;
-use MulerTech\EventManager\EventManager;
 use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\StateManagerInterface;
+use MulerTech\EventManager\EventManager;
 use ReflectionException;
 use RuntimeException;
 
@@ -93,6 +93,7 @@ class PersistenceManager
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     public function persist(object $entity): void
     {
@@ -313,18 +314,7 @@ class PersistenceManager
         // Call pre-update event
         $this->callEntityEvent($entity, 'preUpdate');
 
-        // Convert ChangeSet to array format for update processor
-        // old value at index 0
-        // new value at index 1
-        $changes = array_map(static function ($change) {
-            return [
-                0 => $change->oldValue, // old value at index 0
-                1 => $change->newValue,  // new value at index 1
-            ];
-        }, $changeSet->getChanges());
-
-        // Process the update
-        $this->updateProcessor->process($entity, $changes);
+        $this->updateProcessor->process($entity, $changeSet->getChanges());
 
         // Update metadata with new original data after successful update
         $metadata = $this->identityMap->getMetadata($entity);
@@ -422,13 +412,7 @@ class PersistenceManager
                     break;
                 case 'preUpdate':
                     $changeSet = $this->changeSetManager->getChangeSet($entity);
-                    $changes = [];
-                    if ($changeSet !== null) {
-                        foreach ($changeSet->getChanges() as $property => $change) {
-                            $changes[$property] = [$change->oldValue, $change->newValue];
-                        }
-                    }
-                    $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changes));
+                    $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
                     break;
                 case 'postUpdate':
                     // IMPORTANT: For postUpdate events, we need to immediately process any new entities

@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Files;
+namespace MulerTech\Database\Tests\Files\Repository;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\EntityRepository;

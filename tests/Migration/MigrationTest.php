@@ -2,22 +2,21 @@
 
 namespace MulerTech\Database\Tests\Migration;
 
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Migration\Migration;
-use MulerTech\Database\Migration\MigrationGenerator;
-use MulerTech\Database\Migration\MigrationManager;
-use MulerTech\Database\Migration\Schema\SchemaComparer;
-use MulerTech\Database\Migration\Schema\SchemaDifference;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\PhpInterface\PdoConnector;
-use MulerTech\Database\PhpInterface\PdoMysql\Driver;
-use MulerTech\Database\PhpInterface\PhpDatabaseManager;
-use MulerTech\Database\Relational\Sql\InformationSchema;
-use MulerTech\Database\Relational\Sql\QueryBuilder;
+use MulerTech\Database\Query\Builder\QueryBuilder;
+use MulerTech\Database\Schema\Diff\SchemaComparer;
+use MulerTech\Database\Schema\Diff\SchemaDifference;
+use MulerTech\Database\Schema\Information\InformationSchema;
+use MulerTech\Database\Schema\Migration\Migration;
+use MulerTech\Database\Schema\Migration\MigrationGenerator;
+use MulerTech\Database\Schema\Migration\MigrationManager;
 use MulerTech\Database\Tests\Files\Migrations\Migration202504201358;
-use MulerTech\MTerm\Core\Terminal;
 use PHPUnit\Framework\MockObject\Exception;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -39,7 +38,7 @@ class MigrationTest extends TestCase
     protected function setUp(): void
     {
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             new DbMapping(
                 dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
             )
@@ -386,12 +385,12 @@ class MigrationTest extends TestCase
     public function testGenerateMigrationWithDefaultValues(): void
     {
         // Utilisation d'un mock pour SchemaComparer car on veut contrôler la sortie de compare()
-        $schemaComparer = $this->getMockBuilder(\MulerTech\Database\Migration\Schema\SchemaComparer::class)
+        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['compare'])
             ->getMock();
 
-        $schemaDifference = new \MulerTech\Database\Migration\Schema\SchemaDifference();
+        $schemaDifference = new SchemaDifference();
         $schemaDifference->addColumnToAdd('users_test', 'status', [
             'COLUMN_TYPE' => 'enum(\'active\',\'inactive\')',
             'IS_NULLABLE' => 'NO',
@@ -399,7 +398,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new \MulerTech\Database\Migration\MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
         $filePath = $migrationGenerator->generateMigration($this->migrationDatetime);
 
@@ -418,12 +417,12 @@ class MigrationTest extends TestCase
      */
     public function testGenerateMigrationWithNullDefaults(): void
     {
-        $schemaComparer = $this->getMockBuilder(\MulerTech\Database\Migration\Schema\SchemaComparer::class)
+        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['compare'])
             ->getMock();
 
-        $schemaDifference = new \MulerTech\Database\Migration\Schema\SchemaDifference();
+        $schemaDifference = new SchemaDifference();
         $schemaDifference->addColumnToModify('users_test', 'description', [
             'COLUMN_TYPE' => [
                 'from' => 'varchar(100)',
@@ -440,7 +439,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new \MulerTech\Database\Migration\MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
         $filePath = $migrationGenerator->generateMigration($this->migrationDatetime);
 
@@ -555,14 +554,6 @@ class MigrationTest extends TestCase
         $migration2 = $this->createMock(Migration::class);
         $migration2->method('getVersion')->willReturn('20230101-0001'); // Last migration, will be rolled back
         $migration2->expects($this->once())->method('down');
-
-        $queryBuilder = $this->getMockBuilder(QueryBuilder::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-
-        $queryBuilder->method('delete')->willReturnSelf();
-        $queryBuilder->method('where')->willReturnSelf();
-        $queryBuilder->method('addNamedParameter')->willReturn(':namedParam1');
 
         $this->migrationManager->registerMigration($migration1);
         $this->migrationManager->registerMigration($migration2);
@@ -1210,11 +1201,11 @@ class MigrationTest extends TestCase
         $this->assertStringContainsString('->foreignKey("fk_complete")', $fileContent);
         $this->assertStringContainsString('->references("categories", "id")', $fileContent);
         $this->assertStringContainsString(
-            '->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_NULL)',
+            '->onDelete(MulerTech\Database\Schema\ReferentialAction::SET_NULL)',
             $fileContent
         );
         $this->assertStringContainsString(
-            '->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE)',
+            '->onUpdate(MulerTech\Database\Schema\ReferentialAction::CASCADE)',
             $fileContent
         );
     }

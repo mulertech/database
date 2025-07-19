@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionException;
 
 /**

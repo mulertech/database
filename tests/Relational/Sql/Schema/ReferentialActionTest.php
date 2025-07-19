@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Relational\Sql\Schema\ReferentialAction;
+use MulerTech\Database\Schema\ReferentialAction;
 use PHPUnit\Framework\TestCase;
 use ValueError;
 
@@ -96,10 +96,10 @@ class ReferentialActionTest extends TestCase
      */
     public function testToEnumCallString(): void
     {
-        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE', ReferentialAction::CASCADE->toEnumCallString());
-        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_NULL', ReferentialAction::SET_NULL->toEnumCallString());
-        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::RESTRICT', ReferentialAction::RESTRICT->toEnumCallString());
-        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::NO_ACTION', ReferentialAction::NO_ACTION->toEnumCallString());
-        $this->assertEquals('MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_DEFAULT', ReferentialAction::SET_DEFAULT->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Schema\ReferentialAction::CASCADE', ReferentialAction::CASCADE->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Schema\ReferentialAction::SET_NULL', ReferentialAction::SET_NULL->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Schema\ReferentialAction::RESTRICT', ReferentialAction::RESTRICT->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Schema\ReferentialAction::NO_ACTION', ReferentialAction::NO_ACTION->toEnumCallString());
+        $this->assertEquals('MulerTech\Database\Schema\ReferentialAction::SET_DEFAULT', ReferentialAction::SET_DEFAULT->toEnumCallString());
     }
 }

@@ -2,14 +2,14 @@
 
 namespace MulerTech\Database\Tests\Mapping;
 
-use MulerTech\Database\Mapping\ColumnType;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Mapping\FkRule;
-use MulerTech\Database\Mapping\MtFk;
-use MulerTech\Database\Mapping\MtManyToMany;
-use MulerTech\Database\Mapping\MtManyToOne;
-use MulerTech\Database\Mapping\MtOneToMany;
-use MulerTech\Database\Mapping\MtOneToOne;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\GroupUser;
 use MulerTech\Database\Tests\Files\Entity\SameTableName;

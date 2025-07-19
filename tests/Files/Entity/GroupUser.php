@@ -2,17 +2,17 @@
 
 namespace MulerTech\Database\Tests\Files\Entity;
 
-use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\ColumnType;
-use MulerTech\Database\Mapping\FkRule;
-use MulerTech\Database\Mapping\MtColumn;
-use MulerTech\Database\Mapping\MtEntity;
-use MulerTech\Database\Mapping\MtFk;
-use MulerTech\Database\Mapping\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Types\ColumnKey;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\FkRule;
 
 /**
  * Link entity for User-Group many-to-many relationship
- * @package MulerTech\Database\Tests\Files\Entity
+ * @package MulerTech\Database
  * @author Sébastien Muler
  */
 #[MtEntity(tableName: "link_user_group_test")]

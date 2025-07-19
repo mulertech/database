@@ -1,7 +1,7 @@
 <?php
 
-use MulerTech\Database\Migration\Migration;
-use MulerTech\Database\Relational\Sql\Schema\SchemaBuilder;
+use MulerTech\Database\Schema\Builder\SchemaBuilder;
+use MulerTech\Database\Schema\Migration\Migration;
 
 /**
  * Original migration file for testing purposes.
@@ -125,8 +125,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->foreignKey("fk_groups_test_parent_id_groups_test")
             ->columns("parent_id")
             ->references("groups_test", "id")
-            ->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE)
-            ->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::CASCADE)
+            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
@@ -135,8 +135,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->foreignKey("fk_link_user_group_test_user_id_users_test")
             ->columns("user_id")
             ->references("users_test", "id")
-            ->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE)
-            ->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::CASCADE)
+            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
@@ -145,8 +145,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->foreignKey("fk_link_user_group_test_group_id_groups_test")
             ->columns("group_id")
             ->references("groups_test", "id")
-            ->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE)
-            ->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::CASCADE)
+            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
@@ -155,8 +155,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->foreignKey("fk_users_test_unit_id_units_test")
             ->columns("unit_id")
             ->references("units_test", "id")
-            ->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::RESTRICT)
-            ->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::RESTRICT)
+            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
@@ -165,8 +165,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->foreignKey("fk_users_test_manager_users_test")
             ->columns("manager")
             ->references("users_test", "id")
-            ->onDelete(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::SET_NULL)
-            ->onUpdate(MulerTech\Database\Relational\Sql\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::SET_NULL)
+            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
     }
