@@ -6,6 +6,8 @@ namespace MulerTech\Database\Schema;
 
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Schema\Builder\ColumnDefinition;
+use MulerTech\Database\Schema\Builder\ForeignKeyDefinition;
 use MulerTech\Database\Schema\Builder\TableDefinition;
 
 /**

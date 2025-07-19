@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Schema;
+namespace MulerTech\Database\Schema\Types;
 
 /**
  * Enum for foreign key referential actions

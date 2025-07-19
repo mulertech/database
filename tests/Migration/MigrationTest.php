@@ -1201,11 +1201,11 @@ class MigrationTest extends TestCase
         $this->assertStringContainsString('->foreignKey("fk_complete")', $fileContent);
         $this->assertStringContainsString('->references("categories", "id")', $fileContent);
         $this->assertStringContainsString(
-            '->onDelete(MulerTech\Database\Schema\ReferentialAction::SET_NULL)',
+            '->onDelete(MulerTech\Database\Schema\Types\ReferentialAction::SET_NULL)',
             $fileContent
         );
         $this->assertStringContainsString(
-            '->onUpdate(MulerTech\Database\Schema\ReferentialAction::CASCADE)',
+            '->onUpdate(MulerTech\Database\Schema\Types\ReferentialAction::CASCADE)',
             $fileContent
         );
     }

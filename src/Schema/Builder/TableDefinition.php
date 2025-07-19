@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Builder;
 
-use MulerTech\Database\Schema\ColumnDefinition;
-use MulerTech\Database\Schema\ForeignKeyDefinition;
 use MulerTech\Database\Schema\SchemaQueryGenerator;
 
 /**

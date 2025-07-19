@@ -3,8 +3,8 @@
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
 use InvalidArgumentException;
-use MulerTech\Database\Schema\IndexDefinition;
-use MulerTech\Database\Schema\IndexType;
+use MulerTech\Database\Schema\Builder\IndexDefinition;
+use MulerTech\Database\Schema\Types\IndexType;
 use PHPUnit\Framework\TestCase;
 
 class IndexDefinitionTest extends TestCase

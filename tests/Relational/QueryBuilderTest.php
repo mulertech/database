@@ -52,8 +52,7 @@ class QueryBuilderTest extends TestCase
         $insertBuilder = $queryBuilder->insert('atable');
 
         $parameters = $insertBuilder->getParameterBag()->toArray();
-        self::assertEmpty($parameters['named']);
-        self::assertEmpty($parameters['positional']);
+        self::assertEmpty($parameters);
     }
 
     public function testQueryBuilderInsertNamedParameter(): void
@@ -87,7 +86,7 @@ class QueryBuilderTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('No SET values specified for UPDATE');
 
-        // Créer un UpdateBuilder sans spécifier de table
+        // Create an UpdateBuilder without specifying a table
         $queryBuilder = new QueryBuilder();
         $updateBuilder = $queryBuilder->update('test');
         $updateBuilder->toSql();

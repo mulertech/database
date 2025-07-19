@@ -2,8 +2,8 @@
 
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
-use MulerTech\Database\Schema\ForeignKeyDefinition;
-use MulerTech\Database\Schema\ReferentialAction;
+use MulerTech\Database\Schema\Builder\ForeignKeyDefinition;
+use MulerTech\Database\Schema\Types\ReferentialAction;
 use PHPUnit\Framework\TestCase;
 
 class ForeignKeyDefinitionTest extends TestCase

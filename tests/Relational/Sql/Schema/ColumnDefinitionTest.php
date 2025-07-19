@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
 use MulerTech\Database\Mapping\Types\ColumnType;
-use MulerTech\Database\Schema\ColumnDefinition;
+use MulerTech\Database\Schema\Builder\ColumnDefinition;
 use PHPUnit\Framework\TestCase;
 
 class ColumnDefinitionTest extends TestCase

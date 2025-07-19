@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Schema;
+namespace MulerTech\Database\Schema\Builder;
 
 use InvalidArgumentException;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
+use MulerTech\Database\Schema\Types\IndexType;
 
 /**
  * Class IndexDefinition

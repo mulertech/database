@@ -6,7 +6,7 @@ namespace MulerTech\Database\Schema\Migration;
 
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
-use MulerTech\Database\Schema\ReferentialAction;
+use MulerTech\Database\Schema\Types\ReferentialAction;
 use ReflectionException;
 use RuntimeException;
 
@@ -183,7 +183,14 @@ class MigrationGenerator
         // Add new columns
         foreach ($columnsToAdd as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
-                $code[] = $this->generateAddColumnStatement($tableName, $columnName, $columnDefinition);
+                $code[] = $this->generateAlterTableStatement(
+                    $tableName,
+                    $columnDefinition['COLUMN_TYPE'] ?? 'VARCHAR(255)',
+                    $columnName,
+                    ($columnDefinition['IS_NULLABLE'] ?? 'YES') === 'YES',
+                    $columnDefinition['COLUMN_DEFAULT'] ?? null,
+                    $columnDefinition['EXTRA'] ?? null
+                );
             }
         }
 
@@ -456,31 +463,6 @@ class MigrationGenerator
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
-    }
-
-    /**
-     * Generate code to add a column
-     *
-     * @param string $tableName
-     * @param string $columnName
-     * @param array<string, mixed> $columnDefinition
-     * @return string
-     */
-    private function generateAddColumnStatement(string $tableName, string $columnName, array $columnDefinition): string
-    {
-        $columnType = $columnDefinition['COLUMN_TYPE'] ?? 'VARCHAR(255)';
-        $isNullable = ($columnDefinition['IS_NULLABLE'] ?? 'YES') === 'YES';
-        $columnDefault = $columnDefinition['COLUMN_DEFAULT'] ?? null;
-        $columnExtra = $columnDefinition['EXTRA'] ?? null;
-
-        return $this->generateAlterTableStatement(
-            $tableName,
-            $columnType,
-            $columnName,
-            $isNullable,
-            $columnDefault,
-            $columnExtra
-        );
     }
 
     /**
