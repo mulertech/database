@@ -2,9 +2,9 @@
 
 namespace MulerTech\Database\Tests\Migration\Command;
 
-use MulerTech\Database\Database\Driver\Driver;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
@@ -29,7 +29,7 @@ class MigrationGenerateCommandTest extends TestCase
     {
         $this->terminal = $this->createMock(Terminal::class);
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             new DbMapping(
                 dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
             )

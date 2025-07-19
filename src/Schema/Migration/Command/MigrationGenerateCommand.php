@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration\Command;
 
-use MulerTech\Database\Schema\Migration\MigrationGenerator;
-use MulerTech\Database\Schema\Diff\SchemaComparer;
-use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\ORM\EntityManagerInterface;
+use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Information\InformationSchema;
+use MulerTech\Database\Schema\Migration\MigrationGenerator;
 use MulerTech\MTerm\Command\AbstractCommand;
 use MulerTech\MTerm\Core\Terminal;
 use ReflectionException;

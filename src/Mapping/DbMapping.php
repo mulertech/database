@@ -10,7 +10,7 @@ use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;

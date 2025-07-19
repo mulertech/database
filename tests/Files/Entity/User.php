@@ -4,14 +4,14 @@ namespace MulerTech\Database\Tests\Files\Entity;
 
 use DateTime;
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
-use MulerTech\Database\Mapping\FkRule;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
+use MulerTech\Database\Mapping\Types\ColumnKey;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 

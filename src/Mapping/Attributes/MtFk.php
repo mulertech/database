@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping\Attributes;
 
 use Attribute;
-use MulerTech\Database\Mapping\FkRule;
+use MulerTech\Database\Mapping\Types\FkRule;
 
 /**
  * Class MtFk

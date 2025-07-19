@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Mapping;
+namespace MulerTech\Database\Mapping\Types;
 
 /**
  * Enum FkRule

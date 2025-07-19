@@ -3,14 +3,14 @@
 namespace MulerTech\Database\Tests\Files\Entity;
 
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Types\ColumnKey;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 

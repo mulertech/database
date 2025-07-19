@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping\Attributes;
 
 use Attribute;
-use MulerTech\Database\Mapping\ColumnKey;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnKey;
+use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * Class MtColumn

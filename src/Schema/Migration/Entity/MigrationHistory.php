@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration\Entity;
 
-use MulerTech\Database\Mapping\ColumnKey;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
-use MulerTech\Database\Mapping\Metadata\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnKey;
+use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * MigrationHistory entity for tracking executed migrations

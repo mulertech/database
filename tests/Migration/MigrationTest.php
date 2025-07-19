@@ -2,8 +2,9 @@
 
 namespace MulerTech\Database\Tests\Migration;
 
-use MulerTech\Database\Database\Driver\Driver;
 use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\ORM\EntityManager;
@@ -21,7 +22,6 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
-use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 
 class MigrationTest extends TestCase
 {
@@ -38,7 +38,7 @@ class MigrationTest extends TestCase
     protected function setUp(): void
     {
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new Driver()), []),
+            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             new DbMapping(
                 dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
             )

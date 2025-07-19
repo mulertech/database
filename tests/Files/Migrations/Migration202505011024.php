@@ -1,7 +1,7 @@
 <?php
 
+use MulerTech\Database\Schema\Builder\SchemaBuilder;
 use MulerTech\Database\Schema\Migration\Migration;
-use MulerTech\Database\Schema\SchemaBuilder;
 
 /**
  * Auto-generated migration

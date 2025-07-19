@@ -7,9 +7,9 @@ use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityFactory;
 use MulerTech\Database\ORM\EntityHydrator;
+use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\EntityRegistry;
 use MulerTech\Database\ORM\IdentityMap;
-use MulerTech\Database\ORM\Metadata\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityState;
 use PHPUnit\Framework\TestCase;
 

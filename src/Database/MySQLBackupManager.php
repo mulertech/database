@@ -13,7 +13,7 @@ use RuntimeException;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class DatabaseBackupManager
+class MySQLBackupManager
 {
     /**
      * @var array<int|string, mixed> $dbParameters

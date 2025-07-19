@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Schema;
+namespace MulerTech\Database\Schema\Builder;
 
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
+use MulerTech\Database\Schema\IndexDefinition;
 
 /**
  * Class SchemaBuilder

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Mapping\Metadata;
+namespace MulerTech\Database\Mapping\Types;
 
 /**
  * Enum representing all available MySQL column types

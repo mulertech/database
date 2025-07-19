@@ -3,11 +3,11 @@
 namespace MulerTech\Database\Tests\PhpInterface;
 
 use MulerTech\Database\Core\Cache\CacheConfig;
-use MulerTech\Database\Database\Driver\Driver;
 use MulerTech\Database\Database\Interface\ConnectorInterface;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\Interface\Statement;
+use MulerTech\Database\Database\MySQLDriver;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -246,6 +246,6 @@ class PhpDatabaseManagerCacheTest extends TestCase
     private function createConnector(): ConnectorInterface
     {
         // Use the real PdoConnector with appropriate driver
-        return new PdoConnector(new Driver());
+        return new PdoConnector(new MySQLDriver());
     }
 }
