@@ -6,9 +6,9 @@ namespace MulerTech\Database\Query\Builder;
 
 use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\ORM\EmEngine;
-use MulerTech\Database\Query\Clause\ComparisonOperator;
 use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\JoinType;
 use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;

@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Relational;
 
 use MulerTech\Database\Query\Builder\QueryBuilder;
-use MulerTech\Database\Query\Clause\ComparisonOperator;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\LinkOperator;
 use PDO;
 use PHPUnit\Framework\TestCase;

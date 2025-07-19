@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Query\Clause;
+namespace MulerTech\Database\Query\Types;
 
 /**
  * Comparison operators for SQL queries
