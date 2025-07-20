@@ -291,16 +291,13 @@ final class EntityFactory
     }
 
     /**
+     * @todo: use MulerTech mapping to find the correct type
      * @param mixed $value
      * @param ReflectionProperty $property
      * @return mixed
      */
     private function convertValue(mixed $value, ReflectionProperty $property): mixed
     {
-        if ($value === null) {
-            return null;
-        }
-
         $type = $property->getType();
 
         if (!$type instanceof ReflectionNamedType) {
@@ -410,7 +407,10 @@ final class EntityFactory
 
                     // Convert Collections to DatabaseCollection
                     if ($value instanceof Collection && !($value instanceof DatabaseCollection)) {
-                        $property->setValue($entity, new DatabaseCollection($value->items()));
+                        // Filter items to ensure they are objects
+                        $items = $value->items();
+                        $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
+                        $property->setValue($entity, new DatabaseCollection($objectItems));
                     }
                 }
             } catch (Error) {
@@ -550,13 +550,17 @@ final class EntityFactory
 
         switch ($typeName) {
             case 'int':
-                return (int) $value;
+                return is_numeric($value) ? (int) $value : 0;
             case 'float':
-                return (float) $value;
+                return is_numeric($value) ? (float) $value : 0.0;
             case 'bool':
                 return (bool) $value;
             case 'string':
-                return (string) $value;
+                return match (true) {
+                    is_string($value) => $value,
+                    is_scalar($value) => (string) $value,
+                    default => ''
+                };
             case 'DateTime':
             case 'DateTimeImmutable':
                 if (is_string($value)) {
@@ -572,9 +576,16 @@ final class EntityFactory
                 // For object types, check if it's a JSON encoded value
                 if (is_string($value) && class_exists($typeName)) {
                     $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-                    if ($decoded !== null) {
+                    if (is_array($decoded)) {
+                        // Ensure array has string keys before passing to create()
+                        $validatedArray = [];
+                        foreach ($decoded as $key => $val) {
+                            $stringKey = is_string($key) ? $key : (string)$key;
+                            $validatedArray[$stringKey] = $val;
+                        }
                         // Attempt to reconstruct object from array
-                        return $this->create($typeName, $decoded);
+                        /** @var array<string, mixed> $validatedArray */
+                        return $this->create($typeName, $validatedArray);
                     }
                 }
                 return $value;

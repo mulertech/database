@@ -460,11 +460,11 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 }
             });
             $parsedParams = $parsedUrl;
-            if (isset($parsedParams['path']) && is_string($parsedParams['path'])) {
-                $parsedParams['dbname'] = substr($parsedParams['path'], 1);
+            if (isset($parsedParams['path'])) {
+                $parsedParams['dbname'] = substr((string)$parsedParams['path'], 1);
             }
-            if (isset($parsedParams['query']) && is_string($parsedParams['query'])) {
-                parse_str($parsedParams['query'], $parsedQuery);
+            if (isset($parsedParams['query'])) {
+                parse_str((string)$parsedParams['query'], $parsedQuery);
                 $parsedParams = array_merge($parsedParams, $parsedQuery);
             }
             /** @var array<string, mixed> $parsedParams */
@@ -506,13 +506,13 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         }
 
         // Special handling for database name from path
-        if (isset($parameters['path'])) {
-            $parameters['dbname'] = substr($parameters['path'], 1);
+        if (isset($parameters['path']) && (is_string($parameters['path']) || is_numeric($parameters['path']))) {
+            $parameters['dbname'] = substr((string)$parameters['path'], 1);
         }
 
         // Parse query string
-        if (isset($parameters['query'])) {
-            parse_str($parameters['query'], $parsedQuery);
+        if (isset($parameters['query']) && (is_string($parameters['query']) || is_numeric($parameters['query']))) {
+            parse_str((string)$parameters['query'], $parsedQuery);
             $parameters = array_merge($parameters, $parsedQuery);
         }
 

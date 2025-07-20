@@ -173,7 +173,13 @@ class EmEngine
         }
 
         if (is_array($fetch)) {
-            return $this->createManagedEntity($fetch, $entityName, $loadRelations);
+            // Ensure the array has string keys for createManagedEntity
+            $entityData = [];
+            foreach ($fetch as $key => $value) {
+                $stringKey = is_string($key) ? $key : (string)$key;
+                $entityData[$stringKey] = $value;
+            }
+            return $this->createManagedEntity($entityData, $entityName, $loadRelations);
         }
 
         return null;
@@ -201,7 +207,20 @@ class EmEngine
             return null;
         }
 
-        return $this->hydrateEntityList($fetchAll, $entityName, $loadRelations);
+        // Ensure all entries have string keys for hydrateEntityList
+        $validatedFetchAll = [];
+        foreach ($fetchAll as $entityData) {
+            if (is_array($entityData)) {
+                $validatedEntityData = [];
+                foreach ($entityData as $key => $value) {
+                    $stringKey = is_string($key) ? $key : (string)$key;
+                    $validatedEntityData[$stringKey] = $value;
+                }
+                $validatedFetchAll[] = $validatedEntityData;
+            }
+        }
+
+        return $this->hydrateEntityList($validatedFetchAll, $entityName, $loadRelations);
     }
 
     /**
@@ -447,7 +466,10 @@ class EmEngine
                 // If already initialized, ALWAYS convert to DatabaseCollection
                 $currentValue = $reflectionProperty->getValue($entity);
                 if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
-                    $reflectionProperty->setValue($entity, new DatabaseCollection($currentValue->items()));
+                    // Filter items to ensure they are objects
+                    $items = $currentValue->items();
+                    $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
+                    $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
                 } elseif (!($currentValue instanceof DatabaseCollection)) {
                     // Initialize with empty DatabaseCollection if it's not a Collection at all
                     $reflectionProperty->setValue($entity, new DatabaseCollection([]));
@@ -470,17 +492,16 @@ class EmEngine
         $entities = [];
 
         foreach ($entitiesData as $entityData) {
-            // Ensure entityData is an array before processing
-            if (!is_array($entityData)) {
-                continue;
-            }
-
+            // entityData is already validated as array<string, mixed> by the method signature
             if (isset($entityData['id'])) {
                 // Check if entity is already in identity map
-                $managed = $this->identityMap->get($entityName, $entityData['id']);
-                if ($managed !== null) {
-                    $entities[] = $managed;
-                    continue;
+                $entityId = $entityData['id'];
+                if (is_int($entityId) || is_string($entityId)) {
+                    $managed = $this->identityMap->get($entityName, $entityId);
+                    if ($managed !== null) {
+                        $entities[] = $managed;
+                        continue;
+                    }
                 }
             }
 

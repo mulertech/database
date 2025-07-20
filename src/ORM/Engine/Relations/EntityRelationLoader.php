@@ -114,17 +114,20 @@ class EntityRelationLoader
             $targetEntity = $this->getTargetEntity(get_class($entity), $relation, $property);
 
             try {
-                $foundEntity = $this->entityManager->find(
-                    $targetEntity,
-                    $entityData[$column]
-                );
+                $entityId = $entityData[$column];
+                if (is_int($entityId) || is_string($entityId)) {
+                    $foundEntity = $this->entityManager->find(
+                        $targetEntity,
+                        $entityId
+                    );
 
-                // Only set if we actually found an entity
-                if ($foundEntity !== null) {
-                    $relatedEntity = $foundEntity;
-                    $entity->$setter($relatedEntity);
-                } elseif ($this->setterAcceptsNull($entity, $setter)) {
-                    $entity->$setter(null);
+                    // Only set if we actually found an entity
+                    if ($foundEntity !== null) {
+                        $relatedEntity = $foundEntity;
+                        $entity->$setter($relatedEntity);
+                    } elseif ($this->setterAcceptsNull($entity, $setter)) {
+                        $entity->$setter(null);
+                    }
                 }
             } catch (Exception) {
                 // If loading fails, only set to null if the setter accepts it
@@ -254,17 +257,28 @@ class EntityRelationLoader
             $entities = [];
             foreach ($results as $entityData) {
                 // Check if entity is already in identity map
-                if (isset($entityData['id'])) {
-                    $managedEntity = $this->entityManager->getEmEngine()->getIdentityMap()->get($targetEntity, $entityData['id']);
-                    if ($managedEntity !== null) {
-                        $entities[] = $managedEntity;
-                        continue;
+                if (is_array($entityData) && isset($entityData['id'])) {
+                    $entityId = $entityData['id'];
+                    if (is_int($entityId) || is_string($entityId)) {
+                        $managedEntity = $this->entityManager->getEmEngine()->getIdentityMap()->get($targetEntity, $entityId);
+                        if ($managedEntity !== null) {
+                            $entities[] = $managedEntity;
+                            continue;
+                        }
                     }
                 }
 
-                // Create new managed entity
-                $relatedEntity = $this->entityManager->getEmEngine()->createManagedEntity($entityData, $targetEntity, false);
-                $entities[] = $relatedEntity;
+                // Ensure entityData has string keys before creating managed entity
+                if (is_array($entityData)) {
+                    $validatedEntityData = [];
+                    foreach ($entityData as $key => $value) {
+                        $stringKey = is_string($key) ? $key : (string)$key;
+                        $validatedEntityData[$stringKey] = $value;
+                    }
+                    // Create new managed entity
+                    $relatedEntity = $this->entityManager->getEmEngine()->createManagedEntity($validatedEntityData, $targetEntity, false);
+                    $entities[] = $relatedEntity;
+                }
             }
 
             $collection = new DatabaseCollection($entities);
@@ -444,7 +458,7 @@ class EntityRelationLoader
 
     /**
      * @param class-string $entityClass
-     * @param int|string $idOrWhere
+     * @param mixed $idOrWhere
      * @return object|null
      */
     private function loadRelatedEntity(string $entityClass, mixed $idOrWhere): ?object
@@ -463,7 +477,7 @@ class EntityRelationLoader
 
     /**
      * @param class-string $entityClass
-     * @param array<int, array<string, mixed>> $entitiesData
+     * @param array<int, mixed> $entitiesData
      * @return array<int, object>
      */
     private function loadCollectionEntities(string $entityClass, array $entitiesData): array
@@ -488,11 +502,9 @@ class EntityRelationLoader
                 continue;
             }
 
-            // Create and manage new entity
-            if (is_array($entityData)) {
-                $entity = $this->entityManager->getEmEngine()->createManagedEntity($entityData, $entityClass, false);
-                $entities[] = $entity;
-            }
+            // Create and manage new entity - entityData is already validated as array above
+            $entity = $this->entityManager->getEmEngine()->createManagedEntity($entityData, $entityClass, false);
+            $entities[] = $entity;
         }
 
         return $entities;

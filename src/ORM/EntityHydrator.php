@@ -402,7 +402,7 @@ class EntityHydrator
                     // Filter items to ensure they are objects
                     $items = $currentValue->items();
                     /** @var array<object> $objectItems */
-                    $objectItems = array_filter($items, static fn($item): bool => is_object($item));
+                    $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
                     $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
                 } elseif (!($currentValue instanceof DatabaseCollection)) {
                     // Initialize with empty DatabaseCollection if it's not a Collection at all

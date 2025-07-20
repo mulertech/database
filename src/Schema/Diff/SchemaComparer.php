@@ -26,7 +26,8 @@ readonly class SchemaComparer
         private InformationSchema $informationSchema,
         private DbMappingInterface $dbMapping,
         private string $databaseName
-    ) {}
+    ) {
+    }
 
     /**
      * Get database table info by table name

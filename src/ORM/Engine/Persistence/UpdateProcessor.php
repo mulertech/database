@@ -172,8 +172,29 @@ readonly class UpdateProcessor
             }
 
             $propertyChange = $changes[$property];
-            $updateBuilder->set($column, $this->getReferenceForeignKeyId($propertyChange->newValue));
-            $hasUpdates = true;
+            $newValue = $propertyChange->newValue;
+
+            // Validate type before processing
+            if (is_array($newValue) || is_object($newValue) || is_string($newValue) || $newValue === null) {
+                // Ensure array has string keys if it's an array
+                if (is_array($newValue)) {
+                    $validArray = true;
+                    foreach (array_keys($newValue) as $key) {
+                        if (!is_string($key)) {
+                            $validArray = false;
+                            break;
+                        }
+                    }
+                    if ($validArray) {
+                        /** @var array<string, mixed> $newValue */
+                        $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
+                        $hasUpdates = true;
+                    }
+                } else {
+                    $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
+                    $hasUpdates = true;
+                }
+            }
         }
 
         if (!$hasUpdates) {
@@ -190,7 +211,22 @@ readonly class UpdateProcessor
                     // Validate that newValue has the expected type before processing
                     $newValue = $propertyChange->newValue;
                     if (is_array($newValue) || is_object($newValue) || is_string($newValue) || $newValue === null) {
-                        $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
+                        // Ensure array has string keys if it's an array
+                        if (is_array($newValue)) {
+                            $validArray = true;
+                            foreach (array_keys($newValue) as $key) {
+                                if (!is_string($key)) {
+                                    $validArray = false;
+                                    break;
+                                }
+                            }
+                            if ($validArray) {
+                                /** @var array<string, mixed> $newValue */
+                                $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
+                            }
+                        } else {
+                            $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
+                        }
                     }
                 }
             }
@@ -212,9 +248,9 @@ readonly class UpdateProcessor
      * Get the foreign key ID from a serialized entity reference or an actual object
      *
      * @param array<string, mixed>|object|string|null $value
-     * @return int|string|array<string, mixed>|null
+     * @return int|string|null
      */
-    private function getReferenceForeignKeyId(array|object|string|null $value): int|string|array|null
+    private function getReferenceForeignKeyId(array|object|string|null $value): int|string|null
     {
         if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
             // This is a serialized entity reference from ChangeDetector
@@ -290,7 +326,8 @@ readonly class UpdateProcessor
             $pdo = $this->entityManager->getPdm();
             $statement = $pdo->prepare("SELECT COUNT(*) FROM `$tableName` WHERE id = :id");
             $statement->execute(['id' => $entityId]);
-            $count = (int) $statement->fetchColumn();
+            $result = $statement->fetchColumn();
+            $count = is_numeric($result) ? (int) $result : 0;
             $statement->closeCursor();
 
             return $count > 0;
