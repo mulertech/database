@@ -175,25 +175,26 @@ readonly class UpdateProcessor
             $newValue = $propertyChange->newValue;
 
             // Validate type before processing
-            if (is_array($newValue) || is_object($newValue) || is_string($newValue) || $newValue === null) {
-                // Ensure array has string keys if it's an array
-                if (is_array($newValue)) {
-                    $validArray = true;
-                    foreach (array_keys($newValue) as $key) {
-                        if (!is_string($key)) {
-                            $validArray = false;
-                            break;
-                        }
+            if (is_array($newValue)) {
+                $validArray = true;
+                foreach (array_keys($newValue) as $key) {
+                    if (!is_string($key)) {
+                        $validArray = false;
+                        break;
                     }
-                    if ($validArray) {
-                        /** @var array<string, mixed> $newValue */
-                        $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
-                        $hasUpdates = true;
-                    }
-                } else {
+                }
+                if ($validArray) {
+                    /** @var array<string, mixed> $newValue */
                     $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
                     $hasUpdates = true;
                 }
+
+                continue;
+            }
+
+            if (is_object($newValue) || is_string($newValue) || $newValue === null) {
+                $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
+                $hasUpdates = true;
             }
         }
 
@@ -210,23 +211,25 @@ readonly class UpdateProcessor
                 if ($foreignKeyColumn !== null) {
                     // Validate that newValue has the expected type before processing
                     $newValue = $propertyChange->newValue;
-                    if (is_array($newValue) || is_object($newValue) || is_string($newValue) || $newValue === null) {
-                        // Ensure array has string keys if it's an array
-                        if (is_array($newValue)) {
-                            $validArray = true;
-                            foreach (array_keys($newValue) as $key) {
-                                if (!is_string($key)) {
-                                    $validArray = false;
-                                    break;
-                                }
+
+                    if (is_array($newValue)) {
+                        $validArray = true;
+                        foreach (array_keys($newValue) as $key) {
+                            if (!is_string($key)) {
+                                $validArray = false;
+                                break;
                             }
-                            if ($validArray) {
-                                /** @var array<string, mixed> $newValue */
-                                $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
-                            }
-                        } else {
+                        }
+                        if ($validArray) {
+                            /** @var array<string, mixed> $newValue */
                             $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
                         }
+
+                        continue;
+                    }
+
+                    if (is_object($newValue) || is_string($newValue) || $newValue === null) {
+                        $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
                     }
                 }
             }

@@ -71,7 +71,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
                 $cacheConfig ?? new CacheConfig(
                     maxSize: 100,
                     ttl: 3600,
-                    evictionPolicy: 'lfu' // Least Frequently Used for statements
+                    evictionPolicy: 'lfu', // Least Frequently Used for statements
                 )
             );
         }

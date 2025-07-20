@@ -279,7 +279,7 @@ class EntityRelationLoader
                     $relatedEntity = $this->entityManager->getEmEngine()->createManagedEntity($validatedEntityData, $targetEntity, false);
                     $entities[] = $relatedEntity;
                 }
-            }
+            } // End of outer foreach loop
 
             $collection = new DatabaseCollection($entities);
         } else {
