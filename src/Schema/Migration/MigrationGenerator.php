@@ -656,13 +656,13 @@ class MigrationGenerator
             ? ReferentialAction::from($updateRule)->toEnumCallString()
             : ReferentialAction::CASCADE->toEnumCallString();
 
-        $columnName = is_string($foreignKeyInfo['COLUMN_NAME'] ?? '')
+        $columnName = is_string($foreignKeyInfo['COLUMN_NAME'])
             ? $foreignKeyInfo['COLUMN_NAME']
             : '';
-        $referencedTableName = is_string($foreignKeyInfo['REFERENCED_TABLE_NAME'] ?? '')
+        $referencedTableName = is_string($foreignKeyInfo['REFERENCED_TABLE_NAME'])
             ? $foreignKeyInfo['REFERENCED_TABLE_NAME']
             : '';
-        $referencedColumnName = is_string($foreignKeyInfo['REFERENCED_COLUMN_NAME'] ?? '')
+        $referencedColumnName = is_string($foreignKeyInfo['REFERENCED_COLUMN_NAME'])
             ? $foreignKeyInfo['REFERENCED_COLUMN_NAME']
             : '';
 

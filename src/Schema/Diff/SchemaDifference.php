@@ -103,7 +103,7 @@ class SchemaDifference
      * @param string $columnName
      * @param array{
      *     COLUMN_TYPE: array{from: string, to: string},
-     *     IS_NULLABLE: array{from: string, to: string},
+     *     IS_NULLABLE: array{from: 'YES'|'NO', to: 'YES'|'NO'},
      *     COLUMN_DEFAULT: array{from: string|null, to: string|null},
      *     } $differences
      * @return $this
