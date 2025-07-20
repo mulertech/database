@@ -30,7 +30,6 @@ final class MetadataCache extends MemoryCache
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
             ttl: 0, // No expiration for metadata
-            enableStats: $config->enableStats ?? true,
             evictionPolicy: $config->evictionPolicy ?? 'lru'
         );
 
