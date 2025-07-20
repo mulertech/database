@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder;
 
+use InvalidArgumentException;
 use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\Clause\JoinClauseBuilder;
@@ -283,7 +284,13 @@ class SelectBuilder extends AbstractQueryBuilder
         mixed $pattern = null,
         LinkOperator $link = LinkOperator::AND
     ): self {
-        $this->whereBuilder->like($column, $pattern, $link);
+        $patternStr = match (true) {
+            is_string($pattern) => $pattern,
+            is_null($pattern) => '',
+            is_scalar($pattern) => (string)$pattern,
+            default => throw new InvalidArgumentException('Pattern must be a string or scalar value')
+        };
+        $this->whereBuilder->like($column, $patternStr, $link);
         $this->isDirty = true;
         return $this;
     }
@@ -299,7 +306,13 @@ class SelectBuilder extends AbstractQueryBuilder
         mixed $pattern = null,
         LinkOperator $link = LinkOperator::AND
     ): self {
-        $this->whereBuilder->notLike($column, $pattern, $link);
+        $patternStr = match (true) {
+            is_string($pattern) => $pattern,
+            is_null($pattern) => '',
+            is_scalar($pattern) => (string)$pattern,
+            default => throw new InvalidArgumentException('Pattern must be a string or scalar value')
+        };
+        $this->whereBuilder->notLike($column, $patternStr, $link);
         $this->isDirty = true;
         return $this;
     }

@@ -86,7 +86,7 @@ class Migration202505291737 extends Migration
         $tableDefinition->column("score")->smallInt();
         $tableDefinition->column("views")->mediumInt()->unsigned();
         $tableDefinition->column("big_number")->bigInteger()->unsigned();
-        $tableDefinition->column("decimal_value")->decimal(10, 2);
+        $tableDefinition->column("decimal_value")->decimal(10, 2)->default("0.00");
         $tableDefinition->column("double_value")->double();
         $tableDefinition->column("char_code")->char(5);
         $tableDefinition->column("description")->text();
@@ -103,8 +103,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->column("created_at")->datetime();
         $tableDefinition->column("updated_at")->timestamp();
         $tableDefinition->column("work_time")->time();
-        $tableDefinition->column("birth_year")->year();
-        $tableDefinition->column("is_active")->tinyInt(1)->default(0);
+        $tableDefinition->column("birth_year")->year()->default(null);
+        $tableDefinition->column("is_active")->tinyInt(1)->default('0');
         $tableDefinition->column("is_verified")->tinyInt(1);
         $tableDefinition->column("status")->enum(['active', 'inactive', 'pending', 'banned']);
         $tableDefinition->column("permissions")->set(['read', 'write', 'delete', 'update']);

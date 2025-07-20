@@ -21,17 +21,34 @@ class InformationSchema
     public const string INFORMATION_SCHEMA = 'information_schema';
 
     /**
-     * @var array<int, array<string, mixed>>
+     * @var array<int, array{TABLE_NAME: string, AUTO_INCREMENT: int|null}>
      */
     public array $tables;
 
     /**
-     * @var array<int, array<string, mixed>>
+     * @var array<int, array{
+     *     TABLE_NAME: string,
+     *     COLUMN_NAME: string,
+     *     COLUMN_TYPE: string,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     EXTRA: string,
+     *     COLUMN_DEFAULT: string|null,
+     *     COLUMN_KEY: string|null
+     * }>
      */
     public array $columns;
 
     /**
-     * @var array<int, array<string, mixed>>
+     * @var array<int, array{
+     *     TABLE_NAME: string,
+     *     CONSTRAINT_NAME: string,
+     *     COLUMN_NAME: string,
+     *     REFERENCED_TABLE_SCHEMA: string|null,
+     *     REFERENCED_TABLE_NAME: string|null,
+     *     REFERENCED_COLUMN_NAME: string|null,
+     *     DELETE_RULE: string|null,
+     *     UPDATE_RULE: string|null
+     * }>
      */
     public array $foreignKeys;
 
@@ -44,7 +61,7 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{TABLE_NAME: string, AUTO_INCREMENT: int|null}>
      */
     public function getTables(string $database): array
     {
@@ -57,7 +74,15 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{
+     *      TABLE_NAME: string,
+     *      COLUMN_NAME: string,
+     *      COLUMN_TYPE: string,
+     *      IS_NULLABLE: 'YES'|'NO',
+     *      EXTRA: string,
+     *      COLUMN_DEFAULT: string|null,
+     *      COLUMN_KEY: string|null
+     *  }>
      */
     public function getColumns(string $database): array
     {
@@ -70,7 +95,16 @@ class InformationSchema
 
     /**
      * @param string $database
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{
+     *      TABLE_NAME: string,
+     *      CONSTRAINT_NAME: string,
+     *      COLUMN_NAME: string,
+     *      REFERENCED_TABLE_SCHEMA: string|null,
+     *      REFERENCED_TABLE_NAME: string|null,
+     *      REFERENCED_COLUMN_NAME: string|null,
+     *      DELETE_RULE: string|null,
+     *      UPDATE_RULE: string|null
+     *  }>
      */
     public function getForeignKeys(string $database): array
     {
@@ -94,7 +128,11 @@ class InformationSchema
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $this->tables = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        /**
+         * @var array<int, array{TABLE_NAME: string, AUTO_INCREMENT: int|null}> $result
+         */
+        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $this->tables = $result;
     }
 
     /**
@@ -118,7 +156,19 @@ class InformationSchema
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $this->columns = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        /**
+         * @var array<int, array{
+         *     TABLE_NAME: string,
+         *     COLUMN_NAME: string,
+         *     COLUMN_TYPE: string,
+         *     IS_NULLABLE: 'YES'|'NO',
+         *     EXTRA: string,
+         *     COLUMN_DEFAULT: string|null,
+         *     COLUMN_KEY: string|null
+         * }> $result
+         */
+        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $this->columns = $result;
     }
 
     /**
@@ -152,6 +202,19 @@ class InformationSchema
 
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
-        $this->foreignKeys = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        /**
+         * @var array<int, array{
+         *       TABLE_NAME: string,
+         *       CONSTRAINT_NAME: string,
+         *       COLUMN_NAME: string,
+         *       REFERENCED_TABLE_SCHEMA: string|null,
+         *       REFERENCED_TABLE_NAME: string|null,
+         *       REFERENCED_COLUMN_NAME: string|null,
+         *       DELETE_RULE: string|null,
+         *       UPDATE_RULE: string|null
+         *   }> $result
+         */
+        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $this->foreignKeys = $result;
     }
 }

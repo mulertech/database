@@ -57,7 +57,14 @@ class MigrationGenerateCommand extends AbstractCommand
             $dbMapping = $this->entityManager->getDbMapping();
             $informationSchema = new InformationSchema($this->entityManager->getEmEngine());
             $dbParameters = PhpDatabaseManager::populateParameters();
-            $schemaComparer = new SchemaComparer($informationSchema, $dbMapping, $dbParameters['dbname']);
+
+            // Ensure dbname is a string
+            $databaseName = $dbParameters['dbname'] ?? '';
+            if (!is_string($databaseName)) {
+                throw new RuntimeException('Database name must be a string');
+            }
+
+            $schemaComparer = new SchemaComparer($informationSchema, $dbMapping, $databaseName);
             $migrationGenerator = $this->createMigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
             // Generating the migration

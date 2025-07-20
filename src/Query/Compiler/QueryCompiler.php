@@ -61,18 +61,13 @@ class QueryCompiler
     public function compile(AbstractQueryBuilder $builder): string
     {
         $queryType = $builder->getQueryType();
-        $this->incrementStat($queryType);
+        $this->incrementStat($queryType . '_requests');
 
-        if (!$this->enableCache) {
-            return $this->doCompile($builder);
-        }
-
-        // Generate cache key based on query structure
         $cacheKey = $this->generateCacheKey($builder);
 
         // Try to get from cache
         $cachedSql = $this->cache->get($cacheKey);
-        if ($cachedSql !== null) {
+        if (is_string($cachedSql)) {
             $this->incrementStat($queryType . '_cached');
             return $cachedSql;
         }
@@ -356,7 +351,7 @@ class QueryCompiler
         $property = $reflection->getProperty('joins');
         $joins = $property->getValue($builder);
 
-        return !empty($joins) && count($joins) > 2;
+        return is_array($joins) && count($joins) > 2;
     }
 
     /**
@@ -370,7 +365,7 @@ class QueryCompiler
         $where = $property->getValue($builder);
 
         // If no where clause or very simple where, consider it bulk
-        return empty($where) || count($where) <= 1;
+        return !is_array($where) || empty($where) || count($where) <= 1;
     }
 
     /**
@@ -384,7 +379,7 @@ class QueryCompiler
         $where = $property->getValue($builder);
 
         // Simple delete has a single WHERE condition
-        return count($where) === 1;
+        return is_array($where) && count($where) === 1;
     }
 
     /**

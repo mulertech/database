@@ -15,69 +15,52 @@ use RuntimeException;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class SchemaComparer
+readonly class SchemaComparer
 {
-    /**
-     * @var array<int, array<string, mixed>> Database tables
-     */
-    private array $databaseTables = [];
-
-    /**
-     * @var array<int, array<string, mixed>> Database columns
-     */
-    private array $databaseColumns = [];
-
-    /**
-     * @var array<int, array<string, mixed>> Database foreign keys
-     */
-    private array $databaseForeignKeys = [];
-
     /**
      * @param InformationSchema $informationSchema
      * @param DbMappingInterface $dbMapping
      * @param string $databaseName
      */
     public function __construct(
-        private readonly InformationSchema $informationSchema,
-        private readonly DbMappingInterface $dbMapping,
-        private readonly string $databaseName
+        private InformationSchema $informationSchema,
+        private DbMappingInterface $dbMapping,
+        private string $databaseName
     ) {
-        $this->loadDatabaseSchema();
-    }
-
-    /**
-     * Load database schema information
-     *
-     * @return void
-     */
-    private function loadDatabaseSchema(): void
-    {
-        $this->databaseTables = $this->informationSchema->getTables($this->databaseName);
-        $this->databaseColumns = $this->informationSchema->getColumns($this->databaseName);
-        $this->databaseForeignKeys = $this->informationSchema->getForeignKeys($this->databaseName);
     }
 
     /**
      * Get database table info by table name
      *
      * @param string $tableName
-     * @return array<string, mixed>|null
+     * @return array{TABLE_NAME: string, AUTO_INCREMENT: int|null}|null
      */
     private function getTableInfo(string $tableName): ?array
     {
-        return array_find($this->databaseTables, static fn ($table) => $table['TABLE_NAME'] === $tableName);
+        return array_find(
+            $this->informationSchema->getTables($this->databaseName),
+            static fn ($table) => $table['TABLE_NAME'] === $tableName
+        );
     }
 
     /**
      * Get columns for a specific table
      *
      * @param string $tableName
-     * @return array<string, array<string, mixed>>
+     * @return array<string, array{
+     *       TABLE_NAME: string,
+     *       COLUMN_NAME: string,
+     *       COLUMN_TYPE: string,
+     *       IS_NULLABLE: 'YES'|'NO',
+     *       EXTRA: string,
+     *       COLUMN_DEFAULT: string|null,
+     *       COLUMN_KEY: string|null
+     *   }>
      */
     private function getTableColumns(string $tableName): array
     {
         $columns = [];
-        foreach ($this->databaseColumns as $column) {
+        foreach ($this->informationSchema->getColumns($this->databaseName) as $column) {
             if ($column['TABLE_NAME'] === $tableName) {
                 $columns[$column['COLUMN_NAME']] = $column;
             }
@@ -90,13 +73,22 @@ class SchemaComparer
      * Get foreign keys for a specific table
      *
      * @param string $tableName
-     * @return array<string, array<string, mixed>>
+     * @return array<string, array{
+     *       TABLE_NAME: string,
+     *       CONSTRAINT_NAME: string,
+     *       COLUMN_NAME: string,
+     *       REFERENCED_TABLE_SCHEMA: string|null,
+     *       REFERENCED_TABLE_NAME: string|null,
+     *       REFERENCED_COLUMN_NAME: string|null,
+     *       DELETE_RULE: string|null,
+     *       UPDATE_RULE: string|null
+     *   }>
      */
     private function getTableForeignKeys(string $tableName): array
     {
         $foreignKeys = [];
 
-        foreach ($this->databaseForeignKeys as $foreignKey) {
+        foreach ($this->informationSchema->getForeignKeys($this->databaseName) as $foreignKey) {
             if ($foreignKey['TABLE_NAME'] === $tableName) {
                 $foreignKeys[$foreignKey['CONSTRAINT_NAME']] = $foreignKey;
             }
@@ -132,7 +124,7 @@ class SchemaComparer
         }
 
         // Find tables to drop (in database but not in entity mappings)
-        foreach ($this->databaseTables as $table) {
+        foreach ($this->informationSchema->getTables($this->databaseName) as $table) {
             $tableName = $table['TABLE_NAME'];
 
             // Skip migration_history table
@@ -205,7 +197,7 @@ class SchemaComparer
             // Compare column definitions
             $columnDifferences = [];
 
-            if ($columnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
+            if ($columnInfo['COLUMN_TYPE'] !== null && $columnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
                 $columnDifferences['COLUMN_TYPE'] = [
                     'from' => $dbColumnInfo['COLUMN_TYPE'],
                     'to' => $columnInfo['COLUMN_TYPE'],

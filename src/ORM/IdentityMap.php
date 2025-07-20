@@ -26,9 +26,6 @@ final class IdentityMap
     /** @var WeakMap<object, EntityMetadata> */
     private WeakMap $metadata;
 
-    /** @var array<string, array{methods: array<string>,properties: array<string>}> */
-    private array $identifierMethodsCache = [];
-
     public function __construct()
     {
         $this->metadata = new WeakMap();
@@ -128,7 +125,6 @@ final class IdentityMap
         if ($entityClass === null) {
             $this->entities = [];
             $this->metadata = new WeakMap();
-            $this->identifierMethodsCache = [];
         } else {
             unset($this->entities[$entityClass]);
             // Note: We can't selectively clear WeakMap, but GC will handle it
@@ -286,33 +282,24 @@ final class IdentityMap
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        $entityClass = $entity::class;
-
-        // Use cached methods if available
-        if (!isset($this->identifierMethodsCache[$entityClass])) {
-            $this->cacheIdentifierMethods($entityClass);
-        }
-
-        $methods = $this->identifierMethodsCache[$entityClass];
-
-        // Try ID methods
-        foreach ($methods['methods'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
-                }
+        // Try common getter methods first
+        if (method_exists($entity, 'getId')) {
+            $id = $entity->getId();
+            if (is_int($id) || is_string($id)) {
+                return $id;
             }
         }
 
-        // Try ID properties
-        foreach ($methods['properties'] as $property) {
+        // Try direct property access
+        $commonIdProperties = ['id', 'uuid', 'identifier'];
+
+        foreach ($commonIdProperties as $property) {
             if (property_exists($entity, $property)) {
                 try {
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
                     $value = $prop->getValue($entity);
-                    if ($value !== null) {
+                    if ($value !== null && (is_int($value) || is_string($value))) {
                         return $value;
                     }
                 } catch (ReflectionException) {
@@ -322,24 +309,6 @@ final class IdentityMap
         }
 
         return null;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @return void
-     */
-    private function cacheIdentifierMethods(string $entityClass): void
-    {
-        // Common ID getter methods in order of preference
-        $methods = ['getId', 'getIdentifier', 'getUuid', 'getPrimaryKey'];
-
-        // Common ID properties in order of preference
-        $properties = ['id', 'identifier', 'uuid', 'primaryKey'];
-
-        $this->identifierMethodsCache[$entityClass] = [
-            'methods' => $methods,
-            'properties' => $properties,
-        ];
     }
 
     /**
