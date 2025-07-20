@@ -31,9 +31,9 @@ class SchemaDifference
 
     /**
      * @var array<string, array<string, array{
-     *      COLUMN_TYPE: array{from: string, to: string},
-     *      IS_NULLABLE: array{from: string, to: string},
-     *      COLUMN_DEFAULT: array{from: string|null, to: string|null},
+     *      COLUMN_TYPE?: array{from: string, to: string},
+     *      IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *      COLUMN_DEFAULT?: array{from: string|null, to: string|null},
      *      }>> Columns to modify [tableName => [columnName => differences]]
      */
     private array $columnsToModify = [];
@@ -102,9 +102,9 @@ class SchemaDifference
      * @param string $tableName
      * @param string $columnName
      * @param array{
-     *     COLUMN_TYPE: array{from: string, to: string},
-     *     IS_NULLABLE: array{from: 'YES'|'NO', to: 'YES'|'NO'},
-     *     COLUMN_DEFAULT: array{from: string|null, to: string|null},
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
      *     } $differences
      * @return $this
      */
