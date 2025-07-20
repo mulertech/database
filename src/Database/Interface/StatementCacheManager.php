@@ -7,81 +7,133 @@ namespace MulerTech\Database\Database\Interface;
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Core\Cache\CacheFactory;
 use MulerTech\Database\Core\Cache\MemoryCache;
+use PDO;
+use PDOException;
 use PDOStatement;
 use RuntimeException;
 
 /**
- * Manages prepared statement caching
+ * Manages prepared statement caching for database operations
  */
-final class StatementCacheManager
+class StatementCacheManager
 {
-    private MemoryCache $cache;
+    private ?MemoryCache $statementCache = null;
     /** @var array<string, int> */
-    private array $usageCount = [];
+    private array $statementUsageCount = [];
 
-    public function __construct(?CacheConfig $config = null)
-    {
-        $this->cache = CacheFactory::createMemoryCache(
-            'prepared_statements_' . spl_object_id($this),
-            $config ?? new CacheConfig(
-                maxSize: 100,
-                ttl: 3600,
-                evictionPolicy: 'lfu',
-            )
-        );
+    public function __construct(
+        private readonly bool $enabled,
+        ?CacheConfig $cacheConfig = null
+    ) {
+        if ($this->enabled) {
+            $this->statementCache = CacheFactory::createMemoryCache(
+                'prepared_statements_' . spl_object_id($this),
+                $cacheConfig ?? new CacheConfig(
+                    maxSize: 100,
+                    ttl: 3600,
+                    evictionPolicy: 'lfu',
+                )
+            );
+        }
     }
 
-    public function get(string $key): ?PDOStatement
+    public function isEnabled(): bool
     {
-        $statement = $this->cache->get($key);
-
-        if ($statement instanceof PDOStatement) {
-            $this->usageCount[$key] = ($this->usageCount[$key] ?? 0) + 1;
-            return $statement;
-        }
-
-        return null;
+        return $this->enabled;
     }
 
     /**
-     * @param array<string> $tags
+     * @param array<string, mixed> $options
      */
-    public function set(string $key, PDOStatement $statement, array $tags = []): void
+    public function prepareWithCache(string $query, array $options, PDO $connection): Statement
     {
-        $this->cache->set($key, $statement);
+        $cacheKey = $this->getStatementCacheKey($query, $options);
 
-        if (!empty($tags)) {
-            $this->cache->tag($key, $tags);
+        // Track usage for analytics
+        $this->statementUsageCount[$cacheKey] = ($this->statementUsageCount[$cacheKey] ?? 0) + 1;
+
+        // Check cache first
+        $cachedStatement = $this->statementCache?->get($cacheKey);
+
+        if ($cachedStatement instanceof PDOStatement) {
+            // Verify the statement is still valid
+            try {
+                // Test if connection is still alive
+                $connection->getAttribute(PDO::ATTR_CONNECTION_STATUS);
+                return new Statement($cachedStatement);
+            } catch (PDOException) {
+                // Connection lost, invalidate cache
+                $this->statementCache?->delete($cacheKey);
+            }
         }
 
-        $this->usageCount[$key] = 1;
+        // Prepare new statement
+        $statement = $this->prepareDirect($query, $options, $connection);
+
+        // Cache the PDOStatement (not the wrapper)
+        $this->statementCache?->set($cacheKey, $statement->getPdoStatement());
+
+        // Tag for easy invalidation
+        $this->statementCache?->tag($cacheKey, ['statements', $this->extractTableFromQuery($query)]);
+
+        return $statement;
     }
 
     /**
-     * @param array<int|string, mixed> $options
+     * @param array<string, mixed> $options
      */
-    public function generateKey(string $query, array $options): string
+    public function prepareDirect(string $query, array $options, PDO $connection): Statement
+    {
+        $statement = empty($options)
+            ? $connection->prepare($query)
+            : $connection->prepare($query, $options);
+
+        if ($statement === false) {
+            throw new RuntimeException(
+                sprintf(
+                    'Failed to prepare statement. Error: %s. Query: %s',
+                    $connection->errorInfo()[2] ?? 'Unknown error',
+                    $query
+                )
+            );
+        }
+
+        return new Statement($statement);
+    }
+
+    public function invalidateTable(string $table): void
+    {
+        if ($this->enabled && $table !== 'unknown') {
+            $this->statementCache?->invalidateTag($table);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function getStatementCacheKey(string $query, array $options): string
     {
         return sprintf(
-            'stmt_%s_%s',
+            'stmt:%s:%s',
             md5($query),
             md5(serialize($options))
         );
     }
 
-    public function invalidateTable(string $table): void
+    private function extractTableFromQuery(string $query): string
     {
-        $this->cache->invalidateTag($table);
-    }
+        $query = strtolower(trim($query));
 
-    public function getUsageCount(string $key): int
-    {
-        return $this->usageCount[$key] ?? 0;
-    }
+        // For INSERT, UPDATE, DELETE
+        if (preg_match('/(?:insert\s+into|update|delete\s+from)\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
+            return $matches[1];
+        }
 
-    public function clear(): void
-    {
-        $this->cache->clear();
-        $this->usageCount = [];
+        // For SELECT
+        if (preg_match('/from\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
+            return $matches[1];
+        }
+
+        return 'unknown';
     }
 }

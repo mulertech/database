@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\PhpInterface;
 
+use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -120,7 +121,7 @@ class PhpDatabaseInterfaceTest extends TestCase
     public function testPopulateParameters(): void
     {
         $parameters[
-            PhpDatabaseManager::DATABASE_URL
+            DatabaseParameterParser::DATABASE_URL
         ] = 'mysql://user:password@127.0.0.1:3306/db_name?serverVersion=5.7';
         $expected = [
             'scheme' => 'mysql',
@@ -133,7 +134,8 @@ class PhpDatabaseInterfaceTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, PhpDatabaseManager::populateParameters($parameters));
+        $parameterParser = new DatabaseParameterParser();
+        self::assertEquals($expected, $parameterParser->populateParameters($parameters));
     }
 
     public function testPopulateParametersWithUrlDecode(): void
@@ -142,7 +144,7 @@ class PhpDatabaseInterfaceTest extends TestCase
         $password = '@y[oy$R5i8';
         // urlencode($password) = %40y%5Boy%24R5i8;
         $parameters[
-        PhpDatabaseManager::DATABASE_URL
+            DatabaseParameterParser::DATABASE_URL
         ] = 'mysql://db_user:%40y%5Boy%24R5i8@127.0.0.1:3306/db_name?serverVersion=5.7';
         $expected = [
             'scheme' => 'mysql',
@@ -155,7 +157,8 @@ class PhpDatabaseInterfaceTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, PhpDatabaseManager::populateParameters($parameters));
+        $parameterParser = new DatabaseParameterParser();
+        self::assertEquals($expected, $parameterParser->populateParameters($parameters));
     }
 
     public function testPopulateEnvParameters(): void
@@ -185,7 +188,8 @@ class PhpDatabaseInterfaceTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, PhpDatabaseManager::populateParameters());
+        $parameterParser = new DatabaseParameterParser();
+        self::assertEquals($expected, $parameterParser->populateParameters());
         putenv("DATABASE_SCHEME=$scheme");
         putenv("DATABASE_HOST=$host");
         putenv("DATABASE_PORT=$port");

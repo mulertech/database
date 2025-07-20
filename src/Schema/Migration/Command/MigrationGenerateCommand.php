@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration\Command;
 
-use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Information\InformationSchema;
@@ -56,7 +56,8 @@ class MigrationGenerateCommand extends AbstractCommand
             // Creating migration generator and dependencies
             $dbMapping = $this->entityManager->getDbMapping();
             $informationSchema = new InformationSchema($this->entityManager->getEmEngine());
-            $dbParameters = PhpDatabaseManager::populateParameters();
+            $parameterParser = new DatabaseParameterParser();
+            $dbParameters = $parameterParser->populateParameters();
 
             // Ensure dbname is a string
             $databaseName = $dbParameters['dbname'] ?? '';

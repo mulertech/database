@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Database;
 
-use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use RuntimeException;
 
 /**
@@ -19,13 +19,15 @@ class MySQLBackupManager
      * @var array<int|string, mixed> $dbParameters
      */
     private array $dbParameters;
+    private DatabaseParameterParser $parameterParser;
 
     /**
      * DatabaseBackupManager constructor.
      */
     public function __construct()
     {
-        $this->dbParameters = PhpDatabaseManager::populateParameters();
+        $this->parameterParser = new DatabaseParameterParser();
+        $this->dbParameters = $this->parameterParser->populateParameters();
     }
 
     /**

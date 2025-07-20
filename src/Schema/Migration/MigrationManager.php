@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Migration;
 
 use Exception;
-use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Schema\Information\InformationSchema;
@@ -67,7 +67,8 @@ class MigrationManager
 
         // Check if table exists in the database
         $informationSchema = new InformationSchema($emEngine);
-        $dbParameters = PhpDatabaseManager::populateParameters();
+        $parameterParser = new DatabaseParameterParser();
+        $dbParameters = $parameterParser->populateParameters();
         if (!is_string($dbParameters['dbname'])) {
             throw new RuntimeException('Database name must be a string');
         }
