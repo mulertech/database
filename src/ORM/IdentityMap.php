@@ -26,9 +26,6 @@ final class IdentityMap
     /** @var WeakMap<object, EntityMetadata> */
     private WeakMap $metadata;
 
-    /** @var array<string, array{methods: array<string>,properties: array<string>}> */
-    private array $identifierMethodsCache = [];
-
     public function __construct()
     {
         $this->metadata = new WeakMap();
@@ -128,7 +125,6 @@ final class IdentityMap
         if ($entityClass === null) {
             $this->entities = [];
             $this->metadata = new WeakMap();
-            $this->identifierMethodsCache = [];
         } else {
             unset($this->entities[$entityClass]);
             // Note: We can't selectively clear WeakMap, but GC will handle it
@@ -313,24 +309,6 @@ final class IdentityMap
         }
 
         return null;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @return void
-     */
-    private function cacheIdentifierMethods(string $entityClass): void
-    {
-        // Common ID getter methods in order of preference
-        $methods = ['getId', 'getIdentifier', 'getUuid', 'getPrimaryKey'];
-
-        // Common ID properties in order of preference
-        $properties = ['id', 'identifier', 'uuid', 'primaryKey'];
-
-        $this->identifierMethodsCache[$entityClass] = [
-            'methods' => $methods,
-            'properties' => $properties,
-        ];
     }
 
     /**

@@ -272,7 +272,12 @@ class EntityHydrator
         if (is_string($value)) {
             return $value;
         }
-        return (string) $value;
+
+        return match (true) {
+            is_null($value) => '',
+            is_scalar($value) => (string) $value,
+            default => throw new TypeError('Value cannot be converted to string')
+        };
     }
 
     /**
@@ -286,7 +291,14 @@ class EntityHydrator
         }
 
         try {
-            return new DateTime($value);
+            $dateString = match (true) {
+                is_string($value) => $value,
+                is_null($value) => 'now',
+                is_scalar($value) => (string) $value,
+                default => throw new TypeError('Value cannot be converted to date string')
+            };
+
+            return new DateTime($dateString);
         } catch (Exception) {
             // Log error or handle invalid date
             return new DateTime(); // Default to current time
@@ -306,7 +318,7 @@ class EntityHydrator
 
         if (is_string($value)) {
             $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-            if (json_last_error() === JSON_ERROR_NONE) {
+            if (is_array($decoded)) {
                 return $decoded;
             }
         }
@@ -323,8 +335,14 @@ class EntityHydrator
     private function processObject(mixed $value, string $className): object
     {
         if (is_array($value)) {
+            // Ensure the array has string keys before passing to hydrate
+            $arrayData = [];
+            foreach ($value as $key => $val) {
+                $stringKey = is_string($key) ? $key : (string)$key;
+                $arrayData[$stringKey] = $val;
+            }
             // Recursively hydrate nested object
-            return $this->hydrate($value, $className);
+            return $this->hydrate($arrayData, $className);
         }
 
         return new $className();
@@ -381,7 +399,11 @@ class EntityHydrator
                 // If already initialized, ALWAYS convert to DatabaseCollection
                 $currentValue = $reflectionProperty->getValue($entity);
                 if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
-                    $reflectionProperty->setValue($entity, new DatabaseCollection($currentValue->items()));
+                    // Filter items to ensure they are objects
+                    $items = $currentValue->items();
+                    /** @var array<object> $objectItems */
+                    $objectItems = array_filter($items, static fn($item): bool => is_object($item));
+                    $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
                 } elseif (!($currentValue instanceof DatabaseCollection)) {
                     // Initialize with empty DatabaseCollection if it's not a Collection at all
                     $reflectionProperty->setValue($entity, new DatabaseCollection());

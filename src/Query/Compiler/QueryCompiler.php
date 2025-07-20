@@ -351,7 +351,7 @@ class QueryCompiler
         $property = $reflection->getProperty('joins');
         $joins = $property->getValue($builder);
 
-        return !empty($joins) && count($joins) > 2;
+        return is_array($joins) && count($joins) > 2;
     }
 
     /**
@@ -365,7 +365,7 @@ class QueryCompiler
         $where = $property->getValue($builder);
 
         // If no where clause or very simple where, consider it bulk
-        return empty($where) || count($where) <= 1;
+        return !is_array($where) || empty($where) || count($where) <= 1;
     }
 
     /**
@@ -379,7 +379,7 @@ class QueryCompiler
         $where = $property->getValue($builder);
 
         // Simple delete has a single WHERE condition
-        return count($where) === 1;
+        return is_array($where) && count($where) === 1;
     }
 
     /**
@@ -415,39 +415,5 @@ class QueryCompiler
     private function incrementStat(string $statType): void
     {
         $this->compilationStats[$statType] = ($this->compilationStats[$statType] ?? 0) + 1;
-    }
-
-    /**
-     * @param string $name
-     * @param mixed $value
-     * @return bool
-     */
-    private function validateQueryPart(string $name, mixed $value): bool
-    {
-        switch ($name) {
-            case 'select':
-            case 'from':
-            case 'joins':
-            case 'orderBy':
-            case 'groupBy':
-                // These should be arrays
-                if (!is_array($value)) {
-                    return false;
-                }
-                return is_countable($value) ? count($value) > 0 : false;
-
-            case 'where':
-            case 'having':
-                // These should be WhereClauseBuilder instances or similar
-                return $value !== null;
-
-            case 'limit':
-            case 'offset':
-                // These should be positive integers
-                return is_int($value) && $value > 0;
-
-            default:
-                return true;
-        }
     }
 }

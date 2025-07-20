@@ -10,6 +10,7 @@ use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\JoinType;
 use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;
+use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -131,7 +132,12 @@ class JoinClauseBuilder
         }
 
         // Ensure right column is a string
-        $rightColumnStr = is_string($rightColumn) ? $rightColumn : (string)$rightColumn;
+        $rightColumnStr = match (true) {
+            is_string($rightColumn) => $rightColumn,
+            is_null($rightColumn) => '',
+            is_scalar($rightColumn) => (string)$rightColumn,
+            default => throw new InvalidArgumentException('Right column must be a string or scalar value')
+        };
 
         $this->joins[$index]['conditions'][] = [
             'left' => $leftColumn,

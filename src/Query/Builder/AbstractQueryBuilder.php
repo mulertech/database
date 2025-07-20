@@ -136,7 +136,7 @@ abstract class AbstractQueryBuilder
         }
 
         // Ensure we return an array of objects
-        return is_array($result) ? array_filter($result, 'is_object') : [];
+        return array_filter($result, 'is_object');
     }
 
     /**
