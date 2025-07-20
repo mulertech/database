@@ -7,9 +7,6 @@ namespace MulerTech\Database\Core\Cache;
 use Exception;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use ReflectionClass;
-use ReflectionIntersectionType;
-use ReflectionNamedType;
-use ReflectionUnionType;
 use RuntimeException;
 
 /**
@@ -19,13 +16,20 @@ use RuntimeException;
  */
 final class MetadataCache extends MemoryCache
 {
+    private readonly MetadataRelationsHelper $relationsHelper;
+    private readonly MetadataReflectionHelper $reflectionHelper;
+
     /**
      * @param CacheConfig|null $config
      * @param DbMappingInterface|null $dbMapping
+     * @param MetadataRelationsHelper|null $relationsHelper
+     * @param MetadataReflectionHelper|null $reflectionHelper
      */
     public function __construct(
         ?CacheConfig $config = null,
-        private readonly ?DbMappingInterface $dbMapping = null
+        private readonly ?DbMappingInterface $dbMapping = null,
+        ?MetadataRelationsHelper $relationsHelper = null,
+        ?MetadataReflectionHelper $reflectionHelper = null
     ) {
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
@@ -34,17 +38,29 @@ final class MetadataCache extends MemoryCache
         );
 
         parent::__construct($metadataConfig);
+
+        $this->relationsHelper = $relationsHelper ?? new MetadataRelationsHelper();
+        $this->reflectionHelper = $reflectionHelper ?? new MetadataReflectionHelper();
     }
 
     /**
      * @param string $key
      * @param mixed $metadata
-     * @param bool $isPermanent
      * @return void
      */
-    public function setMetadata(string $key, mixed $metadata, bool $isPermanent = false): void
+    public function setMetadata(string $key, mixed $metadata): void
     {
-        $this->set($key, $metadata, $isPermanent ? 0 : $this->config->ttl);
+        $this->set($key, $metadata, $this->config->ttl);
+    }
+
+    /**
+     * @param string $key
+     * @param mixed $metadata
+     * @return void
+     */
+    public function setPermanentMetadata(string $key, mixed $metadata): void
+    {
+        $this->set($key, $metadata, 0);
     }
 
     /**
@@ -54,7 +70,7 @@ final class MetadataCache extends MemoryCache
      */
     public function setEntityMetadata(string $entityClass, mixed $metadata): void
     {
-        $this->setMetadata($this->getEntityKey($entityClass), $metadata, true);
+        $this->setPermanentMetadata($this->getEntityKey($entityClass), $metadata);
         $this->tag($this->getEntityKey($entityClass), ['entity_metadata']);
     }
 
@@ -77,7 +93,7 @@ final class MetadataCache extends MemoryCache
     public function setPropertyMetadata(string $entityClass, string $property, mixed $metadata): void
     {
         $key = $this->getPropertyKey($entityClass, $property);
-        $this->setMetadata($key, $metadata, true);
+        $this->setPermanentMetadata($key, $metadata);
         $this->tag($key, ['property_metadata', $entityClass]);
     }
 
@@ -104,100 +120,9 @@ final class MetadataCache extends MemoryCache
         }
 
         try {
-            // Cache table name
-            $tableName = $this->dbMapping->getTableName($entityClass);
-            if ($tableName !== null) {
-                $this->setEntityMetadata($entityClass . ':table', $tableName);
-            }
-
-            // Cache properties to columns mapping
-            $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityClass);
-            $this->setEntityMetadata($entityClass . ':properties', $propertiesColumns);
-
-            // Cache primary key information
-            // DbMapping doesn't have getPrimaryKey, so we need to find it
-            $primaryKey = $this->findPrimaryKey($entityClass);
-            if ($primaryKey !== null) {
-                $this->setEntityMetadata($entityClass . ':primaryKey', $primaryKey);
-            }
-
-            // Cache relations
-            $relations = [];
-
-            // OneToOne relations
-            $oneToOne = $this->dbMapping->getOneToOne($entityClass);
-            if (!empty($oneToOne)) {
-                $relations['oneToOne'] = $oneToOne;
-            }
-
-            // OneToMany relations
-            $oneToMany = $this->dbMapping->getOneToMany($entityClass);
-            if (!empty($oneToMany)) {
-                $relations['oneToMany'] = $oneToMany;
-            }
-
-            // ManyToOne relations
-            $manyToOne = $this->dbMapping->getManyToOne($entityClass);
-            if (!empty($manyToOne)) {
-                $relations['manyToOne'] = $manyToOne;
-            }
-
-            // ManyToMany relations
-            $manyToMany = $this->dbMapping->getManyToMany($entityClass);
-            if (!empty($manyToMany)) {
-                $relations['manyToMany'] = $manyToMany;
-            }
-
-            if (!empty($relations)) {
-                $this->setEntityMetadata($entityClass . ':relations', $relations);
-            }
-
-            // Cache reflection data
-            $reflection = new ReflectionClass($entityClass);
-            $reflectionData = [
-                'isInstantiable' => $reflection->isInstantiable(),
-                'hasConstructor' => $reflection->getConstructor() !== null,
-                'constructorParams' => [],
-                'properties' => [],
-            ];
-
-            if ($reflection->getConstructor() !== null) {
-                foreach ($reflection->getConstructor()->getParameters() as $param) {
-                    $reflectionData['constructorParams'][] = [
-                        'name' => $param->getName(),
-                        'isOptional' => $param->isOptional(),
-                        'hasDefault' => $param->isDefaultValueAvailable(),
-                        'default' => $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null,
-                    ];
-                }
-            }
-
-            foreach ($reflection->getProperties() as $property) {
-                if (!$property->isStatic()) {
-                    $type = $property->getType();
-                    $typeName = null;
-                    if ($type instanceof ReflectionNamedType) {
-                        $typeName = $type->getName();
-                    } elseif ($type instanceof ReflectionUnionType) {
-                        $typeName = implode('|', array_map(static function ($t) {
-                            return $t instanceof ReflectionNamedType ? $t->getName() : (string)$t;
-                        }, $type->getTypes()));
-                    } elseif ($type instanceof ReflectionIntersectionType) {
-                        $typeName = implode('&', array_map(static function ($t) {
-                            return $t instanceof ReflectionNamedType ? $t->getName() : (string)$t;
-                        }, $type->getTypes()));
-                    }
-
-                    $reflectionData['properties'][$property->getName()] = [
-                        'isPublic' => $property->isPublic(),
-                        'isProtected' => $property->isProtected(),
-                        'isPrivate' => $property->isPrivate(),
-                        'type' => $typeName,
-                    ];
-                }
-            }
-
-            $this->setEntityMetadata($entityClass . ':reflection', $reflectionData);
+            $this->cacheBasicMetadata($entityClass);
+            $this->cacheRelationsMetadata($entityClass);
+            $this->cacheReflectionMetadata($entityClass);
 
             // Mark entity as warmed up
             $this->setEntityMetadata($entityClass . ':warmed', true);
@@ -208,9 +133,65 @@ final class MetadataCache extends MemoryCache
                 0,
                 $e
             );
-            // Log error but continue with other entities
-            // In production, you'd want to log this properly
         }
+    }
+
+    /**
+     * Cache basic metadata for entity
+     * @param class-string $entityClass
+     * @return void
+     */
+    private function cacheBasicMetadata(string $entityClass): void
+    {
+        if ($this->dbMapping === null) {
+            return;
+        }
+
+        // Cache table name
+        $tableName = $this->dbMapping->getTableName($entityClass);
+        if ($tableName !== null) {
+            $this->setEntityMetadata($entityClass . ':table', $tableName);
+        }
+
+        // Cache properties to columns mapping
+        $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityClass);
+        $this->setEntityMetadata($entityClass . ':properties', $propertiesColumns);
+
+        // Cache primary key information
+        $primaryKey = $this->findPrimaryKey($entityClass);
+        if ($primaryKey !== null) {
+            $this->setEntityMetadata($entityClass . ':primaryKey', $primaryKey);
+        }
+    }
+
+    /**
+     * Cache relations metadata for entity
+     * @param class-string $entityClass
+     * @return void
+     */
+    private function cacheRelationsMetadata(string $entityClass): void
+    {
+        if ($this->dbMapping === null) {
+            return;
+        }
+
+        $relations = $this->relationsHelper->buildRelationsData($this->dbMapping, $entityClass);
+
+        if (!empty($relations)) {
+            $this->setEntityMetadata($entityClass . ':relations', $relations);
+        }
+    }
+
+    /**
+     * Cache reflection metadata for entity
+     * @param class-string $entityClass
+     * @return void
+     */
+    private function cacheReflectionMetadata(string $entityClass): void
+    {
+        $reflection = new ReflectionClass($entityClass);
+        $reflectionData = $this->reflectionHelper->buildReflectionData($reflection);
+        $this->setEntityMetadata($entityClass . ':reflection', $reflectionData);
     }
 
     /**
@@ -296,7 +277,7 @@ final class MetadataCache extends MemoryCache
         try {
             $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityClass);
 
-            foreach ($propertiesColumns as $property => $column) {
+            foreach (array_keys($propertiesColumns) as $property) {
                 $columnKey = $this->dbMapping->getColumnKey($entityClass, $property);
                 if ($columnKey === 'PRI') {
                     return $property;
