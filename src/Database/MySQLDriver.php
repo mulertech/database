@@ -32,7 +32,9 @@ class MySQLDriver implements DriverInterface
 
         if (isset($dsnOptions['unix_socket'])) {
             $dsn .= 'unix_socket=' . $dsnOptions['unix_socket'];
-        } else {
+        }
+
+        if (!isset($dsnOptions['unix_socket'])) {
             $dsn .= 'host=' . ($dsnOptions['host'] ?? 'localhost');
             $dsn .= ';port=' . ($dsnOptions['port'] ?? 3306);
         }
@@ -41,11 +43,8 @@ class MySQLDriver implements DriverInterface
             $dsn .= ';dbname=' . $dsnOptions['dbname'];
         }
 
-        if (isset($dsnOptions['charset'])) {
-            $dsn .= ';charset=' . $dsnOptions['charset'];
-        } else {
-            $dsn .= ';charset=utf8mb4';
-        }
+        $charset = $dsnOptions['charset'] ?? 'utf8mb4';
+        $dsn .= ';charset=' . $charset;
 
         return $dsn;
     }

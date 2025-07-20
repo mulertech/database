@@ -23,7 +23,7 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
 #[MtEntity(repository: UserRepository::class, tableName: "users_test", autoIncrement: 100)]
 class User
 {
-    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, isUnsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
     #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false, columnDefault: "John")]
@@ -35,21 +35,21 @@ class User
     #[MtColumn(columnName: "account_balance", columnType: ColumnType::FLOAT, length: 10, scale: 2, isNullable: true)]
     private ?float $accountBalance = null;
 
-    #[MtColumn(columnName: "unit_id", columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: "unit_id", columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Unit::class, referencedColumn: "id", deleteRule: FkRule::RESTRICT, updateRule: FkRule::CASCADE)]
     #[MtOneToOne(targetEntity: Unit::class)]
     private ?Unit $unit = null;
 
-    #[MtColumn(columnName: "age", columnType: ColumnType::TINYINT, unsigned: true, isNullable: true)]
+    #[MtColumn(columnName: "age", columnType: ColumnType::TINYINT, isUnsigned: true, isNullable: true)]
     private ?int $age = null;
 
     #[MtColumn(columnName: "score", columnType: ColumnType::SMALLINT, isNullable: true)]
     private ?int $score = null;
 
-    #[MtColumn(columnName: "views", columnType: ColumnType::MEDIUMINT, unsigned: true, isNullable: true)]
+    #[MtColumn(columnName: "views", columnType: ColumnType::MEDIUMINT, isUnsigned: true, isNullable: true)]
     private ?int $views = null;
 
-    #[MtColumn(columnName: "big_number", columnType: ColumnType::BIGINT, unsigned: true, isNullable: true)]
+    #[MtColumn(columnName: "big_number", columnType: ColumnType::BIGINT, isUnsigned: true, isNullable: true)]
     private ?int $bigNumber = null;
 
     #[MtColumn(columnName: "decimal_value", columnType: ColumnType::DECIMAL, length: 10, scale: 2, isNullable: true, columnDefault: '0.00')]
@@ -134,7 +134,7 @@ class User
     private ?string $area = null;
 
     // Normally, we should use manager_id as column name. It's for test purpose
-    #[MtColumn(columnName: "manager", columnType: ColumnType::INT, unsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: "manager", columnType: ColumnType::INT, isUnsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: User::class, referencedColumn: "id", deleteRule: FkRule::SET_NULL, updateRule: FkRule::CASCADE)]
     #[MtOneToOne(targetEntity: User::class)]
     private ?User $manager = null;

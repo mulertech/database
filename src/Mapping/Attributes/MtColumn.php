@@ -22,7 +22,7 @@ class MtColumn
      * @param ColumnType|null $columnType
      * @param int|null $length Or precision for decimal types
      * @param int|null $scale Scale for decimal types
-     * @param bool $unsigned
+     * @param bool $isUnsigned
      * @param bool $isNullable
      * @param string|null $extra
      * @param string|null $columnDefault
@@ -30,16 +30,63 @@ class MtColumn
      * @param array<string> $choices
      */
     public function __construct(
-        public string|null     $columnName = null,
+        public string|null $columnName = null,
         public ColumnType|null $columnType = null,
-        public int|null        $length = null,
-        public int|null        $scale = null,
-        public bool            $unsigned = false,
-        public bool            $isNullable = true,
-        public string|null     $extra = null,
-        public string|null     $columnDefault = null,
-        public ColumnKey|null  $columnKey = null,
-        public array           $choices = []
+        public int|null $length = null,
+        public int|null $scale = null,
+        public bool $isUnsigned = false,
+        public bool $isNullable = true,
+        public string|null $extra = null,
+        public string|null $columnDefault = null,
+        public ColumnKey|null $columnKey = null,
+        public array $choices = []
     ) {
+    }
+
+    /**
+     * Create an unsigned column
+     */
+    public static function unsigned(
+        ?string $columnName = null,
+        ?ColumnType $columnType = null,
+        ?int $length = null
+    ): self {
+        return new self(
+            columnName: $columnName,
+            columnType: $columnType,
+            length: $length,
+            isUnsigned: true
+        );
+    }
+
+    /**
+     * Create a non-nullable column
+     */
+    public static function notNull(
+        ?string $columnName = null,
+        ?ColumnType $columnType = null,
+        ?int $length = null
+    ): self {
+        return new self(
+            columnName: $columnName,
+            columnType: $columnType,
+            length: $length,
+            isNullable: false
+        );
+    }
+
+    /**
+     * Create a column with default value
+     */
+    public static function withDefault(
+        string $default,
+        ?string $columnName = null,
+        ?ColumnType $columnType = null
+    ): self {
+        return new self(
+            columnName: $columnName,
+            columnType: $columnType,
+            columnDefault: $default
+        );
     }
 }

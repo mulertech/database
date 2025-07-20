@@ -284,7 +284,7 @@ class DbMapping implements DbMappingInterface
         return $mtColumn->columnType->toSqlDefinition(
             $mtColumn->length,
             $mtColumn->scale,
-            $mtColumn->unsigned ?? false,
+            $mtColumn->isUnsigned ?? false,
             $mtColumn->choices
         );
     }
@@ -635,6 +635,6 @@ class DbMapping implements DbMappingInterface
      */
     public function isUnsigned(string $entityName, string $property): bool
     {
-        return $this->getMtColumns($entityName)[$property]->unsigned ?? false;
+        return $this->getMtColumns($entityName)[$property]->isUnsigned ?? false;
     }
 }

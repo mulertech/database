@@ -24,7 +24,7 @@ class MigrationHistory
     #[MtColumn(
         columnName: 'id',
         columnType: ColumnType::INT,
-        unsigned: true,
+        isUnsigned: true,
         isNullable: false,
         extra: 'auto_increment',
         columnKey: ColumnKey::PRIMARY_KEY
@@ -46,7 +46,7 @@ class MigrationHistory
     /**
      * @var int $execution_time Execution time in milliseconds
      */
-    #[MtColumn(columnName: 'execution_time', columnType: ColumnType::INT, unsigned: true, isNullable: false, columnDefault: '0')]
+    #[MtColumn(columnName: 'execution_time', columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnDefault: '0')]
     private int $execution_time = 0;
 
     /**

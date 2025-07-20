@@ -113,10 +113,10 @@ trait SqlFormatterTrait
      */
     protected function formatColumn(string $column, ?string $tableAlias = null, ?string $columnAlias = null): string
     {
+        $formatted = $this->formatIdentifier($column);
+
         if ($tableAlias !== null && !str_contains($column, '.')) {
             $formatted = $this->formatIdentifier($tableAlias) . '.' . $this->formatIdentifier($column);
-        } else {
-            $formatted = $this->formatIdentifier($column);
         }
 
         if ($columnAlias !== null && $columnAlias !== '') {

@@ -20,6 +20,7 @@ use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use MulerTech\Database\Database\Interface\ConnectionDiagnostics;
 
 class SchemaComparerTest extends TestCase
 {

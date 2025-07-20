@@ -228,11 +228,11 @@ readonly class ResultSetCache implements TaggableCacheInterface
      */
     private function decompress(array $data): mixed
     {
+        $serialized = $data['data'];
+
         if ($data['compressed']) {
             $decompressed = gzuncompress($data['data']);
             $serialized = $decompressed !== false ? $decompressed : $data['data'];
-        } else {
-            $serialized = $data['data'];
         }
 
         return unserialize($serialized, ['allowed_classes' => false]) ?: null;
