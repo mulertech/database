@@ -138,24 +138,11 @@ class OrmCoreIntegrationTest extends TestCase
         $this->assertEquals($data['id'], $extractedData['id']);
         $this->assertEquals($data['name'], $extractedData['name']);
         $this->assertEquals($data['email'], $extractedData['email']);
-
-        // Test clone
-        $clonedUser = $this->entityFactory->clone($user);
-        $this->assertNotSame($user, $clonedUser);
-        $this->assertEquals($user->getName(), $clonedUser->getName());
-        $this->assertEquals($user->getEmail(), $clonedUser->getEmail());
-        $this->assertNull($clonedUser->getId()); // ID should be removed
     }
 
     public function testCompleteWorkflow(): void
     {
         // 1. Create entities using factory
-        $user1 = $this->entityFactory->createAndManage(TestUser::class, [
-            'id' => 1,
-            'name' => 'John Doe',
-            'email' => 'john@example.com'
-        ]);
-
         $user2 = $this->entityFactory->create(TestUser::class, [
             'name' => 'Jane Doe',
             'email' => 'jane@example.com'

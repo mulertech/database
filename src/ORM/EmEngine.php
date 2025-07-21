@@ -339,7 +339,7 @@ class EmEngine
             $this->changeDetector
         );
         $this->hydrator = new EntityHydrator($dbMapping);
-        $this->entityFactory = new EntityFactory($this->hydrator, $this->identityMap);
+        $this->entityFactory = new EntityFactory($this->hydrator);
 
         // State management - Use direct state manager with ChangeSetManager integration
         $stateTransitionManager = new StateTransitionManager($eventManager);

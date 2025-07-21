@@ -36,11 +36,9 @@ final class EntityFactory
 
     /**
      * @param EntityHydrator $hydrator
-     * @param IdentityMap $identityMap
      */
     public function __construct(
         private readonly EntityHydrator $hydrator,
-        private readonly IdentityMap $identityMap
     ) {
     }
 
@@ -73,48 +71,6 @@ final class EntityFactory
         }
 
         /** @var T $entity */
-        return $entity;
-    }
-
-    /**
-     * @template T of object
-     * @param class-string<T> $entityClass
-     * @param array<string, mixed> $data
-     * @return object
-     * @throws ReflectionException
-     */
-    public function createAndManage(string $entityClass, array $data = []): object
-    {
-        $entity = $this->create($entityClass, $data);
-
-        // Add to identity map if not already present
-        $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata === null) {
-            $this->identityMap->add($entity);
-            return $entity;
-        }
-
-        // If entity is already present but not in MANAGED state, try to update its state
-        if ($metadata->state !== EntityState::MANAGED) {
-            try {
-                // Check that the transition is valid before applying it
-                if ($metadata->state->canTransitionTo(EntityState::MANAGED)) {
-                    $managedMetadata = new EntityMetadata(
-                        $metadata->className,
-                        $metadata->identifier,
-                        EntityState::MANAGED,
-                        $metadata->originalData,
-                        $metadata->loadedAt,
-                        new DateTimeImmutable()
-                    );
-                    $this->identityMap->updateMetadata($entity, $managedMetadata);
-                }
-            } catch (InvalidArgumentException) {
-                // If transition fails, we continue anyway
-                // The entity will be used with its current state
-            }
-        }
-
         return $entity;
     }
 
@@ -185,34 +141,6 @@ final class EntityFactory
         }
 
         return $data;
-    }
-
-    /**
-     * @param object $entity
-     * @return object
-     * @throws ReflectionException
-     */
-    public function clone(object $entity): object
-    {
-        $entityClass = $entity::class;
-        $data = $this->extract($entity);
-
-        // Remove ID field to create a new entity by setting this to null
-        if (isset($data['id'])) {
-            $data['id'] = null;
-        } elseif (isset($data['uuid'])) {
-            $data['uuid'] = null;
-        } elseif (isset($data['identifier'])) {
-            $data['identifier'] = null;
-        }
-
-        // Create a new instance without constructor to avoid issues
-        $clonedEntity = $this->create($entityClass, [], false);
-
-        // Hydrate all data except ID fields
-        $this->hydrate($clonedEntity, $data);
-
-        return $clonedEntity;
     }
 
     /**
