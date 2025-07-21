@@ -11,7 +11,6 @@ use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use MulerTech\Database\Mapping\Types\EntityLoadingConfig;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;
@@ -38,12 +37,9 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param string|null $entitiesPath
-     * @param bool $recursive
      */
-    public function __construct(
-        ?string $entitiesPath = null,
-        private readonly bool $recursive = true
-    ) {
+    public function __construct(?string $entitiesPath = null)
+    {
         $this->entitiesPath = $entitiesPath;
         if ($entitiesPath !== null) {
             $this->loadEntities();
@@ -59,7 +55,7 @@ class DbMapping implements DbMappingInterface
             return;
         }
 
-        $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
+        $classNames = Php::getClassNames($this->entitiesPath, true);
 
         foreach ($classNames as $className) {
             if (!class_exists($className)) {

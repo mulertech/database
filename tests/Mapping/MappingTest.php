@@ -83,22 +83,6 @@ class MappingTest extends TestCase
      * @return void
      * @throws ReflectionException
      */
-    public function testTablesWithoutRecursiveDirectory(): void
-    {
-        $dbMapping = new DbMapping(
-            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity',
-            false
-        );
-        $this->assertEquals(
-            ['groups_test', 'link_user_group_test', 'same_table_name', 'units_test', 'users_test'],
-            $dbMapping->getTables()
-        );
-    }
-
-    /**
-     * @return void
-     * @throws ReflectionException
-     */
     public function testTablesWithEmptyDirectory(): void
     {
         $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
