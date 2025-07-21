@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Database\Interface;
 
+use MulerTech\Database\Core\Cache\CacheConfig;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -20,28 +21,28 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 {
     private ?PDO $connection = null;
     private int $transactionLevel = 0;
-    private readonly StatementCacheManager $cacheManager;
+    private ?StatementCacheManager $cacheManager = null;
 
     /**
      * @param ConnectorInterface $connector
      * @param array<string, mixed> $parameters
-     * @param StatementCacheConfig|null $cacheConfig
+     * @param CacheConfig|null $cacheConfig
      * @param DatabaseParameterParserInterface|null $parameterParser
      * @param QueryExecutorInterface|null $queryExecutor
      */
     public function __construct(
         private readonly ConnectorInterface $connector,
         private readonly array $parameters,
-        ?StatementCacheConfig $cacheConfig = null,
+        ?CacheConfig $cacheConfig = null,
         private readonly ?DatabaseParameterParserInterface $parameterParser = null,
         private readonly ?QueryExecutorInterface $queryExecutor = null
     ) {
-        $config = $cacheConfig ?? new StatementCacheConfig();
-        $this->cacheManager = new StatementCacheManager(
-            $config->isEnabled(),
-            (string)spl_object_id($this),
-            $config->getCacheConfig()
-        );
+        if ($cacheConfig !== null) {
+            $this->cacheManager = new StatementCacheManager(
+                (string)spl_object_id($this),
+                $cacheConfig
+            );
+        }
     }
 
     public function getConnection(): PDO
@@ -64,7 +65,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     public function prepare(string $query, array $options = []): Statement
     {
         try {
-            if ($this->cacheManager->isEnabled()) {
+            if ($this->cacheManager !== null) {
                 return $this->prepareWithCache($query, $options);
             }
 
@@ -198,6 +199,10 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      */
     private function prepareWithCache(string $query, array $options = []): Statement
     {
+        if ($this->cacheManager === null) {
+            return $this->prepareDirect($query, $options);
+        }
+
         $cacheKey = $this->cacheManager->generateCacheKey($query, $options);
         $cachedStatement = $this->cacheManager->getCachedStatement($cacheKey, $this->getConnection());
 
@@ -241,7 +246,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     private function invalidateCacheForStatement(string $statement): void
     {
         $tableName = $this->extractTableFromQuery($statement);
-        $this->cacheManager->invalidateTableStatements($tableName);
+        $this->cacheManager?->invalidateTableStatements($tableName);
     }
 
     private function extractTableFromQuery(string $query): string

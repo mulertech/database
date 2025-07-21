@@ -21,33 +21,21 @@ class StatementCacheManager
     private array $statementUsageCount = [];
 
     public function __construct(
-        private readonly bool $enabled,
         private readonly string $instanceId,
         ?CacheConfig $cacheConfig = null
     ) {
-        if ($this->enabled) {
-            $this->statementCache = CacheFactory::createMemoryCache(
-                'prepared_statements_' . $this->instanceId,
-                $cacheConfig ?? new CacheConfig(
-                    maxSize: 100,
-                    ttl: 3600,
-                    evictionPolicy: 'lfu',
-                )
-            );
-        }
-    }
-
-    public function isEnabled(): bool
-    {
-        return $this->enabled;
+        $this->statementCache = CacheFactory::createMemoryCache(
+            'prepared_statements_' . $this->instanceId,
+            $cacheConfig ?? new CacheConfig(
+                maxSize: 100,
+                ttl: 3600,
+                evictionPolicy: 'lfu',
+            )
+        );
     }
 
     public function getCachedStatement(string $cacheKey, PDO $connection): ?PDOStatement
     {
-        if (!$this->enabled) {
-            return null;
-        }
-
         $this->trackUsage($cacheKey);
         $cachedStatement = $this->statementCache?->get($cacheKey);
 
@@ -68,17 +56,13 @@ class StatementCacheManager
 
     public function cacheStatement(string $cacheKey, PDOStatement $statement, string $query): void
     {
-        if (!$this->enabled) {
-            return;
-        }
-
         $this->statementCache?->set($cacheKey, $statement);
         $this->statementCache?->tag($cacheKey, ['statements', $this->extractTableFromQuery($query)]);
     }
 
     public function invalidateTableStatements(string $tableName): void
     {
-        if ($this->enabled && $tableName !== 'unknown') {
+        if ($tableName !== 'unknown') {
             $this->statementCache?->invalidateTag($tableName);
         }
     }
