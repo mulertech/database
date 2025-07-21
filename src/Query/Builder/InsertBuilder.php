@@ -72,9 +72,10 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         if ($value instanceof Raw) {
             $this->values[$column] = $this->parameterBag->add($value, $type);
-        } else {
-            $this->values[$column] = $this->parameterBag->add($value, $type);
+            return $this;
         }
+
+        $this->values[$column] = $this->parameterBag->add($value, $type);
         return $this;
     }
 
@@ -119,24 +120,44 @@ class InsertBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param bool $ignore
+     * Enable IGNORE option
      * @return self
      */
-    public function ignore(bool $ignore = true): self
+    public function ignore(): self
     {
-        $this->ignore = $ignore;
+        $this->ignore = true;
         $this->replace = false; // Cannot use both IGNORE and REPLACE
         return $this;
     }
 
     /**
-     * @param bool $replace
+     * Disable IGNORE option
      * @return self
      */
-    public function replace(bool $replace = true): self
+    public function withoutIgnore(): self
     {
-        $this->replace = $replace;
+        $this->ignore = false;
+        return $this;
+    }
+
+    /**
+     * Enable REPLACE option
+     * @return self
+     */
+    public function replace(): self
+    {
+        $this->replace = true;
         $this->ignore = false; // Cannot use both IGNORE and REPLACE
+        return $this;
+    }
+
+    /**
+     * Disable REPLACE option
+     * @return self
+     */
+    public function withoutReplace(): self
+    {
+        $this->replace = false;
         return $this;
     }
 

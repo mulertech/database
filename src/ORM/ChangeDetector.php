@@ -54,6 +54,7 @@ class ChangeDetector
                 $data[$propertyName] = [
                     '__entity__' => $value::class,
                     '__id__' => $id,
+                    '__hash__' => spl_object_id($value), // Add object hash for better tracking
                 ];
             } elseif ($value instanceof Collection) {
                 // For collections, store a simplified representation
@@ -63,6 +64,7 @@ class ChangeDetector
                         $items[] = [
                             '__entity__' => $item::class,
                             '__id__' => $item->getId(),
+                            '__hash__' => spl_object_id($item),
                         ];
                     }
                 }
@@ -70,24 +72,16 @@ class ChangeDetector
                     '__collection__' => true,
                     '__items__' => $items,
                 ];
-            } elseif (is_object($value)) {
-                // For other objects without getId, store a placeholder
-                $data[$propertyName] = [
-                    '__entity__' => $value::class,
-                    '__id__' => null,
-                ];
             } elseif (is_array($value)) {
                 $data[$propertyName] = $value;
+            } elseif (is_object($value)) {
+                // For other objects, store class name and object hash
+                $data[$propertyName] = [
+                    '__object__' => $value::class,
+                    '__hash__' => spl_object_id($value),
+                ];
             } else {
-                // For other objects, try to serialize or store class name
-                if (is_object($value)) {
-                    $data[$propertyName] = [
-                        '__object__' => $value::class,
-                        '__serialized__' => serialize($value),
-                    ];
-                } else {
-                    $data[$propertyName] = $value;
-                }
+                $data[$propertyName] = $value;
             }
         }
 
@@ -155,9 +149,49 @@ class ChangeDetector
         // Handle entity references (serialized format)
         if (is_array($value1) && is_array($value2)) {
             // Both are entity references
-            if (isset($value1['__entity__'], $value1['__id__'], $value2['__entity__'], $value2['__id__'])) {
-                return $value1['__entity__'] === $value2['__entity__'] &&
-                       $value1['__id__'] === $value2['__id__'];
+            if (isset($value1['__entity__'], $value2['__entity__'])) {
+                // First check if classes are the same
+                if ($value1['__entity__'] !== $value2['__entity__']) {
+                    return false;
+                }
+
+                // Check if both have ID keys and compare their values (including null)
+                if (array_key_exists('__id__', $value1) && array_key_exists('__id__', $value2)) {
+                    $id1 = $value1['__id__'];
+                    $id2 = $value2['__id__'];
+
+                    // If both IDs are not null, compare them
+                    if ($id1 !== null && $id2 !== null) {
+                        return $id1 === $id2;
+                    }
+                    // If one ID is null and the other is not, they're different
+                    if (($id1 === null) !== ($id2 === null)) {
+                        return false;
+                    }
+                    // Both IDs are null, continue to hash comparison
+                }
+
+                // If IDs are both null or missing, compare by object hash if available
+                if (isset($value1['__hash__'], $value2['__hash__'])) {
+                    return $value1['__hash__'] === $value2['__hash__'];
+                }
+
+                // Fallback: if no hash and both IDs are null, consider them equal if same class
+                return true;
+            }
+
+            // Both are object references without entity info
+            if (isset($value1['__object__'], $value2['__object__'])) {
+                if ($value1['__object__'] !== $value2['__object__']) {
+                    return false;
+                }
+
+                // Compare by hash if available
+                if (isset($value1['__hash__'], $value2['__hash__'])) {
+                    return $value1['__hash__'] === $value2['__hash__'];
+                }
+
+                return true;
             }
 
             // Both are collections

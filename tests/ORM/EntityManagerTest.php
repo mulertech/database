@@ -513,11 +513,12 @@ class EntityManagerTest extends TestCase
         $this->eventManager->addListener(DbEvents::preRemove->value, static function (PreRemoveEvent $event) {
             $manager = $event->getEntity();
             if ($manager instanceof User && $manager->getUsername() === 'Manager') {
-                $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
-                $user = $event->getEntityManager()->find(User::class, 'username=\'John\'');
+                $entityManager = $event->getEntityManager();
+                $otherManager = $entityManager->find(User::class, 'username=\'OtherManager\'');
+                $user = $entityManager->find(User::class, 'username=\'John\'');
                 if ($user !== null && $otherManager !== null) {
                     $user->setManager($otherManager);
-                    $event->getEntityManager()->persist($user);
+                    $entityManager->persist($user);
                     // Note: Don't flush here as we're already in a flush cycle
                 }
             }
@@ -525,6 +526,7 @@ class EntityManagerTest extends TestCase
         
         $em->remove($manager);
         $em->flush();
+
         $user = $em->find(User::class, 'username=\'John\'');
         self::assertNotNull($user, 'User should still exist');
         self::assertNotNull($user->getManager(), 'User should have a manager');

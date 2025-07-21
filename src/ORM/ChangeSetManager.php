@@ -245,23 +245,24 @@ final class ChangeSetManager
             // Entity already managed, copy data from detached entity
             $this->copyEntityData($entity, $managedEntity);
             $this->scheduleUpdate($managedEntity);
-        } else {
-            // Entity not managed, add it as managed
-            $this->identityMap->add($entity);
-            $metadata = $this->identityMap->getMetadata($entity);
-            if ($metadata !== null) {
-                $newMetadata = new EntityMetadata(
-                    $metadata->className,
-                    $metadata->identifier,
-                    EntityState::MANAGED,
-                    $metadata->originalData,
-                    $metadata->loadedAt,
-                    new DateTimeImmutable()
-                );
-                $this->identityMap->updateMetadata($entity, $newMetadata);
-            }
-            $this->registry->register($entity);
+            return;
         }
+
+        // Entity not managed, add it as managed
+        $this->identityMap->add($entity);
+        $metadata = $this->identityMap->getMetadata($entity);
+        if ($metadata !== null) {
+            $newMetadata = new EntityMetadata(
+                $metadata->className,
+                $metadata->identifier,
+                EntityState::MANAGED,
+                $metadata->originalData,
+                $metadata->loadedAt,
+                new DateTimeImmutable()
+            );
+            $this->identityMap->updateMetadata($entity, $newMetadata);
+        }
+        $this->registry->register($entity);
     }
 
     /**

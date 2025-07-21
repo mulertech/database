@@ -497,32 +497,62 @@ class DeleteBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param bool $ignore
+     * Enable IGNORE option
      * @return self
      */
-    public function ignore(bool $ignore = true): self
+    public function ignore(): self
     {
-        $this->ignore = $ignore;
+        $this->ignore = true;
         return $this;
     }
 
     /**
-     * @param bool $quick
+     * Disable IGNORE option
      * @return self
      */
-    public function quick(bool $quick = true): self
+    public function withoutIgnore(): self
     {
-        $this->quick = $quick;
+        $this->ignore = false;
         return $this;
     }
 
     /**
-     * @param bool $lowPriority
+     * Enable QUICK option
      * @return self
      */
-    public function lowPriority(bool $lowPriority = true): self
+    public function quick(): self
     {
-        $this->lowPriority = $lowPriority;
+        $this->quick = true;
+        return $this;
+    }
+
+    /**
+     * Disable QUICK option
+     * @return self
+     */
+    public function withoutQuick(): self
+    {
+        $this->quick = false;
+        return $this;
+    }
+
+    /**
+     * Enable LOW_PRIORITY option
+     * @return self
+     */
+    public function lowPriority(): self
+    {
+        $this->lowPriority = true;
+        return $this;
+    }
+
+    /**
+     * Disable LOW_PRIORITY option
+     * @return self
+     */
+    public function withoutLowPriority(): self
+    {
+        $this->lowPriority = false;
         return $this;
     }
 

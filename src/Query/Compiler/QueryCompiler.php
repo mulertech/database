@@ -46,12 +46,30 @@ class QueryCompiler
 
     /**
      * @param ResultSetCache|null $cache
+     * @param CacheFactory|null $cacheFactory
      * @param bool $enableCache
      */
-    public function __construct(?ResultSetCache $cache = null, bool $enableCache = true)
+    public function __construct(?ResultSetCache $cache = null, private readonly ?CacheFactory $cacheFactory = null, bool $enableCache = true)
     {
-        $this->cache = $cache ?? CacheFactory::createResultSetCache('query_compiler');
+        $factory = $this->cacheFactory ?? new CacheFactory();
+        $this->cache = $cache ?? $factory::createResultSetCache('query_compiler');
         $this->enableCache = $enableCache;
+    }
+
+    /**
+     * Create a QueryCompiler with caching enabled
+     */
+    public static function withCache(?ResultSetCache $cache = null, ?CacheFactory $cacheFactory = null): self
+    {
+        return new self($cache, $cacheFactory, true);
+    }
+
+    /**
+     * Create a QueryCompiler with caching disabled
+     */
+    public static function withoutCache(): self
+    {
+        return new self(null, null, false);
     }
 
     /**

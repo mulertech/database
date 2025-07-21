@@ -581,12 +581,23 @@ class SelectBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param bool $distinct
+     * Enable DISTINCT option
      * @return self
      */
-    public function distinct(bool $distinct = true): self
+    public function distinct(): self
     {
-        $this->distinct = $distinct;
+        $this->distinct = true;
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * Disable DISTINCT option
+     * @return self
+     */
+    public function withoutDistinct(): self
+    {
+        $this->distinct = false;
         $this->isDirty = true;
         return $this;
     }

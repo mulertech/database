@@ -93,8 +93,8 @@ final class IdentityMap
         // Initialize class array if needed
         $this->entities[$entityClass] ??= [];
 
-        // Store weak reference
-        $this->entities[$entityClass][$id] = WeakReference::create($entity);
+        // Store weak reference - inject WeakReference factory if needed
+        $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
 
         // Store metadata
         $this->storeMetadata($entity, $id);
@@ -347,5 +347,17 @@ final class IdentityMap
         }
 
         return $data;
+    }
+
+    /**
+     * Create a weak reference to an entity
+     * This method can be overridden for testing or custom weak reference handling
+     *
+     * @param object $entity
+     * @return WeakReference<object>
+     */
+    private function createWeakReference(object $entity): WeakReference
+    {
+        return WeakReference::create($entity);
     }
 }

@@ -531,12 +531,22 @@ class UpdateBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param bool $ignore
+     * Enable IGNORE option
      * @return self
      */
-    public function ignore(bool $ignore = true): self
+    public function ignore(): self
     {
-        $this->ignore = $ignore;
+        $this->ignore = true;
+        return $this;
+    }
+
+    /**
+     * Disable IGNORE option
+     * @return self
+     */
+    public function withoutIgnore(): self
+    {
+        $this->ignore = false;
         return $this;
     }
 

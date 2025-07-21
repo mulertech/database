@@ -178,12 +178,22 @@ class IndexDefinition
     }
 
     /**
-     * @param bool $visible
+     * Make the index visible
      * @return self
      */
-    public function visible(bool $visible = true): self
+    public function visible(): self
     {
-        $this->visible = $visible;
+        $this->visible = true;
+        return $this;
+    }
+
+    /**
+     * Make the index invisible
+     * @return self
+     */
+    public function invisible(): self
+    {
+        $this->visible = false;
         return $this;
     }
 

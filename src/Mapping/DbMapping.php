@@ -11,6 +11,7 @@ use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\EntityLoadingConfig;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;
@@ -131,7 +132,6 @@ class DbMapping implements DbMappingInterface
      */
     public function getTables(): array
     {
-        $this->initializeTables();
         $tables = $this->tables;
         sort($tables);
         return $tables;
@@ -143,7 +143,6 @@ class DbMapping implements DbMappingInterface
      */
     public function getEntities(): array
     {
-        $this->initializeTables();
         $entities = array_keys($this->tables);
         sort($entities);
         return $entities;
@@ -540,39 +539,6 @@ class DbMapping implements DbMappingInterface
         } catch (ReflectionException) {
             return [];
         }
-    }
-
-    /**
-     * @return void
-     * @throws ReflectionException
-     */
-    private function initializeTables(): void
-    {
-        if (empty($this->tables) && $this->entitiesPath !== null) {
-            $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
-            foreach ($classNames as $className) {
-                $table = $this->generateTableName($className);
-                if ($table) {
-                    $this->tables[$className] = $table;
-                }
-            }
-        }
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return string|null
-     * @throws ReflectionException
-     */
-    private function generateTableName(string $entityName): ?string
-    {
-        $mtEntity = $this->getMtEntity($entityName);
-
-        if (!$mtEntity) {
-            return null;
-        }
-
-        return $mtEntity->tableName ?? $this->classNameToTableName($entityName);
     }
 
     /**
