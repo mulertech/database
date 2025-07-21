@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Database\Interface;
 
+use InvalidArgumentException;
 use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Core\Cache\CacheFactory;
+use MulerTech\Database\Core\Cache\MemoryCache;
 use PDO;
 use PDOException;
+use PDOStatement;
+use RuntimeException;
 
 /**
  * Class PhpDatabaseManager
@@ -18,72 +23,68 @@ use PDOException;
  */
 class PhpDatabaseManager implements PhpDatabaseInterface
 {
+    public const string DATABASE_URL = 'DATABASE_URL';
+
+    /**
+     * @var PDO|null
+     */
     private ?PDO $connection = null;
-    private ?DatabaseAdapter $adapter = null;
-    private StatementCacheManager $cacheManager;
+
+    /**
+     * @var MemoryCache|null
+     */
+    private ?MemoryCache $statementCache = null;
+
+    /**
+     * @var int
+     */
+    private int $transactionLevel = 0;
+
+    /**
+     * @var bool
+     */
+    private readonly bool $enableStatementCache;
+
+    /**
+     * @var array<string, int>
+     */
+    private array $statementUsageCount = [];
 
     /**
      * @param ConnectorInterface $connector
      * @param array<string, mixed> $parameters
+     * @param bool $enableStatementCache
      * @param CacheConfig|null $cacheConfig
-     * @param DatabaseParameterParser|null $parameterParser
      */
     public function __construct(
         private readonly ConnectorInterface $connector,
         private readonly array $parameters,
-        ?CacheConfig $cacheConfig = null,
-        private readonly ?DatabaseParameterParser $parameterParser = null
+        bool $enableStatementCache = true,
+        ?CacheConfig $cacheConfig = null
     ) {
-        $this->cacheManager = new StatementCacheManager(true, $cacheConfig);
-    }
+        $this->enableStatementCache = $enableStatementCache;
 
-    /**
-     * Create instance with caching disabled
-     * @param array<string, mixed> $parameters
-     */
-    public static function withoutCache(
-        ConnectorInterface $connector,
-        array $parameters,
-        ?DatabaseParameterParser $parameterParser = null
-    ): self {
-        $instance = new self($connector, $parameters, null, $parameterParser);
-        $instance->cacheManager = new StatementCacheManager(false, null);
-        return $instance;
-    }
-
-    /**
-     * Create instance with custom cache configuration
-     * @param array<string, mixed> $parameters
-     */
-    public static function withCacheConfig(
-        ConnectorInterface $connector,
-        array $parameters,
-        CacheConfig $cacheConfig,
-        ?DatabaseParameterParser $parameterParser = null
-    ): self {
-        return new self($connector, $parameters, $cacheConfig, $parameterParser);
-    }
-
-    /**
-     * Get database adapter for all database operations
-     */
-    public function getAdapter(): DatabaseAdapter
-    {
-        if (!isset($this->adapter)) {
-            $operationsManager = new DatabaseOperationsManager(
-                new TransactionManager(),
-                new QueryExecutor($this->cacheManager)
+        // Initialize statement cache
+        if ($this->enableStatementCache) {
+            $this->statementCache = CacheFactory::createMemoryCache(
+                'prepared_statements_' . spl_object_id($this),
+                $cacheConfig ?? new CacheConfig(
+                    maxSize: 100,
+                    ttl: 3600,
+                    evictionPolicy: 'lfu', // Least Frequently Used for statements
+                )
             );
-            $this->adapter = new DatabaseAdapter($this->getConnection(), $operationsManager);
         }
-        return $this->adapter;
     }
 
+    /**
+     * @return PDO
+     * @throws RuntimeException
+     */
     public function getConnection(): PDO
     {
         if (!isset($this->connection)) {
-            $parser = $this->parameterParser ?? new DatabaseParameterParser();
-            $parameters = $parser->populateParameters($this->parameters);
+            $parameters = self::populateParameters($this->parameters);
             $username = $parameters['user'] ?? '';
             $password = $parameters['pass'] ?? '';
 
@@ -102,84 +103,419 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param string $query
+     * @param array<int|string, mixed> $options
+     * @return Statement
      */
     public function prepare(string $query, array $options = []): Statement
     {
         try {
-            if ($this->cacheManager->isEnabled()) {
-                return $this->cacheManager->prepareWithCache($query, $options, $this->getConnection());
+            if ($this->enableStatementCache) {
+                return $this->prepareWithCache($query, $options);
             }
 
-            return $this->cacheManager->prepareDirect($query, $options, $this->getConnection());
+            // Fallback to direct preparation
+            return $this->prepareDirect($query, $options);
 
         } catch (PDOException $exception) {
             throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
         }
     }
 
-    // Delegate all interface methods to adapter
+    /**
+     * @param string $query
+     * @param array<int|string, mixed> $options
+     * @return Statement
+     */
+    private function prepareWithCache(string $query, array $options = []): Statement
+    {
+        $cacheKey = $this->getStatementCacheKey($query, $options);
+
+        // Track usage for analytics
+        $this->statementUsageCount[$cacheKey] = ($this->statementUsageCount[$cacheKey] ?? 0) + 1;
+
+        // Check cache first
+        $cachedStatement = $this->statementCache?->get($cacheKey);
+
+        if ($cachedStatement instanceof PDOStatement) {
+            // Verify the statement is still valid
+            try {
+                // Test if connection is still alive
+                $this->getConnection()->getAttribute(PDO::ATTR_CONNECTION_STATUS);
+
+                // Return wrapped cached statement
+                return new Statement($cachedStatement);
+            } catch (PDOException) {
+                // Connection lost, invalidate cache and reconnect
+                $this->statementCache?->delete($cacheKey);
+                $this->connection = null;
+            }
+        }
+
+        // Prepare new statement
+        $statement = $this->prepareDirect($query, $options);
+
+        // Cache the PDOStatement (not the wrapper)
+        $this->statementCache?->set(
+            $cacheKey,
+            $statement->getPdoStatement()
+        );
+
+        // Tag for easy invalidation
+        $this->statementCache?->tag($cacheKey, ['statements', $this->extractTableFromQuery($query)]);
+
+        return $statement;
+    }
+
+    /**
+     * @param string $query
+     * @param array<int|string, mixed> $options
+     * @return Statement
+     */
+    private function prepareDirect(string $query, array $options = []): Statement
+    {
+        $statement = empty($options)
+            ? $this->getConnection()->prepare($query)
+            : $this->getConnection()->prepare($query, $options);
+
+        if ($statement === false) {
+            throw new RuntimeException(
+                sprintf(
+                    'Failed to prepare statement. Error: %s. Query: %s',
+                    $this->getConnection()->errorInfo()[2] ?? 'Unknown error',
+                    $query
+                )
+            );
+        }
+
+        return new Statement($statement);
+    }
+
+    /**
+     * @param string $query
+     * @param array<int|string, mixed> $options
+     * @return string
+     */
+    private function getStatementCacheKey(string $query, array $options): string
+    {
+        return sprintf(
+            'stmt:%s:%s',
+            md5($query),
+            md5(serialize($options))
+        );
+    }
+
+    /**
+     * @param string $query SQL query to extract table from
+     * @return string Table name or 'unknown'
+     */
+    private function extractTableFromQuery(string $query): string
+    {
+        // Simple extraction logic - can be enhanced
+        $query = strtolower(trim($query));
+
+        // For INSERT, UPDATE, DELETE
+        if (preg_match('/(?:insert\s+into|update|delete\s+from)\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
+            return $matches[1];
+        }
+
+        // For SELECT
+        if (preg_match('/from\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
+            return $matches[1];
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * @return bool
+     */
     public function beginTransaction(): bool
     {
-        return $this->getAdapter()->beginTransaction();
+        if ($this->transactionLevel === 0) {
+            try {
+                $this->transactionLevel = 1;
+                return $this->getConnection()->beginTransaction();
+            } catch (PDOException $exception) {
+                throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
+            }
+        }
+
+        // Nested transaction - just increment level
+        ++$this->transactionLevel;
+        return true;
     }
 
+    /**
+     * @return bool
+     */
     public function commit(): bool
     {
-        return $this->getAdapter()->commit();
+        if ($this->transactionLevel === 1) {
+            try {
+                $result = $this->getConnection()->commit();
+                $this->transactionLevel = 0;
+                return $result;
+            } catch (PDOException $exception) {
+                throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
+            }
+        }
+
+        // Nested transaction - just decrement level
+        if ($this->transactionLevel > 0) {
+            --$this->transactionLevel;
+        }
+
+        return true;
     }
 
+    /**
+     * @return bool
+     */
     public function rollBack(): bool
     {
-        return $this->getAdapter()->rollBack();
+        try {
+            $result = $this->getConnection()->rollBack();
+            $this->transactionLevel = 0;
+            return $result;
+        } catch (PDOException $exception) {
+            throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
+        }
     }
 
+    /**
+     * @return bool
+     */
     public function inTransaction(): bool
     {
-        return $this->getAdapter()->inTransaction();
+        return $this->getConnection()->inTransaction();
     }
 
+    /**
+     * @param int $attribute
+     * @param mixed $value
+     * @return bool
+     */
     public function setAttribute(int $attribute, mixed $value): bool
     {
-        return $this->getAdapter()->setAttribute($attribute, $value);
+        return $this->getConnection()->setAttribute($attribute, $value);
     }
 
+    /**
+     * @param string $statement
+     * @return int
+     */
     public function exec(string $statement): int
     {
-        return $this->getAdapter()->exec($statement);
+        $result = $this->getConnection()->exec($statement);
+
+        if ($result === false) {
+            throw new RuntimeException(
+                sprintf(
+                    'Failed to execute statement. Error: %s',
+                    $this->getConnection()->errorInfo()[2] ?? 'Unknown error'
+                )
+            );
+        }
+
+        // Invalidate related cached statements
+        if ($this->enableStatementCache) {
+            $table = $this->extractTableFromQuery($statement);
+            if ($table !== 'unknown') {
+                $this->statementCache?->invalidateTag($table);
+            }
+        }
+
+        return $result;
     }
 
+    /**
+     * @param string $query SQL query
+     * @param int|null $fetchMode Fetch mode
+     * @param int|string|object $arg3 Additional argument
+     * @param array<int, mixed>|null $constructorArgs Constructor arguments
+     * @return Statement
+     */
     public function query(
         string $query,
         ?int $fetchMode = null,
         int|string|object $arg3 = '',
         ?array $constructorArgs = null
     ): Statement {
-        return $this->getAdapter()->query($query, $fetchMode, $arg3, $constructorArgs);
+        $pdo = $this->getConnection();
+
+        if ($fetchMode === null) {
+            $result = $pdo->query($query);
+        } elseif ($fetchMode === PDO::FETCH_CLASS) {
+            $result = $pdo->query(
+                $query,
+                $fetchMode,
+                is_string($arg3) ? $arg3 : '',
+                is_array($constructorArgs) ? $constructorArgs : []
+            );
+        } elseif ($fetchMode === PDO::FETCH_INTO) {
+            if (!is_object($arg3)) {
+                throw new InvalidArgumentException(
+                    'When using FETCH_INTO, the third argument must be an object.'
+                );
+            }
+
+            $result = $pdo->query($query, $fetchMode, $arg3);
+        } else {
+            $result = $pdo->query($query, $fetchMode);
+        }
+
+        if ($result === false) {
+            throw new RuntimeException(
+                sprintf(
+                    'Query failed. Error: %s. Statement: %s',
+                    $this->getConnection()->errorInfo()[2] ?? 'Unknown error',
+                    $query
+                )
+            );
+        }
+
+        return new Statement($result);
     }
 
+    /**
+     * @param string|null $name
+     * @return string
+     */
     public function lastInsertId(?string $name = null): string
     {
-        return $this->getAdapter()->lastInsertId($name);
+        $result = $this->getConnection()->lastInsertId($name);
+
+        if ($result === false) {
+            throw new RuntimeException(
+                'Failed to get last insert ID'
+            );
+        }
+
+        return $result;
     }
 
+    /**
+     * @return string|int|false
+     */
     public function errorCode(): string|int|false
     {
-        return $this->getAdapter()->errorCode();
+        $errorCode = $this->getConnection()->errorCode();
+        // PDO::errorCode() returns string|null, but we need string|int|false
+        return $errorCode ?? false;
     }
 
+    /**
+     * @return array<int, string|null>
+     */
     public function errorInfo(): array
     {
-        return $this->getAdapter()->errorInfo();
+        return $this->getConnection()->errorInfo();
     }
 
+    /**
+     * @param string $string
+     * @param int $type
+     * @return string
+     */
     public function quote(string $string, int $type = PDO::PARAM_STR): string
     {
-        return $this->getAdapter()->quote($string, $type);
+        return $this->getConnection()->quote($string, $type);
     }
 
+    /**
+     * @param int $attribute
+     * @return mixed
+     */
     public function getAttribute(int $attribute): mixed
     {
-        return $this->getAdapter()->getAttribute($attribute);
+        return $this->getConnection()->getAttribute($attribute);
+    }
+
+
+    /**
+     * Parse DATABASE_URL or individual environment variables
+     *
+     * @param array<string, mixed> $parameters Input parameters
+     * @return array<string, mixed>
+     */
+    public static function populateParameters(array $parameters = []): array
+    {
+        if (!empty($parameters[self::DATABASE_URL])) {
+            $url = $parameters[self::DATABASE_URL];
+            if (!is_string($url)) {
+                throw new RuntimeException('DATABASE_URL must be a string');
+            }
+
+            $parsedUrl = parse_url($url);
+            if ($parsedUrl === false) {
+                throw new RuntimeException('Invalid DATABASE_URL format.');
+            }
+
+            // Decode URL components inline
+            array_walk($parsedUrl, static function (&$urlPart) {
+                if (is_string($urlPart)) {
+                    $urlPart = urldecode($urlPart);
+                }
+            });
+            $parsedParams = $parsedUrl;
+            if (isset($parsedParams['path'])) {
+                $parsedParams['dbname'] = substr((string)$parsedParams['path'], 1);
+            }
+            if (isset($parsedParams['query'])) {
+                parse_str((string)$parsedParams['query'], $parsedQuery);
+                $parsedParams = array_merge($parsedParams, $parsedQuery);
+            }
+            /** @var array<string, mixed> $parsedParams */
+            return array_combine(
+                array_map('strval', array_keys($parsedParams)),
+                array_values($parsedParams)
+            );
+        }
+
+        return self::populateEnvParameters($parameters);
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @return array<string, mixed>
+     */
+    private static function populateEnvParameters(array $parameters = []): array
+    {
+        $envMappings = [
+            'DATABASE_SCHEME' => 'scheme',
+            'DATABASE_HOST' => 'host',
+            'DATABASE_PORT' => 'port',
+            'DATABASE_USER' => 'user',
+            'DATABASE_PASS' => 'pass',
+            'DATABASE_PATH' => 'path',
+            'DATABASE_QUERY' => 'query',
+            'DATABASE_FRAGMENT' => 'fragment',
+        ];
+
+        foreach ($envMappings as $envKey => $paramKey) {
+            $value = getenv($envKey);
+            if ($value !== false) {
+                if ($paramKey === 'port') {
+                    $parameters[$paramKey] = (int)$value;
+                } else {
+                    $parameters[$paramKey] = $value;
+                }
+            }
+        }
+
+        // Special handling for database name from path
+        if (isset($parameters['path']) && (is_string($parameters['path']) || is_numeric($parameters['path']))) {
+            $parameters['dbname'] = substr((string)$parameters['path'], 1);
+        }
+
+        // Parse query string
+        if (isset($parameters['query']) && (is_string($parameters['query']) || is_numeric($parameters['query']))) {
+            parse_str((string)$parameters['query'], $parsedQuery);
+            $parameters = array_merge($parameters, $parsedQuery);
+        }
+
+        /** @var array<string, mixed> $parameters */
+        return $parameters;
     }
 }
