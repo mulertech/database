@@ -73,6 +73,7 @@ class RelationManager
      * @param object $entity
      * @param array<string, mixed> $entityData
      * @return void
+     * @throws ReflectionException
      */
     public function loadEntityRelations(object $entity, array $entityData): void
     {
@@ -143,17 +144,19 @@ class RelationManager
             if ($action === 'delete') {
                 // Schedule existing link for deletion
                 $this->scheduleExistingLinkForDeletion($manyToMany, $entity, $relatedEntity);
-            } else {
-                // Check if link already exists
-                $existingLink = $this->findExistingLinkRelation($manyToMany, $entity, $relatedEntity);
 
-                if ($existingLink === null) {
-                    // Create new link entity
-                    $linkEntity = $this->createLinkEntity($manyToMany, $entity, $relatedEntity);
+                continue;
+            }
 
-                    // Schedule link entity for insertion
-                    $this->stateManager->scheduleForInsertion($linkEntity);
-                }
+            // Check if link already exists
+            $existingLink = $this->findExistingLinkRelation($manyToMany, $entity, $relatedEntity);
+
+            if ($existingLink === null) {
+                // Create new link entity
+                $linkEntity = $this->createLinkEntity($manyToMany, $entity, $relatedEntity);
+
+                // Schedule link entity for insertion
+                $this->stateManager->scheduleForInsertion($linkEntity);
             }
         }
 
@@ -295,20 +298,23 @@ class RelationManager
 
             if ($entities instanceof DatabaseCollection) {
                 // Only process if there are actual changes
-                if ($entities->hasChanges()) {
-                    // Validate that manyToMany is the correct type
-                    if ($manyToMany instanceof MtManyToMany) {
-                        $this->processDatabaseCollectionChanges($entity, $entities, $manyToMany);
-                    }
+                // Validate that manyToMany is the correct type
+                if ($manyToMany instanceof MtManyToMany && $entities->hasChanges()) {
+                    $this->processDatabaseCollectionChanges($entity, $entities, $manyToMany);
                 }
-            } elseif ($entities instanceof Collection && $entities->count() > 0) {
-                // For new collections, only process if entity is being inserted
-                if ($this->stateManager->isScheduledForInsertion($entity)) {
-                    // Validate that manyToMany is the correct type
-                    if ($manyToMany instanceof MtManyToMany) {
-                        $this->processNewCollectionRelations($entity, $entities, $manyToMany);
-                    }
-                }
+
+                continue;
+            }
+
+            // For new collections, only process if entity is being inserted
+            // Validate that manyToMany is the correct type
+            if (
+                $entities instanceof Collection
+                && $manyToMany instanceof MtManyToMany
+                && $entities->count() > 0
+                && $this->stateManager->isScheduledForInsertion($entity)
+            ) {
+                $this->processNewCollectionRelations($entity, $entities, $manyToMany);
             }
         }
     }
