@@ -10,10 +10,9 @@ use MulerTech\Database\Core\Cache\MemoryCache;
 use PDO;
 use PDOException;
 use PDOStatement;
-use RuntimeException;
 
 /**
- * Manages prepared statement caching for database operations
+ * Manages prepared statement caching for database connections
  */
 class StatementCacheManager
 {
@@ -23,11 +22,12 @@ class StatementCacheManager
 
     public function __construct(
         private readonly bool $enabled,
+        private readonly string $instanceId,
         ?CacheConfig $cacheConfig = null
     ) {
         if ($this->enabled) {
             $this->statementCache = CacheFactory::createMemoryCache(
-                'prepared_statements_' . spl_object_id($this),
+                'prepared_statements_' . $this->instanceId,
                 $cacheConfig ?? new CacheConfig(
                     maxSize: 100,
                     ttl: 3600,
@@ -42,82 +42,62 @@ class StatementCacheManager
         return $this->enabled;
     }
 
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function prepareWithCache(string $query, array $options, PDO $connection): Statement
+    public function getCachedStatement(string $cacheKey, PDO $connection): ?PDOStatement
     {
-        $cacheKey = $this->getStatementCacheKey($query, $options);
+        if (!$this->enabled) {
+            return null;
+        }
 
-        // Track usage for analytics
-        $this->statementUsageCount[$cacheKey] = ($this->statementUsageCount[$cacheKey] ?? 0) + 1;
-
-        // Check cache first
+        $this->trackUsage($cacheKey);
         $cachedStatement = $this->statementCache?->get($cacheKey);
 
         if ($cachedStatement instanceof PDOStatement) {
-            // Verify the statement is still valid
             try {
                 // Test if connection is still alive
                 $connection->getAttribute(PDO::ATTR_CONNECTION_STATUS);
-                return new Statement($cachedStatement);
+                return $cachedStatement;
             } catch (PDOException) {
                 // Connection lost, invalidate cache
                 $this->statementCache?->delete($cacheKey);
+                return null;
             }
         }
 
-        // Prepare new statement
-        $statement = $this->prepareDirect($query, $options, $connection);
+        return null;
+    }
 
-        // Cache the PDOStatement (not the wrapper)
-        $this->statementCache?->set($cacheKey, $statement->getPdoStatement());
+    public function cacheStatement(string $cacheKey, PDOStatement $statement, string $query): void
+    {
+        if (!$this->enabled) {
+            return;
+        }
 
-        // Tag for easy invalidation
+        $this->statementCache?->set($cacheKey, $statement);
         $this->statementCache?->tag($cacheKey, ['statements', $this->extractTableFromQuery($query)]);
-
-        return $statement;
     }
 
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function prepareDirect(string $query, array $options, PDO $connection): Statement
+    public function invalidateTableStatements(string $tableName): void
     {
-        $statement = empty($options)
-            ? $connection->prepare($query)
-            : $connection->prepare($query, $options);
-
-        if ($statement === false) {
-            throw new RuntimeException(
-                sprintf(
-                    'Failed to prepare statement. Error: %s. Query: %s',
-                    $connection->errorInfo()[2] ?? 'Unknown error',
-                    $query
-                )
-            );
-        }
-
-        return new Statement($statement);
-    }
-
-    public function invalidateTable(string $table): void
-    {
-        if ($this->enabled && $table !== 'unknown') {
-            $this->statementCache?->invalidateTag($table);
+        if ($this->enabled && $tableName !== 'unknown') {
+            $this->statementCache?->invalidateTag($tableName);
         }
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param array<int, mixed> $options
      */
-    private function getStatementCacheKey(string $query, array $options): string
+    public function generateCacheKey(string $query, array $options): string
     {
         return sprintf(
             'stmt:%s:%s',
             md5($query),
             md5(serialize($options))
         );
+    }
+
+    private function trackUsage(string $cacheKey): void
+    {
+        $this->statementUsageCount[$cacheKey] = ($this->statementUsageCount[$cacheKey] ?? 0) + 1;
     }
 
     private function extractTableFromQuery(string $query): string

@@ -7,30 +7,29 @@ namespace MulerTech\Database\Database\Interface;
 use RuntimeException;
 
 /**
- * Handles parsing and population of database parameters from environment variables and URLs
+ * Handles parsing of database connection parameters from various sources
  */
 class DatabaseParameterParser
 {
     public const string DATABASE_URL = 'DATABASE_URL';
 
     /**
-     * Parse DATABASE_URL or individual environment variables
      * @param array<string, mixed> $parameters
      * @return array<string, mixed>
      */
-    public function populateParameters(array $parameters = []): array
+    public static function parseParameters(array $parameters = []): array
     {
         if (!empty($parameters[self::DATABASE_URL])) {
-            return $this->parseFromUrl($parameters[self::DATABASE_URL]);
+            return self::parseDatabaseUrl($parameters[self::DATABASE_URL]);
         }
 
-        return $this->populateFromEnvironment($parameters);
+        return self::parseEnvironmentVariables($parameters);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function parseFromUrl(mixed $url): array
+    private static function parseDatabaseUrl(mixed $url): array
     {
         if (!is_string($url)) {
             throw new RuntimeException('DATABASE_URL must be a string');
@@ -41,7 +40,7 @@ class DatabaseParameterParser
             throw new RuntimeException('Invalid DATABASE_URL format.');
         }
 
-        // Decode URL components inline
+        // Decode URL components
         array_walk($parsedUrl, static function (&$urlPart) {
             if (is_string($urlPart)) {
                 $urlPart = urldecode($urlPart);
@@ -69,7 +68,7 @@ class DatabaseParameterParser
      * @param array<string, mixed> $parameters
      * @return array<string, mixed>
      */
-    private function populateFromEnvironment(array $parameters = []): array
+    private static function parseEnvironmentVariables(array $parameters = []): array
     {
         $envMappings = [
             'DATABASE_SCHEME' => 'scheme',
@@ -84,49 +83,29 @@ class DatabaseParameterParser
 
         foreach ($envMappings as $envKey => $paramKey) {
             $value = getenv($envKey);
-            if ($value === false) {
-                continue;
+            if ($value !== false) {
+                $parameters[$paramKey] = ($paramKey === 'port') ? (int)$value : $value;
             }
-
-            $parameters[$paramKey] = ($paramKey === 'port') ? (int)$value : $value;
         }
 
-        $parameters = $this->processPathParameter($parameters);
-        $parameters = $this->processQueryParameter($parameters);
-
-        return $parameters;
+        return self::processSpecialParameters($parameters);
     }
 
     /**
      * @param array<string, mixed> $parameters
      * @return array<string, mixed>
      */
-    private function processPathParameter(array $parameters): array
+    private static function processSpecialParameters(array $parameters): array
     {
-        if (!isset($parameters['path'])) {
-            return $parameters;
-        }
-
-        if (is_string($parameters['path']) || is_numeric($parameters['path'])) {
+        // Special handling for database name from path
+        if (isset($parameters['path']) && (is_string($parameters['path']) || is_numeric($parameters['path']))) {
             $parameters['dbname'] = substr((string)$parameters['path'], 1);
         }
 
-        return $parameters;
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @return array<string, mixed>
-     */
-    private function processQueryParameter(array $parameters): array
-    {
-        if (!isset($parameters['query'])) {
-            return $parameters;
-        }
-
-        if (is_string($parameters['query']) || is_numeric($parameters['query'])) {
+        // Parse query string
+        if (isset($parameters['query']) && (is_string($parameters['query']) || is_numeric($parameters['query']))) {
             parse_str((string)$parameters['query'], $parsedQuery);
-            // Ensure all keys are strings to maintain array<string, mixed> type
+            // Ensure all keys are strings
             foreach ($parsedQuery as $key => $value) {
                 $parameters[(string)$key] = $value;
             }

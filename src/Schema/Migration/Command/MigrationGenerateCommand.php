@@ -57,7 +57,7 @@ class MigrationGenerateCommand extends AbstractCommand
             $dbMapping = $this->entityManager->getDbMapping();
             $informationSchema = new InformationSchema($this->entityManager->getEmEngine());
             $parameterParser = new DatabaseParameterParser();
-            $dbParameters = $parameterParser->populateParameters();
+            $dbParameters = DatabaseParameterParser::parseParameters();
 
             // Ensure dbname is a string
             $databaseName = $dbParameters['dbname'] ?? '';

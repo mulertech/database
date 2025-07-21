@@ -19,15 +19,13 @@ class MySQLBackupManager
      * @var array<int|string, mixed> $dbParameters
      */
     private array $dbParameters;
-    private DatabaseParameterParser $parameterParser;
 
     /**
      * DatabaseBackupManager constructor.
      */
     public function __construct()
     {
-        $this->parameterParser = new DatabaseParameterParser();
-        $this->dbParameters = $this->parameterParser->populateParameters();
+        $this->dbParameters = DatabaseParameterParser::parseParameters();
     }
 
     /**

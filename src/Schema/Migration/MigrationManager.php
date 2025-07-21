@@ -68,7 +68,7 @@ class MigrationManager
         // Check if table exists in the database
         $informationSchema = new InformationSchema($emEngine);
         $parameterParser = new DatabaseParameterParser();
-        $dbParameters = $parameterParser->populateParameters();
+        $dbParameters = DatabaseParameterParser::parseParameters();
         if (!is_string($dbParameters['dbname'])) {
             throw new RuntimeException('Database name must be a string');
         }

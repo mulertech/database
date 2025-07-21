@@ -59,7 +59,7 @@ class QueryExecutor
         // Invalidate related cached statements
         if ($this->cacheManager->isEnabled()) {
             $table = $this->extractTableFromQuery($statement);
-            $this->cacheManager->invalidateTable($table);
+            $this->cacheManager->invalidateTableStatements($table);
         }
 
         return $result;
