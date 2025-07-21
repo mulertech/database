@@ -120,12 +120,16 @@ enum ColumnType: string
      *
      * @param int|null $length Column length
      * @param int|null $scale Scale for decimal types
-     * @param bool $unsigned Whether the type is unsigned
+     * @param bool $isUnsigned Whether the type is unsigned
      * @param array<string> $choices Choices for ENUM or SET types
      * @return string
      */
-    public function toSqlDefinition(?int $length = null, ?int $scale = null, bool $unsigned = false, array $choices = []): string
-    {
+    public function toSqlDefinition(
+        ?int $length = null,
+        ?int $scale = null,
+        bool $isUnsigned = false,
+        array $choices = []
+    ): string {
         $sql = $this->value;
 
         if (null !== $length && $this->requiresPrecision()) {
@@ -137,7 +141,7 @@ enum ColumnType: string
             $sql .= "('" . implode("','", $choices) . "')";
         }
 
-        if ($unsigned && $this->canBeUnsigned()) {
+        if ($isUnsigned && $this->canBeUnsigned()) {
             $sql .= ' unsigned';
         }
 
