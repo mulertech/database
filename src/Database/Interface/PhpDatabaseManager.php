@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Database\Interface;
 
-use InvalidArgumentException;
-use MulerTech\Database\Core\Cache\CacheConfig;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -20,8 +18,6 @@ use RuntimeException;
  */
 class PhpDatabaseManager implements PhpDatabaseInterface
 {
-    public const string DATABASE_URL = 'DATABASE_URL';
-
     private ?PDO $connection = null;
     private int $transactionLevel = 0;
     private readonly StatementCacheManager $cacheManager;
@@ -31,12 +27,14 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      * @param array<string, mixed> $parameters
      * @param StatementCacheConfig|null $cacheConfig
      * @param DatabaseParameterParserInterface|null $parameterParser
+     * @param QueryExecutorInterface|null $queryExecutor
      */
     public function __construct(
         private readonly ConnectorInterface $connector,
         private readonly array $parameters,
         ?StatementCacheConfig $cacheConfig = null,
-        private readonly ?DatabaseParameterParserInterface $parameterParser = null
+        private readonly ?DatabaseParameterParserInterface $parameterParser = null,
+        private readonly ?QueryExecutorInterface $queryExecutor = null
     ) {
         $config = $cacheConfig ?? new StatementCacheConfig();
         $this->cacheManager = new StatementCacheManager(
@@ -82,7 +80,7 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         int|string|object $arg3 = '',
         ?array $constructorArgs = null
     ): Statement {
-        return QueryExecutorHelper::executeQuery(
+        return ($this->queryExecutor ?? new QueryExecutorHelper())->executeQuery(
             $this->getConnection(),
             $query,
             $fetchMode,

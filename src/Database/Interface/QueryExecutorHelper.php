@@ -11,12 +11,12 @@ use RuntimeException;
 /**
  * Helper class for executing database queries with different fetch modes
  */
-class QueryExecutorHelper
+class QueryExecutorHelper implements QueryExecutorInterface
 {
     /**
      * @param array<int, mixed>|null $constructorArgs
      */
-    public static function executeQuery(
+    public function executeQuery(
         PDO $pdo,
         string $query,
         ?int $fetchMode = null,
@@ -31,7 +31,7 @@ class QueryExecutorHelper
                 is_string($arg3) ? $arg3 : '',
                 is_array($constructorArgs) ? $constructorArgs : []
             ),
-            PDO::FETCH_INTO => self::executeQueryWithFetchInto($pdo, $query, $fetchMode, $arg3),
+            PDO::FETCH_INTO => $this->executeQueryWithFetchInto($pdo, $query, $fetchMode, $arg3),
             default => $pdo->query($query, $fetchMode)
         };
 
@@ -48,7 +48,7 @@ class QueryExecutorHelper
         return new Statement($result);
     }
 
-    private static function executeQueryWithFetchInto(PDO $pdo, string $query, int $fetchMode, int|string|object $arg3): \PDOStatement|false
+    private function executeQueryWithFetchInto(PDO $pdo, string $query, int $fetchMode, int|string|object $arg3): \PDOStatement|false
     {
         if (!is_object($arg3)) {
             throw new InvalidArgumentException(
