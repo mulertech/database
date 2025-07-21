@@ -25,7 +25,7 @@ class MySQLBackupManager
      */
     public function __construct()
     {
-        $this->dbParameters = DatabaseParameterParser::parseParameters();
+        $this->dbParameters = new DatabaseParameterParser()->parseParameters();
     }
 
     /**

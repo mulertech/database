@@ -134,7 +134,7 @@ class PhpDatabaseInterfaceTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, DatabaseParameterParser::parseParameters($parameters));
+        self::assertEquals($expected, new DatabaseParameterParser()->parseParameters($parameters));
     }
 
     public function testPopulateParametersWithUrlDecode(): void
@@ -156,7 +156,7 @@ class PhpDatabaseInterfaceTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, DatabaseParameterParser::parseParameters($parameters));
+        self::assertEquals($expected, new DatabaseParameterParser()->parseParameters($parameters));
     }
 
     public function testPopulateEnvParameters(): void
@@ -186,7 +186,7 @@ class PhpDatabaseInterfaceTest extends TestCase
             'dbname' => 'db_name',
             'serverVersion' => '5.7'
         ];
-        self::assertEquals($expected, DatabaseParameterParser::parseParameters());
+        self::assertEquals($expected, new DatabaseParameterParser()->parseParameters());
         putenv("DATABASE_SCHEME=$scheme");
         putenv("DATABASE_HOST=$host");
         putenv("DATABASE_PORT=$port");

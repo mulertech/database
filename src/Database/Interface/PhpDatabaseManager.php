@@ -30,11 +30,13 @@ class PhpDatabaseManager implements PhpDatabaseInterface
      * @param ConnectorInterface $connector
      * @param array<string, mixed> $parameters
      * @param StatementCacheConfig|null $cacheConfig
+     * @param DatabaseParameterParserInterface|null $parameterParser
      */
     public function __construct(
         private readonly ConnectorInterface $connector,
         private readonly array $parameters,
-        ?StatementCacheConfig $cacheConfig = null
+        ?StatementCacheConfig $cacheConfig = null,
+        private readonly ?DatabaseParameterParserInterface $parameterParser = null
     ) {
         $config = $cacheConfig ?? new StatementCacheConfig();
         $this->cacheManager = new StatementCacheManager(
@@ -47,7 +49,8 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     public function getConnection(): PDO
     {
         if (!isset($this->connection)) {
-            $parameters = DatabaseParameterParser::parseParameters($this->parameters);
+            $parser = $this->parameterParser ?? new DatabaseParameterParser();
+            $parameters = $parser->parseParameters($this->parameters);
             $username = $this->ensureString($parameters['user'] ?? '');
             $password = $this->ensureString($parameters['pass'] ?? '');
 

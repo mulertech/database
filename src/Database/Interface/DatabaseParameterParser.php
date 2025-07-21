@@ -9,7 +9,7 @@ use RuntimeException;
 /**
  * Handles parsing of database connection parameters from various sources
  */
-class DatabaseParameterParser
+class DatabaseParameterParser implements DatabaseParameterParserInterface
 {
     public const string DATABASE_URL = 'DATABASE_URL';
 
@@ -17,19 +17,19 @@ class DatabaseParameterParser
      * @param array<string, mixed> $parameters
      * @return array<string, mixed>
      */
-    public static function parseParameters(array $parameters = []): array
+    public function parseParameters(array $parameters = []): array
     {
         if (!empty($parameters[self::DATABASE_URL])) {
-            return self::parseDatabaseUrl($parameters[self::DATABASE_URL]);
+            return $this->parseDatabaseUrl($parameters[self::DATABASE_URL]);
         }
 
-        return self::parseEnvironmentVariables($parameters);
+        return $this->parseEnvironmentVariables($parameters);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private static function parseDatabaseUrl(mixed $url): array
+    private function parseDatabaseUrl(mixed $url): array
     {
         if (!is_string($url)) {
             throw new RuntimeException('DATABASE_URL must be a string');
@@ -68,7 +68,7 @@ class DatabaseParameterParser
      * @param array<string, mixed> $parameters
      * @return array<string, mixed>
      */
-    private static function parseEnvironmentVariables(array $parameters = []): array
+    private function parseEnvironmentVariables(array $parameters = []): array
     {
         $envMappings = [
             'DATABASE_SCHEME' => 'scheme',
@@ -88,14 +88,14 @@ class DatabaseParameterParser
             }
         }
 
-        return self::processSpecialParameters($parameters);
+        return $this->processSpecialParameters($parameters);
     }
 
     /**
      * @param array<string, mixed> $parameters
      * @return array<string, mixed>
      */
-    private static function processSpecialParameters(array $parameters): array
+    private function processSpecialParameters(array $parameters): array
     {
         // Special handling for database name from path
         if (isset($parameters['path']) && (is_string($parameters['path']) || is_numeric($parameters['path']))) {
