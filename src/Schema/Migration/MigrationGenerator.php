@@ -816,14 +816,14 @@ class MigrationGenerator
         }
 
         if (is_string($columnDefault)) {
-            $defaultValue = $columnDefault;
-        } elseif (is_scalar($columnDefault)) {
-            $defaultValue = (string)$columnDefault;
-        } else {
-            $defaultValue = '';
+            return '->default("' . addslashes($columnDefault) . '")';
         }
 
-        return '->default("' . addslashes($defaultValue) . '")';
+        if (is_scalar($columnDefault)) {
+            return '->default("' . addslashes((string)$columnDefault) . '")';
+        }
+
+        return '';
     }
 
     /**

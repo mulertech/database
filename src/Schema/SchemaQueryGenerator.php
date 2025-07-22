@@ -151,16 +151,7 @@ class SchemaQueryGenerator
         $sql .= strtoupper($type->value);
 
         // Add length/precision/set values
-        if ($column->getPrecision() !== null && $column->getScale() !== null) {
-            // For DECIMAL, NUMERIC, FLOAT types that use precision and scale
-            $sql .= '(' . $column->getPrecision() . ',' . $column->getScale() . ')';
-        } elseif ($column->getLength() !== null && $column->getType()->isTypeWithLength()) {
-            // For VARCHAR, CHAR and other types that use length
-            $sql .= '(' . $column->getLength() . ')';
-        } elseif ($type === ColumnType::SET || $type === ColumnType::ENUM) {
-            // For SET and ENUM type, we need to handle the set values
-            $sql .= "('" . implode("', '", $column->getChoiceValues()) . "')";
-        }
+        $sql .= $this->addPrecisionLengthChoiceValues($column, $type);
 
         // Add unsigned
         if ($column->isUnsigned()) {
@@ -174,11 +165,9 @@ class SchemaQueryGenerator
 
         // Add default
         if ($column->getDefault() !== null) {
-            if ($column->getDefault() === 'CURRENT_TIMESTAMP') {
-                $sql .= ' DEFAULT CURRENT_TIMESTAMP';
-            } else {
-                $sql .= ' DEFAULT ' . $this->quoteValue($column->getDefault());
-            }
+            $sql .= $column->getDefault() === 'CURRENT_TIMESTAMP'
+                ? ' DEFAULT CURRENT_TIMESTAMP'
+                : ' DEFAULT ' . $this->quoteValue($column->getDefault());
         }
 
         // Add auto increment
@@ -194,12 +183,44 @@ class SchemaQueryGenerator
         // Add position (AFTER clause)
         if ($column->getAfter() !== null) {
             $sql .= ' AFTER `' . $column->getAfter() . '`';
-        } elseif ($column->isFirst()) {
+            return $sql;
+        }
+
+        if ($column->isFirst()) {
             $sql .= ' FIRST';
         }
 
         return $sql;
     }
+
+    /**
+     * Adds precision, length, or choice values to the column definition based on its type.
+     *
+     * @param ColumnDefinition $column
+     * @param ColumnType $type
+     * @return string
+     */
+    private function addPrecisionLengthChoiceValues(ColumnDefinition $column, ColumnType $type): string
+    {
+        if ($column->getPrecision() !== null && $column->getScale() !== null) {
+            // For DECIMAL, NUMERIC, FLOAT types that use precision and scale
+            return '(' . $column->getPrecision() . ',' . $column->getScale() . ')';
+        }
+
+        if ($column->getLength() !== null && $column->getType()->isTypeWithLength()) {
+            // For VARCHAR, CHAR and other types that use length
+            return '(' . $column->getLength() . ')';
+        }
+
+        if ($type === ColumnType::SET || $type === ColumnType::ENUM) {
+            // For SET and ENUM type, we need to handle the set values
+            return "('" . implode("', '", $column->getChoiceValues()) . "')";
+        }
+
+        return '';
+    }
+
+
 
     /**
      * @param ForeignKeyDefinition $foreignKey
