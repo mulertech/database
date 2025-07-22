@@ -10,7 +10,6 @@ use MulerTech\Database\Core\Traits\ParameterHandlerTrait;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Database\Interface\Statement;
-use MulerTech\Database\Query\Compiler\QueryCompiler;
 use PDO;
 use RuntimeException;
 use stdClass;
@@ -37,11 +36,6 @@ abstract class AbstractQueryBuilder
      * @var QueryStructureCache|null
      */
     protected static ?QueryStructureCache $structureCache = null;
-
-    /**
-     * @var QueryCompiler|null
-     */
-    protected ?QueryCompiler $compiler = null;
 
     /**
      * @var array<string, mixed>
@@ -216,16 +210,6 @@ abstract class AbstractQueryBuilder
     public function getParameterBag(): QueryParameterBag
     {
         return $this->parameterBag;
-    }
-
-    /**
-     * @param QueryCompiler $compiler
-     * @return self
-     */
-    public function setCompiler(QueryCompiler $compiler): self
-    {
-        $this->compiler = $compiler;
-        return $this;
     }
 
     /**

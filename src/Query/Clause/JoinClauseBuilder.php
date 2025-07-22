@@ -192,11 +192,9 @@ class JoinClauseBuilder
             $left = $this->formatIdentifier($condition['left']);
 
             // Check if right side is a column reference or a value
-            if (is_string($condition['right']) && $this->isColumnReference($condition['right'])) {
-                $right = $this->formatIdentifier($condition['right']);
-            } else {
-                $right = $this->parameterBag->add($condition['right']);
-            }
+            $right = (is_string($condition['right']) && $this->isColumnReference($condition['right']))
+                ? $this->formatIdentifier($condition['right'])
+                : $this->parameterBag->add($condition['right']);
 
             $sql .= $left . ' ' . $condition['operator']->value . ' ' . $right;
         }
