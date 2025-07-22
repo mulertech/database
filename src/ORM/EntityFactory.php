@@ -280,66 +280,37 @@ final class EntityFactory
             return null;
         }
 
-        // Group similar types together to avoid any potential duplications
-        if (in_array($columnType, [
+        return match ($columnType) {
+            // Integer types
             ColumnType::INT, ColumnType::TINYINT, ColumnType::SMALLINT,
-            ColumnType::MEDIUMINT, ColumnType::BIGINT,
-        ], true)) {
-            return is_numeric($value) ? (int) $value : 0;
-        }
+            ColumnType::MEDIUMINT, ColumnType::BIGINT =>
+                is_numeric($value) ? (int) $value : 0,
 
-        if (in_array($columnType, [ColumnType::FLOAT, ColumnType::DOUBLE], true)) {
-            return is_numeric($value) ? (float) $value : 0.0;
-        }
+            // Float types, Decimal type
+            ColumnType::FLOAT, ColumnType::DOUBLE, ColumnType::DECIMAL =>
+                is_numeric($value) ? (float) $value : 0.0,
 
-        if ($columnType === ColumnType::DECIMAL) {
-            return is_numeric($value) ? (float) $value : 0.0;
-        }
+            // Date/Time types
+            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP =>
+                $this->convertToDateTime($value),
 
-        if (in_array($columnType, [
+            // YEAR type
+            ColumnType::YEAR =>
+                is_numeric($value) ? (int) $value : (int) date('Y'),
+
+            // JSON type
+            ColumnType::JSON =>
+                $this->convertJsonValue($value),
+
+            // String types, TIME type, Enum and Set types
             ColumnType::CHAR, ColumnType::VARCHAR, ColumnType::TEXT,
             ColumnType::TINYTEXT, ColumnType::MEDIUMTEXT, ColumnType::LONGTEXT,
-        ], true)) {
-            return (string) $value;
-        }
+            ColumnType::TIME, ColumnType::ENUM, ColumnType::SET =>
+                (string) $value,
 
-        if (in_array($columnType, [
-            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP,
-        ], true)) {
-            return $this->convertToDateTime($value);
-        }
-
-        if ($columnType === ColumnType::TIME) {
-            return (string) $value;
-        }
-
-        if ($columnType === ColumnType::YEAR) {
-            return is_numeric($value) ? (int) $value : (int) date('Y');
-        }
-
-        if ($columnType === ColumnType::JSON) {
-            return $this->convertJsonValue($value);
-        }
-
-        if (in_array($columnType, [
-            ColumnType::BINARY, ColumnType::VARBINARY, ColumnType::BLOB,
-            ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB, ColumnType::LONGBLOB,
-        ], true)) {
-            return $value;
-        }
-
-        if (in_array($columnType, [ColumnType::ENUM, ColumnType::SET], true)) {
-            return (string) $value;
-        }
-
-        if (in_array($columnType, [
-            ColumnType::GEOMETRY, ColumnType::POINT, ColumnType::LINESTRING, ColumnType::POLYGON,
-        ], true)) {
-            return $value;
-        }
-
-        // Default case
-        return $value;
+            // Binary types, Geometry types, Default case
+            default => $value
+        };
     }
 
     /**
