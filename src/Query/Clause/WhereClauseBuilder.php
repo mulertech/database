@@ -354,9 +354,9 @@ class WhereClauseBuilder
         foreach ($this->conditions as $index => $item) {
             if ($index === 0) {
                 $sql = $item['condition'];
-            } else {
-                $sql .= ' ' . $item['link']->value . ' ' . $item['condition'];
+                continue;
             }
+            $sql .= ' ' . $item['link']->value . ' ' . $item['condition'];
         }
 
         return $sql;

@@ -86,10 +86,10 @@ class UpdateBuilder extends AbstractQueryBuilder
     {
         if ($value instanceof Raw) {
             $this->setValues[$column] = $value->getValue();
-        } else {
-            $this->setValues[$column] = $type !== null
-                ? $this->parameterBag->add($value, $type) : $this->parameterBag->add($value);
+            return $this;
         }
+        $this->setValues[$column] = $type !== null
+            ? $this->parameterBag->add($value, $type) : $this->parameterBag->add($value);
 
         return $this;
     }

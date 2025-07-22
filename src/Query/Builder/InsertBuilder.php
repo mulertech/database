@@ -106,11 +106,7 @@ class InsertBuilder extends AbstractQueryBuilder
             foreach ($allColumns as $col) {
                 $value = $row[$col] ?? null;
                 // Process each value for parameterization
-                if ($value instanceof Raw) {
-                    $normalizedRow[$col] = $value->getValue();
-                } else {
-                    $normalizedRow[$col] = $value; // Will be parameterized in buildBatchInsert
-                }
+                $normalizedRow[$col] = $value instanceof Raw ? $value->getValue() : $value;
             }
             $normalizedBatch[] = $normalizedRow;
         }
@@ -168,14 +164,9 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     public function onDuplicateKeyUpdate(array $updates): self
     {
-        $processedUpdates = [];
-        foreach ($updates as $column => $value) {
-            if ($value instanceof Raw) {
-                $processedUpdates[$column] = $value->getValue();
-            } else {
-                $processedUpdates[$column] = $value;
-            }
-        }
+        $processedUpdates = array_map(static function ($value) {
+            return $value instanceof Raw ? $value->getValue() : $value;
+        }, $updates);
         $this->onDuplicateUpdate = $processedUpdates;
         return $this;
     }
@@ -335,13 +326,17 @@ class InsertBuilder extends AbstractQueryBuilder
 
             if ($value === 'VALUES') {
                 $updateParts[] = "$escapedColumn = VALUES($escapedColumn)";
-            } elseif ($value instanceof Raw) {
+                continue;
+            }
+
+            if ($value instanceof Raw) {
                 // If the value is a Raw expression, we use it directly
                 $value = $value->getValue();
                 $updateParts[] = "$escapedColumn = $value";
-            } else {
-                $updateParts[] = "$escapedColumn = " . $this->parameterBag->add($value);
+                continue;
             }
+
+            $updateParts[] = "$escapedColumn = " . $this->parameterBag->add($value);
         }
 
         $sql .= implode(', ', $updateParts);
