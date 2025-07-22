@@ -143,6 +143,12 @@ class OrmCoreIntegrationTest extends TestCase
     public function testCompleteWorkflow(): void
     {
         // 1. Create entities using factory
+        $user1 = $this->entityFactory->create(TestUser::class, [
+            'id' => 1,
+            'name' => 'John Doe',
+            'email' => 'john@example.com'
+        ]);
+
         $user2 = $this->entityFactory->create(TestUser::class, [
             'name' => 'Jane Doe',
             'email' => 'jane@example.com'
@@ -150,6 +156,9 @@ class OrmCoreIntegrationTest extends TestCase
 
         // 2. Schedule operations
         $this->changeSetManager->scheduleInsert($user2);
+
+        // Add user1 to identity map for update test
+        $this->identityMap->add($user1);
 
         // 3. Modify existing entity
         $user1->setEmail('john.doe@example.com');

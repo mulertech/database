@@ -57,6 +57,16 @@ class EntityHydrator
     }
 
     /**
+     * Get the database mapping instance
+     *
+     * @return DbMappingInterface|null
+     */
+    public function getDbMapping(): ?DbMappingInterface
+    {
+        return $this->dbMapping;
+    }
+
+    /**
      * @param array<string, mixed> $data
      * @param class-string $entityName
      * @return object

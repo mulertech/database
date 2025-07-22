@@ -10,6 +10,7 @@ use Exception;
 use InvalidArgumentException;
 use JsonException;
 use MulerTech\Collections\Collection;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\State\EntityState;
 use ReflectionClass;
 use ReflectionException;
@@ -75,6 +76,21 @@ final class EntityFactory
     }
 
     /**
+     * Create entity from database data with proper type conversion and hydration
+     *
+     * @template T of object
+     * @param class-string<T> $entityClass
+     * @param array<string, mixed> $dbData
+     * @return object
+     * @throws ReflectionException
+     */
+    public function createFromDbData(string $entityClass, array $dbData): object
+    {
+        // Use the hydrator to properly convert and hydrate database data
+        return $this->hydrator->hydrate($dbData, $entityClass);
+    }
+
+    /**
      * @param object $entity
      * @param array<string, mixed> $data
      * @return void
@@ -96,7 +112,7 @@ final class EntityFactory
 
                 try {
                     // Convert value if needed based on property type
-                    $convertedValue = $this->convertValue($value, $property);
+                    $convertedValue = $this->convertValue($value, $property, $entityClass);
                     $property->setValue($entity, $convertedValue);
                 } catch (TypeError $e) {
                     // Log or handle type conversion errors
@@ -219,12 +235,120 @@ final class EntityFactory
     }
 
     /**
-     * @todo: use MulerTech mapping to find the correct type
+     * Convert value using MulerTech mapping system for proper type conversion
+     * @param mixed $value
+     * @param ReflectionProperty $property
+     * @param class-string $entityClass
+     * @return mixed
+     */
+    private function convertValue(mixed $value, ReflectionProperty $property, string $entityClass): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // Try to get the column type from DbMapping first
+        $dbMapping = $this->hydrator->getDbMapping();
+        if ($dbMapping !== null) {
+            try {
+                $columnType = $dbMapping->getColumnType($entityClass, $property->getName());
+                if ($columnType !== null) {
+                    // Type guard: only pass supported types to convertValueByColumnType
+                    if (is_string($value) || is_int($value) || is_float($value) || is_bool($value)) {
+                        return $this->convertValueByColumnType($value, $columnType);
+                    }
+                    // For unsupported types, fall back to reflection
+                }
+            } catch (Exception) {
+                // Fall back to reflection-based conversion if mapping fails
+            }
+        }
+
+        // Fallback to reflection-based type conversion
+        return $this->convertValueByReflection($value, $property);
+    }
+
+    /**
+     * Convert value based on MulerTech ColumnType
+     * @param string|int|float|bool|null $value Value from database (PDO returns these types)
+     * @param ColumnType $columnType
+     * @return mixed
+     */
+    private function convertValueByColumnType(string|int|float|bool|null $value, ColumnType $columnType): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // Group similar types together to avoid any potential duplications
+        if (in_array($columnType, [
+            ColumnType::INT, ColumnType::TINYINT, ColumnType::SMALLINT,
+            ColumnType::MEDIUMINT, ColumnType::BIGINT,
+        ], true)) {
+            return is_numeric($value) ? (int) $value : 0;
+        }
+
+        if (in_array($columnType, [ColumnType::FLOAT, ColumnType::DOUBLE], true)) {
+            return is_numeric($value) ? (float) $value : 0.0;
+        }
+
+        if ($columnType === ColumnType::DECIMAL) {
+            return is_numeric($value) ? (float) $value : 0.0;
+        }
+
+        if (in_array($columnType, [
+            ColumnType::CHAR, ColumnType::VARCHAR, ColumnType::TEXT,
+            ColumnType::TINYTEXT, ColumnType::MEDIUMTEXT, ColumnType::LONGTEXT,
+        ], true)) {
+            return (string) $value;
+        }
+
+        if (in_array($columnType, [
+            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP,
+        ], true)) {
+            return $this->convertToDateTime($value);
+        }
+
+        if ($columnType === ColumnType::TIME) {
+            return (string) $value;
+        }
+
+        if ($columnType === ColumnType::YEAR) {
+            return is_numeric($value) ? (int) $value : (int) date('Y');
+        }
+
+        if ($columnType === ColumnType::JSON) {
+            return $this->convertJsonValue($value);
+        }
+
+        if (in_array($columnType, [
+            ColumnType::BINARY, ColumnType::VARBINARY, ColumnType::BLOB,
+            ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB, ColumnType::LONGBLOB,
+        ], true)) {
+            return $value;
+        }
+
+        if (in_array($columnType, [ColumnType::ENUM, ColumnType::SET], true)) {
+            return (string) $value;
+        }
+
+        if (in_array($columnType, [
+            ColumnType::GEOMETRY, ColumnType::POINT, ColumnType::LINESTRING, ColumnType::POLYGON,
+        ], true)) {
+            return $value;
+        }
+
+        // Default case
+        return $value;
+    }
+
+    /**
+     * Fallback conversion based on PHP reflection type
      * @param mixed $value
      * @param ReflectionProperty $property
      * @return mixed
      */
-    private function convertValue(mixed $value, ReflectionProperty $property): mixed
+    private function convertValueByReflection(mixed $value, ReflectionProperty $property): mixed
     {
         $type = $property->getType();
 
@@ -241,282 +365,52 @@ final class EntityFactory
             'string' => is_scalar($value) ? (string) $value : '',
             'bool' => (bool) $value,
             'array' => is_array($value) ? $value : [$value],
+            'DateTime', 'DateTimeImmutable' => $this->convertToDateTime($value),
             default => $value
         };
     }
 
     /**
-     * @template T of object
-     * @param class-string<T> $entityClass
-     * @param array<string, mixed> $dbData
-     * @return object
-     * @throws ReflectionException
-     */
-    public function createFromDbData(string $entityClass, array $dbData): object
-    {
-        // Create entity without constructor
-        $entity = $this->create($entityClass, [], false);
-
-        // Map database columns to entity properties
-        try {
-            $this->hydrateFromDatabase($entity, $dbData);
-        } catch (JsonException|ReflectionException $e) {
-            throw new RuntimeException(
-                sprintf('Failed to hydrate entity %s from database data: %s', $entityClass, $e->getMessage()),
-                0,
-                $e
-            );
-        }
-
-        /** @var T $entity */
-        return $entity;
-    }
-
-    /**
-     * @param object $entity
-     * @param array<string, mixed> $dbData
-     * @return void
-     * @throws ReflectionException
-     * @throws JsonException
-     */
-    private function hydrateFromDatabase(object $entity, array $dbData): void
-    {
-        $entityClass = $entity::class;
-
-        // If we have a dbMapping available in the hydrator, use it for proper hydration
-        try {
-            $hydratedEntity = $this->hydrator->hydrate($dbData, $entityClass);
-
-            // Copy the hydrated scalar values to our entity
-            if (!isset($this->propertiesCache[$entityClass])) {
-                $this->cacheReflectionData($entityClass);
-            }
-
-            foreach ($this->propertiesCache[$entityClass] as $property) {
-                try {
-                    if ($property->isInitialized($hydratedEntity)) {
-                        $value = $property->getValue($hydratedEntity);
-                        $property->setValue($entity, $value);
-                    }
-                } catch (Error) {
-                    // Handle uninitialized properties
-                    continue;
-                }
-            }
-
-            // Ensure all collections are DatabaseCollection instances
-            $this->ensureCollectionsAreDatabaseCollection($entity);
-
-        } catch (Exception) {
-            // If EntityHydrator fails (e.g., no dbMapping), fall back to manual conversion
-            $this->fallbackHydration($entity, $dbData);
-        }
-    }
-
-    /**
-     * Ensure all collection properties are DatabaseCollection instances
-     *
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
-     */
-    private function ensureCollectionsAreDatabaseCollection(object $entity): void
-    {
-        $entityClass = $entity::class;
-
-        if (!isset($this->propertiesCache[$entityClass])) {
-            $this->cacheReflectionData($entityClass);
-        }
-
-        foreach ($this->propertiesCache[$entityClass] as $property) {
-            try {
-                if ($property->isInitialized($entity)) {
-                    $value = $property->getValue($entity);
-
-                    // Convert Collections to DatabaseCollection
-                    if ($value instanceof Collection && !($value instanceof DatabaseCollection)) {
-                        // Filter items to ensure they are objects
-                        $items = $value->items();
-                        $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
-                        $property->setValue($entity, new DatabaseCollection($objectItems));
-                    }
-                }
-            } catch (Error) {
-                // Handle uninitialized properties - initialize with empty DatabaseCollection if it's a collection property
-                $type = $property->getType();
-                if ($type instanceof ReflectionNamedType && $type->getName() === Collection::class) {
-                    $property->setValue($entity, new DatabaseCollection());
-                }
-            }
-        }
-    }
-
-    /**
-     * Fallback hydration method when EntityHydrator is not available or fails
-     *
-     * @param object $entity
-     * @param array<string, mixed> $dbData
-     * @return void
-     * @throws ReflectionException
-     * @throws JsonException
-     */
-    private function fallbackHydration(object $entity, array $dbData): void
-    {
-        $entityClass = $entity::class;
-
-        if (!isset($this->propertiesCache[$entityClass])) {
-            $this->cacheReflectionData($entityClass);
-        }
-
-        foreach ($dbData as $column => $value) {
-            // Convert snake_case to camelCase for property name
-            $propertyName = $this->columnToPropertyName($column);
-
-            if (isset($this->propertiesCache[$entityClass][$propertyName])) {
-                $property = $this->propertiesCache[$entityClass][$propertyName];
-
-                // Skip relation properties - they should be loaded by EntityRelationLoader
-                if ($this->isRelationProperty($property)) {
-                    continue;
-                }
-
-                try {
-                    // Convert database value to property type
-                    $convertedValue = $this->convertDatabaseValue($value, $property);
-                    $property->setValue($entity, $convertedValue);
-                } catch (TypeError) {
-                    // Log or handle type conversion error
-                    continue;
-                }
-            }
-        }
-    }
-
-    /**
-     * Check if a property represents a relation based on its type hint
-     *
-     * @param ReflectionProperty $property
-     * @return bool
-     */
-    private function isRelationProperty(ReflectionProperty $property): bool
-    {
-        $type = $property->getType();
-
-        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
-            return false;
-        }
-
-        $typeName = $type->getName();
-
-        // If the type is a class and not a standard PHP class, consider it a relation
-        if (class_exists($typeName)) {
-            // Exclude standard PHP classes that aren't relations
-            $standardClasses = [
-                'DateTime',
-                'DateTimeImmutable',
-                'DateTimeInterface',
-                'stdClass',
-            ];
-
-            if (in_array($typeName, $standardClasses, true)) {
-                return false;
-            }
-
-            // Check if it's from a Collection namespace (likely not a relation entity)
-            if (str_contains($typeName, 'Collection')) {
-                return false;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * @param string $column
-     * @return string
-     */
-    private function columnToPropertyName(string $column): string
-    {
-        // Handle common cases
-        if ($column === 'id') {
-            return 'id';
-        }
-
-        // Convert snake_case to camelCase
-        $parts = explode('_', $column);
-        $propertyName = array_shift($parts);
-
-        foreach ($parts as $part) {
-            $propertyName .= ucfirst($part);
-        }
-
-        return $propertyName;
-    }
-
-    /**
+     * Convert value to DateTime object
      * @param mixed $value
-     * @param ReflectionProperty $property
      * @return mixed
-     * @throws JsonException
-     * @throws ReflectionException
      */
-    private function convertDatabaseValue(mixed $value, ReflectionProperty $property): mixed
+    private function convertToDateTime(mixed $value): mixed
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $type = $property->getType();
-
-        if (!$type instanceof ReflectionNamedType) {
+        if ($value instanceof \DateTimeInterface) {
             return $value;
         }
 
-        $typeName = $type->getName();
-
-        switch ($typeName) {
-            case 'int':
-                return is_numeric($value) ? (int) $value : 0;
-            case 'float':
-                return is_numeric($value) ? (float) $value : 0.0;
-            case 'bool':
-                return (bool) $value;
-            case 'string':
-                return match (true) {
-                    is_string($value) => $value,
-                    is_scalar($value) => (string) $value,
-                    default => ''
-                };
-            case 'DateTime':
-            case 'DateTimeImmutable':
-                if (is_string($value)) {
-                    return new $typeName($value);
-                }
-                return $value;
-            case 'array':
-                if (is_string($value)) {
-                    return json_decode($value, true, 512, JSON_THROW_ON_ERROR) ?: [];
-                }
-                return $value;
-            default:
-                // For object types, check if it's a JSON encoded value
-                if (is_string($value) && class_exists($typeName)) {
-                    $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-                    if (is_array($decoded)) {
-                        // Ensure array has string keys before passing to create()
-                        $validatedArray = [];
-                        foreach ($decoded as $key => $val) {
-                            $stringKey = is_string($key) ? $key : (string)$key;
-                            $validatedArray[$stringKey] = $val;
-                        }
-                        // Attempt to reconstruct object from array
-                        /** @var array<string, mixed> $validatedArray */
-                        return $this->create($typeName, $validatedArray);
-                    }
-                }
-                return $value;
+        if (is_string($value) && !empty($value)) {
+            try {
+                return new \DateTimeImmutable($value);
+            } catch (Exception) {
+                return null;
+            }
         }
+
+        return null;
+    }
+
+    /**
+     * Convert JSON value
+     * @param mixed $value
+     * @return mixed
+     */
+    private function convertJsonValue(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            try {
+                return json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                return [];
+            }
+        }
+
+        return $value;
     }
 }
