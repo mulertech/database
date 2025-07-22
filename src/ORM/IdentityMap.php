@@ -122,13 +122,14 @@ final class IdentityMap
      */
     public function clear(?string $entityClass = null): void
     {
-        if ($entityClass === null) {
-            $this->entities = [];
-            $this->metadata = new WeakMap();
-        } else {
+        if ($entityClass !== null) {
             unset($this->entities[$entityClass]);
-            // Note: We can't selectively clear WeakMap, but GC will handle it
+
+            return;
         }
+
+        $this->entities = [];
+        $this->metadata = new WeakMap();
     }
 
     /**
@@ -146,10 +147,12 @@ final class IdentityMap
             $entity = $weakRef->get();
             if ($entity !== null) {
                 $entities[] = $entity;
-            } else {
-                // Cleanup dead reference
-                unset($this->entities[$entityClass][$id]);
+
+                continue;
             }
+
+            // Cleanup dead reference
+            unset($this->entities[$entityClass][$id]);
         }
 
         return $entities;
@@ -299,7 +302,7 @@ final class IdentityMap
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
                     $value = $prop->getValue($entity);
-                    if ($value !== null && (is_int($value) || is_string($value))) {
+                    if ((is_int($value) || is_string($value))) {
                         return $value;
                     }
                 } catch (ReflectionException) {

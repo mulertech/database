@@ -387,19 +387,25 @@ class EntityHydrator
             // ALWAYS use DatabaseCollection for all relation collections to ensure change tracking
             if (!$reflectionProperty->isInitialized($entity)) {
                 $reflectionProperty->setValue($entity, new DatabaseCollection());
-            } else {
-                // If already initialized, ALWAYS convert to DatabaseCollection
-                $currentValue = $reflectionProperty->getValue($entity);
-                if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
-                    // Filter items to ensure they are objects
-                    $items = $currentValue->items();
-                    /** @var array<object> $objectItems */
-                    $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
-                    $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
-                } elseif (!($currentValue instanceof DatabaseCollection)) {
-                    // Initialize with empty DatabaseCollection if it's not a Collection at all
-                    $reflectionProperty->setValue($entity, new DatabaseCollection());
-                }
+
+                return;
+            }
+
+            // If already initialized, ALWAYS convert to DatabaseCollection
+            $currentValue = $reflectionProperty->getValue($entity);
+            if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
+                // Filter items to ensure they are objects
+                $items = $currentValue->items();
+                /** @var array<object> $objectItems */
+                $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
+                $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
+
+                return;
+            }
+
+            if (!($currentValue instanceof DatabaseCollection)) {
+                // Initialize with empty DatabaseCollection if it's not a Collection at all
+                $reflectionProperty->setValue($entity, new DatabaseCollection());
             }
         } catch (ReflectionException) {
             // Property doesn't exist, ignore
