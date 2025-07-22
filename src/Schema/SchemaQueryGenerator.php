@@ -69,12 +69,13 @@ class SchemaQueryGenerator
             if ($name === 'PRIMARY') {
                 $columnsList = array_map([$this, 'escapeIdentifier'], $index['columns']);
                 $parts[] = "    PRIMARY KEY (" . implode(', ', $columnsList) . ")";
-            } else {
-                $type = $index['type'] ?? 'INDEX';
-                $escapedName = $this->escapeIdentifier($name);
-                $columnsList = array_map([$this, 'escapeIdentifier'], $index['columns']);
-                $parts[] = "    $type $escapedName (" . implode(', ', $columnsList) . ")";
+                continue;
             }
+
+            $type = $index['type'] ?? 'INDEX';
+            $escapedName = $this->escapeIdentifier($name);
+            $columnsList = array_map([$this, 'escapeIdentifier'], $index['columns']);
+            $parts[] = "    $type $escapedName (" . implode(', ', $columnsList) . ")";
         }
 
         foreach ($foreignKeys as $foreignKey) {
@@ -90,9 +91,9 @@ class SchemaQueryGenerator
             foreach ($options as $key => $value) {
                 if ($key === 'CHARSET') {
                     $optionParts[] = "DEFAULT CHARSET=$value";
-                } else {
-                    $optionParts[] = "$key=$value";
+                    continue;
                 }
+                $optionParts[] = "$key=$value";
             }
             $sql .= " " . implode(" ", $optionParts);
         }
@@ -115,19 +116,19 @@ class SchemaQueryGenerator
             if (is_array($column)) {
                 // Handle drop column
                 $alterations[] = "DROP COLUMN `$name`";
-            } else {
-                // Handle add/modify column
-                $alterations[] = "ADD COLUMN " . $this->generateColumnDefinition($column);
+                continue;
             }
+            // Handle add/modify column
+            $alterations[] = "ADD COLUMN " . $this->generateColumnDefinition($column);
         }
 
         // Add foreign keys
         foreach ($foreignKeys as $foreignKey) {
             if ($foreignKey->isDrop()) {
                 $alterations[] = "DROP FOREIGN KEY `" . $foreignKey->getName() . "`";
-            } else {
-                $alterations[] = "ADD " . $this->generateForeignKey($foreignKey);
+                continue;
             }
+            $alterations[] = "ADD " . $this->generateForeignKey($foreignKey);
         }
 
         if (empty($alterations)) {

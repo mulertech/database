@@ -322,138 +322,6 @@ class MigrationGenerator
     }
 
     /**
-     * Parse column type and generate appropriate column definition code
-     *
-     * @param string|null $columnType
-     * @param string $columnName
-     * @param bool $isNullable
-     * @param mixed $columnDefault
-     * @param string|null $columnExtra
-     * @return string
-     */
-    private function parseColumnType(?string $columnType, string $columnName, bool $isNullable, mixed $columnDefault, ?string $columnExtra): string
-    {
-        $code = '    $tableDefinition->column("' . $columnName . '")';
-
-        if ($columnType === null || $columnType === '') {
-            $code .= '->string()';
-        } elseif (0 === stripos($columnType, "tinyint")) {
-            $code .= '->tinyInt()';
-            if (str_contains($columnType, 'unsigned')) {
-                $code .= '->unsigned()';
-            }
-        } elseif (0 === stripos($columnType, "smallint")) {
-            $code .= '->smallInt()';
-            if (str_contains($columnType, 'unsigned')) {
-                $code .= '->unsigned()';
-            }
-        } elseif (0 === stripos($columnType, "mediumint")) {
-            $code .= '->mediumInt()';
-            if (str_contains($columnType, 'unsigned')) {
-                $code .= '->unsigned()';
-            }
-        } elseif (0 === stripos($columnType, "bigint")) {
-            $code .= '->bigInteger()';
-            if (str_contains($columnType, 'unsigned')) {
-                $code .= '->unsigned()';
-            }
-        } elseif (0 === stripos($columnType, "int")) {
-            $code .= '->integer()';
-            if (str_contains($columnType, 'unsigned')) {
-                $code .= '->unsigned()';
-            }
-        } elseif (preg_match('/^varchar\((\d+)\)/i', $columnType, $matches)) {
-            $code .= '->string(' . $matches[1] . ')';
-        } elseif (preg_match('/^char\((\d+)\)/i', $columnType, $matches)) {
-            $code .= '->char(' . $matches[1] . ')';
-        } elseif (preg_match('/^decimal\((\d+),(\d+)\)/i', $columnType, $matches)) {
-            $code .= '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
-        } elseif (preg_match('/^numeric\((\d+),(\d+)\)/i', $columnType, $matches)) {
-            $code .= '->numeric(' . $matches[1] . ', ' . $matches[2] . ')';
-        } elseif (preg_match('/^float\((\d+),(\d+)\)/i', $columnType, $matches)) {
-            $code .= '->float(' . $matches[1] . ', ' . $matches[2] . ')';
-        } elseif (0 === stripos($columnType, "double")) {
-            $code .= '->double()';
-        } elseif (0 === stripos($columnType, "real")) {
-            $code .= '->real()';
-        } elseif (0 === stripos($columnType, "text")) {
-            $code .= '->text()';
-        } elseif (0 === stripos($columnType, "tinytext")) {
-            $code .= '->tinyText()';
-        } elseif (0 === stripos($columnType, "mediumtext")) {
-            $code .= '->mediumText()';
-        } elseif (0 === stripos($columnType, "longtext")) {
-            $code .= '->longText()';
-        } elseif (preg_match('/^binary\((\d+)\)/i', $columnType, $matches)) {
-            $code .= '->binary(' . $matches[1] . ')';
-        } elseif (preg_match('/^varbinary\((\d+)\)/i', $columnType, $matches)) {
-            $code .= '->varbinary(' . $matches[1] . ')';
-        } elseif (0 === stripos($columnType, "blob")) {
-            $code .= '->blob()';
-        } elseif (0 === stripos($columnType, "tinyblob")) {
-            $code .= '->tinyBlob()';
-        } elseif (0 === stripos($columnType, "mediumblob")) {
-            $code .= '->mediumBlob()';
-        } elseif (0 === stripos($columnType, "longblob")) {
-            $code .= '->longBlob()';
-        } elseif (0 === stripos($columnType, "datetime")) {
-            $code .= '->datetime()';
-        } elseif (0 === stripos($columnType, "date")) {
-            $code .= '->date()';
-        } elseif (0 === stripos($columnType, "timestamp")) {
-            $code .= '->timestamp()';
-        } elseif (0 === stripos($columnType, "time")) {
-            $code .= '->time()';
-        } elseif (0 === stripos($columnType, "year")) {
-            $code .= '->year()';
-        } elseif (preg_match('/^(boolean|bool)/i', $columnType)) {
-            $code .= '->boolean()';
-        } elseif (preg_match('/^enum\((.*)\)/i', $columnType, $matches)) {
-            // Parse ENUM values from the string
-            $enumValues = $this->parseEnumSetValues($matches[1]);
-            $code .= '->enum([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
-        } elseif (preg_match('/^set\((.*)\)/i', $columnType, $matches)) {
-            // Parse SET values from the string
-            $setValues = $this->parseEnumSetValues($matches[1]);
-            $code .= '->set([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
-        } elseif (0 === stripos($columnType, "json")) {
-            $code .= '->json()';
-        } elseif (0 === stripos($columnType, "geometry")) {
-            $code .= '->geometry()';
-        } elseif (0 === stripos($columnType, "point")) {
-            $code .= '->point()';
-        } elseif (0 === stripos($columnType, "linestring")) {
-            $code .= '->linestring()';
-        } elseif (0 === stripos($columnType, "polygon")) {
-            $code .= '->polygon()';
-        } else {
-            // Default fallback
-            $code .= '->string()';
-        }
-
-        if (!$isNullable) {
-            $code .= '->notNull()';
-        }
-
-        if ($columnDefault !== null && $columnDefault !== '') {
-            if (is_string($columnDefault)) {
-                $defaultValue = $columnDefault;
-            } elseif (is_scalar($columnDefault)) {
-                $defaultValue = (string)$columnDefault;
-            } else {
-                $defaultValue = '';
-            }
-            $code .= '->default("' . addslashes($defaultValue) . '")';
-        }
-
-        if ($columnExtra !== null && str_contains($columnExtra, 'auto_increment')) {
-            $code .= '->autoIncrement()';
-        }
-
-        return $code . ';';
-    }
-
-    /**
      * Parse ENUM/SET values from MySQL column definition
      *
      * @param string $valueString The content inside parentheses (e.g., "'value1','value2','value3'")
@@ -467,10 +335,11 @@ class MigrationGenerator
         // Split on commas but handle escaped quotes properly
         preg_match_all("/'([^'\\\\]*(\\\\.[^'\\\\]*)*)'/", $valueString, $matches);
 
-        foreach ($matches[1] as $match) {
-            // Unescape MySQL escaped characters
-            $value = str_replace(['\\\'', '\\\\'], ["'", '\\'], $match);
-            $values[] = $value;
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $value) {
+                // Unescape the value
+                $values[] = str_replace(["\\\\", "\\'"], ["\\", "'"], $value);
+            }
         }
 
         return $values;
@@ -589,8 +458,6 @@ class MigrationGenerator
 
         if (isset($differences['IS_NULLABLE']) && is_array($differences['IS_NULLABLE'])) {
             $isNullable = $differences['IS_NULLABLE']['from'] === 'YES';
-        } elseif (!isset($differences['IS_NULLABLE'])) {
-            $isNullable = true;
         }
 
         if (isset($differences['COLUMN_DEFAULT']) && is_array($differences['COLUMN_DEFAULT'])) {
@@ -692,5 +559,285 @@ class MigrationGenerator
         $code[] = '        $this->entityManager->getPdm()->exec($tableDefinition->toSql());';
 
         return implode("\n", $code);
+    }
+
+    /**
+     * Parse column type and generate appropriate column definition code
+     *
+     * @param string|null $columnType
+     * @param string $columnName
+     * @param bool $isNullable
+     * @param mixed $columnDefault
+     * @param string|null $columnExtra
+     * @return string
+     */
+    private function parseColumnType(?string $columnType, string $columnName, bool $isNullable, mixed $columnDefault, ?string $columnExtra): string
+    {
+        $code = '    $tableDefinition->column("' . $columnName . '")';
+
+        // Parse the column type and add the appropriate method call
+        $code .= $this->getColumnTypeDefinition($columnType);
+
+        // Add nullable constraint
+        if (!$isNullable) {
+            $code .= '->notNull()';
+        }
+
+        // Add default value
+        $code .= $this->getColumnDefaultValue($columnDefault);
+
+        // Add extra attributes (like auto_increment)
+        $code .= $this->getColumnExtraAttributes($columnExtra);
+
+        return $code . ';';
+    }
+
+    /**
+     * Get column type definition and return the appropriate method call
+     *
+     * @param string|null $columnType
+     * @return string
+     */
+    private function getColumnTypeDefinition(?string $columnType): string
+    {
+        if ($columnType === null || $columnType === '') {
+            return '->string()';
+        }
+
+        // Try each category of column types
+        return $this->parseIntegerTypes($columnType)
+            ?? $this->parseStringTypes($columnType)
+            ?? $this->parseDecimalTypes($columnType)
+            ?? $this->parseTextTypes($columnType)
+            ?? $this->parseBinaryTypes($columnType)
+            ?? $this->parseDateTimeTypes($columnType)
+            ?? $this->parseSpecialTypes($columnType)
+            ?? $this->parseGeometryTypes($columnType)
+            ?? '->string()';
+    }
+
+    /**
+     * Parse integer column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseIntegerTypes(string $columnType): ?string
+    {
+        $integerTypes = [
+            'tinyint' => '->tinyInt()',
+            'smallint' => '->smallInt()',
+            'mediumint' => '->mediumInt()',
+            'bigint' => '->bigInteger()',
+            'int' => '->integer()',
+        ];
+
+        foreach ($integerTypes as $type => $method) {
+            if (0 === stripos($columnType, $type)) {
+                $code = $method;
+                if (str_contains($columnType, 'unsigned')) {
+                    $code .= '->unsigned()';
+                }
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse string column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseStringTypes(string $columnType): ?string
+    {
+        if (preg_match('/^varchar\((\d+)\)/i', $columnType, $matches)) {
+            return '->string(' . $matches[1] . ')';
+        }
+
+        if (preg_match('/^char\((\d+)\)/i', $columnType, $matches)) {
+            return '->char(' . $matches[1] . ')';
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse decimal/numeric column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseDecimalTypes(string $columnType): ?string
+    {
+        if (preg_match('/^decimal\((\d+),(\d+)\)/i', $columnType, $matches)) {
+            return '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
+        }
+
+        if (preg_match('/^numeric\((\d+),(\d+)\)/i', $columnType, $matches)) {
+            return '->numeric(' . $matches[1] . ', ' . $matches[2] . ')';
+        }
+
+        if (preg_match('/^float\((\d+),(\d+)\)/i', $columnType, $matches)) {
+            return '->float(' . $matches[1] . ', ' . $matches[2] . ')';
+        }
+
+        $floatTypes = [
+            'double' => '->double()',
+            'real' => '->real()',
+        ];
+
+        return $floatTypes[$columnType] ?? null;
+    }
+
+    /**
+     * Parse text column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseTextTypes(string $columnType): ?string
+    {
+        $textTypes = [
+            'tinytext' => '->tinyText()',
+            'mediumtext' => '->mediumText()',
+            'longtext' => '->longText()',
+            'text' => '->text()',
+        ];
+
+        return $textTypes[$columnType] ?? null;
+    }
+
+    /**
+     * Parse binary column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseBinaryTypes(string $columnType): ?string
+    {
+        if (preg_match('/^binary\((\d+)\)/i', $columnType, $matches)) {
+            return '->binary(' . $matches[1] . ')';
+        }
+
+        if (preg_match('/^varbinary\((\d+)\)/i', $columnType, $matches)) {
+            return '->varbinary(' . $matches[1] . ')';
+        }
+
+        $blobTypes = [
+            'tinyblob' => '->tinyBlob()',
+            'mediumblob' => '->mediumBlob()',
+            'longblob' => '->longBlob()',
+            'blob' => '->blob()',
+        ];
+
+        return $blobTypes[$columnType] ?? null;
+    }
+
+    /**
+     * Parse date/time column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseDateTimeTypes(string $columnType): ?string
+    {
+        $dateTimeTypes = [
+            'datetime' => '->datetime()',
+            'timestamp' => '->timestamp()',
+            'date' => '->date()',
+            'time' => '->time()',
+            'year' => '->year()',
+        ];
+
+        return $dateTimeTypes[$columnType] ?? null;
+    }
+
+    /**
+     * Parse special column types (boolean, enum, set, json)
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseSpecialTypes(string $columnType): ?string
+    {
+        if (str_contains($columnType, 'boolean') || str_contains($columnType, 'bool')) {
+            // Handle boolean types
+            return '->boolean()';
+        }
+
+        if (preg_match('/^enum\((.*)\)/i', $columnType, $matches)) {
+            $enumValues = $this->parseEnumSetValues($matches[1]);
+            return '->enum([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
+        }
+
+        if (preg_match('/^set\((.*)\)/i', $columnType, $matches)) {
+            $setValues = $this->parseEnumSetValues($matches[1]);
+            return '->set([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
+        }
+
+        if (str_contains($columnType, "json")) {
+            return '->json()';
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse geometry column types
+     *
+     * @param string $columnType
+     * @return string|null
+     */
+    private function parseGeometryTypes(string $columnType): ?string
+    {
+        $geometryTypes = [
+            'geometry' => '->geometry()',
+            'point' => '->point()',
+            'linestring' => '->linestring()',
+            'polygon' => '->polygon()',
+        ];
+
+        return $geometryTypes[$columnType] ?? null;
+    }
+
+    /**
+     * Get column default value
+     *
+     * @param mixed $columnDefault
+     * @return string
+     */
+    private function getColumnDefaultValue(mixed $columnDefault): string
+    {
+        if ($columnDefault === null || $columnDefault === '') {
+            return '';
+        }
+
+        if (is_string($columnDefault)) {
+            $defaultValue = $columnDefault;
+        } elseif (is_scalar($columnDefault)) {
+            $defaultValue = (string)$columnDefault;
+        } else {
+            $defaultValue = '';
+        }
+
+        return '->default("' . addslashes($defaultValue) . '")';
+    }
+
+    /**
+     * Get column extra attributes
+     *
+     * @param string|null $columnExtra
+     * @return string
+     */
+    private function getColumnExtraAttributes(?string $columnExtra): string
+    {
+        if ($columnExtra !== null && str_contains($columnExtra, 'auto_increment')) {
+            return '->autoIncrement()';
+        }
+
+        return '';
     }
 }
