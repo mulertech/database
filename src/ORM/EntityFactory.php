@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use Error;
 use Exception;
-use InvalidArgumentException;
 use JsonException;
-use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use MulerTech\Database\ORM\State\EntityState;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
@@ -32,9 +30,6 @@ final class EntityFactory
     /** @var array<class-string, array<string, ReflectionProperty>> */
     private array $propertiesCache = [];
 
-    /** @var array<class-string, bool> */
-    private array $hasConstructorCache = [];
-
     /**
      * @param EntityHydrator $hydrator
      */
@@ -47,24 +42,17 @@ final class EntityFactory
      * @template T of object
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $data
-     * @param bool $useConstructor
      * @return object
      * @throws ReflectionException
      */
-    public function create(string $entityClass, array $data = [], bool $useConstructor = true): object
+    public function create(string $entityClass, array $data = []): object
     {
         if (!isset($this->reflectionCache[$entityClass])) {
             $this->cacheReflectionData($entityClass);
         }
 
-        $reflection = $this->reflectionCache[$entityClass];
-
         // Create instance
-        if ($useConstructor && $this->hasConstructorCache[$entityClass]) {
-            $entity = $this->createWithConstructor($reflection, $data);
-        } else {
-            $entity = $this->createWithoutConstructor($reflection);
-        }
+        $entity = new $entityClass();
 
         // Hydrate properties
         if (!empty($data)) {
@@ -82,7 +70,7 @@ final class EntityFactory
      * @param class-string<T> $entityClass
      * @param array<string, mixed> $dbData
      * @return object
-     * @throws ReflectionException
+     * @throws ReflectionException|JsonException
      */
     public function createFromDbData(string $entityClass, array $dbData): object
     {
@@ -169,10 +157,6 @@ final class EntityFactory
         $reflection = new ReflectionClass($entityClass);
         $this->reflectionCache[$entityClass] = $reflection;
 
-        // Cache constructor info
-        $constructor = $reflection->getConstructor();
-        $this->hasConstructorCache[$entityClass] = $constructor !== null && $constructor->getNumberOfRequiredParameters() === 0;
-
         // Cache properties
         $properties = [];
         foreach ($reflection->getProperties() as $property) {
@@ -181,57 +165,6 @@ final class EntityFactory
             }
         }
         $this->propertiesCache[$entityClass] = $properties;
-    }
-
-    /**
-     * @template T of object
-     * @param ReflectionClass<T> $reflection
-     * @param array<string, mixed> $data
-     * @return object
-     * @throws ReflectionException
-     */
-    private function createWithConstructor(ReflectionClass $reflection, array $data): object
-    {
-        $constructor = $reflection->getConstructor();
-
-        if ($constructor === null || $constructor->getNumberOfRequiredParameters() === 0) {
-            return $reflection->newInstance();
-        }
-
-        // Handle constructor with required parameters
-        $parameters = [];
-        foreach ($constructor->getParameters() as $parameter) {
-            $paramName = $parameter->getName();
-
-            if (isset($data[$paramName])) {
-                $parameters[] = $data[$paramName];
-            } elseif ($parameter->isDefaultValueAvailable()) {
-                $parameters[] = $parameter->getDefaultValue();
-            } elseif ($parameter->allowsNull()) {
-                $parameters[] = null;
-            } else {
-                throw new RuntimeException(
-                    sprintf(
-                        'Cannot create entity %s: missing required constructor parameter "%s"',
-                        $reflection->getName(),
-                        $paramName
-                    )
-                );
-            }
-        }
-
-        return $reflection->newInstanceArgs($parameters);
-    }
-
-    /**
-     * @template T of object
-     * @param ReflectionClass<T> $reflection
-     * @return object
-     * @throws ReflectionException
-     */
-    private function createWithoutConstructor(ReflectionClass $reflection): object
-    {
-        return $reflection->newInstanceWithoutConstructor();
     }
 
     /**
@@ -344,17 +277,17 @@ final class EntityFactory
     /**
      * Convert value to DateTime object
      * @param mixed $value
-     * @return mixed
+     * @return DateTimeInterface|DateTimeImmutable|null
      */
-    private function convertToDateTime(mixed $value): mixed
+    private function convertToDateTime(mixed $value): null|DateTimeInterface|DateTimeImmutable
     {
-        if ($value instanceof \DateTimeInterface) {
+        if ($value instanceof DateTimeInterface) {
             return $value;
         }
 
         if (is_string($value) && !empty($value)) {
             try {
-                return new \DateTimeImmutable($value);
+                return new DateTimeImmutable($value);
             } catch (Exception) {
                 return null;
             }
