@@ -55,9 +55,9 @@ class EmEngine
     private ChangeSetManager $changeSetManager;
 
     /**
-     * @var EntityFactory
+     * @var EntityHydrator
      */
-    private EntityFactory $entityFactory;
+    private EntityHydrator $hydrator;
 
     /**
      * @var EntityRegistry
@@ -73,11 +73,6 @@ class EmEngine
      * @var RelationManager
      */
     private RelationManager $relationManager;
-
-    /**
-     * @var EntityHydrator
-     */
-    private EntityHydrator $hydrator;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -339,7 +334,6 @@ class EmEngine
             $this->changeDetector
         );
         $this->hydrator = new EntityHydrator($dbMapping);
-        $this->entityFactory = new EntityFactory($this->hydrator);
 
         // State management - Use direct state manager with ChangeSetManager integration
         $stateTransitionManager = new StateTransitionManager($eventManager);
@@ -385,8 +379,8 @@ class EmEngine
      */
     public function createManagedEntity(array $entityData, string $entityName, bool $loadRelations): object
     {
-        // Use entity factory to create and hydrate the entity
-        $entity = $this->entityFactory->createFromDbData($entityName, $entityData);
+        // Use hydrator directly to create and hydrate the entity
+        $entity = $this->hydrator->hydrate($entityData, $entityName);
 
         // CRITICAL: Ensure all collections are DatabaseCollection before adding to identity map
         $this->ensureCollectionsAreDatabaseCollection($entity);
@@ -595,7 +589,7 @@ class EmEngine
                     $reflectionProperty = $reflection->getProperty($property);
 
                     // Process the value according to its type
-                    $value = $this->hydrator->processPropertyValue($entityClass, $property, $dbData[$column]);
+                    $value = $this->hydrator->processValue($entityClass, $property, $dbData[$column]);
                     $reflectionProperty->setValue($entity, $value);
                 }
             }

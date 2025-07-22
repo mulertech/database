@@ -5,12 +5,12 @@ namespace MulerTech\Database\Tests\ORM;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\EntityFactory;
 use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\EntityRegistry;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,17 +22,15 @@ class OrmCoreIntegrationTest extends TestCase
     private IdentityMap $identityMap;
     private ChangeDetector $changeDetector;
     private ChangeSetManager $changeSetManager;
-    private EntityFactory $entityFactory;
+    private EntityHydrator $entityHydrator;
 
     protected function setUp(): void
     {
         $this->identityMap = new IdentityMap();
         $this->changeDetector = new ChangeDetector();
         $this->changeSetManager = new ChangeSetManager($this->identityMap, new EntityRegistry(), $this->changeDetector);
-        $this->entityFactory = new EntityFactory(
-            new EntityHydrator(
-                new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity')),
-                $this->identityMap
+        $this->entityHydrator = new EntityHydrator(
+            new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity')
         );
     }
 
@@ -118,41 +116,15 @@ class OrmCoreIntegrationTest extends TestCase
         $this->assertTrue($changeSet->hasChangedField('name'));
     }
 
-    public function testEntityFactory(): void
-    {
-        $data = [
-            'id' => 1,
-            'name' => 'John Doe',
-            'email' => 'john@example.com'
-        ];
-
-        // Create entity
-        $user = $this->entityFactory->create(TestUser::class, $data);
-        $this->assertInstanceOf(TestUser::class, $user);
-        $this->assertEquals(1, $user->getId());
-        $this->assertEquals('John Doe', $user->getName());
-        $this->assertEquals('john@example.com', $user->getEmail());
-
-        // Test extract
-        $extractedData = $this->entityFactory->extract($user);
-        $this->assertEquals($data['id'], $extractedData['id']);
-        $this->assertEquals($data['name'], $extractedData['name']);
-        $this->assertEquals($data['email'], $extractedData['email']);
-    }
-
     public function testCompleteWorkflow(): void
     {
         // 1. Create entities using factory
-        $user1 = $this->entityFactory->create(TestUser::class, [
-            'id' => 1,
-            'name' => 'John Doe',
-            'email' => 'john@example.com'
-        ]);
-
-        $user2 = $this->entityFactory->create(TestUser::class, [
-            'name' => 'Jane Doe',
-            'email' => 'jane@example.com'
-        ]);
+        $user1 = new TestUser()->setId(1)
+            ->setName('John Doe')
+            ->setEmail('john@example.com');
+        $user2 = new TestUser()
+            ->setName('Jane Doe')
+            ->setEmail('jane@example.com');
 
         // 2. Schedule operations
         $this->changeSetManager->scheduleInsert($user2);
@@ -266,6 +238,33 @@ class OrmCoreIntegrationTest extends TestCase
         }
         $this->assertEquals(500, $changedEntities);
     }
+
+    public function testEntityHydrator(): void
+    {
+        $userData = [
+            'id' => 1,
+            'username' => 'John Doe',
+            'size' => '180',
+        ];
+
+        // Test hydration
+        $user = $this->entityHydrator->hydrate($userData, User::class);
+
+        $this->assertInstanceOf(User::class, $user);
+        $this->assertEquals(1, $user->getId());
+        $this->assertEquals('John Doe', $user->getUsername());
+        $this->assertEquals(180, $user->getSize());
+
+        // Test extraction
+        $extractedData = $this->entityHydrator->extract($user);
+
+        $this->assertArrayHasKey('id', $extractedData);
+        $this->assertArrayHasKey('username', $extractedData);
+        $this->assertArrayHasKey('size', $extractedData);
+        $this->assertEquals(1, $extractedData['id']);
+        $this->assertEquals('John Doe', $extractedData['username']);
+        $this->assertEquals(180, $extractedData['size']);
+    }
 }
 
 /**
@@ -284,9 +283,10 @@ class TestUser
         return $this->id;
     }
 
-    public function setId(?int $id): void
+    public function setId(?int $id): self
     {
         $this->id = $id;
+        return $this;
     }
 
     public function getName(): string
@@ -294,9 +294,10 @@ class TestUser
         return $this->name;
     }
 
-    public function setName(string $name): void
+    public function setName(string $name): self
     {
         $this->name = $name;
+        return $this;
     }
 
     public function getEmail(): string
@@ -304,8 +305,9 @@ class TestUser
         return $this->email;
     }
 
-    public function setEmail(string $email): void
+    public function setEmail(string $email): self
     {
         $this->email = $email;
+        return $this;
     }
 }
