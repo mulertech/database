@@ -145,6 +145,9 @@ class RelationManager
                 // Schedule existing link for deletion
                 $this->scheduleExistingLinkForDeletion($manyToMany, $entity, $relatedEntity);
 
+                // CRITICAL: Also remove from the collection to maintain consistency
+                $this->removeFromEntityCollection($entity, $relatedEntity, $manyToMany);
+
                 continue;
             }
 
@@ -162,6 +165,9 @@ class RelationManager
 
         // Clear the queue after processing
         $this->manyToManyInsertions = [];
+
+        // Synchronize all DatabaseCollections after relation changes
+        $this->synchronizeCollections();
     }
 
     /**
@@ -363,16 +369,14 @@ class RelationManager
         MtManyToMany $manyToMany
     ): void {
         foreach ($collection->items() as $relatedEntity) {
-            $entityId = $this->getId($entity);
-            $relatedEntityId = $this->getId($relatedEntity);
-
-            if ($entityId !== null && $relatedEntityId !== null) {
-                $this->manyToManyInsertions[] = [
-                    'entity' => $entity,
-                    'related' => $relatedEntity,
-                    'manyToMany' => $manyToMany,
-                ];
-            }
+            // For new entities, we need to schedule the relation even if they don't have IDs yet
+            // The actual link will be created in flush() after entities are persisted
+            $this->manyToManyInsertions[] = [
+                'entity' => $entity,
+                'related' => $relatedEntity,
+                'manyToMany' => $manyToMany,
+                'action' => 'insert',
+            ];
         }
     }
 
@@ -556,5 +560,130 @@ class RelationManager
         }
 
         return $linkEntity;
+    }
+
+    /**
+     * Remove an entity from the collection to maintain consistency during relation deletion
+     *
+     * @param object $entity
+     * @param object $relatedEntity
+     * @param MtManyToMany $manyToMany
+     * @return void
+     * @throws ReflectionException
+     */
+    private function removeFromEntityCollection(
+        object $entity,
+        object $relatedEntity,
+        MtManyToMany $manyToMany
+    ): void {
+        $entityReflection = new ReflectionClass($entity);
+
+        // Find the property name for this relation
+        $entityName = $entity::class;
+        $manyToManyList = $this->getManyToManyMapping($entityName);
+
+        if ($manyToManyList === false) {
+            return;
+        }
+
+        foreach ($manyToManyList as $property => $mapping) {
+            if ($mapping === $manyToMany && $entityReflection->hasProperty($property)) {
+                $reflectionProperty = $entityReflection->getProperty($property);
+
+                if ($reflectionProperty->isInitialized($entity)) {
+                    $collection = $reflectionProperty->getValue($entity);
+
+                    if ($collection instanceof Collection) {
+                        // Use the correct method to remove elements from Collection
+                        // Find the key of the related entity and remove it
+                        $items = $collection->items();
+                        foreach ($items as $key => $item) {
+                            if ($item === $relatedEntity) {
+                                $collection->remove($key);
+                                break;
+                            }
+                        }
+
+                        // CRITICAL: For DatabaseCollection, do NOT synchronize initial state here
+                        // We want the collection to detect this as a removal when getRemovedEntities() is called
+                        // Synchronization will happen after the flush is complete
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    /**
+     * Synchronize all DatabaseCollections after relation changes
+     *
+     * @return void
+     * @throws ReflectionException
+     */
+    private function synchronizeCollections(): void
+    {
+        // Get all managed entities
+        $managedEntities = $this->stateManager->getManagedEntities();
+
+        foreach ($managedEntities as $entity) {
+            $this->synchronizeEntityCollections($entity);
+        }
+    }
+
+    /**
+     * Synchronize collections for a specific entity
+     *
+     * @param object $entity
+     * @return void
+     * @throws ReflectionException
+     */
+    private function synchronizeEntityCollections(object $entity): void
+    {
+        $entityName = $entity::class;
+        $entityReflection = new ReflectionClass($entity);
+
+        // Synchronize OneToMany collections
+        $oneToManyList = $this->getOneToManyMapping($entityName);
+        if ($oneToManyList !== false) {
+            foreach ($oneToManyList as $property => $oneToMany) {
+                $this->synchronizeCollectionProperty($entity, $entityReflection, $property);
+            }
+        }
+
+        // Synchronize ManyToMany collections
+        $manyToManyList = $this->getManyToManyMapping($entityName);
+        if ($manyToManyList !== false) {
+            foreach ($manyToManyList as $property => $manyToMany) {
+                $this->synchronizeCollectionProperty($entity, $entityReflection, $property);
+            }
+        }
+    }
+
+    /**
+     * Synchronize a specific collection property
+     *
+     * @param object $entity
+     * @param ReflectionClass<object> $entityReflection
+     * @param string $property
+     * @return void
+     */
+    private function synchronizeCollectionProperty(
+        object $entity,
+        ReflectionClass $entityReflection,
+        string $property
+    ): void {
+        if (!$entityReflection->hasProperty($property)) {
+            return;
+        }
+
+        $reflectionProperty = $entityReflection->getProperty($property);
+
+        if ($reflectionProperty->isInitialized($entity)) {
+            $collection = $reflectionProperty->getValue($entity);
+
+            if ($collection instanceof DatabaseCollection) {
+                $collection->synchronizeInitialState();
+            }
+        }
     }
 }

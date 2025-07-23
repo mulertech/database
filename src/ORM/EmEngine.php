@@ -12,6 +12,7 @@ use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
+use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\State\DirectStateManager;
 use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -151,17 +152,9 @@ class EmEngine
             if (is_int($entityId) || is_string($entityId)) {
                 $managed = $this->identityMap->get($entityName, $entityId);
                 if ($managed !== null) {
-                    // Update the managed entity with fresh data from database
-                    $this->updateManagedEntityFromDbData($managed, $fetch);
-
-                    // Force reload of relations to ensure fresh state
-                    if ($loadRelations) {
-                        try {
-                            $this->relationManager->loadEntityRelations($managed, $fetch);
-                        } catch (Exception) {
-                            // Continue silently on relation loading errors
-                        }
-                    }
+                    // For managed entities, only update scalar properties, NOT relations
+                    // This prevents overwriting relation changes that haven't been flushed yet
+                    $this->updateManagedEntityScalarPropertiesOnly($managed, $fetch);
                     return $managed;
                 }
             }
@@ -366,7 +359,8 @@ class EmEngine
             $deletionProcessor,
             $eventManager,
             $this->changeSetManager,
-            $this->identityMap
+            $this->identityMap,
+            new EntityProcessor($this->changeDetector, $this->identityMap)
         );
     }
 
@@ -560,13 +554,13 @@ class EmEngine
     }
 
     /**
-     * Update a managed entity with fresh data from the database
+     * Update a managed entity with fresh scalar data from the database, preserving relations
      *
      * @param object $entity
      * @param array<string, mixed> $dbData
      * @return void
      */
-    private function updateManagedEntityFromDbData(object $entity, array $dbData): void
+    private function updateManagedEntityScalarPropertiesOnly(object $entity, array $dbData): void
     {
         try {
             $entityClass = $entity::class;
@@ -580,7 +574,7 @@ class EmEngine
                     continue;
                 }
 
-                // Skip relation properties - they will be handled séparément
+                // Skip ALL relation properties to preserve existing relation changes
                 if ($this->isRelationProperty($entityClass, $property)) {
                     continue;
                 }
@@ -683,7 +677,7 @@ class EmEngine
             if ($reflection->hasProperty($property)) {
                 $prop = $reflection->getProperty($property);
                 $value = $prop->getValue($entity);
-                if ($value !== null && (is_int($value) || is_string($value))) {
+                if (is_int($value) || is_string($value)) {
                     return $value;
                 }
             }

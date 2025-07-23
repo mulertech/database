@@ -48,6 +48,12 @@ interface StateManagerInterface
     public function detach(object $entity): void;
 
     /**
+     * @param object $entity
+     * @return EntityState
+     */
+    public function getEntityState(object $entity): EntityState;
+
+    /**
      * @param object $dependent
      * @param object $dependency
      * @return void

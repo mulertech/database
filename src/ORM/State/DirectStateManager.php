@@ -317,7 +317,7 @@ final class DirectStateManager implements StateManagerInterface
      * @param object $entity
      * @return EntityState
      */
-    private function getEntityState(object $entity): EntityState
+    public function getEntityState(object $entity): EntityState
     {
         $state = $this->identityMap->getEntityState($entity);
 

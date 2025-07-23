@@ -11,16 +11,15 @@ use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\IdentityMap;
 use ReflectionClass;
-use ReflectionException;
 
 /**
  * Utilities for entity processing operations
  */
-class EntityProcessor
+readonly class EntityProcessor
 {
     public function __construct(
-        private readonly ChangeDetector $changeDetector,
-        private readonly IdentityMap $identityMap
+        private ChangeDetector $changeDetector,
+        private IdentityMap $identityMap
     ) {
     }
 
@@ -36,7 +35,7 @@ class EntityProcessor
                 $reflectionProperty = $reflection->getProperty($property);
                 if ($reflectionProperty->isInitialized($entity)) {
                     $value = $reflectionProperty->getValue($entity);
-                    if ($value !== null && (is_int($value) || is_string($value))) {
+                    if ((is_int($value) || is_string($value))) {
                         return $value;
                     }
                 }
@@ -48,7 +47,6 @@ class EntityProcessor
 
     /**
      * Copy data from source entity to target entity
-     * @throws ReflectionException
      */
     public function copyEntityData(object $source, object $target): void
     {

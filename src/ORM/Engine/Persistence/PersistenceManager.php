@@ -18,11 +18,11 @@ use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\EntityMetadata;
 use MulerTech\Database\ORM\IdentityMap;
+use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
-use RuntimeException;
 
 /**
  * Class PersistenceManager
@@ -34,35 +34,10 @@ use RuntimeException;
  */
 class PersistenceManager
 {
-    /**
-     * @var bool
-     */
     private bool $isFlushInProgress = false;
-
-    /**
-     * @var int
-     */
-    private int $flushDepth = 0;
-
-    /**
-     * @var int
-     */
-    private const int MAX_FLUSH_DEPTH = 10;
-
-    /**
-     * @var bool
-     */
-    private bool $hasPostEventChanges = false;
-
-    /**
-     * @var array<int, string>
-     */
+    private readonly FlushHandler $flushHandler;
+    /** @var array<string> */
     private array $processedEvents = [];
-
-    /**
-     * @var bool
-     */
-    private bool $isInEventProcessing = false;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -75,6 +50,7 @@ class PersistenceManager
      * @param EventManager|null $eventManager
      * @param ChangeSetManager $changeSetManager
      * @param IdentityMap $identityMap
+     * @param EntityProcessor $entityProcessor
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -86,8 +62,14 @@ class PersistenceManager
         private readonly DeletionProcessor $deletionProcessor,
         private readonly ?EventManager $eventManager,
         private readonly ChangeSetManager $changeSetManager,
-        private readonly IdentityMap $identityMap
+        private readonly IdentityMap $identityMap,
+        private readonly EntityProcessor $entityProcessor
     ) {
+        $this->flushHandler = new FlushHandler(
+            $this->stateManager,
+            $this->changeSetManager,
+            $this->relationManager,
+        );
     }
 
     /**
@@ -97,7 +79,7 @@ class PersistenceManager
      */
     public function persist(object $entity): void
     {
-        $this->changeSetManager->scheduleInsert($entity);
+        $this->stateManager->scheduleForInsertion($entity);
     }
 
     /**
@@ -106,7 +88,7 @@ class PersistenceManager
      */
     public function remove(object $entity): void
     {
-        $this->changeSetManager->scheduleDelete($entity);
+        $this->stateManager->scheduleForDeletion($entity);
     }
 
     /**
@@ -129,129 +111,76 @@ class PersistenceManager
         }
 
         $this->isFlushInProgress = true;
-        $this->flushDepth = 0;
 
         try {
-            // Start a new flush cycle for the relation manager
             $this->relationManager->startFlushCycle();
-
-            $this->doFlush();
+            $this->performFlush();
         } finally {
             $this->isFlushInProgress = false;
-            $this->hasPostEventChanges = false;
+            $this->flushHandler->reset();
         }
     }
 
-    /**
-     * @return void
-     * @throws ReflectionException
-     */
-    private function doFlush(): void
+    private function performFlush(): void
     {
-        $this->flushDepth++;
+        // Reset processed events at the start of the top-level flush
+        $this->processedEvents = [];
 
-        if ($this->flushDepth > self::MAX_FLUSH_DEPTH) {
-            throw new RuntimeException('Maximum flush depth reached. Possible circular dependency.');
+        $maxIterations = 5; // Prevent infinite loops
+        $iteration = 0;
+
+        do {
+            $iteration++;
+
+            $this->flushHandler->doFlush(
+                fn ($entity) => $this->processInsertion($entity),
+                fn ($entity) => $this->processUpdate($entity),
+                fn ($entity) => $this->processDeletion($entity)
+            );
+
+            // Handle post-flush events directly here instead of in FlushHandler
+            $this->handlePostFlushEvents();
+
+            // Check if we have new operations to process
+            $hasMoreWork = $this->hasNewOperationsScheduled();
+
+        } while ($hasMoreWork && $iteration < $maxIterations && $this->flushHandler->getFlushDepth() < 3);
+    }
+
+    private function hasNewOperationsScheduled(): bool
+    {
+        return !empty($this->changeSetManager->getScheduledInsertions()) ||
+               !empty($this->changeSetManager->getScheduledUpdates()) ||
+               !empty($this->changeSetManager->getScheduledDeletions()) ||
+               !empty($this->stateManager->getScheduledDeletions());
+    }
+
+    private function handlePostFlushEvents(): void
+    {
+        if ($this->eventManager === null) {
+            return;
         }
 
-        // Reset processed events for each flush cycle only at the top level
-        if ($this->flushDepth === 1) {
-            $this->processedEvents = [];
-        }
+        // Store pre-event counts to detect changes
+        $preEventInsertions = count($this->changeSetManager->getScheduledInsertions());
+        $preEventUpdates = count($this->changeSetManager->getScheduledUpdates());
+        $preEventDeletions = count($this->changeSetManager->getScheduledDeletions());
 
-        // Compute all change sets
-        $this->changeSetManager->computeChangeSets();
+        // Dispatch the post-flush event
+        $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
 
-        // Process relation changes BEFORE getting scheduled operations
-        $this->relationManager->processRelationChanges();
+        // Check if new operations were scheduled during the event
+        $postEventInsertions = count($this->changeSetManager->getScheduledInsertions());
+        $postEventUpdates = count($this->changeSetManager->getScheduledUpdates());
+        $postEventDeletions = count($this->changeSetManager->getScheduledDeletions());
 
-        // Get entities to process (including any new ones from relation processing)
-        $insertions = $this->changeSetManager->getScheduledInsertions();
-        $updates = $this->changeSetManager->getScheduledUpdates();
-        $deletions = $this->changeSetManager->getScheduledDeletions();
+        $hasNewChanges = $postEventInsertions > $preEventInsertions ||
+                        $postEventUpdates > $preEventUpdates ||
+                        $postEventDeletions > $preEventDeletions;
 
-        // Also get deletions from state manager (for link entities)
-        $stateManagerDeletions = $this->stateManager->getScheduledDeletions();
-
-        // Merge deletions from both sources
-        $allDeletions = array_unique(array_merge(
-            array_values($deletions),
-            array_values($stateManagerDeletions)
-        ), SORT_REGULAR);
-
-        // Process all deletions first (including link entities)
-        foreach ($allDeletions as $entity) {
-            $this->processDeletion($entity);
-        }
-
-        // Process insertions (this gives entities their IDs)
-        foreach ($insertions as $entity) {
-            $this->processInsertion($entity);
-        }
-
-        // Process updates
-        foreach ($updates as $entity) {
-            $this->processUpdate($entity);
-        }
-
-        // Execute any pending relation operations (like pivot table inserts)
-        // This should also only happen once
-        if ($this->flushDepth === 1) {
-            $this->relationManager->flush();
-        }
-
-        // Check if there are new insertions from relation processing (like link entities)
-        $newInsertions = $this->stateManager->getScheduledInsertions();
-        if (!empty($newInsertions)) {
-            foreach ($newInsertions as $entity) {
-                $this->processInsertion($entity);
-            }
-        }
-
-        // Check for any new deletions that were scheduled during relation processing
-        $newDeletions = $this->stateManager->getScheduledDeletions();
-        foreach ($newDeletions as $entity) {
-            if (!in_array($entity, $allDeletions, true)) {
-                $this->processDeletion($entity);
-            }
-        }
-
-        // Clear change sets after successful flush but BEFORE post-flush events
-        $this->changeSetManager->clearProcessedChanges();
-        $this->stateManager->clear();
-
-        // Fire post-flush event if event manager is available - but LIMIT recursion
-        if ($this->eventManager !== null && !$this->isInEventProcessing && $this->flushDepth <= 2) {
-            $this->isInEventProcessing = true;
-
-            // Store state before event
-            $preEventInsertions = count($this->changeSetManager->getScheduledInsertions());
-            $preEventUpdates = count($this->changeSetManager->getScheduledUpdates());
-            $preEventDeletions = count($this->changeSetManager->getScheduledDeletions());
-
-            $this->eventManager->dispatch(new PostFlushEvent($this->entityManager));
-
-            // Check if new operations were scheduled during the event
-            $postEventInsertions = count($this->changeSetManager->getScheduledInsertions());
-            $postEventUpdates = count($this->changeSetManager->getScheduledUpdates());
-            $postEventDeletions = count($this->changeSetManager->getScheduledDeletions());
-
-            $hasNewChanges = $postEventInsertions > $preEventInsertions ||
-                           $postEventUpdates > $preEventUpdates ||
-                           $postEventDeletions > $preEventDeletions;
-
-            $this->isInEventProcessing = false;
-
-            // If there were changes during post-flush events, process them immediately
-            if ($hasNewChanges) {
-                $this->hasPostEventChanges = true;
-            }
-        }
-
-        // Check if there were changes during post events - but LIMIT recursion
-        if ($this->hasPostEventChanges && $this->flushDepth < 3) {
-            $this->hasPostEventChanges = false;
-            $this->doFlush(); // Recursive flush for post-event changes
+        if ($hasNewChanges) {
+            // Mark that we have post-event changes instead of recursive flush
+            $this->flushHandler->markPostEventChanges();
         }
     }
 
@@ -262,39 +191,16 @@ class PersistenceManager
      */
     private function processInsertion(object $entity): void
     {
-        // Check if entity already has an ID (was already persisted)
         $entityId = $this->extractEntityId($entity);
         if ($entityId !== null) {
-            // Entity already has an ID, just mark as managed
             $this->stateManager->manage($entity);
             return;
         }
 
-        // Call pre-persist event
         $this->callEntityEvent($entity, 'prePersist');
-
-        // Process the insertion
         $this->insertionProcessor->process($entity);
-
-        // Update entity state to MANAGED after successful insertion
         $this->stateManager->manage($entity);
-
-        // Update metadata to MANAGED state
-        $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null) {
-            $currentData = $this->changeDetector->extractCurrentData($entity);
-            $newMetadata = new EntityMetadata(
-                $metadata->className,
-                $this->extractEntityId($entity) ?? $metadata->identifier,
-                EntityState::MANAGED,
-                $currentData,
-                $metadata->loadedAt,
-                new DateTimeImmutable()
-            );
-            $this->identityMap->updateMetadata($entity, $newMetadata);
-        }
-
-        // Call post-persist event
+        $this->updateEntityMetadata($entity);
         $this->callEntityEvent($entity, 'postPersist');
     }
 
@@ -313,25 +219,8 @@ class PersistenceManager
 
         // Call pre-update event
         $this->callEntityEvent($entity, 'preUpdate');
-
         $this->updateProcessor->process($entity, $changeSet->getChanges());
-
-        // Update metadata with new original data after successful update
-        $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null) {
-            $currentData = $this->changeDetector->extractCurrentData($entity);
-            $newMetadata = new EntityMetadata(
-                $metadata->className,
-                $metadata->identifier,
-                EntityState::MANAGED,
-                $currentData, // Use current data as new original data
-                $metadata->loadedAt,
-                new DateTimeImmutable()
-            );
-            $this->identityMap->updateMetadata($entity, $newMetadata);
-        }
-
-        // Call post-update event
+        $this->updateEntityMetadata($entity);
         $this->callEntityEvent($entity, 'postUpdate');
     }
 
@@ -342,58 +231,28 @@ class PersistenceManager
      */
     private function processDeletion(object $entity): void
     {
-        // Call pre-remove event BEFORE any deletion processing
         $this->callEntityEvent($entity, 'preRemove');
-
-        // Process the deletion
         $this->deletionProcessor->process($entity);
 
-        // Update entity state
-        $this->stateManager->markAsRemoved($entity);
+        // Only detach if entity is not already in removed state
+        $currentState = $this->stateManager->getEntityState($entity);
+        if ($currentState !== \MulerTech\Database\ORM\State\EntityState::REMOVED) {
+            $this->stateManager->detach($entity);
+        }
 
-        // Remove from identity map
-        $this->identityMap->remove($entity);
-
-        // Call post-remove event
         $this->callEntityEvent($entity, 'postRemove');
     }
 
-    /**
-     * @param object $entity
-     * @return int|string|null
-     */
-    private function extractEntityId(object $entity): int|string|null
-    {
-        // Try common ID methods
-        foreach (['getId', 'getIdentifier', 'getUuid'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param object $entity
-     * @param string $eventName
-     * @return void
-     * @throws ReflectionException
-     */
     private function callEntityEvent(object $entity, string $eventName): void
     {
         $entityId = spl_object_id($entity);
-        $eventKey = $entityId . '_' . $eventName . '_' . $this->flushDepth; // Include flush depth to avoid cross-flush loops
+        $eventKey = $entityId . '_' . $eventName . '_' . $this->flushHandler->getFlushDepth();
 
         // Prevent infinite loops for the same event on the same entity at the same depth
         if (in_array($eventKey, $this->processedEvents, true)) {
             return;
         }
 
-        // Add to processed events to prevent loops
         $this->processedEvents[] = $eventKey;
 
         // Call the event method if it exists on the entity
@@ -401,70 +260,146 @@ class PersistenceManager
             $entity->$eventName();
         }
 
-        // Also dispatch global events if event manager is available
+        // Dispatch global events if event manager is available
         if ($this->eventManager !== null) {
-            switch ($eventName) {
-                case 'prePersist':
-                    $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager));
-                    break;
-                case 'postPersist':
-                    $this->eventManager->dispatch(new PostPersistEvent($entity, $this->entityManager));
-                    break;
-                case 'preUpdate':
-                    $changeSet = $this->changeSetManager->getChangeSet($entity);
-                    $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
-                    break;
-                case 'postUpdate':
-                    // IMPORTANT: For postUpdate events, we need to immediately process any new entities
-                    $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
-
-                    // Check for new entities created during the event and process them immediately
-                    $newInsertions = $this->changeSetManager->getScheduledInsertions();
-                    if (!empty($newInsertions)) {
-                        foreach ($newInsertions as $newEntity) {
-                            $this->processInsertion($newEntity);
-                        }
-                        // Clear the processed insertions
-                        $this->changeSetManager->clearProcessedChanges();
-                    }
-                    break;
-                case 'preRemove':
-                    $this->eventManager->dispatch(new PreRemoveEvent($entity, $this->entityManager));
-
-                    // After PreRemove event, check if any entities need to be updated and process them immediately
-                    $this->changeSetManager->computeChangeSets();
-                    $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
-                    if (!empty($pendingUpdates)) {
-                        foreach ($pendingUpdates as $updateEntity) {
-                            $this->processUpdate($updateEntity);
-                        }
-                        $this->changeSetManager->clearProcessedChanges();
-                    }
-                    break;
-                case 'postRemove':
-                    $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
-
-                    // After PostRemove event, check if any entities need to be updated and process them immediately
-                    $this->changeSetManager->computeChangeSets();
-                    $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
-                    if (!empty($pendingUpdates)) {
-                        foreach ($pendingUpdates as $updateEntity) {
-                            $this->processUpdate($updateEntity);
-                        }
-                        $this->changeSetManager->clearProcessedChanges();
-                    }
-
-                    // Also check for any new insertions that might have been scheduled
-                    $pendingInsertions = $this->changeSetManager->getScheduledInsertions();
-                    if (!empty($pendingInsertions)) {
-                        foreach ($pendingInsertions as $insertEntity) {
-                            $this->processInsertion($insertEntity);
-                        }
-                        $this->changeSetManager->clearProcessedChanges();
-                    }
-                    break;
-            }
+            $this->dispatchGlobalEvent($entity, $eventName);
         }
+    }
+
+    private function dispatchGlobalEvent(object $entity, string $eventName): void
+    {
+        if ($this->eventManager === null) {
+            return;
+        }
+
+        match ($eventName) {
+            'prePersist' => $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager)),
+            'postPersist' => $this->eventManager->dispatch(new PostPersistEvent($entity, $this->entityManager)),
+            'preUpdate' => $this->dispatchPreUpdateEvent($entity),
+            'postUpdate' => $this->dispatchPostUpdateEvent($entity),
+            'preRemove' => $this->dispatchPreRemoveEvent($entity),
+            'postRemove' => $this->dispatchPostRemoveEvent($entity),
+            default => null
+        };
+    }
+
+    private function dispatchPreUpdateEvent(object $entity): void
+    {
+        if ($this->eventManager === null) {
+            return;
+        }
+        $changeSet = $this->changeSetManager->getChangeSet($entity);
+        $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
+    }
+
+    private function dispatchPostUpdateEvent(object $entity): void
+    {
+        if ($this->eventManager === null) {
+            return;
+        }
+        $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
+
+        // After PostUpdate event, check if any entities need to be processed
+        $this->changeSetManager->computeChangeSets();
+
+        // Process any new insertions that might have been scheduled
+        $pendingInsertions = $this->changeSetManager->getScheduledInsertions();
+        if (!empty($pendingInsertions)) {
+            foreach ($pendingInsertions as $insertEntity) {
+                $this->processInsertion($insertEntity);
+            }
+            $this->changeSetManager->clearProcessedChanges();
+        }
+
+        // Process any pending updates
+        $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+        if (!empty($pendingUpdates)) {
+            foreach ($pendingUpdates as $updateEntity) {
+                $this->processUpdate($updateEntity);
+            }
+            $this->changeSetManager->clearProcessedChanges();
+        }
+    }
+
+    private function dispatchPreRemoveEvent(object $entity): void
+    {
+        if ($this->eventManager === null) {
+            return;
+        }
+        $this->eventManager->dispatch(new PreRemoveEvent($entity, $this->entityManager));
+
+        // After PreRemove event, check if any entities need to be updated and process them immediately
+        $this->changeSetManager->computeChangeSets();
+        $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+        if (!empty($pendingUpdates)) {
+            foreach ($pendingUpdates as $updateEntity) {
+                $this->processUpdate($updateEntity);
+            }
+            $this->changeSetManager->clearProcessedChanges();
+        }
+    }
+
+    private function dispatchPostRemoveEvent(object $entity): void
+    {
+        if ($this->eventManager === null) {
+            return;
+        }
+        $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
+
+        // After PostRemove event, check if any entities need to be updated and process them immediately
+        $this->changeSetManager->computeChangeSets();
+        $pendingUpdates = $this->changeSetManager->getScheduledUpdates();
+        if (!empty($pendingUpdates)) {
+            foreach ($pendingUpdates as $updateEntity) {
+                $this->processUpdate($updateEntity);
+            }
+            $this->changeSetManager->clearProcessedChanges();
+        }
+
+        // Also check for any new insertions that might have been scheduled
+        $pendingInsertions = $this->changeSetManager->getScheduledInsertions();
+        if (!empty($pendingInsertions)) {
+            foreach ($pendingInsertions as $insertEntity) {
+                $this->processInsertion($insertEntity);
+            }
+            $this->changeSetManager->clearProcessedChanges();
+        }
+    }
+
+    private function updateEntityMetadata(object $entity): void
+    {
+        $metadata = $this->identityMap->getMetadata($entity);
+        if ($metadata === null) {
+            return;
+        }
+
+        $currentData = $this->changeDetector->extractCurrentData($entity);
+        $entityId = $this->extractEntityId($entity);
+        $identifier = $entityId ?? $metadata->identifier;
+
+        // Ensure identifier is int|string as expected by EntityMetadata
+        if (!is_int($identifier) && !is_string($identifier)) {
+            throw new \InvalidArgumentException('Entity identifier must be int or string');
+        }
+
+        $newMetadata = new EntityMetadata(
+            $metadata->className,
+            $identifier,
+            EntityState::MANAGED,
+            $currentData,
+            $metadata->loadedAt,
+            new DateTimeImmutable()
+        );
+        $this->identityMap->updateMetadata($entity, $newMetadata);
+    }
+
+    /**
+     * @param object $entity
+     * @return mixed
+     */
+    private function extractEntityId(object $entity): mixed
+    {
+        return $this->entityProcessor->extractEntityId($entity);
     }
 
     /**
@@ -476,8 +411,6 @@ class PersistenceManager
         $this->stateManager->clear();
         $this->relationManager->clear();
         $this->processedEvents = [];
-        $this->flushDepth = 0;
-        $this->hasPostEventChanges = false;
-        $this->isInEventProcessing = false;
+        $this->flushHandler->reset();
     }
 }
