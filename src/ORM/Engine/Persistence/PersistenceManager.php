@@ -75,7 +75,6 @@ class PersistenceManager
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     public function persist(object $entity): void
     {
@@ -121,6 +120,9 @@ class PersistenceManager
         }
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function performFlush(): void
     {
         // Reset processed events at the start of the top-level flush
@@ -236,13 +238,16 @@ class PersistenceManager
 
         // Only detach if entity is not already in removed state
         $currentState = $this->stateManager->getEntityState($entity);
-        if ($currentState !== \MulerTech\Database\ORM\State\EntityState::REMOVED) {
+        if ($currentState !== EntityState::REMOVED) {
             $this->stateManager->detach($entity);
         }
 
         $this->callEntityEvent($entity, 'postRemove');
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function callEntityEvent(object $entity, string $eventName): void
     {
         $entityId = spl_object_id($entity);
@@ -266,6 +271,9 @@ class PersistenceManager
         }
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function dispatchGlobalEvent(object $entity, string $eventName): void
     {
         if ($this->eventManager === null) {
@@ -283,6 +291,10 @@ class PersistenceManager
         };
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     private function dispatchPreUpdateEvent(object $entity): void
     {
         if ($this->eventManager === null) {
@@ -292,6 +304,9 @@ class PersistenceManager
         $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function dispatchPostUpdateEvent(object $entity): void
     {
         if ($this->eventManager === null) {
@@ -321,6 +336,9 @@ class PersistenceManager
         }
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function dispatchPreRemoveEvent(object $entity): void
     {
         if ($this->eventManager === null) {
@@ -339,6 +357,9 @@ class PersistenceManager
         }
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function dispatchPostRemoveEvent(object $entity): void
     {
         if ($this->eventManager === null) {
@@ -366,6 +387,10 @@ class PersistenceManager
         }
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     private function updateEntityMetadata(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);
@@ -376,11 +401,6 @@ class PersistenceManager
         $currentData = $this->changeDetector->extractCurrentData($entity);
         $entityId = $this->extractEntityId($entity);
         $identifier = $entityId ?? $metadata->identifier;
-
-        // Ensure identifier is int|string as expected by EntityMetadata
-        if (!is_int($identifier) && !is_string($identifier)) {
-            throw new \InvalidArgumentException('Entity identifier must be int or string');
-        }
 
         $newMetadata = new EntityMetadata(
             $metadata->className,
@@ -395,9 +415,9 @@ class PersistenceManager
 
     /**
      * @param object $entity
-     * @return mixed
+     * @return string|int|null
      */
-    private function extractEntityId(object $entity): mixed
+    private function extractEntityId(object $entity): string|int|null
     {
         return $this->entityProcessor->extractEntityId($entity);
     }
