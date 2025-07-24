@@ -29,20 +29,39 @@ trait SqlFormatterTrait
         return $this->escapeIdentifier($identifier);
     }
 
+    /**
+     * Format identifier with alias support
+     * @param string $identifier
+     * @return string
+     */
     protected function formatIdentifierWithAlias(string $identifier): string
     {
-        if (str_contains(strtolower($identifier), ' as ')) {
-            $parts = explode(' as ', strtolower($identifier));
-            return $this->formatTable($parts[0], $parts[1]);
+        // Handle 'column AS alias' format (case insensitive)
+        if (preg_match('/^(.+)\s+(?:AS|as)\s+(.+)$/i', $identifier, $matches)) {
+            $column = trim($matches[1]);
+            $alias = trim($matches[2]);
+
+            // Check if the column part is a function or expression
+            if ($this->isExpression($column)) {
+                return $column . ' AS ' . $this->formatIdentifier($alias);
+            }
+
+            return $this->formatIdentifier($column) . ' AS ' . $this->formatIdentifier($alias);
         }
 
-        if (str_contains($identifier, ' ')) {
-            $parts = explode(' ', $identifier);
-            return $this->formatTable($parts[0], $parts[1]);
+        // Handle 'column alias' format (space separated, no AS keyword)
+        if (preg_match('/^([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)$/', $identifier, $matches)) {
+            return $this->formatIdentifier($matches[1]) . ' AS ' . $this->formatIdentifier($matches[2]);
+        }
+
+        // Check if it's a function or expression without alias
+        if ($this->isExpression($identifier)) {
+            return $identifier;
         }
 
         return $this->formatIdentifier($identifier);
     }
+
 
     /**
      * @param string $identifier
@@ -78,7 +97,6 @@ trait SqlFormatterTrait
         // Check for SQL functions or expressions
         $patterns = [
             '/^\w+\s*\(.*\)$/',        // Functions: COUNT(*), SUM(column)
-            '/\s+(AS|as)\s+/',         // Aliases
             '/[\+\-\*\/\%]/',          // Mathematical operators
             '/\s+(AND|OR|NOT)\s+/i',   // Logical operators
             '/^\d+$/',                 // Numeric literals
