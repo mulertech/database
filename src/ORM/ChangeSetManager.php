@@ -43,9 +43,39 @@ final class ChangeSetManager
         private readonly ChangeDetector $changeDetector
     ) {
         $this->changeSets = new SplObjectStorage();
-        $this->scheduler = new EntityScheduler();
-        $this->stateManager = new EntityStateManager($identityMap);
-        $this->entityProcessor = new EntityProcessor($changeDetector, $identityMap);
+    }
+
+    /**
+     * Get or create EntityScheduler lazily
+     */
+    private function getScheduler(): EntityScheduler
+    {
+        if (!isset($this->scheduler)) {
+            $this->scheduler = new EntityScheduler();
+        }
+        return $this->scheduler;
+    }
+
+    /**
+     * Get or create EntityStateManager lazily
+     */
+    private function getStateManager(): EntityStateManager
+    {
+        if (!isset($this->stateManager)) {
+            $this->stateManager = new EntityStateManager($this->identityMap);
+        }
+        return $this->stateManager;
+    }
+
+    /**
+     * Get or create EntityProcessor lazily
+     */
+    private function getEntityProcessor(): EntityProcessor
+    {
+        if (!isset($this->entityProcessor)) {
+            $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap);
+        }
+        return $this->entityProcessor;
     }
 
     /**
@@ -66,7 +96,7 @@ final class ChangeSetManager
         }
 
         // Process entities scheduled for insertion (they might have relations)
-        foreach ($this->scheduler->getScheduledInsertions() as $entity) {
+        foreach ($this->getScheduler()->getScheduledInsertions() as $entity) {
             $this->computeEntityChangeSet($entity);
         }
     }
@@ -78,23 +108,23 @@ final class ChangeSetManager
      */
     public function scheduleInsert(object $entity): void
     {
-        if ($this->scheduler->isScheduledForInsertion($entity)) {
+        if ($this->getScheduler()->isScheduledForInsertion($entity)) {
             return;
         }
 
         $metadata = $this->identityMap->getMetadata($entity);
-        $entityId = $this->entityProcessor->extractEntityId($entity);
+        $entityId = $this->getEntityProcessor()->extractEntityId($entity);
 
         if ($this->shouldSkipInsertion($entityId, $metadata)) {
             return;
         }
 
-        $this->scheduler->scheduleForInsertion($entity);
+        $this->getScheduler()->scheduleForInsertion($entity);
         $this->registry->register($entity);
 
         $this->handleEntityStateForInsertion($entity, $metadata);
-        $this->scheduler->removeFromSchedule($entity, 'updates');
-        $this->scheduler->removeFromSchedule($entity, 'deletions');
+        $this->getScheduler()->removeFromSchedule($entity, 'updates');
+        $this->getScheduler()->removeFromSchedule($entity, 'deletions');
     }
 
     /**
@@ -107,7 +137,7 @@ final class ChangeSetManager
             return;
         }
 
-        $this->scheduler->scheduleForUpdate($entity);
+        $this->getScheduler()->scheduleForUpdate($entity);
         $this->registry->register($entity);
     }
 
@@ -117,11 +147,11 @@ final class ChangeSetManager
      */
     public function scheduleDelete(object $entity): void
     {
-        if ($this->scheduler->isScheduledForDeletion($entity)) {
+        if ($this->getScheduler()->isScheduledForDeletion($entity)) {
             return;
         }
 
-        $this->scheduler->scheduleForDeletion($entity);
+        $this->getScheduler()->scheduleForDeletion($entity);
 
         // Ne pas forcer la transition d'état ici - laisser le système de validation s'en charger
         // La transition d'état sera gérée par DirectStateManager ou EmEngine
@@ -129,12 +159,12 @@ final class ChangeSetManager
         if ($metadata !== null && $metadata->state !== EntityState::REMOVED) {
             // Seulement mettre à jour les métadonnées si l'entité n'est pas en état NEW
             if ($metadata->state !== EntityState::NEW) {
-                $this->stateManager->transitionToRemoved($entity);
+                $this->getStateManager()->transitionToRemoved($entity);
             }
         }
 
-        $this->scheduler->removeFromSchedule($entity, 'insertions');
-        $this->scheduler->removeFromSchedule($entity, 'updates');
+        $this->getScheduler()->removeFromSchedule($entity, 'insertions');
+        $this->getScheduler()->removeFromSchedule($entity, 'updates');
     }
 
     /**
@@ -143,8 +173,8 @@ final class ChangeSetManager
      */
     public function detach(object $entity): void
     {
-        $this->scheduler->removeFromAllSchedules($entity);
-        $this->stateManager->transitionToDetached($entity);
+        $this->getScheduler()->removeFromAllSchedules($entity);
+        $this->getStateManager()->transitionToDetached($entity);
         unset($this->changeSets[$entity]);
         $this->registry->unregister($entity);
     }
@@ -157,7 +187,7 @@ final class ChangeSetManager
     public function merge(object $entity): void
     {
         $entityClass = $entity::class;
-        $id = $this->entityProcessor->extractEntityId($entity);
+        $id = $this->getEntityProcessor()->extractEntityId($entity);
 
         if ($id === null) {
             throw new InvalidArgumentException('Cannot merge entity without identifier');
@@ -166,13 +196,13 @@ final class ChangeSetManager
         $managedEntity = $this->identityMap->get($entityClass, $id);
 
         if ($managedEntity !== null) {
-            $this->entityProcessor->copyEntityData($entity, $managedEntity);
+            $this->getEntityProcessor()->copyEntityData($entity, $managedEntity);
             $this->scheduleUpdate($managedEntity);
             return;
         }
 
         $this->identityMap->add($entity);
-        $this->stateManager->transitionToManaged($entity);
+        $this->getStateManager()->transitionToManaged($entity);
         $this->registry->register($entity);
     }
 
@@ -181,7 +211,7 @@ final class ChangeSetManager
      */
     public function getScheduledInsertions(): array
     {
-        return $this->scheduler->getScheduledInsertions();
+        return $this->getScheduler()->getScheduledInsertions();
     }
 
     /**
@@ -189,7 +219,7 @@ final class ChangeSetManager
      */
     public function getScheduledUpdates(): array
     {
-        return $this->scheduler->getScheduledUpdates();
+        return $this->getScheduler()->getScheduledUpdates();
     }
 
     /**
@@ -197,7 +227,7 @@ final class ChangeSetManager
      */
     public function getScheduledDeletions(): array
     {
-        return $this->scheduler->getScheduledDeletions();
+        return $this->getScheduler()->getScheduledDeletions();
     }
 
     /**
@@ -226,7 +256,7 @@ final class ChangeSetManager
      */
     public function hasPendingChanges(): bool
     {
-        return $this->scheduler->hasPendingSchedules() || count($this->changeSets) > 0;
+        return $this->getScheduler()->hasPendingSchedules() || count($this->changeSets) > 0;
     }
 
     /**
@@ -235,7 +265,7 @@ final class ChangeSetManager
     public function clear(): void
     {
         $this->changeSets = new SplObjectStorage();
-        $this->scheduler->clear();
+        $this->getScheduler()->clear();
         $this->visitedEntities = [];
         $this->registry->clear();
     }
@@ -248,7 +278,7 @@ final class ChangeSetManager
     public function clearProcessedChanges(): void
     {
         $this->changeSets = new SplObjectStorage();
-        $this->scheduler->clear();
+        $this->getScheduler()->clear();
         $this->visitedEntities = [];
     }
 
@@ -257,7 +287,7 @@ final class ChangeSetManager
      */
     public function getStatistics(): array
     {
-        $schedulerStats = $this->scheduler->getStatistics();
+        $schedulerStats = $this->getScheduler()->getStatistics();
 
         return [
             'insertions' => $schedulerStats['insertions'],
@@ -281,9 +311,9 @@ final class ChangeSetManager
     private function canScheduleUpdate(object $entity): bool
     {
         return $this->identityMap->isManaged($entity) &&
-               !$this->scheduler->isScheduledForInsertion($entity) &&
-               !$this->scheduler->isScheduledForDeletion($entity) &&
-               !$this->scheduler->isScheduledForUpdate($entity);
+               !$this->getScheduler()->isScheduledForInsertion($entity) &&
+               !$this->getScheduler()->isScheduledForDeletion($entity) &&
+               !$this->getScheduler()->isScheduledForUpdate($entity);
     }
 
     private function handleEntityStateForInsertion(object $entity, ?EntityMetadata $metadata): void
@@ -295,7 +325,7 @@ final class ChangeSetManager
 
         if ($metadata->state !== EntityState::NEW) {
             $newData = $this->changeDetector->extractCurrentData($entity);
-            $this->stateManager->tryTransitionToNew($entity, $newData);
+            $this->getStateManager()->tryTransitionToNew($entity, $newData);
         }
     }
 
@@ -321,10 +351,11 @@ final class ChangeSetManager
 
         if (!$changeSet->isEmpty()) {
             $this->changeSets[$entity] = $changeSet;
+            $scheduler = $this->getScheduler();
 
-            if (!$this->scheduler->isScheduledForInsertion($entity) &&
-                !$this->scheduler->isScheduledForUpdate($entity)) {
-                $this->scheduler->scheduleForUpdate($entity);
+            if (!$scheduler->isScheduledForInsertion($entity) &&
+                !$scheduler->isScheduledForUpdate($entity)) {
+                $scheduler->scheduleForUpdate($entity);
             }
         }
     }

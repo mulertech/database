@@ -67,12 +67,22 @@ class PersistenceManager
         private readonly ChangeSetManager $changeSetManager,
         private readonly IdentityMap $identityMap,
     ) {
-        $this->entityProcessor = new EntityProcessor($changeDetector, $identityMap);
         $this->flushHandler = new FlushHandler(
             $this->stateManager,
             $this->changeSetManager,
             $this->relationManager,
         );
+    }
+
+    /**
+     * Get or create EntityProcessor lazily
+     */
+    private function getEntityProcessor(): EntityProcessor
+    {
+        if (!isset($this->entityProcessor)) {
+            $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap);
+        }
+        return $this->entityProcessor;
     }
 
     /**
@@ -428,7 +438,7 @@ class PersistenceManager
      */
     private function extractEntityId(object $entity): string|int|null
     {
-        return $this->entityProcessor->extractEntityId($entity);
+        return $this->getEntityProcessor()->extractEntityId($entity);
     }
 
     /**

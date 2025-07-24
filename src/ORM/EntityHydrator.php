@@ -34,7 +34,7 @@ class EntityHydrator
     /**
      * @var MetadataCache
      */
-    private readonly MetadataCache $metadataCache;
+    private MetadataCache $metadataCache;
 
     /**
      * @var array<string, array<string, ReflectionProperty>>
@@ -49,7 +49,21 @@ class EntityHydrator
         private readonly DbMappingInterface $dbMapping,
         ?MetadataCache $metadataCache = null
     ) {
-        $this->metadataCache = $metadataCache ?? CacheFactory::createMetadataCache('entity_hydrator');
+        // Lazy load MetadataCache only when needed
+        if ($metadataCache !== null) {
+            $this->metadataCache = $metadataCache;
+        }
+    }
+
+    /**
+     * Get or create MetadataCache lazily
+     */
+    private function getMetadataCache(): MetadataCache
+    {
+        if (!isset($this->metadataCache)) {
+            $this->metadataCache = CacheFactory::createMetadataCache('entity_hydrator');
+        }
+        return $this->metadataCache;
     }
 
     /**
@@ -172,7 +186,7 @@ class EntityHydrator
     {
         $cacheKey = 'column_type:' . $entityClass . ':' . $propertyName;
 
-        $cached = $this->metadataCache->getPropertyMetadata($entityClass, $cacheKey);
+        $cached = $this->getMetadataCache()->getPropertyMetadata($entityClass, $cacheKey);
         if ($cached instanceof ColumnType) {
             return $cached;
         }
@@ -180,7 +194,7 @@ class EntityHydrator
         $columnType = $this->dbMapping->getColumnType($entityClass, $propertyName);
 
         if ($columnType !== null) {
-            $this->metadataCache->setPropertyMetadata($entityClass, $cacheKey, $columnType);
+            $this->getMetadataCache()->setPropertyMetadata($entityClass, $cacheKey, $columnType);
         }
 
         return $columnType;

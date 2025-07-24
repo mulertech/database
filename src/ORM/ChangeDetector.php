@@ -20,11 +20,37 @@ class ChangeDetector
     private ValueComparator $valueComparator;
     private ArrayValidator $arrayValidator;
 
-    public function __construct()
+    /**
+     * Get or create ValueProcessor lazily
+     */
+    private function getValueProcessor(): ValueProcessor
     {
-        $this->valueProcessor = new ValueProcessor();
-        $this->valueComparator = new ValueComparator();
-        $this->arrayValidator = new ArrayValidator();
+        if (!isset($this->valueProcessor)) {
+            $this->valueProcessor = new ValueProcessor();
+        }
+        return $this->valueProcessor;
+    }
+
+    /**
+     * Get or create ValueComparator lazily
+     */
+    private function getValueComparator(): ValueComparator
+    {
+        if (!isset($this->valueComparator)) {
+            $this->valueComparator = new ValueComparator();
+        }
+        return $this->valueComparator;
+    }
+
+    /**
+     * Get or create ArrayValidator lazily
+     */
+    private function getArrayValidator(): ArrayValidator
+    {
+        if (!isset($this->arrayValidator)) {
+            $this->arrayValidator = new ArrayValidator();
+        }
+        return $this->arrayValidator;
     }
 
     /**
@@ -50,7 +76,7 @@ class ChangeDetector
             }
 
             $value = $property->getValue($entity);
-            $data[$propertyName] = $this->valueProcessor->processValue($value);
+            $data[$propertyName] = $this->getValueProcessor()->processValue($value);
         }
 
         return $data;
@@ -108,8 +134,8 @@ class ChangeDetector
             return false;
         }
 
-        $type1 = $this->valueProcessor->getValueType($value1);
-        $type2 = $this->valueProcessor->getValueType($value2);
+        $type1 = $this->getValueProcessor()->getValueType($value1);
+        $type2 = $this->getValueProcessor()->getValueType($value2);
 
         if ($type1 !== $type2) {
             return false;
@@ -117,17 +143,17 @@ class ChangeDetector
 
         return match ($type1) {
             'scalar', 'array' => $value1 === $value2,
-            'entity' => $this->valueComparator->compareEntityReferences(
-                $this->arrayValidator->validateEntityArray($value1),
-                $this->arrayValidator->validateEntityArray($value2)
+            'entity' => $this->getValueComparator()->compareEntityReferences(
+                $this->getArrayValidator()->validateEntityArray($value1),
+                $this->getArrayValidator()->validateEntityArray($value2)
             ),
-            'object' => $this->valueComparator->compareObjectReferences(
-                $this->arrayValidator->validateObjectArray($value1),
-                $this->arrayValidator->validateObjectArray($value2)
+            'object' => $this->getValueComparator()->compareObjectReferences(
+                $this->getArrayValidator()->validateObjectArray($value1),
+                $this->getArrayValidator()->validateObjectArray($value2)
             ),
-            'collection' => $this->valueComparator->compareCollections(
-                $this->arrayValidator->validateCollectionArray($value1),
-                $this->arrayValidator->validateCollectionArray($value2)
+            'collection' => $this->getValueComparator()->compareCollections(
+                $this->getArrayValidator()->validateCollectionArray($value1),
+                $this->getArrayValidator()->validateCollectionArray($value2)
             ),
             default => $value1 == $value2,
         };
