@@ -38,6 +38,10 @@ class PersistenceManager
     private readonly FlushHandler $flushHandler;
     /** @var array<string> */
     private array $processedEvents = [];
+    /**
+     * @var EntityProcessor $entityProcessor
+     */
+    private EntityProcessor $entityProcessor;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -50,7 +54,6 @@ class PersistenceManager
      * @param EventManager|null $eventManager
      * @param ChangeSetManager $changeSetManager
      * @param IdentityMap $identityMap
-     * @param EntityProcessor $entityProcessor
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -63,8 +66,8 @@ class PersistenceManager
         private readonly ?EventManager $eventManager,
         private readonly ChangeSetManager $changeSetManager,
         private readonly IdentityMap $identityMap,
-        private readonly EntityProcessor $entityProcessor
     ) {
+        $this->entityProcessor = new EntityProcessor($changeDetector, $identityMap);
         $this->flushHandler = new FlushHandler(
             $this->stateManager,
             $this->changeSetManager,
@@ -149,6 +152,9 @@ class PersistenceManager
         } while ($hasMoreWork && $iteration < $maxIterations && $this->flushHandler->getFlushDepth() < 3);
     }
 
+    /**
+     * @return bool
+     */
     private function hasNewOperationsScheduled(): bool
     {
         return !empty($this->changeSetManager->getScheduledInsertions()) ||
@@ -157,6 +163,9 @@ class PersistenceManager
                !empty($this->stateManager->getScheduledDeletions());
     }
 
+    /**
+     * @return void
+     */
     private function handlePostFlushEvents(): void
     {
         if ($this->eventManager === null) {
