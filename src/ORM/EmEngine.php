@@ -225,7 +225,7 @@ class EmEngine
             // Just ensure it's in the identity map and marked as managed
             if (!$isManaged) {
                 $this->identityMap->add($entity);
-                $this->stateManager->manage($entity);
+                $this->getStateManager()->manage($entity);
             }
             return;
         }
@@ -236,7 +236,7 @@ class EmEngine
         }
 
         // Only schedule for insertion if entity doesn't have an ID (is truly new)
-        $this->stateManager->scheduleForInsertion($entity);
+        $this->getStateManager()->scheduleForInsertion($entity);
     }
 
     /**
@@ -246,7 +246,7 @@ class EmEngine
     public function remove(object $entity): void
     {
         // Use stateManager instead of changeSetManager
-        $this->stateManager->scheduleForDeletion($entity);
+        $this->getStateManager()->scheduleForDeletion($entity);
     }
 
     /**
@@ -256,7 +256,7 @@ class EmEngine
     public function detach(object $entity): void
     {
         // Use stateManager for detach
-        $this->stateManager->detach($entity);
+        $this->getStateManager()->detach($entity);
     }
 
     /**
@@ -265,7 +265,7 @@ class EmEngine
      */
     public function flush(): void
     {
-        $this->persistenceManager->flush();
+        $this->getPersistenceManager()->flush();
     }
 
     /**
@@ -276,11 +276,14 @@ class EmEngine
         $this->identityMap->clear();
         $this->entityRegistry->clear();
         $this->changeSetManager->clear();
-        $this->stateManager->clear();
-        $this->relationManager->clear();
 
-        // Clear existing link cache to ensure fresh relation data
-        $this->relationManager->clear();
+        if (isset($this->stateManager)) {
+            $this->stateManager->clear();
+        }
+
+        if (isset($this->relationManager)) {
+            $this->relationManager->clear();
+        }
     }
 
     /**
@@ -313,53 +316,162 @@ class EmEngine
      */
     private function initializeComponents(): void
     {
-        $dbMapping = $this->entityManager->getDbMapping();
-        $eventManager = $this->entityManager->getEventManager();
-
-        // Basic components
+        // Only initialize core components that are directly used by EmEngine
         $this->identityMap = new IdentityMap();
         $this->entityRegistry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
+
+        // ChangeSetManager needs core components
         $this->changeSetManager = new ChangeSetManager(
             $this->identityMap,
             $this->entityRegistry,
             $this->changeDetector
         );
-        $this->hydrator = new EntityHydrator($dbMapping);
 
-        // State management - Use direct state manager with ChangeSetManager integration
-        $stateTransitionManager = new StateTransitionManager($eventManager);
-        $stateValidator = new StateValidator();
+        // EntityHydrator needs DbMapping
+        $this->hydrator = new EntityHydrator($this->entityManager->getDbMapping());
 
-        // Create DirectStateManager with ChangeSetManager
-        $this->stateManager = new DirectStateManager(
-            $this->identityMap,
-            $stateTransitionManager,
-            $stateValidator,
-            $this->changeSetManager
-        );
+        // StateManager will be created lazily when needed
+        // PersistenceManager will be created lazily when needed
+        // RelationManager will be created lazily when needed
+    }
 
-        // Persistence processors
-        $insertionProcessor = new InsertionProcessor($this->entityManager, $dbMapping);
-        $updateProcessor = new UpdateProcessor($this->entityManager, $dbMapping);
-        $deletionProcessor = new DeletionProcessor($this->entityManager, $dbMapping);
+    /**
+     * Get or create StateManager lazily
+     *
+     * @return StateManagerInterface
+     */
+    private function getStateManager(): StateManagerInterface
+    {
+        if (!isset($this->stateManager)) {
+            $this->stateManager = new DirectStateManager(
+                $this->identityMap,
+                $this->getStateTransitionManager(),
+                $this->getStateValidator(),
+                $this->changeSetManager
+            );
+        }
 
-        // Relation manager
-        $this->relationManager = new RelationManager($this->entityManager, $this->stateManager);
+        return $this->stateManager;
+    }
 
-        // Main persistence manager
-        $this->persistenceManager = new PersistenceManager(
-            $this->entityManager,
-            $this->stateManager,
-            $this->changeDetector,
-            $this->relationManager,
-            $insertionProcessor,
-            $updateProcessor,
-            $deletionProcessor,
-            $eventManager,
-            $this->changeSetManager,
-            $this->identityMap,
-        );
+    /**
+     * Get or create PersistenceManager lazily
+     *
+     * @return PersistenceManager
+     */
+    private function getPersistenceManager(): PersistenceManager
+    {
+        if (!isset($this->persistenceManager)) {
+            $this->persistenceManager = new PersistenceManager(
+                $this->entityManager,
+                $this->getStateManager(),
+                $this->changeDetector,
+                $this->getRelationManager(),
+                $this->getInsertionProcessor(),
+                $this->getUpdateProcessor(),
+                $this->getDeletionProcessor(),
+                $this->entityManager->getEventManager(),
+                $this->changeSetManager,
+                $this->identityMap,
+            );
+        }
+
+        return $this->persistenceManager;
+    }
+
+    /**
+     * Get or create RelationManager lazily
+     *
+     * @return RelationManager
+     */
+    private function getRelationManager(): RelationManager
+    {
+        if (!isset($this->relationManager)) {
+            $this->relationManager = new RelationManager($this->entityManager, $this->getStateManager());
+        }
+
+        return $this->relationManager;
+    }
+
+    /**
+     * Get or create StateTransitionManager lazily
+     *
+     * @return StateTransitionManager
+     */
+    private function getStateTransitionManager(): StateTransitionManager
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new StateTransitionManager($this->entityManager->getEventManager());
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create StateValidator lazily
+     *
+     * @return StateValidator
+     */
+    private function getStateValidator(): StateValidator
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new StateValidator();
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create InsertionProcessor lazily
+     *
+     * @return InsertionProcessor
+     */
+    private function getInsertionProcessor(): InsertionProcessor
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getDbMapping());
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create UpdateProcessor lazily
+     *
+     * @return UpdateProcessor
+     */
+    private function getUpdateProcessor(): UpdateProcessor
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getDbMapping());
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create DeletionProcessor lazily
+     *
+     * @return DeletionProcessor
+     */
+    private function getDeletionProcessor(): DeletionProcessor
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getDbMapping());
+        }
+
+        return $instance;
     }
 
     /**
@@ -386,14 +498,14 @@ class EmEngine
         $this->entityRegistry->register($entity);
 
         // Mark as managed in state manager
-        if (!$this->stateManager->isManaged($entity)) {
-            $this->stateManager->manage($entity);
+        if (!$this->getStateManager()->isManaged($entity)) {
+            $this->getStateManager()->manage($entity);
         }
 
         // Load relations after the entity is properly managed
         if ($loadRelations) {
             try {
-                $this->relationManager->loadEntityRelations($entity, $entityData);
+                $this->getRelationManager()->loadEntityRelations($entity, $entityData);
             } catch (Exception) {
                 // If relation loading fails, log but don't fail the entity creation
                 // This ensures that at least the scalar properties are hydrated
