@@ -9,7 +9,6 @@ use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\Database\ORM\State\EntityStateManager;
-use ReflectionException;
 use SplObjectStorage;
 
 /**
@@ -31,6 +30,8 @@ final class ChangeSetManager
     private EntityScheduler $scheduler;
     private EntityStateManager $stateManager;
     private EntityProcessor $entityProcessor;
+    private ChangeSetValidator $validator;
+    private ChangeSetOperationHandler $operationHandler;
 
     /**
      * @param IdentityMap $identityMap
@@ -79,8 +80,34 @@ final class ChangeSetManager
     }
 
     /**
+     * Get or create ChangeSetValidator lazily
+     */
+    private function getValidator(): ChangeSetValidator
+    {
+        if (!isset($this->validator)) {
+            $this->validator = new ChangeSetValidator($this->identityMap);
+        }
+        return $this->validator;
+    }
+
+    /**
+     * Get or create ChangeSetOperationHandler lazily
+     */
+    private function getOperationHandler(): ChangeSetOperationHandler
+    {
+        if (!isset($this->operationHandler)) {
+            $this->operationHandler = new ChangeSetOperationHandler(
+                $this->identityMap,
+                $this->registry,
+                $this->changeDetector,
+                $this->getValidator()
+            );
+        }
+        return $this->operationHandler;
+    }
+
+    /**
      * @return void
-     * @throws ReflectionException
      */
     public function computeChangeSets(): void
     {
@@ -104,27 +131,15 @@ final class ChangeSetManager
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     public function scheduleInsert(object $entity): void
     {
-        if ($this->getScheduler()->isScheduledForInsertion($entity)) {
-            return;
-        }
-
-        $metadata = $this->identityMap->getMetadata($entity);
-        $entityId = $this->getEntityProcessor()->extractEntityId($entity);
-
-        if ($this->shouldSkipInsertion($entityId, $metadata)) {
-            return;
-        }
-
-        $this->getScheduler()->scheduleForInsertion($entity);
-        $this->registry->register($entity);
-
-        $this->handleEntityStateForInsertion($entity, $metadata);
-        $this->getScheduler()->removeFromSchedule($entity, 'updates');
-        $this->getScheduler()->removeFromSchedule($entity, 'deletions');
+        $this->getOperationHandler()->handleInsertionScheduling(
+            $entity,
+            $this->getScheduler(),
+            $this->getStateManager(),
+            $this->getEntityProcessor()
+        );
     }
 
     /**
@@ -133,12 +148,7 @@ final class ChangeSetManager
      */
     public function scheduleUpdate(object $entity): void
     {
-        if (!$this->canScheduleUpdate($entity)) {
-            return;
-        }
-
-        $this->getScheduler()->scheduleForUpdate($entity);
-        $this->registry->register($entity);
+        $this->getOperationHandler()->handleUpdateScheduling($entity, $this->getScheduler());
     }
 
     /**
@@ -147,24 +157,11 @@ final class ChangeSetManager
      */
     public function scheduleDelete(object $entity): void
     {
-        if ($this->getScheduler()->isScheduledForDeletion($entity)) {
-            return;
-        }
-
-        $this->getScheduler()->scheduleForDeletion($entity);
-
-        // Ne pas forcer la transition d'état ici - laisser le système de validation s'en charger
-        // La transition d'état sera gérée par DirectStateManager ou EmEngine
-        $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null && $metadata->state !== EntityState::REMOVED) {
-            // Seulement mettre à jour les métadonnées si l'entité n'est pas en état NEW
-            if ($metadata->state !== EntityState::NEW) {
-                $this->getStateManager()->transitionToRemoved($entity);
-            }
-        }
-
-        $this->getScheduler()->removeFromSchedule($entity, 'insertions');
-        $this->getScheduler()->removeFromSchedule($entity, 'updates');
+        $this->getOperationHandler()->handleDeletionScheduling(
+            $entity,
+            $this->getScheduler(),
+            $this->getStateManager()
+        );
     }
 
     /**
@@ -173,16 +170,17 @@ final class ChangeSetManager
      */
     public function detach(object $entity): void
     {
-        $this->getScheduler()->removeFromAllSchedules($entity);
-        $this->getStateManager()->transitionToDetached($entity);
+        $this->getOperationHandler()->handleDetachment(
+            $entity,
+            $this->getScheduler(),
+            $this->getStateManager()
+        );
         unset($this->changeSets[$entity]);
-        $this->registry->unregister($entity);
     }
 
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     public function merge(object $entity): void
     {
@@ -298,41 +296,9 @@ final class ChangeSetManager
         ];
     }
 
-    // Private helper methods to reduce complexity
-    private function shouldSkipInsertion(int|string|null $entityId, ?EntityMetadata $metadata): bool
-    {
-        if ($entityId !== null && $metadata !== null && $metadata->isManaged()) {
-            return true;
-        }
-
-        return $entityId !== null;
-    }
-
-    private function canScheduleUpdate(object $entity): bool
-    {
-        return $this->identityMap->isManaged($entity) &&
-               !$this->getScheduler()->isScheduledForInsertion($entity) &&
-               !$this->getScheduler()->isScheduledForDeletion($entity) &&
-               !$this->getScheduler()->isScheduledForUpdate($entity);
-    }
-
-    private function handleEntityStateForInsertion(object $entity, ?EntityMetadata $metadata): void
-    {
-        if ($metadata === null) {
-            $this->identityMap->add($entity);
-            return;
-        }
-
-        if ($metadata->state !== EntityState::NEW) {
-            $newData = $this->changeDetector->extractCurrentData($entity);
-            $this->getStateManager()->tryTransitionToNew($entity, $newData);
-        }
-    }
-
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
      */
     private function computeEntityChangeSet(object $entity): void
     {
