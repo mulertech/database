@@ -102,12 +102,6 @@ interface StateManagerInterface
      * @param object $entity
      * @return void
      */
-    public function markAsProcessed(object $entity): void;
-
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function markAsPersisted(object $entity): void;
 
     /**
