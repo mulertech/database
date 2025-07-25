@@ -373,25 +373,77 @@ readonly class SchemaComparer
     {
         $differences = [];
 
-        // Compare column type
+        $this->compareColumnType($entityColumnInfo, $dbColumnInfo, $differences);
+        $this->compareNullable($entityColumnInfo, $dbColumnInfo, $differences);
+        $this->compareDefaultValue($entityColumnInfo, $dbColumnInfo, $differences);
+        $this->compareExtra($entityColumnInfo, $dbColumnInfo, $differences);
+
+        return $differences;
+    }
+
+    /**
+     * Compare column type between entity and database
+     *
+     * @param array{COLUMN_TYPE: string} $entityColumnInfo
+     * @param array{COLUMN_TYPE: string} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
+     * @return void
+     */
+    private function compareColumnType(array $entityColumnInfo, array $dbColumnInfo, array &$differences): void
+    {
         if ($entityColumnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
             $differences['COLUMN_TYPE'] = [
                 'from' => $dbColumnInfo['COLUMN_TYPE'],
                 'to' => $entityColumnInfo['COLUMN_TYPE'],
             ];
         }
+    }
 
-        // Compare nullable
+    /**
+     * Compare nullable constraint between entity and database
+     *
+     * @param array{IS_NULLABLE: 'YES'|'NO'} $entityColumnInfo
+     * @param array{IS_NULLABLE: 'YES'|'NO'} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
+     * @return void
+     */
+    private function compareNullable(array $entityColumnInfo, array $dbColumnInfo, array &$differences): void
+    {
         if ($entityColumnInfo['IS_NULLABLE'] !== $dbColumnInfo['IS_NULLABLE']) {
             $differences['IS_NULLABLE'] = [
                 'from' => $dbColumnInfo['IS_NULLABLE'],
                 'to' => $entityColumnInfo['IS_NULLABLE'],
             ];
         }
+    }
 
-        // Compare default value - normalize empty string and null
-        $entityDefault = $entityColumnInfo['COLUMN_DEFAULT'] === '' ? null : $entityColumnInfo['COLUMN_DEFAULT'];
-        $dbDefault = $dbColumnInfo['COLUMN_DEFAULT'] === '' ? null : $dbColumnInfo['COLUMN_DEFAULT'];
+    /**
+     * Compare default value between entity and database
+     *
+     * @param array{COLUMN_DEFAULT: string|null} $entityColumnInfo
+     * @param array{COLUMN_DEFAULT: string|null} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
+     * @return void
+     */
+    private function compareDefaultValue(array $entityColumnInfo, array $dbColumnInfo, array &$differences): void
+    {
+        $entityDefault = $this->normalizeDefaultValue($entityColumnInfo['COLUMN_DEFAULT']);
+        $dbDefault = $this->normalizeDefaultValue($dbColumnInfo['COLUMN_DEFAULT']);
 
         if ($entityDefault !== $dbDefault) {
             $differences['COLUMN_DEFAULT'] = [
@@ -399,10 +451,25 @@ readonly class SchemaComparer
                 'to' => $entityColumnInfo['COLUMN_DEFAULT'],
             ];
         }
+    }
 
-        // Compare extra (like auto_increment) - normalize empty string and null
-        $entityExtra = $entityColumnInfo['EXTRA'] === '' ? null : $entityColumnInfo['EXTRA'];
-        $dbExtra = $dbColumnInfo['EXTRA'] === '' ? null : $dbColumnInfo['EXTRA'];
+    /**
+     * Compare extra attributes between entity and database
+     *
+     * @param array{EXTRA: string|null} $entityColumnInfo
+     * @param array{EXTRA: string|null} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
+     * @return void
+     */
+    private function compareExtra(array $entityColumnInfo, array $dbColumnInfo, array &$differences): void
+    {
+        $entityExtra = $this->normalizeExtraValue($entityColumnInfo['EXTRA']);
+        $dbExtra = $this->normalizeExtraValue($dbColumnInfo['EXTRA']);
 
         if ($entityExtra !== $dbExtra) {
             $differences['EXTRA'] = [
@@ -410,8 +477,28 @@ readonly class SchemaComparer
                 'to' => $entityColumnInfo['EXTRA'],
             ];
         }
+    }
 
-        return $differences;
+    /**
+     * Normalize default value (convert empty string to null)
+     *
+     * @param string|null $value
+     * @return string|null
+     */
+    private function normalizeDefaultValue(?string $value): ?string
+    {
+        return $value === '' ? null : $value;
+    }
+
+    /**
+     * Normalize extra value (convert empty string to null)
+     *
+     * @param string|null $value
+     * @return string|null
+     */
+    private function normalizeExtraValue(?string $value): ?string
+    {
+        return $value === '' ? null : $value;
     }
 
     /**
