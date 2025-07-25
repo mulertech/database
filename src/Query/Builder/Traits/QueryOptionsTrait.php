@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder\Traits;
 
+use MulerTech\Database\Query\Builder\DeleteBuilder;
+use MulerTech\Database\Query\Builder\InsertBuilder;
+use MulerTech\Database\Query\Builder\UpdateBuilder;
+
 /**
  * Trait QueryOptionsTrait
  *

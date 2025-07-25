@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace MulerTech\Database\Query\Builder\Traits;
 
 use InvalidArgumentException;
+use MulerTech\Database\Query\Builder\DeleteBuilder;
 use MulerTech\Database\Query\Builder\SelectBuilder;
+use MulerTech\Database\Query\Builder\UpdateBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\LinkOperator;

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder\Traits;
 
+use MulerTech\Database\Query\Builder\DeleteBuilder;
+use MulerTech\Database\Query\Builder\SelectBuilder;
+use MulerTech\Database\Query\Builder\UpdateBuilder;
 use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Types\JoinType;
 

@@ -165,7 +165,8 @@ class SelectBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * @param int $offset
+     * @param int|null $offset
+     * @param int|null $page
      * @return self
      */
     public function offset(?int $offset, ?int $page = null): self

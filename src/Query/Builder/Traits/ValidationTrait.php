@@ -73,7 +73,7 @@ trait ValidationTrait
     protected function validateNotEmpty(mixed $value, string $fieldName): void
     {
         if (empty($value)) {
-            throw new RuntimeException("{$fieldName} cannot be empty");
+            throw new RuntimeException("$fieldName cannot be empty");
         }
     }
 }

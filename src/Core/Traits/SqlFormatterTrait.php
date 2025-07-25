@@ -36,7 +36,7 @@ trait SqlFormatterTrait
      */
     protected function formatIdentifierWithAlias(string $identifier): string
     {
-        // Handle 'column AS alias' format (case insensitive)
+        // Handle 'column AS alias' format (case-insensitive)
         if (preg_match('/^(.+)\s+(?:AS|as)\s+(.+)$/i', $identifier, $matches)) {
             $column = trim($matches[1]);
             $alias = trim($matches[2]);

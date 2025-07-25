@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder;
 
-use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\Builder\Traits\QueryOptionsTrait;
 use MulerTech\Database\Query\Builder\Traits\ValidationTrait;
 use PDO;
@@ -186,7 +185,7 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         $allColumns = $this->extractAllColumns($batchData);
 
-        return array_map(function (array $row) use ($allColumns) {
+        return array_map(static function (array $row) use ($allColumns) {
             $normalizedRow = [];
             foreach ($allColumns as $col) {
                 $value = $row[$col] ?? null;
@@ -203,11 +202,7 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     private function extractAllColumns(array $batchData): array
     {
-        $allColumns = [];
-        foreach ($batchData as $row) {
-            $allColumns = array_merge($allColumns, array_keys($row));
-        }
-        return array_unique($allColumns);
+        return array_unique(array_merge(...array_map('array_keys', $batchData)));
     }
 
     /**
