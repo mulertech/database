@@ -92,6 +92,6 @@ class MigrationGenerateCommand extends AbstractCommand
      */
     protected function createMigrationGenerator(SchemaComparer $schemaComparer, string $migrationsDirectory): MigrationGenerator
     {
-        return new MigrationGenerator($schemaComparer, $migrationsDirectory);
+        return new MigrationGenerator($schemaComparer, $this->entityManager->getDbMapping(), $migrationsDirectory);
     }
 }

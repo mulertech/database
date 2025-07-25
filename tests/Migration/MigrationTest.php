@@ -25,6 +25,7 @@ use RuntimeException;
 
 class MigrationTest extends TestCase
 {
+    private DbMapping $dbMapping;
     private EntityManager $entityManager;
     private string $migrationsDirectory;
     private string $databaseName = 'db';
@@ -37,11 +38,12 @@ class MigrationTest extends TestCase
      */
     protected function setUp(): void
     {
+        $this->dbMapping = new DbMapping(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            new DbMapping(
-                dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-            )
+            $this->dbMapping,
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
 
@@ -89,6 +91,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )
             ->generateMigration('invalid-datetime');
@@ -107,6 +110,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $nonExistentDir,
         );
     }
@@ -122,6 +126,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
 //            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Migrations'
         )->generateMigration('202505011024');
@@ -162,6 +167,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011025');
 
@@ -177,6 +183,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011506'));
     }
@@ -196,6 +203,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011026');
 
@@ -222,6 +230,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -251,6 +260,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -280,6 +290,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -309,6 +320,7 @@ class MigrationTest extends TestCase
                 $this->entityManager->getDbMapping(),
                 $this->databaseName
             ),
+            $this->dbMapping,
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -346,7 +358,7 @@ class MigrationTest extends TestCase
             $dbMappingProperty->setValue($schemaComparer, $dbMapping);
         }
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Table 'empty_table' has no columns defined.");
@@ -371,7 +383,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Foreign key 'fk_incomplete' has incomplete definition.");
@@ -398,7 +410,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $filePath = $migrationGenerator->generateMigration($this->migrationDatetime);
 
@@ -439,7 +451,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $filePath = $migrationGenerator->generateMigration($this->migrationDatetime);
 
@@ -627,7 +639,7 @@ class MigrationTest extends TestCase
             'ALTER TABLE users_test MODIFY bio VARCHAR(100) NULL DEFAULT NULL'
         );
 
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $generator->generateMigration($this->migrationDatetime);
 
         $reflection = new ReflectionClass($generator);
@@ -680,9 +692,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithAllTypes(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         // Test bigint column type
         $result = $method->invoke($generator, 'bigint(20) unsigned', 'test_column', false, null, null);
@@ -740,7 +752,7 @@ class MigrationTest extends TestCase
 
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        $generator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateDownCode');
 
@@ -758,7 +770,7 @@ class MigrationTest extends TestCase
     {
         $schemaDifference = new SchemaDifference();
         
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateDownCode');
 
@@ -773,7 +785,7 @@ class MigrationTest extends TestCase
      */
     public function testGenerateRestoreColumnStatement(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateRestoreColumnStatement');
 
@@ -808,7 +820,7 @@ class MigrationTest extends TestCase
      */
     public function testGenerateModifyColumnStatementEdgeCases(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateModifyColumnStatement');
 
@@ -833,9 +845,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithAutoIncrement(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'int(11)', 'id', false, null, 'auto_increment');
         
@@ -850,7 +862,7 @@ class MigrationTest extends TestCase
      */
     public function testGenerateRestoreColumnStatementWithoutNullableChange(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateRestoreColumnStatement');
 
@@ -890,7 +902,7 @@ class MigrationTest extends TestCase
             )'
         );
 
-        $filename = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory)
+        $filename = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory)
             ->generateMigration('202505011030');
 
         $fileContent = file_get_contents($filename);
@@ -920,7 +932,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Foreign key 'fk_missing_ref' has incomplete definition.");
@@ -947,7 +959,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Foreign key 'fk_missing_col' has incomplete definition.");
@@ -961,9 +973,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithUnsignedBigint(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'bigint(20) unsigned', 'large_id', false, null, null);
         
@@ -978,9 +990,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithDouble(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'double', 'precision_value', true, null, null);
         
@@ -994,9 +1006,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithTimestamp(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'timestamp', 'created_at', false, 'CURRENT_TIMESTAMP', null);
         
@@ -1011,9 +1023,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithLongtext(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'longtext', 'content', true, null, null);
         
@@ -1027,9 +1039,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithTinyint(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'tinyint(1)', 'is_active', false, '0', null);
         
@@ -1118,7 +1130,7 @@ class MigrationTest extends TestCase
      */
     public function testGenerateModifyColumnStatementWithNullDefaults(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateModifyColumnStatement');
 
@@ -1146,7 +1158,7 @@ class MigrationTest extends TestCase
      */
     public function testGenerateRestoreColumnStatementComplex(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateRestoreColumnStatement');
 
@@ -1194,7 +1206,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        $generator = new MigrationGenerator($schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $filename = $generator->generateMigration($this->migrationDatetime);
 
         $fileContent = file_get_contents($filename);
@@ -1216,9 +1228,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithJson(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, 'json', 'metadata', true, null, null);
         
@@ -1232,9 +1244,9 @@ class MigrationTest extends TestCase
      */
     public function testParseColumnTypeWithEnum(): void
     {
-        $generator = new MigrationGenerator($this->schemaComparer, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory);
         $reflection = new ReflectionClass($generator);
-        $method = $reflection->getMethod('parseColumnType');
+        $method = $reflection->getMethod('generateColumnDefinitionFromType');
 
         $result = $method->invoke($generator, "enum('active','inactive')", 'status', false, 'active', null);
         $this->assertStringContainsString("->enum(['active', 'inactive'])", $result);

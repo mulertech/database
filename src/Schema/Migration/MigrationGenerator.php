@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
+use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
 use MulerTech\Database\Schema\Types\ReferentialAction;
@@ -54,10 +55,12 @@ class MigrationGenerator
 
     /**
      * @param SchemaComparer $schemaComparer
+     * @param DbMappingInterface $dbMapping
      * @param string $migrationsDirectory
      */
     public function __construct(
         private readonly SchemaComparer $schemaComparer,
+        private readonly DbMappingInterface $dbMapping,
         private readonly string $migrationsDirectory,
     ) {
         // Ensure migrations directory exists
@@ -133,7 +136,7 @@ class MigrationGenerator
             }
 
             foreach ($foreignKeys as $constraintName => $foreignKeyInfo) {
-                $columnName = $foreignKeyInfo['COLUMN_NAME'] ?? null;
+                $columnName = $foreignKeyInfo['COLUMN_NAME'];
                 $referencedTable = $foreignKeyInfo['REFERENCED_TABLE_NAME'] ?? null;
                 $referencedColumn = $foreignKeyInfo['REFERENCED_COLUMN_NAME'] ?? null;
 
@@ -149,6 +152,7 @@ class MigrationGenerator
      *
      * @param SchemaDifference $diff
      * @return string
+     * @throws ReflectionException
      */
     private function generateUpCode(SchemaDifference $diff): string
     {
@@ -175,17 +179,14 @@ class MigrationGenerator
                 throw new RuntimeException("Table '$tableName' has no columns defined.");
             }
 
-            $tableColumns = $columnsToAdd[$tableName];
-            $code[] = $this->generateCreateTableStatement($tableName, $tableColumns);
+            $code[] = $this->generateCreateTableStatement($tableName);
             unset($columnsToAdd[$tableName]);
         }
 
         // Add new columns
         foreach ($columnsToAdd as $tableName => $columns) {
             foreach ($columns as $columnName => $columnDefinition) {
-                $columnType = is_string($columnDefinition['COLUMN_TYPE'] ?? null)
-                    ? $columnDefinition['COLUMN_TYPE']
-                    : 'VARCHAR(255)';
+                $columnType = $columnDefinition['COLUMN_TYPE'];
                 $columnExtra = is_string($columnDefinition['EXTRA'] ?? null)
                     ? $columnDefinition['EXTRA']
                     : null;
@@ -194,7 +195,7 @@ class MigrationGenerator
                     $tableName,
                     $columnType,
                     $columnName,
-                    ($columnDefinition['IS_NULLABLE'] ?? 'YES') === 'YES',
+                    $columnDefinition['IS_NULLABLE'] === 'YES',
                     $columnDefinition['COLUMN_DEFAULT'] ?? null,
                     $columnExtra
                 );
@@ -258,9 +259,9 @@ class MigrationGenerator
         // Restore columns modifications if possible
         foreach ($diff->getColumnsToModify() as $tableName => $columns) {
             foreach ($columns as $columnName => $differences) {
-                $hasColumnTypeFrom = is_array($differences['COLUMN_TYPE'] ?? null) && isset($differences['COLUMN_TYPE']['from']);
-                $hasNullableFrom = is_array($differences['IS_NULLABLE'] ?? null) && isset($differences['IS_NULLABLE']['from']);
-                $hasDefaultFrom = is_array($differences['COLUMN_DEFAULT'] ?? null) && isset($differences['COLUMN_DEFAULT']['from']);
+                $hasColumnTypeFrom = isset($differences['COLUMN_TYPE']['from']);
+                $hasNullableFrom = isset($differences['IS_NULLABLE']['from']);
+                $hasDefaultFrom = isset($differences['COLUMN_DEFAULT']['from']);
 
                 if ($hasColumnTypeFrom || $hasNullableFrom || $hasDefaultFrom) {
                     $code[] = $this->generateRestoreColumnStatement($tableName, $columnName, $differences);
@@ -277,36 +278,36 @@ class MigrationGenerator
      * Generate code to create a table with all its columns
      *
      * @param string $tableName
-     * @param array<string, array<string, mixed>> $columnsToAdd
      * @return string
+     * @throws ReflectionException
      */
-    private function generateCreateTableStatement(string $tableName, array $columnsToAdd): string
+    private function generateCreateTableStatement(string $tableName): string
     {
+        // Find the entity class for this table
+        $entityClass = null;
+        foreach ($this->dbMapping->getEntities() as $entity) {
+            if ($this->dbMapping->getTableName($entity) === $tableName) {
+                $entityClass = $entity;
+                break;
+            }
+        }
+
+        if (!$entityClass) {
+            throw new RuntimeException("Could not find entity class for table '$tableName'");
+        }
+
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '        $tableDefinition = $schema->createTable("' . $tableName . '");';
 
-        // Get all columns for this entity
-        foreach ($columnsToAdd as $columnName => $columnDefinition) {
-            // Parse column type to determine the appropriate method
-            $columnType = is_string($columnDefinition['COLUMN_TYPE'] ?? null)
-                ? $columnDefinition['COLUMN_TYPE']
-                : null;
-            $columnExtra = is_string($columnDefinition['EXTRA'] ?? null)
-                ? $columnDefinition['EXTRA']
-                : null;
+        // Get all columns for this entity using DbMapping
+        foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
+            $columnDefinitionCode = $this->generateColumnDefinitionFromMapping($entityClass, $property, $columnName);
+            $code[] = '        ' . $columnDefinitionCode;
 
-            $columnDefinitionCode = $this->parseColumnType(
-                $columnType,
-                $columnName,
-                $columnDefinition['IS_NULLABLE'] === 'YES',
-                $columnDefinition['COLUMN_DEFAULT'] ?? null,
-                $columnExtra
-            );
-            $code[] = '    ' . $columnDefinitionCode;
-
-            // Add primary/unique/index keys
-            if ($columnDefinition['COLUMN_KEY'] === 'PRI') {
+            // Add primary key if needed
+            $columnKey = $this->dbMapping->getColumnKey($entityClass, $property);
+            if ($columnKey === 'PRI') {
                 $code[] = '        $tableDefinition->primaryKey("' . $columnName . '");';
             }
         }
@@ -322,40 +323,183 @@ class MigrationGenerator
     }
 
     /**
-     * Parse ENUM/SET values from MySQL column definition
+     * Generate column definition code using DbMapping
      *
-     * @param string $valueString The content inside parentheses (e.g., "'value1','value2','value3'")
-     * @return array<string>
+     * @param class-string $entityClass
+     * @param string $property
+     * @param string $columnName
+     * @return string
+     * @throws ReflectionException
      */
-    private function parseEnumSetValues(string $valueString): array
+    private function generateColumnDefinitionFromMapping(string $entityClass, string $property, string $columnName): string
     {
-        $values = [];
-        $valueString = trim($valueString);
+        $code = '$tableDefinition->column("' . $columnName . '")';
 
-        // Split on commas but handle escaped quotes properly
-        preg_match_all("/'([^'\\\\]*(\\\\.[^'\\\\]*)*)'/", $valueString, $matches);
-
-        if (!empty($matches[1])) {
-            foreach ($matches[1] as $value) {
-                // Unescape the value
-                $values[] = str_replace(["\\\\", "\\'"], ["\\", "'"], $value);
-            }
+        // Get column type definition directly from DbMapping
+        $columnTypeDefinition = $this->dbMapping->getColumnTypeDefinition($entityClass, $property);
+        if ($columnTypeDefinition) {
+            // Convert SQL type to SchemaBuilder method call
+            $code .= $this->convertSqlTypeToBuilderMethod($columnTypeDefinition);
+        } else {
+            $code .= '->string()';
         }
 
-        return $values;
+        // Add nullable constraint
+        $isNullable = $this->dbMapping->isNullable($entityClass, $property);
+        if ($isNullable === false) {
+            $code .= '->notNull()';
+        }
+
+        // Add default value
+        $columnDefault = $this->dbMapping->getColumnDefault($entityClass, $property);
+        if ($columnDefault !== null && $columnDefault !== '') {
+            $code .= '->default("' . addslashes($columnDefault) . '")';
+        }
+
+        // Add extra attributes (like auto_increment)
+        $columnExtra = $this->dbMapping->getExtra($entityClass, $property);
+        if ($columnExtra && str_contains($columnExtra, 'auto_increment')) {
+            $code .= '->autoIncrement()';
+        }
+
+        return $code . ';';
     }
 
     /**
-     * Generate code to drop a table
+     * Convert SQL type definition to SchemaBuilder method call
+     * Uses the same conversion logic as ColumnType for consistency
+     *
+     * @param string $sqlType
+     * @return string
      */
-    private function generateDropTableStatement(string $tableName): string
+    private function convertSqlTypeToBuilderMethod(string $sqlType): string
     {
-        $code = [];
-        $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $sql = $schema->dropTable("' . $tableName . '");';
-        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
+        // Basic integer types
+        if (preg_match('/^(tiny|small|medium|big)?int(\(\d+\))?\s*(unsigned)?/i', $sqlType, $matches)) {
+            $size = strtolower($matches[1] ?? '');
+            $unsigned = isset($matches[3]);
 
-        return implode("\n", $code);
+            $method = match($size) {
+                'tiny' => '->tinyInt()',
+                'small' => '->smallInt()',
+                'medium' => '->mediumInt()',
+                'big' => '->bigInteger()',
+                default => '->integer()'
+            };
+
+            return $unsigned ? $method . '->unsigned()' : $method;
+        }
+
+        // String types
+        if (preg_match('/^varchar\((\d+)\)/i', $sqlType, $matches)) {
+            return '->string(' . $matches[1] . ')';
+        }
+        if (preg_match('/^char\((\d+)\)/i', $sqlType, $matches)) {
+            return '->char(' . $matches[1] . ')';
+        }
+
+        // Decimal and floating point types
+        if (preg_match('/^decimal\((\d+),(\d+)\)/i', $sqlType, $matches)) {
+            return '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
+        }
+        if (preg_match('/^float\((\d+),(\d+)\)/i', $sqlType, $matches)) {
+            return '->float(' . $matches[1] . ', ' . $matches[2] . ')';
+        }
+
+        // Double precision
+        if (stripos($sqlType, 'double') === 0) {
+            return '->double()';
+        }
+
+        // Binary types
+        if (preg_match('/^binary\((\d+)\)/i', $sqlType, $matches)) {
+            return '->binary(' . $matches[1] . ')';
+        }
+        if (preg_match('/^varbinary\((\d+)\)/i', $sqlType, $matches)) {
+            return '->varbinary(' . $matches[1] . ')';
+        }
+
+        // BLOB types
+        $blobTypes = [
+            'tinyblob' => '->tinyBlob()',
+            'mediumblob' => '->mediumBlob()',
+            'longblob' => '->longBlob()',
+            'blob' => '->blob()',
+        ];
+        foreach ($blobTypes as $type => $method) {
+            if (stripos($sqlType, $type) === 0) {
+                return $method;
+            }
+        }
+
+        // Text types
+        $textTypes = [
+            'tinytext' => '->tinyText()',
+            'mediumtext' => '->mediumText()',
+            'longtext' => '->longText()',
+            'text' => '->text()',
+        ];
+        foreach ($textTypes as $type => $method) {
+            if (stripos($sqlType, $type) === 0) {
+                return $method;
+            }
+        }
+
+        // Date/time types
+        $dateTimeTypes = [
+            'datetime' => '->datetime()',
+            'timestamp' => '->timestamp()',
+            'date' => '->date()',
+            'time' => '->time()',
+            'year' => '->year()',
+        ];
+        foreach ($dateTimeTypes as $type => $method) {
+            if (stripos($sqlType, $type) === 0) {
+                return $method;
+            }
+        }
+
+        // Boolean
+        if (stripos($sqlType, 'boolean') === 0 || stripos($sqlType, 'bool') === 0) {
+            return '->boolean()';
+        }
+
+        // JSON
+        if (stripos($sqlType, 'json') === 0) {
+            return '->json()';
+        }
+
+        // ENUM
+        if (preg_match('/^enum\((.*)\)/i', $sqlType, $matches)) {
+            $enumValues = $this->parseEnumSetValues($matches[1]);
+            return '->enum([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
+        }
+
+        // SET
+        if (preg_match('/^set\((.*)\)/i', $sqlType, $matches)) {
+            $setValues = $this->parseEnumSetValues($matches[1]);
+            return '->set([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
+        }
+
+        // Geometry types
+        $geometryTypes = [
+            'geometry' => '->geometry()',
+            'point' => '->point()',
+            'linestring' => '->lineString()',
+            'polygon' => '->polygon()',
+            'multipoint' => '->multiPoint()',
+            'multilinestring' => '->multiLineString()',
+            'multipolygon' => '->multiPolygon()',
+            'geometrycollection' => '->geometryCollection()',
+        ];
+        foreach ($geometryTypes as $type => $method) {
+            if (stripos($sqlType, $type) === 0) {
+                return $method;
+            }
+        }
+
+        // Default fallback
+        return '->string()';
     }
 
     /**
@@ -365,7 +509,7 @@ class MigrationGenerator
      * @param string|null $columnType
      * @param string $columnName
      * @param bool $isNullable
-     * @param mixed $columnDefault
+     * @param string|null $columnDefault
      * @param string|null $columnExtra
      * @return string
      */
@@ -374,14 +518,14 @@ class MigrationGenerator
         ?string $columnType,
         string $columnName,
         bool $isNullable,
-        mixed $columnDefault,
+        ?string $columnDefault,
         ?string $columnExtra
     ): string {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
 
-        $columnDefinitionCode = $this->parseColumnType(
+        $columnDefinitionCode = $this->generateColumnDefinitionFromType(
             $columnType,
             $columnName,
             $isNullable,
@@ -389,7 +533,7 @@ class MigrationGenerator
             $columnExtra
         );
 
-        $code[] = '    ' . $columnDefinitionCode;
+        $code[] = '        ' . $columnDefinitionCode;
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -397,11 +541,60 @@ class MigrationGenerator
     }
 
     /**
+     * Generate column definition code from raw type information
+     *
+     * @param string|null $columnType
+     * @param string $columnName
+     * @param bool $isNullable
+     * @param string|null $columnDefault
+     * @param string|null $columnExtra
+     * @return string
+     */
+    private function generateColumnDefinitionFromType(
+        ?string $columnType,
+        string $columnName,
+        bool $isNullable,
+        ?string $columnDefault,
+        ?string $columnExtra
+    ): string {
+        $code = '$tableDefinition->column("' . $columnName . '")';
+
+        // Convert SQL type to SchemaBuilder method call
+        if ($columnType) {
+            $code .= $this->convertSqlTypeToBuilderMethod($columnType);
+        } else {
+            $code .= '->string()';
+        }
+
+        // Add nullable constraint
+        if (!$isNullable) {
+            $code .= '->notNull()';
+        }
+
+        // Add default value
+        if ($columnDefault !== null && $columnDefault !== '') {
+            $code .= '->default("' . addslashes($columnDefault) . '")';
+        }
+
+        // Add extra attributes (like auto_increment)
+        if ($columnExtra && str_contains($columnExtra, 'auto_increment')) {
+            $code .= '->autoIncrement()';
+        }
+
+        return $code . ';';
+    }
+
+    /**
      * Generate code to modify a column
      *
      * @param string $tableName
      * @param string $columnName
-     * @param array<string, array<string, mixed>|mixed> $differences
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string|null, to: string|null},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
      * @return string
      */
     private function generateModifyColumnStatement(string $tableName, string $columnName, array $differences): string
@@ -411,19 +604,19 @@ class MigrationGenerator
         $columnDefault = null;
         $columnExtra = null;
 
-        if (isset($differences['COLUMN_TYPE']) && is_array($differences['COLUMN_TYPE'])) {
+        if (isset($differences['COLUMN_TYPE'])) {
             $columnType = $differences['COLUMN_TYPE']['to'] ?? 'VARCHAR(255)';
         }
 
-        if (isset($differences['IS_NULLABLE']) && is_array($differences['IS_NULLABLE'])) {
+        if (isset($differences['IS_NULLABLE'])) {
             $isNullable = $differences['IS_NULLABLE']['to'] === 'YES';
         }
 
-        if (isset($differences['COLUMN_DEFAULT']) && is_array($differences['COLUMN_DEFAULT'])) {
+        if (isset($differences['COLUMN_DEFAULT'])) {
             $columnDefault = $differences['COLUMN_DEFAULT']['to'];
         }
 
-        if (isset($differences['EXTRA']) && is_array($differences['EXTRA'])) {
+        if (isset($differences['EXTRA'])) {
             $columnExtra = is_string($differences['EXTRA']['to']) ? $differences['EXTRA']['to'] : null;
         }
 
@@ -442,7 +635,12 @@ class MigrationGenerator
      *
      * @param string $tableName
      * @param string $columnName
-     * @param array<string, array<string, mixed>|mixed> $differences
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string|null, to: string|null},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
      * @return string
      */
     private function generateRestoreColumnStatement(string $tableName, string $columnName, array $differences): string
@@ -452,27 +650,27 @@ class MigrationGenerator
         $columnDefault = null;
         $columnExtra = null;
 
-        if (isset($differences['COLUMN_TYPE']) && is_array($differences['COLUMN_TYPE'])) {
+        if (isset($differences['COLUMN_TYPE'])) {
             $columnType = $differences['COLUMN_TYPE']['from'] ?? 'VARCHAR(255)';
         }
 
-        if (isset($differences['IS_NULLABLE']) && is_array($differences['IS_NULLABLE'])) {
+        if (isset($differences['IS_NULLABLE'])) {
             $isNullable = $differences['IS_NULLABLE']['from'] === 'YES';
         }
 
-        if (isset($differences['COLUMN_DEFAULT']) && is_array($differences['COLUMN_DEFAULT'])) {
+        if (isset($differences['COLUMN_DEFAULT'])) {
             $columnDefault = $differences['COLUMN_DEFAULT']['from'];
         }
 
-        if (isset($differences['EXTRA']) && is_array($differences['EXTRA'])) {
+        if (isset($differences['EXTRA'])) {
             $columnExtra = is_string($differences['EXTRA']['from']) ? $differences['EXTRA']['from'] : null;
         }
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '$tableDefinition = $schema->alterTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
 
-        $columnDefinitionCode = $this->parseColumnType(
+        $columnDefinitionCode = $this->generateColumnDefinitionFromType(
             is_string($columnType) ? $columnType : 'VARCHAR(255)',
             $columnName,
             $isNullable,
@@ -480,8 +678,21 @@ class MigrationGenerator
             $columnExtra
         );
 
-        $code[] = '    ' . $columnDefinitionCode;
+        $code[] = '        ' . $columnDefinitionCode;
         $code[] = '        $sql = $tableDefinition->toSql();';
+        $code[] = '        $this->entityManager->getPdm()->exec($sql);';
+
+        return implode("\n", $code);
+    }
+
+    /**
+     * Generate code to drop a table
+     */
+    private function generateDropTableStatement(string $tableName): string
+    {
+        $code = [];
+        $code[] = '$schema = new SchemaBuilder();';
+        $code[] = '        $sql = $schema->dropTable("' . $tableName . '");';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
@@ -507,7 +718,13 @@ class MigrationGenerator
      *
      * @param string $tableName
      * @param string $constraintName
-     * @param array<string, mixed> $foreignKeyInfo
+     * @param array{
+     *        COLUMN_NAME: string,
+     *        REFERENCED_TABLE_NAME: string|null,
+     *        REFERENCED_COLUMN_NAME: string|null,
+     *        DELETE_RULE: string|null,
+     *        UPDATE_RULE: string|null
+     *        } $foreignKeyInfo
      * @return string
      */
     private function generateAddForeignKeyStatement(string $tableName, string $constraintName, array $foreignKeyInfo): string
@@ -516,16 +733,14 @@ class MigrationGenerator
         $updateRule = $foreignKeyInfo['UPDATE_RULE'] ?? null;
 
         // Get string values for referential actions
-        $onDeleteRule = ($deleteRule && (is_string($deleteRule) || is_int($deleteRule)))
+        $onDeleteRule = is_string($deleteRule)
             ? ReferentialAction::from($deleteRule)->toEnumCallString()
             : ReferentialAction::CASCADE->toEnumCallString();
-        $onUpdateRule = ($updateRule && (is_string($updateRule) || is_int($updateRule)))
+        $onUpdateRule = is_string($updateRule)
             ? ReferentialAction::from($updateRule)->toEnumCallString()
             : ReferentialAction::CASCADE->toEnumCallString();
 
-        $columnName = is_string($foreignKeyInfo['COLUMN_NAME'])
-            ? $foreignKeyInfo['COLUMN_NAME']
-            : '';
+        $columnName = $foreignKeyInfo['COLUMN_NAME'];
         $referencedTableName = is_string($foreignKeyInfo['REFERENCED_TABLE_NAME'])
             ? $foreignKeyInfo['REFERENCED_TABLE_NAME']
             : '';
@@ -562,282 +777,26 @@ class MigrationGenerator
     }
 
     /**
-     * Parse column type and generate appropriate column definition code
+     * Parse ENUM/SET values from MySQL column definition
      *
-     * @param string|null $columnType
-     * @param string $columnName
-     * @param bool $isNullable
-     * @param mixed $columnDefault
-     * @param string|null $columnExtra
-     * @return string
+     * @param string $valueString The content inside parentheses (e.g., "'value1','value2','value3'")
+     * @return array<string>
      */
-    private function parseColumnType(?string $columnType, string $columnName, bool $isNullable, mixed $columnDefault, ?string $columnExtra): string
+    private function parseEnumSetValues(string $valueString): array
     {
-        $code = '    $tableDefinition->column("' . $columnName . '")';
+        $values = [];
+        $valueString = trim($valueString);
 
-        // Parse the column type and add the appropriate method call
-        $code .= $this->getColumnTypeDefinition($columnType);
+        // Split on commas but handle escaped quotes properly
+        preg_match_all("/'([^'\\\\]*(\\\\.[^'\\\\]*)*)'/", $valueString, $matches);
 
-        // Add nullable constraint
-        if (!$isNullable) {
-            $code .= '->notNull()';
-        }
-
-        // Add default value
-        $code .= $this->getColumnDefaultValue($columnDefault);
-
-        // Add extra attributes (like auto_increment)
-        $code .= $this->getColumnExtraAttributes($columnExtra);
-
-        return $code . ';';
-    }
-
-    /**
-     * Get column type definition and return the appropriate method call
-     *
-     * @param string|null $columnType
-     * @return string
-     */
-    private function getColumnTypeDefinition(?string $columnType): string
-    {
-        if ($columnType === null || $columnType === '') {
-            return '->string()';
-        }
-
-        // Try each category of column types
-        return $this->parseIntegerTypes($columnType)
-            ?? $this->parseStringTypes($columnType)
-            ?? $this->parseDecimalTypes($columnType)
-            ?? $this->parseTextTypes($columnType)
-            ?? $this->parseBinaryTypes($columnType)
-            ?? $this->parseDateTimeTypes($columnType)
-            ?? $this->parseSpecialTypes($columnType)
-            ?? $this->parseGeometryTypes($columnType)
-            ?? '->string()';
-    }
-
-    /**
-     * Parse integer column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseIntegerTypes(string $columnType): ?string
-    {
-        $integerTypes = [
-            'tinyint' => '->tinyInt()',
-            'smallint' => '->smallInt()',
-            'mediumint' => '->mediumInt()',
-            'bigint' => '->bigInteger()',
-            'int' => '->integer()',
-        ];
-
-        foreach ($integerTypes as $type => $method) {
-            if (0 === stripos($columnType, $type)) {
-                $code = $method;
-                if (str_contains($columnType, 'unsigned')) {
-                    $code .= '->unsigned()';
-                }
-                return $code;
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $value) {
+                // Unescape the value
+                $values[] = str_replace(["\\\\", "\\'"], ["\\", "'"], $value);
             }
         }
 
-        return null;
-    }
-
-    /**
-     * Parse string column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseStringTypes(string $columnType): ?string
-    {
-        if (preg_match('/^varchar\((\d+)\)/i', $columnType, $matches)) {
-            return '->string(' . $matches[1] . ')';
-        }
-
-        if (preg_match('/^char\((\d+)\)/i', $columnType, $matches)) {
-            return '->char(' . $matches[1] . ')';
-        }
-
-        return null;
-    }
-
-    /**
-     * Parse decimal/numeric column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseDecimalTypes(string $columnType): ?string
-    {
-        if (preg_match('/^decimal\((\d+),(\d+)\)/i', $columnType, $matches)) {
-            return '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
-        }
-
-        if (preg_match('/^numeric\((\d+),(\d+)\)/i', $columnType, $matches)) {
-            return '->numeric(' . $matches[1] . ', ' . $matches[2] . ')';
-        }
-
-        if (preg_match('/^float\((\d+),(\d+)\)/i', $columnType, $matches)) {
-            return '->float(' . $matches[1] . ', ' . $matches[2] . ')';
-        }
-
-        $floatTypes = [
-            'double' => '->double()',
-            'real' => '->real()',
-        ];
-
-        return $floatTypes[$columnType] ?? null;
-    }
-
-    /**
-     * Parse text column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseTextTypes(string $columnType): ?string
-    {
-        $textTypes = [
-            'tinytext' => '->tinyText()',
-            'mediumtext' => '->mediumText()',
-            'longtext' => '->longText()',
-            'text' => '->text()',
-        ];
-
-        return $textTypes[$columnType] ?? null;
-    }
-
-    /**
-     * Parse binary column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseBinaryTypes(string $columnType): ?string
-    {
-        if (preg_match('/^binary\((\d+)\)/i', $columnType, $matches)) {
-            return '->binary(' . $matches[1] . ')';
-        }
-
-        if (preg_match('/^varbinary\((\d+)\)/i', $columnType, $matches)) {
-            return '->varbinary(' . $matches[1] . ')';
-        }
-
-        $blobTypes = [
-            'tinyblob' => '->tinyBlob()',
-            'mediumblob' => '->mediumBlob()',
-            'longblob' => '->longBlob()',
-            'blob' => '->blob()',
-        ];
-
-        return $blobTypes[$columnType] ?? null;
-    }
-
-    /**
-     * Parse date/time column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseDateTimeTypes(string $columnType): ?string
-    {
-        $dateTimeTypes = [
-            'datetime' => '->datetime()',
-            'timestamp' => '->timestamp()',
-            'date' => '->date()',
-            'time' => '->time()',
-            'year' => '->year()',
-        ];
-
-        return $dateTimeTypes[$columnType] ?? null;
-    }
-
-    /**
-     * Parse special column types (boolean, enum, set, json)
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseSpecialTypes(string $columnType): ?string
-    {
-        if (str_contains($columnType, 'boolean') || str_contains($columnType, 'bool')) {
-            // Handle boolean types
-            return '->boolean()';
-        }
-
-        if (preg_match('/^enum\((.*)\)/i', $columnType, $matches)) {
-            $enumValues = $this->parseEnumSetValues($matches[1]);
-            return '->enum([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
-        }
-
-        if (preg_match('/^set\((.*)\)/i', $columnType, $matches)) {
-            $setValues = $this->parseEnumSetValues($matches[1]);
-            return '->set([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
-        }
-
-        if (str_contains($columnType, "json")) {
-            return '->json()';
-        }
-
-        return null;
-    }
-
-    /**
-     * Parse geometry column types
-     *
-     * @param string $columnType
-     * @return string|null
-     */
-    private function parseGeometryTypes(string $columnType): ?string
-    {
-        $geometryTypes = [
-            'geometry' => '->geometry()',
-            'point' => '->point()',
-            'linestring' => '->linestring()',
-            'polygon' => '->polygon()',
-        ];
-
-        return $geometryTypes[$columnType] ?? null;
-    }
-
-    /**
-     * Get column default value
-     *
-     * @param mixed $columnDefault
-     * @return string
-     */
-    private function getColumnDefaultValue(mixed $columnDefault): string
-    {
-        if ($columnDefault === null || $columnDefault === '') {
-            return '';
-        }
-
-        if (is_string($columnDefault)) {
-            return '->default("' . addslashes($columnDefault) . '")';
-        }
-
-        if (is_scalar($columnDefault)) {
-            return '->default("' . addslashes((string)$columnDefault) . '")';
-        }
-
-        return '';
-    }
-
-    /**
-     * Get column extra attributes
-     *
-     * @param string|null $columnExtra
-     * @return string
-     */
-    private function getColumnExtraAttributes(?string $columnExtra): string
-    {
-        if ($columnExtra !== null && str_contains($columnExtra, 'auto_increment')) {
-            return '->autoIncrement()';
-        }
-
-        return '';
+        return $values;
     }
 }
