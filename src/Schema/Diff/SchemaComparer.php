@@ -196,13 +196,7 @@ readonly class SchemaComparer
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
             if (!isset($databaseColumns[$columnName])) {
                 // Build column info directly from DbMapping
-                $columnInfo = [
-                    'COLUMN_TYPE' => $this->dbMapping->getColumnTypeDefinition($entityClass, $property),
-                    'IS_NULLABLE' => $this->dbMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
-                    'COLUMN_DEFAULT' => $this->dbMapping->getColumnDefault($entityClass, $property),
-                    'EXTRA' => $this->dbMapping->getExtra($entityClass, $property),
-                    'COLUMN_KEY' => $this->dbMapping->getColumnKey($entityClass, $property),
-                ];
+                $columnInfo = $this->getColumnInfo($entityClass, $property);
 
                 if ($columnInfo['COLUMN_TYPE'] === null) {
                     throw new RuntimeException(
@@ -247,13 +241,7 @@ readonly class SchemaComparer
             $dbColumnInfo = $databaseColumns[$columnName];
 
             // Get entity column info directly from DbMapping
-            $entityColumnInfo = [
-                'COLUMN_TYPE' => $this->dbMapping->getColumnTypeDefinition($entityClass, $property),
-                'IS_NULLABLE' => $this->dbMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
-                'COLUMN_DEFAULT' => $this->dbMapping->getColumnDefault($entityClass, $property),
-                'EXTRA' => $this->dbMapping->getExtra($entityClass, $property),
-                'COLUMN_KEY' => $this->dbMapping->getColumnKey($entityClass, $property),
-            ];
+            $entityColumnInfo = $this->getColumnInfo($entityClass, $property);
 
             if ($entityColumnInfo['COLUMN_TYPE'] === null) {
                 throw new RuntimeException(
@@ -424,5 +412,30 @@ readonly class SchemaComparer
         }
 
         return $differences;
+    }
+
+    /**
+     * Get column info for a specific entity property
+     *
+     * @param class-string $entityClass
+     * @param string $property
+     * @return array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     COLUMN_DEFAULT: string|null,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }
+     * @throws ReflectionException
+     */
+    private function getColumnInfo(string $entityClass, string $property): array
+    {
+        return [
+            'COLUMN_TYPE' => $this->dbMapping->getColumnTypeDefinition($entityClass, $property),
+            'IS_NULLABLE' => $this->dbMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
+            'COLUMN_DEFAULT' => $this->dbMapping->getColumnDefault($entityClass, $property),
+            'EXTRA' => $this->dbMapping->getExtra($entityClass, $property),
+            'COLUMN_KEY' => $this->dbMapping->getColumnKey($entityClass, $property),
+        ];
     }
 }
