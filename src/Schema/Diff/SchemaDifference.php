@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
+use MulerTech\Database\Mapping\Types\FkRule;
+
 /**
  * Class SchemaDifference
  *
@@ -55,8 +57,8 @@ class SchemaDifference
      *       COLUMN_NAME: string,
      *       REFERENCED_TABLE_NAME: string|null,
      *       REFERENCED_COLUMN_NAME: string|null,
-     *       DELETE_RULE: string|null,
-     *       UPDATE_RULE: string|null
+     *       DELETE_RULE: FkRule|null,
+     *       UPDATE_RULE: FkRule|null
      *       }>> Foreign keys to add [tableName => [constraintName => definition]]
      */
     private array $foreignKeysToAdd = [];
@@ -163,8 +165,8 @@ class SchemaDifference
      *        COLUMN_NAME: string,
      *        REFERENCED_TABLE_NAME: string|null,
      *        REFERENCED_COLUMN_NAME: string|null,
-     *        DELETE_RULE: string|null,
-     *        UPDATE_RULE: string|null
+     *        DELETE_RULE: FkRule|null,
+     *        UPDATE_RULE: FkRule|null
      *        } $foreignKeyDefinition
      * @return $this
      */
@@ -263,8 +265,8 @@ class SchemaDifference
      *         COLUMN_NAME: string,
      *         REFERENCED_TABLE_NAME: string|null,
      *         REFERENCED_COLUMN_NAME: string|null,
-     *         DELETE_RULE: string|null,
-     *         UPDATE_RULE: string|null
+     *         DELETE_RULE: FkRule|null,
+     *         UPDATE_RULE: FkRule|null
      *         }>>
      */
     public function getForeignKeysToAdd(): array

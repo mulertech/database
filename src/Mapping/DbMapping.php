@@ -10,6 +10,7 @@ use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 
 /**
@@ -216,7 +217,7 @@ class DbMapping implements DbMappingInterface
     /**
      * @throws ReflectionException
      */
-    public function getDeleteRule(string $entityName, string $property): ?string
+    public function getDeleteRule(string $entityName, string $property): ?FkRule
     {
         return $this->foreignKeyMapping->getDeleteRule($entityName, $property);
     }
@@ -224,7 +225,7 @@ class DbMapping implements DbMappingInterface
     /**
      * @throws ReflectionException
      */
-    public function getUpdateRule(string $entityName, string $property): ?string
+    public function getUpdateRule(string $entityName, string $property): ?FkRule
     {
         return $this->foreignKeyMapping->getUpdateRule($entityName, $property);
     }

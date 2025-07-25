@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionException;
 
@@ -111,10 +112,10 @@ class ForeignKeyMapping
     /**
      * @param class-string $entityName
      * @param string $property
-     * @return string|null
+     * @return FkRule|null
      * @throws ReflectionException
      */
-    public function getDeleteRule(string $entityName, string $property): ?string
+    public function getDeleteRule(string $entityName, string $property): ?FkRule
     {
         $mtFk = $this->getForeignKey($entityName, $property);
 
@@ -122,16 +123,16 @@ class ForeignKeyMapping
             return null;
         }
 
-        return $mtFk->deleteRule->value ?? null;
+        return $mtFk->deleteRule ?? null;
     }
 
     /**
      * @param class-string $entityName
      * @param string $property
-     * @return string|null
+     * @return FkRule|null
      * @throws ReflectionException
      */
-    public function getUpdateRule(string $entityName, string $property): ?string
+    public function getUpdateRule(string $entityName, string $property): ?FkRule
     {
         $mtFk = $this->getForeignKey($entityName, $property);
 
@@ -139,6 +140,6 @@ class ForeignKeyMapping
             return null;
         }
 
-        return $mtFk->updateRule->value ?? null;
+        return $mtFk->updateRule ?? null;
     }
 }

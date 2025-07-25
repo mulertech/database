@@ -561,7 +561,7 @@ class MappingTest extends TestCase
     public function testGetDeleteRule(): void
     {
         $this->assertEquals(
-            'RESTRICT',
+            FkRule::RESTRICT,
             $this->getDbMapping()->getDeleteRule(User::class, 'unit')
         );
     }
@@ -582,7 +582,7 @@ class MappingTest extends TestCase
     public function testGetUpdateRule(): void
     {
         $this->assertEquals(
-            'CASCADE',
+            FkRule::CASCADE,
             $this->getDbMapping()->getUpdateRule(User::class, 'unit')
         );
     }
