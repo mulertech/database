@@ -161,6 +161,28 @@ readonly class SchemaComparer
     private function compareColumns(string $tableName, string $entityClass, SchemaDifference $diff): void
     {
         $databaseColumns = $this->getTableColumns($tableName);
+        $entityColumns = $this->buildEntityColumnsArray($entityClass);
+
+        $this->findColumnsToAdd($tableName, $entityColumns, $databaseColumns, $diff);
+        $this->findColumnsToModify($tableName, $entityColumns, $databaseColumns, $diff);
+        $this->findColumnsToDrop($tableName, $entityColumns, $databaseColumns, $diff);
+    }
+
+    /**
+     * Build array of entity columns from mapping
+     *
+     * @param class-string $entityClass
+     * @return array<string, array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: string,
+     *     COLUMN_DEFAULT: mixed,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }>
+     * @throws ReflectionException
+     */
+    private function buildEntityColumnsArray(string $entityClass): array
+    {
         $entityColumns = [];
 
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
@@ -179,57 +201,265 @@ readonly class SchemaComparer
             ];
         }
 
-        // Find columns to add (in entity mapping but not in database)
+        return $entityColumns;
+    }
+
+    /**
+     * Find columns to add (in entity mapping but not in database)
+     *
+     * @param string $tableName
+     * @param array<string, array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: string,
+     *     COLUMN_DEFAULT: mixed,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }> $entityColumns
+     * @param array<string, array{
+     *     TABLE_NAME: string,
+     *     COLUMN_NAME: string,
+     *     COLUMN_TYPE: string,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     EXTRA: string,
+     *     COLUMN_DEFAULT: string|null,
+     *     COLUMN_KEY: string|null
+     * }> $databaseColumns
+     * @param SchemaDifference $diff
+     * @return void
+     */
+    private function findColumnsToAdd(
+        string $tableName,
+        array $entityColumns,
+        array $databaseColumns,
+        SchemaDifference $diff
+    ): void {
         foreach ($entityColumns as $columnName => $columnInfo) {
             if (!isset($databaseColumns[$columnName])) {
                 $diff->addColumnToAdd($tableName, $columnName, $columnInfo);
             }
         }
+    }
 
-        // Find columns to modify (in both but with different definitions)
+    /**
+     * Find columns to modify (in both but with different definitions)
+     *
+     * @param string $tableName
+     * @param array<string, array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: string,
+     *     COLUMN_DEFAULT: mixed,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }> $entityColumns
+     * @param array<string, array{
+     *     TABLE_NAME: string,
+     *     COLUMN_NAME: string,
+     *     COLUMN_TYPE: string,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     EXTRA: string,
+     *     COLUMN_DEFAULT: string|null,
+     *     COLUMN_KEY: string|null
+     * }> $databaseColumns
+     * @param SchemaDifference $diff
+     * @return void
+     */
+    private function findColumnsToModify(
+        string $tableName,
+        array $entityColumns,
+        array $databaseColumns,
+        SchemaDifference $diff
+    ): void {
         foreach ($entityColumns as $columnName => $columnInfo) {
             if (!isset($databaseColumns[$columnName])) {
                 continue;
             }
 
             $dbColumnInfo = $databaseColumns[$columnName];
-
-            // Compare column definitions
-            $columnDifferences = [];
-
-            if ($columnInfo['COLUMN_TYPE'] !== null && $columnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
-                $columnDifferences['COLUMN_TYPE'] = [
-                    'from' => $dbColumnInfo['COLUMN_TYPE'],
-                    'to' => $columnInfo['COLUMN_TYPE'],
-                ];
-            }
-
-            if ($columnInfo['IS_NULLABLE'] !== $dbColumnInfo['IS_NULLABLE']) {
-                $columnDifferences['IS_NULLABLE'] = [
-                    'from' => $dbColumnInfo['IS_NULLABLE'],
-                    'to' => $columnInfo['IS_NULLABLE'],
-                ];
-            }
-
-            // Compare default values (need special handling for NULL)
-            $dbDefault = $dbColumnInfo['COLUMN_DEFAULT'];
-            $mappingDefault = $columnInfo['COLUMN_DEFAULT'];
-
-            if (($dbDefault === null && $mappingDefault !== null) ||
-                ($dbDefault !== null && $mappingDefault === null) ||
-                ($dbDefault !== null && $mappingDefault !== null && $dbDefault !== $mappingDefault)) {
-                $columnDifferences['COLUMN_DEFAULT'] = [
-                    'from' => $dbDefault,
-                    'to' => $mappingDefault,
-                ];
-            }
+            $columnDifferences = $this->compareColumnDefinitions($columnInfo, $dbColumnInfo);
 
             if (!empty($columnDifferences)) {
                 $diff->addColumnToModify($tableName, $columnName, $columnDifferences);
             }
         }
+    }
 
-        // Find columns to drop (in database but not in entity mapping)
+    /**
+     * Compare column definitions and return differences
+     *
+     * @param array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: string,
+     *     COLUMN_DEFAULT: mixed,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * } $entityColumnInfo
+     * @param array{
+     *     TABLE_NAME: string,
+     *     COLUMN_NAME: string,
+     *     COLUMN_TYPE: string,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     EXTRA: string,
+     *     COLUMN_DEFAULT: string|null,
+     *     COLUMN_KEY: string|null
+     * } $dbColumnInfo
+     * @return array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null}
+     *     }
+     */
+    private function compareColumnDefinitions(array $entityColumnInfo, array $dbColumnInfo): array
+    {
+        $columnDifferences = [];
+
+        $this->compareColumnType($entityColumnInfo, $dbColumnInfo, $columnDifferences);
+        $this->compareNullability($entityColumnInfo, $dbColumnInfo, $columnDifferences);
+        $this->compareDefaultValues($entityColumnInfo, $dbColumnInfo, $columnDifferences);
+
+        return $columnDifferences;
+    }
+
+    /**
+     * Compare column type
+     *
+     * @param array{COLUMN_TYPE: string|null} $entityColumnInfo
+     * @param array{COLUMN_TYPE: string} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null}
+     *     } $columnDifferences
+     * @return void
+     */
+    private function compareColumnType(array $entityColumnInfo, array $dbColumnInfo, array &$columnDifferences): void
+    {
+        if ($entityColumnInfo['COLUMN_TYPE'] !== null
+            && $entityColumnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']
+        ) {
+            $columnDifferences['COLUMN_TYPE'] = [
+                'from' => $dbColumnInfo['COLUMN_TYPE'],
+                'to' => $entityColumnInfo['COLUMN_TYPE'],
+            ];
+        }
+    }
+
+    /**
+     * Compare column nullability
+     *
+     * @param array{IS_NULLABLE: string} $entityColumnInfo
+     * @param array{IS_NULLABLE: 'YES'|'NO'} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null}
+     *     } $columnDifferences
+     * @return void
+     */
+    private function compareNullability(array $entityColumnInfo, array $dbColumnInfo, array &$columnDifferences): void
+    {
+        if ($entityColumnInfo['IS_NULLABLE'] !== $dbColumnInfo['IS_NULLABLE']) {
+            $columnDifferences['IS_NULLABLE'] = [
+                'from' => $dbColumnInfo['IS_NULLABLE'],
+                'to' => $entityColumnInfo['IS_NULLABLE'] === 'YES' ? 'YES' : 'NO',
+            ];
+        }
+    }
+
+    /**
+     * Compare default values (with special handling for NULL)
+     *
+     * @param array{COLUMN_DEFAULT: mixed} $entityColumnInfo
+     * @param array{COLUMN_DEFAULT: string|null} $dbColumnInfo
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null}
+     *     } $columnDifferences
+     * @return void
+     */
+    private function compareDefaultValues(array $entityColumnInfo, array $dbColumnInfo, array &$columnDifferences): void
+    {
+        $dbDefault = $dbColumnInfo['COLUMN_DEFAULT'];
+        $mappingDefault = $entityColumnInfo['COLUMN_DEFAULT'];
+
+        if ($this->defaultValuesAreDifferent($dbDefault, $mappingDefault)) {
+            // Safely convert the mapping default to string|null for consistency
+            $convertedMappingDefault = $this->convertDefaultValueToString($mappingDefault);
+
+            $columnDifferences['COLUMN_DEFAULT'] = [
+                'from' => $dbDefault,
+                'to' => $convertedMappingDefault,
+            ];
+        }
+    }
+
+    /**
+     * Safely convert a default value to string|null
+     *
+     * @param mixed $value
+     * @return string|null
+     */
+    private function convertDefaultValueToString($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        // For non-scalar values, return null as a safe fallback
+        return null;
+    }
+
+    /**
+     * Check if default values are different
+     *
+     * @param mixed $dbDefault
+     * @param mixed $mappingDefault
+     * @return bool
+     */
+    private function defaultValuesAreDifferent(mixed $dbDefault, mixed $mappingDefault): bool
+    {
+        return ($dbDefault === null && $mappingDefault !== null) ||
+               ($dbDefault !== null && $mappingDefault === null) ||
+               ($dbDefault !== null && $mappingDefault !== null && $dbDefault !== $mappingDefault);
+    }
+
+    /**
+     * Find columns to drop (in database but not in entity mapping)
+     *
+     * @param string $tableName
+     * @param array<string, array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: string,
+     *     COLUMN_DEFAULT: mixed,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }> $entityColumns
+     * @param array<string, array{
+     *     TABLE_NAME: string,
+     *     COLUMN_NAME: string,
+     *     COLUMN_TYPE: string,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     EXTRA: string,
+     *     COLUMN_DEFAULT: string|null,
+     *     COLUMN_KEY: string|null
+     * }> $databaseColumns
+     * @param SchemaDifference $diff
+     * @return void
+     */
+    private function findColumnsToDrop(
+        string $tableName,
+        array $entityColumns,
+        array $databaseColumns,
+        SchemaDifference $diff
+    ): void {
         foreach ($databaseColumns as $columnName => $columnInfo) {
             if (!isset($entityColumns[$columnName])) {
                 $diff->addColumnToDrop($tableName, $columnName);
@@ -254,23 +484,25 @@ readonly class SchemaComparer
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
             $foreignKey = $this->dbMapping->getForeignKey($entityClass, $property);
 
-            if ($foreignKey !== null) {
-                $constraintName = $this->dbMapping->getConstraintName($entityClass, $property);
-
-                if ($constraintName === null) {
-                    throw new RuntimeException(
-                        "Missing constraint name for foreign key on $entityClass::$property"
-                    );
-                }
-
-                $entityForeignKeys[$constraintName] = [
-                    'COLUMN_NAME' => $columnName,
-                    'REFERENCED_TABLE_NAME' => $this->dbMapping->getReferencedTable($entityClass, $property),
-                    'REFERENCED_COLUMN_NAME' => $this->dbMapping->getReferencedColumn($entityClass, $property),
-                    'DELETE_RULE' => $this->dbMapping->getDeleteRule($entityClass, $property),
-                    'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property),
-                ];
+            if ($foreignKey === null) {
+                continue;
             }
+
+            $constraintName = $this->dbMapping->getConstraintName($entityClass, $property);
+
+            if ($constraintName === null) {
+                throw new RuntimeException(
+                    "Missing constraint name for foreign key on $entityClass::$property"
+                );
+            }
+
+            $entityForeignKeys[$constraintName] = [
+                'COLUMN_NAME' => $columnName,
+                'REFERENCED_TABLE_NAME' => $this->dbMapping->getReferencedTable($entityClass, $property),
+                'REFERENCED_COLUMN_NAME' => $this->dbMapping->getReferencedColumn($entityClass, $property),
+                'DELETE_RULE' => $this->dbMapping->getDeleteRule($entityClass, $property),
+                'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property),
+            ];
         }
 
         // Find foreign keys to add
