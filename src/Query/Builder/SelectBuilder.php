@@ -211,51 +211,15 @@ class SelectBuilder extends AbstractQueryBuilder
     {
         $parts = [];
 
-        // SELECT clause
+        // Build each clause using dedicated methods
         $parts[] = $this->buildSelectClause();
-
-        // FROM clause
-        if (!empty($this->from)) {
-            $parts[] = 'FROM ' . implode(', ', $this->generateFromParts());
-        }
-
-        // JOIN clauses
-        $joinSql = $this->joinBuilder->toSql();
-        if ($joinSql !== '') {
-            $parts[] = $joinSql;
-        }
-
-        // WHERE clause
-        $whereSql = $this->whereBuilder->toSql();
-        if ($whereSql !== '') {
-            $parts[] = 'WHERE ' . $whereSql;
-        }
-
-        // GROUP BY clause
-        if (!empty($this->groupBy)) {
-            $parts[] = 'GROUP BY ' . implode(', ', array_map([$this, 'formatIdentifier'], $this->groupBy));
-        }
-
-        // HAVING clause
-        if ($this->havingBuilder !== null) {
-            $havingSql = $this->havingBuilder->toSql();
-            if ($havingSql !== '') {
-                $parts[] = 'HAVING ' . $havingSql;
-            }
-        }
-
-        // ORDER BY clause
-        if (!empty($this->orderBy)) {
-            $parts[] = 'ORDER BY ' . implode(', ', $this->orderBy);
-        }
-
-        // LIMIT clause
-        if ($this->limit > 0) {
-            $parts[] = 'LIMIT ' . $this->limit;
-            if ($this->offset > 0) {
-                $parts[] = 'OFFSET ' . $this->offset;
-            }
-        }
+        $this->addFromClause($parts);
+        $this->addJoinClause($parts);
+        $this->addWhereClause($parts);
+        $this->addGroupByClause($parts);
+        $this->addHavingClause($parts);
+        $this->addOrderByClause($parts);
+        $this->addLimitClause($parts);
 
         return implode(' ', $parts);
     }
@@ -271,6 +235,98 @@ class SelectBuilder extends AbstractQueryBuilder
             ? implode(', ', $this->select)  // Les colonnes sont déjà formatées dans select()
             : '*';
         return $selectClause;
+    }
+
+    /**
+     * Add FROM clause to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addFromClause(array &$parts): void
+    {
+        if (!empty($this->from)) {
+            $parts[] = 'FROM ' . implode(', ', $this->generateFromParts());
+        }
+    }
+
+    /**
+     * Add JOIN clause to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addJoinClause(array &$parts): void
+    {
+        $joinSql = $this->joinBuilder->toSql();
+        if ($joinSql !== '') {
+            $parts[] = $joinSql;
+        }
+    }
+
+    /**
+     * Add WHERE clause to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addWhereClause(array &$parts): void
+    {
+        $whereSql = $this->whereBuilder->toSql();
+        if ($whereSql !== '') {
+            $parts[] = 'WHERE ' . $whereSql;
+        }
+    }
+
+    /**
+     * Add GROUP BY clause to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addGroupByClause(array &$parts): void
+    {
+        if (!empty($this->groupBy)) {
+            $parts[] = 'GROUP BY ' . implode(', ', array_map([$this, 'formatIdentifier'], $this->groupBy));
+        }
+    }
+
+    /**
+     * Add HAVING clause to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addHavingClause(array &$parts): void
+    {
+        if ($this->havingBuilder !== null) {
+            $havingSql = $this->havingBuilder->toSql();
+            if ($havingSql !== '') {
+                $parts[] = 'HAVING ' . $havingSql;
+            }
+        }
+    }
+
+    /**
+     * Add ORDER BY clause to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addOrderByClause(array &$parts): void
+    {
+        if (!empty($this->orderBy)) {
+            $parts[] = 'ORDER BY ' . implode(', ', $this->orderBy);
+        }
+    }
+
+    /**
+     * Add LIMIT and OFFSET clauses to parts if needed
+     * @param array<string> $parts
+     * @return void
+     */
+    private function addLimitClause(array &$parts): void
+    {
+        if ($this->limit > 0) {
+            $parts[] = 'LIMIT ' . $this->limit;
+            if ($this->offset > 0) {
+                $parts[] = 'OFFSET ' . $this->offset;
+            }
+        }
     }
 
     /**
