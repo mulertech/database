@@ -22,12 +22,12 @@ class GroupUser
     private ?int $id = null;
 
     #[MtColumn(columnName: "user_id", columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: User::class, referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
+    #[MtFk(referencedTable: 'users_test', referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
     #[MtManyToOne(targetEntity: User::class)]
     private ?User $user = null;
 
     #[MtColumn(columnName: "group_id", columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: Group::class, referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
+    #[MtFk(referencedTable: 'groups_test', referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $group = null;
 

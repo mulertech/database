@@ -467,7 +467,7 @@ class MappingTest extends TestCase
     public function testGetForeignKey(): void
     {
         $mtFk = new MtFk(
-            referencedTable: Unit::class,
+            referencedTable: 'units_test',
             referencedColumn: 'id',
             deleteRule: FkRule::RESTRICT,
             updateRule: FkRule::CASCADE

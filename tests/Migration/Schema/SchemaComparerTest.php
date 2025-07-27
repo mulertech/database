@@ -5,7 +5,6 @@ namespace MulerTech\Database\Tests\Migration\Schema;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
-use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManager;

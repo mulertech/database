@@ -36,7 +36,7 @@ class User
     private ?float $accountBalance = null;
 
     #[MtColumn(columnName: "unit_id", columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: Unit::class, referencedColumn: "id", deleteRule: FkRule::RESTRICT, updateRule: FkRule::CASCADE)]
+    #[MtFk(referencedTable: 'units_test', referencedColumn: "id", deleteRule: FkRule::RESTRICT, updateRule: FkRule::CASCADE)]
     #[MtOneToOne(targetEntity: Unit::class)]
     private ?Unit $unit = null;
 
@@ -135,7 +135,7 @@ class User
 
     // Normally, we should use manager_id as column name. It's for test purpose
     #[MtColumn(columnName: "manager", columnType: ColumnType::INT, isUnsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: User::class, referencedColumn: "id", deleteRule: FkRule::SET_NULL, updateRule: FkRule::CASCADE)]
+    #[MtFk(referencedTable: 'users_test', referencedColumn: "id", deleteRule: FkRule::SET_NULL, updateRule: FkRule::CASCADE)]
     #[MtOneToOne(targetEntity: User::class)]
     private ?User $manager = null;
 

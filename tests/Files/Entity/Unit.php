@@ -6,7 +6,7 @@ use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Types\ColumnKey;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use MulerTech\Database\Tests\Files\UnitRepository;
+use MulerTech\Database\Tests\Files\Repository\UnitRepository;
 
 /**
  * Class User

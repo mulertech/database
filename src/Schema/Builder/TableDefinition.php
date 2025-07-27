@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Builder;
 
 use InvalidArgumentException;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
 
 /**
  * Table Definition - Fluent interface for table operations
@@ -26,14 +27,20 @@ class TableDefinition
     private array $dropForeignKeys = [];
     /** @var array<string, ColumnDefinition> */
     private array $modifyColumns = [];
-    private ?string $engine = null;
-    private ?string $charset = null;
-    private ?string $collation = null;
+    private MtEntity $mtEntity;
 
     public function __construct(
         private readonly string $tableName,
-        private readonly string $action
+        private readonly string $action,
     ) {
+        $this->mtEntity = new MtEntity(
+            repository: null,
+            tableName: $this->tableName,
+            autoIncrement: null,
+            engine: null,
+            charset: null,
+            collation: null
+        );
     }
 
     /**
@@ -66,7 +73,7 @@ class TableDefinition
      */
     public function foreignKey(string $constraintName): ForeignKeyDefinition
     {
-        $foreignKey = new ForeignKeyDefinition();
+        $foreignKey = new ForeignKeyDefinition($constraintName);
         $this->foreignKeys[$constraintName] = $foreignKey;
         return $foreignKey;
     }
@@ -111,7 +118,7 @@ class TableDefinition
      */
     public function engine(string $engine): self
     {
-        $this->engine = $engine;
+        $this->mtEntity->engine = $engine;
         return $this;
     }
 
@@ -122,7 +129,7 @@ class TableDefinition
      */
     public function charset(string $charset): self
     {
-        $this->charset = $charset;
+        $this->mtEntity->charset = $charset;
         return $this;
     }
 
@@ -133,7 +140,7 @@ class TableDefinition
      */
     public function collation(string $collation): self
     {
-        $this->collation = $collation;
+        $this->mtEntity->collation = $collation;
         return $this;
     }
 
@@ -170,14 +177,14 @@ class TableDefinition
         $sql .= implode(",\n", $columnDefinitions);
         $sql .= "\n)";
 
-        if ($this->engine) {
-            $sql .= " ENGINE=$this->engine";
+        if ($this->mtEntity->engine) {
+            $sql .= " ENGINE={$this->mtEntity->engine}";
         }
-        if ($this->charset) {
-            $sql .= " CHARACTER SET $this->charset";
+        if ($this->mtEntity->charset) {
+            $sql .= " CHARACTER SET {$this->mtEntity->charset}";
         }
-        if ($this->collation) {
-            $sql .= " COLLATE $this->collation";
+        if ($this->mtEntity->collation) {
+            $sql .= " COLLATE {$this->mtEntity->collation}";
         }
 
         return $sql;

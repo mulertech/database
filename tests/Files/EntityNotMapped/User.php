@@ -21,6 +21,6 @@ class User
     private ?int $id = null;
 
     #[MtColumn(columnName: "account_balance", columnType: ColumnType::FLOAT, length: 10, scale: "2", isNullable: true)]
-    #[MtFk(referencedTable: NotTable::class)]
+    #[MtFk(referencedTable: 'not_table')]
     private ?float $accountBalance = null;
 }

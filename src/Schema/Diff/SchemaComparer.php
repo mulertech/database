@@ -396,7 +396,7 @@ readonly class SchemaComparer
      */
     private function compareColumnType(array $entityColumnInfo, array $dbColumnInfo, array &$differences): void
     {
-        if ($entityColumnInfo['COLUMN_TYPE'] !== $dbColumnInfo['COLUMN_TYPE']) {
+        if (strtolower($entityColumnInfo['COLUMN_TYPE']) !== strtolower($dbColumnInfo['COLUMN_TYPE'])) {
             $differences['COLUMN_TYPE'] = [
                 'from' => $dbColumnInfo['COLUMN_TYPE'],
                 'to' => $entityColumnInfo['COLUMN_TYPE'],

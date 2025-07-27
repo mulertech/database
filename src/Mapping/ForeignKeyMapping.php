@@ -59,7 +59,7 @@ class ForeignKeyMapping
             return null;
         }
 
-        $referencedTable = $this->dbMapping->getTableName($mtFk->referencedTable);
+        $referencedTable = $mtFk->referencedTable;
         $column = $this->dbMapping->getColumnName($entityName, $property);
         $table = $this->dbMapping->getTableName($entityName);
 
@@ -89,7 +89,7 @@ class ForeignKeyMapping
             return null;
         }
 
-        return $this->dbMapping->getTableName($mtFk->referencedTable);
+        return $mtFk->referencedTable;
     }
 
     /**

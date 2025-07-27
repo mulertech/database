@@ -38,7 +38,7 @@ class Group
     private ?int $memberCount = null;
 
     #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, isUnsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: Group::class, referencedColumn: "id")]
+    #[MtFk(referencedTable: 'groups_test', referencedColumn: "id")]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $parent = null;
 
