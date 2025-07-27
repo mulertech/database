@@ -4,566 +4,312 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Builder;
 
-use MulerTech\Database\Mapping\Types\ColumnType;
-use InvalidArgumentException;
-
 /**
- * Class ColumnDefinition
- * @package MulerTech\Database
- * @author Sébastien Muler
+ * Column Definition - Fluent interface for column operations
  */
 class ColumnDefinition
 {
-    /**
-     * @var string
-     */
-    private string $name;
-
-    /**
-     * @var ColumnType
-     */
-    private ColumnType $type = ColumnType::VARCHAR;
-
-    /**
-     * @var int|null
-     */
-    private ?int $length = null;
-
-    /**
-     * @var int|null
-     */
-    private ?int $precision = null;
-
-    /**
-     * @var int|null
-     */
-    private ?int $scale = null;
-
-    /**
-     * @var bool
-     */
+    private string $type = 'VARCHAR(255)';
     private bool $nullable = true;
-
-    /**
-     * @var string|null
-     */
-    private string|null $default = null;
-
-    /**
-     * @var bool
-     */
-    private bool $autoIncrement = false;
-
-    /**
-     * @var bool
-     */
     private bool $unsigned = false;
+    private bool $autoIncrement = false;
+    private ?string $default = null;
+    private ?int $length = null;
+    private ?int $precision = null;
+    private ?int $scale = null;
+    /** @var array<string> */
+    private array $enumValues = [];
 
-    /**
-     * @var string|null
-     */
-    private ?string $comment = null;
-
-    /**
-     * @var string|null
-     */
-    private ?string $after = null;
-
-    /**
-     * @var bool
-     */
-    private bool $first = false;
-
-    /**
-     * @var array<string>
-     */
-    private array $choiceValues = [];
-
-    /**
-     * @param string $name
-     */
-    public function __construct(string $name)
+    public function __construct(private readonly string $name)
     {
-        $this->name = $name;
     }
 
-    /**
-     * @return string
-     */
     public function getName(): string
     {
         return $this->name;
     }
 
-    /**
-     * @return ColumnType
-     */
-    public function getType(): ColumnType
-    {
-        return $this->type;
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getLength(): ?int
-    {
-        return $this->length;
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getPrecision(): ?int
-    {
-        return $this->precision;
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getScale(): ?int
-    {
-        return $this->scale;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isNullable(): bool
-    {
-        return $this->nullable;
-    }
-
-    /**
-     * @return string|int|float|null
-     */
-    public function getDefault(): string|int|float|null
-    {
-        return $this->default;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isAutoIncrement(): bool
-    {
-        return $this->autoIncrement;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isUnsigned(): bool
-    {
-        return $this->unsigned;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getComment(): ?string
-    {
-        return $this->comment;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getAfter(): ?string
-    {
-        return $this->after;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isFirst(): bool
-    {
-        return $this->first;
-    }
-
-    /**
-     * @return array<string>
-     */
-    public function getChoiceValues(): array
-    {
-        return $this->choiceValues;
-    }
-
-    /**
-     * @return self
-     */
+    // Integer types
     public function integer(): self
     {
-        $this->type = ColumnType::INT;
+        $this->type = 'INT';
         return $this;
     }
 
-    /**
-     * @return self
-     */
+    public function tinyInt(): self
+    {
+        $this->type = 'TINYINT';
+        return $this;
+    }
+
+    public function smallInt(): self
+    {
+        $this->type = 'SMALLINT';
+        return $this;
+    }
+
+    public function mediumInt(): self
+    {
+        $this->type = 'MEDIUMINT';
+        return $this;
+    }
+
     public function bigInteger(): self
     {
-        $this->type = ColumnType::BIGINT;
+        $this->type = 'BIGINT';
         return $this;
     }
 
-    /**
-     * @param int $length
-     * @return self
-     */
-    public function string(int $length = 255): self
+    // String types
+    public function string(?int $length = 255): self
     {
-        $this->type = ColumnType::VARCHAR;
+        $this->type = 'VARCHAR';
         $this->length = $length;
         return $this;
     }
 
-    /**
-     * @return self
-     */
+    public function char(int $length): self
+    {
+        $this->type = 'CHAR';
+        $this->length = $length;
+        return $this;
+    }
+
     public function text(): self
     {
-        $this->type = ColumnType::TEXT;
+        $this->type = 'TEXT';
         return $this;
     }
 
-    /**
-     * @param int $precision
-     * @param int $scale
-     * @return self
-     */
-    public function decimal(int $precision = 8, int $scale = 2): self
+    public function tinyText(): self
     {
-        $this->type = ColumnType::DECIMAL;
+        $this->type = 'TINYTEXT';
+        return $this;
+    }
+
+    public function mediumText(): self
+    {
+        $this->type = 'MEDIUMTEXT';
+        return $this;
+    }
+
+    public function longText(): self
+    {
+        $this->type = 'LONGTEXT';
+        return $this;
+    }
+
+    // Decimal types
+    public function decimal(int $precision, int $scale): self
+    {
+        $this->type = 'DECIMAL';
         $this->precision = $precision;
         $this->scale = $scale;
         return $this;
     }
 
-    /**
-     * @param int $precision
-     * @param int $scale
-     * @return self
-     */
-    public function float(int $precision = 8, int $scale = 2): self
+    public function float(int $precision, int $scale): self
     {
-        $this->type = ColumnType::FLOAT;
+        $this->type = 'FLOAT';
         $this->precision = $precision;
         $this->scale = $scale;
         return $this;
     }
 
-    /**
-     * @return self
-     */
+    public function double(): self
+    {
+        $this->type = 'DOUBLE';
+        return $this;
+    }
+
+    // Date/Time types
+    public function date(): self
+    {
+        $this->type = 'DATE';
+        return $this;
+    }
+
     public function datetime(): self
     {
-        $this->type = ColumnType::DATETIME;
+        $this->type = 'DATETIME';
         return $this;
     }
 
-    /**
-     * @return self
-     */
-    public function notNull(): self
+    public function timestamp(): self
     {
-        $this->nullable = false;
+        $this->type = 'TIMESTAMP';
         return $this;
     }
 
-    /**
-     * @param string|null $value
-     * @return self
-     */
-    public function default(string|null $value): self
+    public function time(): self
     {
-        $this->default = $value;
+        $this->type = 'TIME';
         return $this;
     }
 
-    /**
-     * @return self
-     */
-    public function autoIncrement(): self
+    public function year(): self
     {
-        $this->autoIncrement = true;
+        $this->type = 'YEAR';
+        return $this;
+    }
+
+    // Binary types
+    public function binary(int $length): self
+    {
+        $this->type = 'BINARY';
+        $this->length = $length;
+        return $this;
+    }
+
+    public function varbinary(int $length): self
+    {
+        $this->type = 'VARBINARY';
+        $this->length = $length;
+        return $this;
+    }
+
+    // BLOB types
+    public function blob(): self
+    {
+        $this->type = 'BLOB';
+        return $this;
+    }
+
+    public function tinyBlob(): self
+    {
+        $this->type = 'TINYBLOB';
+        return $this;
+    }
+
+    public function mediumBlob(): self
+    {
+        $this->type = 'MEDIUMBLOB';
+        return $this;
+    }
+
+    public function longBlob(): self
+    {
+        $this->type = 'LONGBLOB';
+        return $this;
+    }
+
+    // Special types
+    public function json(): self
+    {
+        $this->type = 'JSON';
         return $this;
     }
 
     /**
-     * @return self
+     * @param array<string> $values
      */
+    public function enum(array $values): self
+    {
+        $this->type = 'ENUM';
+        $this->enumValues = $values;
+        return $this;
+    }
+
+    /**
+     * @param array<string> $values
+     */
+    public function set(array $values): self
+    {
+        $this->type = 'SET';
+        $this->enumValues = $values;
+        return $this;
+    }
+
+    // Geometry types
+    public function geometry(): self
+    {
+        $this->type = 'GEOMETRY';
+        return $this;
+    }
+
+    public function point(): self
+    {
+        $this->type = 'POINT';
+        return $this;
+    }
+
+    public function lineString(): self
+    {
+        $this->type = 'LINESTRING';
+        return $this;
+    }
+
+    public function polygon(): self
+    {
+        $this->type = 'POLYGON';
+        return $this;
+    }
+
+    // Modifiers
     public function unsigned(): self
     {
         $this->unsigned = true;
         return $this;
     }
 
-    /**
-     * @param string $comment
-     * @return self
-     */
-    public function comment(string $comment): self
+    public function notNull(): self
     {
-        $this->comment = $comment;
+        $this->nullable = false;
+        return $this;
+    }
+
+    public function autoIncrement(): self
+    {
+        $this->autoIncrement = true;
+        return $this;
+    }
+
+    public function default(?string $value): self
+    {
+        $this->default = $value;
         return $this;
     }
 
     /**
-     * @param string $columnName
-     * @return self
+     * Generate SQL for this column
      */
-    public function after(string $columnName): self
+    public function toSql(): string
     {
-        $this->after = $columnName;
-        $this->first = false; // Reset first if after is set
-        return $this;
-    }
+        $sql = "`{$this->name}` {$this->type}";
 
-    /**
-     * @return self
-     */
-    public function first(): self
-    {
-        $this->first = true;
-        $this->after = null; // Reset after if first is set
-        return $this;
-    }
+        // Add length/precision
+        if ($this->length !== null) {
+            $sql .= "({$this->length})";
+        } elseif ($this->precision !== null && $this->scale !== null) {
+            $sql .= "({$this->precision},{$this->scale})";
+        }
 
-    /**
-     * @return self
-     */
-    public function tinyInt(): self
-    {
-        $this->type = ColumnType::TINYINT;
-        return $this;
-    }
+        // Add enum/set values
+        if (!empty($this->enumValues)) {
+            $values = array_map(fn ($v) => "'" . addslashes($v) . "'", $this->enumValues);
+            $sql .= "(" . implode(',', $values) . ")";
+        }
 
-    /**
-     * @return self
-     */
-    public function smallInt(): self
-    {
-        $this->type = ColumnType::SMALLINT;
-        return $this;
-    }
+        // Add unsigned
+        if ($this->unsigned) {
+            $sql .= " UNSIGNED";
+        }
 
-    /**
-     * @return self
-     */
-    public function mediumInt(): self
-    {
-        $this->type = ColumnType::MEDIUMINT;
-        return $this;
-    }
+        // Add nullable
+        if (!$this->nullable) {
+            $sql .= " NOT NULL";
+        }
 
-    /**
-     * @param int $length
-     * @return self
-     */
-    public function char(int $length = 1): self
-    {
-        $this->type = ColumnType::CHAR;
-        $this->length = $length;
-        return $this;
-    }
+        // Add default
+        if ($this->default !== null) {
+            $sql .= " DEFAULT '" . addslashes($this->default) . "'";
+        }
 
-    /**
-     * @return self
-     */
-    public function double(): self
-    {
-        $this->type = ColumnType::DOUBLE;
-        return $this;
-    }
+        // Add auto increment
+        if ($this->autoIncrement) {
+            $sql .= " AUTO_INCREMENT";
+        }
 
-    /**
-     * @return self
-     */
-    public function tinyText(): self
-    {
-        $this->type = ColumnType::TINYTEXT;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function mediumText(): self
-    {
-        $this->type = ColumnType::MEDIUMTEXT;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function longText(): self
-    {
-        $this->type = ColumnType::LONGTEXT;
-        return $this;
-    }
-
-    /**
-     * @param int $length
-     * @return self
-     */
-    public function binary(int $length): self
-    {
-        $this->type = ColumnType::BINARY;
-        $this->length = $length;
-        return $this;
-    }
-
-    /**
-     * @param int $length
-     * @return self
-     */
-    public function varbinary(int $length): self
-    {
-        $this->type = ColumnType::VARBINARY;
-        $this->length = $length;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function blob(): self
-    {
-        $this->type = ColumnType::BLOB;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function tinyBlob(): self
-    {
-        $this->type = ColumnType::TINYBLOB;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function mediumBlob(): self
-    {
-        $this->type = ColumnType::MEDIUMBLOB;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function longBlob(): self
-    {
-        $this->type = ColumnType::LONGBLOB;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function date(): self
-    {
-        $this->type = ColumnType::DATE;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function timestamp(): self
-    {
-        $this->type = ColumnType::TIMESTAMP;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function time(): self
-    {
-        $this->type = ColumnType::TIME;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function year(): self
-    {
-        $this->type = ColumnType::YEAR;
-        return $this;
-    }
-
-    /**
-     * @param array<string> $values
-     * @return self
-     */
-    public function enum(array $values): self
-    {
-        $this->type = ColumnType::ENUM;
-        $this->choiceValues = $values;
-        return $this;
-    }
-
-    /**
-     * @param array<string> $values
-     * @return self
-     */
-    public function set(array $values): self
-    {
-        $this->type = ColumnType::SET;
-        $this->choiceValues = $values;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function json(): self
-    {
-        $this->type = ColumnType::JSON;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function geometry(): self
-    {
-        $this->type = ColumnType::GEOMETRY;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function point(): self
-    {
-        $this->type = ColumnType::POINT;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function linestring(): self
-    {
-        $this->type = ColumnType::LINESTRING;
-        return $this;
-    }
-
-    /**
-     * @return self
-     */
-    public function polygon(): self
-    {
-        $this->type = ColumnType::POLYGON;
-        return $this;
+        return $sql;
     }
 }

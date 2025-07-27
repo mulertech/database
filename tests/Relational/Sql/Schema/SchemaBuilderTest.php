@@ -29,8 +29,7 @@ class SchemaBuilderTest extends TestCase
         $tableDefinition = $this->schemaBuilder->createTable($tableName);
 
         $this->assertInstanceOf(TableDefinition::class, $tableDefinition);
-        $this->assertEquals($tableName, $tableDefinition->getTableName());
-        $this->assertTrue($tableDefinition->isCreate());
+        $this->assertStringContainsString("CREATE TABLE `users`", $tableDefinition->toSql());
     }
 
     /**
@@ -39,11 +38,10 @@ class SchemaBuilderTest extends TestCase
     public function testAlterTable(): void
     {
         $tableName = 'users';
-        $tableDefinition = $this->schemaBuilder->alterTable($tableName);
+        $tableDefinition = $this->schemaBuilder->alterTable($tableName)->dropColumn('old_column');
 
         $this->assertInstanceOf(TableDefinition::class, $tableDefinition);
-        $this->assertEquals($tableName, $tableDefinition->getTableName());
-        $this->assertFalse($tableDefinition->isCreate());
+        $this->assertStringContainsString("ALTER TABLE `users`", $tableDefinition->toSql());
     }
 
     /**
@@ -54,7 +52,7 @@ class SchemaBuilderTest extends TestCase
         $tableName = 'users';
         $sql = $this->schemaBuilder->dropTable($tableName);
 
-        $this->assertEquals("DROP TABLE `users`", $sql);
+        $this->assertEquals("DROP TABLE IF EXISTS `users`", $sql);
     }
 
     /**
@@ -65,7 +63,7 @@ class SchemaBuilderTest extends TestCase
         $tableName = 'user`table';
         $sql = $this->schemaBuilder->dropTable($tableName);
 
-        $this->assertEquals("DROP TABLE `user``table`", $sql);
+        $this->assertEquals("DROP TABLE IF EXISTS `user``table`", $sql);
     }
 
     /**

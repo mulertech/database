@@ -7,42 +7,34 @@ namespace MulerTech\Database\Schema\Builder;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 
 /**
- * Class SchemaBuilder
- *
- * Builder for database schema operations including table creation, modification and deletion.
- *
- * @package MulerTech\Database
- * @author Sébastien Muler
+ * Schema Builder - Provides fluent interface for database schema operations
  */
 class SchemaBuilder
 {
     use SqlFormatterTrait;
 
     /**
-     * @param string $tableName
-     * @return TableDefinition
+     * Create a new table definition
      */
     public function createTable(string $tableName): TableDefinition
     {
-        return new TableDefinition($tableName, true);
+        return new TableDefinition($tableName, TableDefinition::ACTION_CREATE);
     }
 
     /**
-     * @param string $tableName
-     * @return TableDefinition
+     * Alter an existing table
      */
     public function alterTable(string $tableName): TableDefinition
     {
-        return new TableDefinition($tableName, false);
+        return new TableDefinition($tableName, TableDefinition::ACTION_ALTER);
     }
 
     /**
-     * @param string $tableName
-     * @return string
+     * Drop a table
      */
     public function dropTable(string $tableName): string
     {
-        return "DROP TABLE " . $this->escapeIdentifier($tableName);
+        return "DROP TABLE IF EXISTS {$this->escapeIdentifier($tableName)}";
     }
 
     /**

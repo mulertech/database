@@ -21,6 +21,7 @@ class MigrationGenerateCommandTest extends TestCase
     private Terminal $terminal;
     private EntityManager $entityManager;
     private string $migrationsDirectory;
+    private DbMapping $dbMapping;
 
     /**
      * @throws Exception
@@ -28,11 +29,12 @@ class MigrationGenerateCommandTest extends TestCase
     protected function setUp(): void
     {
         $this->terminal = $this->createMock(Terminal::class);
+        $this->dbMapping = new DbMapping(
+            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            new DbMapping(
-                dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-            )
+            $this->dbMapping
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
         
@@ -95,7 +97,7 @@ class MigrationGenerateCommandTest extends TestCase
 
         // Créer un mock pour MigrationGenerator qui utilise notre SchemaComparer mocké
         $migrationGenerator = $this->getMockBuilder(MigrationGenerator::class)
-            ->setConstructorArgs([$schemaComparer, $this->migrationsDirectory])
+            ->setConstructorArgs([$schemaComparer, $this->dbMapping, $this->migrationsDirectory])
             ->getMock();
         $migrationGenerator->method('generateMigration')->willReturn(null);
 
