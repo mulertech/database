@@ -162,12 +162,12 @@ class SqlTypeConverter
     {
         if (preg_match('/^enum\((.*)\)/i', $sqlType, $matches)) {
             $enumValues = $this->parseEnumSetValues($matches[1]);
-            return '->enum([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $enumValues)) . '])';
+            return '->enum([' . implode(', ', array_map(static fn ($enumValue) => "'" . addslashes($enumValue) . "'", $enumValues)) . '])';
         }
 
         if (preg_match('/^set\((.*)\)/i', $sqlType, $matches)) {
             $setValues = $this->parseEnumSetValues($matches[1]);
-            return '->set([' . implode(', ', array_map(static fn ($v) => "'" . addslashes($v) . "'", $setValues)) . '])';
+            return '->set([' . implode(', ', array_map(static fn ($setValue) => "'" . addslashes($setValue) . "'", $setValues)) . '])';
         }
         return null;
     }

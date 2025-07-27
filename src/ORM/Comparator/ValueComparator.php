@@ -78,12 +78,12 @@ class ValueComparator
             return false;
         }
 
-        $sort = static function ($a, $b) {
-            $classCompare = strcmp($a['__entity__'] ?? '', $b['__entity__'] ?? '');
+        $sort = static function ($classA, $classB) {
+            $classCompare = strcmp($classA['__entity__'] ?? '', $classB['__entity__'] ?? '');
             if ($classCompare !== 0) {
                 return $classCompare;
             }
-            return ($a['__id__'] ?? 0) <=> ($b['__id__'] ?? 0);
+            return ($classA['__id__'] ?? 0) <=> ($classB['__id__'] ?? 0);
         };
 
         usort($items1, $sort);

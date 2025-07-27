@@ -105,11 +105,11 @@ final class FlushHandler
     private function getAllDeletions(): array
     {
         $deletions = $this->changeSetManager->getScheduledDeletions();
-        $stateManagerDeletions = $this->stateManager->getScheduledDeletions();
+        $scheduleDeletions = $this->stateManager->getScheduledDeletions();
 
         return array_unique(array_merge(
             array_values($deletions),
-            array_values($stateManagerDeletions)
+            array_values($scheduleDeletions)
         ), SORT_REGULAR);
     }
 

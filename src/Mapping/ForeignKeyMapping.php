@@ -30,7 +30,7 @@ class ForeignKeyMapping
     {
         return array_filter(
             Php::getInstanceOfPropertiesAttributesNamed($entityName, MtFk::class),
-            static fn ($fk) => $fk instanceof MtFk
+            static fn ($mtFk) => $mtFk instanceof MtFk
         );
     }
 
