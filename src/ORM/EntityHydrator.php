@@ -7,18 +7,14 @@ namespace MulerTech\Database\ORM;
 use Error;
 use Exception;
 use JsonException;
-use MulerTech\Database\Core\Cache\CacheFactory;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
 use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
 use ReflectionClass;
 use ReflectionException;
-use ReflectionNamedType;
-use ReflectionProperty;
-use RuntimeException;
-use TypeError;
 
 /**
  * Class EntityHydrator
@@ -31,40 +27,26 @@ use TypeError;
 class EntityHydrator implements EntityHydratorInterface
 {
     private MetadataCache $metadataCache;
-    /**
-     * @var array<string, array<string, ReflectionProperty>>
-     */
-    private array $reflectionCache = [];
+    private ReflectionService $reflectionService;
     private ValueProcessorManager $valueProcessorManager;
     private CollectionInitializer $collectionInitializer;
 
     /**
      * @param DbMappingInterface $dbMapping
      * @param MetadataCache|null $metadataCache
+     * @param ReflectionService|null $reflectionService
      */
     public function __construct(
         private readonly DbMappingInterface $dbMapping,
-        ?MetadataCache $metadataCache = null
+        ?MetadataCache $metadataCache = null,
+        ?ReflectionService $reflectionService = null
     ) {
-        // Lazy load MetadataCache only when needed
-        if ($metadataCache !== null) {
-            $this->metadataCache = $metadataCache;
-        }
-
+        $this->metadataCache = $metadataCache ?? new MetadataCache();
+        $this->reflectionService = $reflectionService ?? new ReflectionService();
         $this->valueProcessorManager = new ValueProcessorManager($this);
         $this->collectionInitializer = new CollectionInitializer($this->dbMapping);
     }
 
-    /**
-     * Get or create MetadataCache lazily
-     */
-    private function getMetadataCache(): MetadataCache
-    {
-        if (!isset($this->metadataCache)) {
-            $this->metadataCache = CacheFactory::createMetadataCache('entity_hydrator');
-        }
-        return $this->metadataCache;
-    }
 
     /**
      * @param array<string, mixed> $data
@@ -92,14 +74,14 @@ class EntityHydrator implements EntityHydratorInterface
 
                 // Validate nullable constraints
                 if ($processedValue === null && !$this->isPropertyNullable($entityName, $property)) {
-                    throw new TypeError("Property $property of $entityName cannot be null");
+                    throw HydrationException::propertyCannotBeNull($property, $entityName);
                 }
 
                 $reflectionProperty = $reflection->getProperty($property);
                 $reflectionProperty->setValue($entity, $processedValue);
             }
-        } catch (Exception) {
-            throw new RuntimeException("Failed to hydrate entity of type $entityName");
+        } catch (Exception $e) {
+            throw HydrationException::failedToHydrateEntity($entityName, $e);
         }
 
         return $entity;
@@ -115,16 +97,7 @@ class EntityHydrator implements EntityHydratorInterface
     public function extract(object $entity): array
     {
         $entityClass = $entity::class;
-        $reflection = new ReflectionClass($entityClass);
-
-        // Get all non-static properties
-        $properties = [];
-        foreach ($reflection->getProperties() as $property) {
-            if (!$property->isStatic()) {
-                $properties[$property->getName()] = $property;
-            }
-        }
-
+        $properties = $this->reflectionService->getNonStaticProperties($entityClass);
         $data = [];
 
         foreach ($properties as $propertyName => $property) {
@@ -142,32 +115,6 @@ class EntityHydrator implements EntityHydratorInterface
     /**
      * @param class-string $entityClass
      * @param string $propertyName
-     * @return ReflectionProperty|null
-     * @throws ReflectionException
-     */
-    private function getReflectionProperty(string $entityClass, string $propertyName): ?ReflectionProperty
-    {
-        if (!isset($this->reflectionCache[$entityClass])) {
-            $this->reflectionCache[$entityClass] = [];
-        }
-
-        if (isset($this->reflectionCache[$entityClass][$propertyName])) {
-            return $this->reflectionCache[$entityClass][$propertyName];
-        }
-
-        $reflection = new ReflectionClass($entityClass);
-        if ($reflection->hasProperty($propertyName)) {
-            $property = $reflection->getProperty($propertyName);
-            $this->reflectionCache[$entityClass][$propertyName] = $property;
-            return $property;
-        }
-
-        return null;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param string $propertyName
      * @return ColumnType|null
      * @throws ReflectionException
      */
@@ -175,7 +122,7 @@ class EntityHydrator implements EntityHydratorInterface
     {
         $cacheKey = 'column_type:' . $entityClass . ':' . $propertyName;
 
-        $cached = $this->getMetadataCache()->getPropertyMetadata($entityClass, $cacheKey);
+        $cached = $this->metadataCache->getPropertyMetadata($entityClass, $cacheKey);
         if ($cached instanceof ColumnType) {
             return $cached;
         }
@@ -183,7 +130,7 @@ class EntityHydrator implements EntityHydratorInterface
         $columnType = $this->dbMapping->getColumnType($entityClass, $propertyName);
 
         if ($columnType !== null) {
-            $this->getMetadataCache()->setPropertyMetadata($entityClass, $cacheKey, $columnType);
+            $this->metadataCache->setPropertyMetadata($entityClass, $cacheKey, $columnType);
         }
 
         return $columnType;
@@ -230,19 +177,7 @@ class EntityHydrator implements EntityHydratorInterface
         }
 
         // Fall back to reflection-based check
-        try {
-            $property = $this->getReflectionProperty($entityClass, $propertyName);
-            if ($property !== null) {
-                $type = $property->getType();
-                if ($type instanceof ReflectionNamedType) {
-                    return $type->allowsNull();
-                }
-            }
-        } catch (Exception) {
-            // If we can't determine, assume nullable
-        }
-
-        return true; // Default to nullable if we can't determine
+        return $this->reflectionService->isPropertyNullable($entityClass, $propertyName);
     }
 
     /**
@@ -262,7 +197,7 @@ class EntityHydrator implements EntityHydratorInterface
 
         try {
             $columnType = $this->getCachedColumnType($entityClass, $propertyName);
-            $property = $this->getReflectionProperty($entityClass, $propertyName);
+            $property = $this->reflectionService->getProperty($entityClass, $propertyName);
 
             return $this->valueProcessorManager->processValue(
                 $value,
