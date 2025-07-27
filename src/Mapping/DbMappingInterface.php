@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
@@ -180,31 +184,31 @@ interface DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array<string, mixed>|null
+     * @return array<string, MtOneToOne>
      * @throws ReflectionException
      */
-    public function getOneToOne(string $entityName): ?array;
+    public function getOneToOne(string $entityName): array;
 
     /**
      * @param class-string $entityName
-     * @return array<string, mixed>|null
+     * @return array<string, MtOneToMany>
      * @throws ReflectionException
      */
-    public function getOneToMany(string $entityName): ?array;
+    public function getOneToMany(string $entityName): array;
 
     /**
      * @param class-string $entityName
-     * @return array<string, mixed>|null
+     * @return array<string, MtManyToOne>
      * @throws ReflectionException
      */
-    public function getManyToOne(string $entityName): ?array;
+    public function getManyToOne(string $entityName): array;
 
     /**
      * @param class-string $entityName
-     * @return array<string, mixed>|null
+     * @return array<string, MtManyToMany>
      * @throws ReflectionException
      */
-    public function getManyToMany(string $entityName): ?array;
+    public function getManyToMany(string $entityName): array;
 
     /**
      * @param class-string $entityName

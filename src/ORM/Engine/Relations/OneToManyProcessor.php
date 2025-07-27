@@ -101,7 +101,7 @@ class OneToManyProcessor
     {
         if (!isset($this->mappingCache[$entityName])) {
             $mapping = $this->entityManager->getDbMapping()->getOneToMany($entityName);
-            $this->mappingCache[$entityName] = is_array($mapping) ? $mapping : false;
+            $this->mappingCache[$entityName] = $mapping;
         }
 
         return $this->mappingCache[$entityName];

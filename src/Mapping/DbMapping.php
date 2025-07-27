@@ -234,7 +234,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array<MtOneToOne>
+     * @return array<string, MtOneToOne>
      */
     public function getOneToOne(string $entityName): array
     {
@@ -243,7 +243,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array<MtManyToOne>
+     * @return array<string, MtManyToOne>
      */
     public function getManyToOne(string $entityName): array
     {
@@ -252,7 +252,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array<MtOneToMany>
+     * @return array<string, MtOneToMany>
      */
     public function getOneToMany(string $entityName): array
     {
@@ -261,7 +261,7 @@ class DbMapping implements DbMappingInterface
 
     /**
      * @param class-string $entityName
-     * @return array<MtManyToMany>
+     * @return array<string, MtManyToMany>
      */
     public function getManyToMany(string $entityName): array
     {

@@ -144,7 +144,7 @@ class CollectionSynchronizer
     {
         if (!isset($this->oneToManyCache[$entityName])) {
             $mapping = $this->entityManager->getDbMapping()->getOneToMany($entityName);
-            $this->oneToManyCache[$entityName] = is_array($mapping) ? $mapping : false;
+            $this->oneToManyCache[$entityName] = $mapping;
         }
 
         return $this->oneToManyCache[$entityName];
@@ -160,7 +160,7 @@ class CollectionSynchronizer
     {
         if (!isset($this->manyToManyCache[$entityName])) {
             $mapping = $this->entityManager->getDbMapping()->getManyToMany($entityName);
-            $this->manyToManyCache[$entityName] = is_array($mapping) ? $mapping : false;
+            $this->manyToManyCache[$entityName] = $mapping;
         }
 
         return $this->manyToManyCache[$entityName];

@@ -529,18 +529,14 @@ class EmEngine
 
         // Convert OneToMany collections
         $oneToManyList = $dbMapping->getOneToMany($entityClass);
-        if (is_array($oneToManyList)) {
-            foreach ($oneToManyList as $property => $oneToMany) {
-                $this->convertPropertyToeDatabaseCollection($entity, $property);
-            }
+        foreach ($oneToManyList as $property => $oneToMany) {
+            $this->convertPropertyToeDatabaseCollection($entity, $property);
         }
 
         // Convert ManyToMany collections
         $manyToManyList = $dbMapping->getManyToMany($entityClass);
-        if (is_array($manyToManyList)) {
-            foreach ($manyToManyList as $property => $manyToMany) {
-                $this->convertPropertyToeDatabaseCollection($entity, $property);
-            }
+        foreach ($manyToManyList as $property => $manyToMany) {
+            $this->convertPropertyToeDatabaseCollection($entity, $property);
         }
     }
 
@@ -731,25 +727,25 @@ class EmEngine
 
         // Check if it's a OneToOne relation
         $oneToOneList = $dbMapping->getOneToOne($entityClass);
-        if (is_array($oneToOneList) && isset($oneToOneList[$propertyName])) {
+        if (isset($oneToOneList[$propertyName])) {
             return true;
         }
 
         // Check if it's a ManyToOne relation
         $manyToOneList = $dbMapping->getManyToOne($entityClass);
-        if (is_array($manyToOneList) && isset($manyToOneList[$propertyName])) {
+        if (isset($manyToOneList[$propertyName])) {
             return true;
         }
 
         // Check if it's a OneToMany relation
         $oneToManyList = $dbMapping->getOneToMany($entityClass);
-        if (is_array($oneToManyList) && isset($oneToManyList[$propertyName])) {
+        if (isset($oneToManyList[$propertyName])) {
             return true;
         }
 
         // Check if it's a ManyToMany relation
         $manyToManyList = $dbMapping->getManyToMany($entityClass);
-        return is_array($manyToManyList) && isset($manyToManyList[$propertyName]);
+        return isset($manyToManyList[$propertyName]);
     }
 
     /**

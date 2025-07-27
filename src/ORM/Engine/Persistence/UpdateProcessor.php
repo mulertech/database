@@ -105,7 +105,7 @@ readonly class UpdateProcessor
 
             // Check if it's a ManyToOne relation that should have a foreign key column
             $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
-            if (is_array($manyToOneList) && isset($manyToOneList[$property])) {
+            if (isset($manyToOneList[$property])) {
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
@@ -117,7 +117,7 @@ readonly class UpdateProcessor
             }
 
             $oneToOneList = $this->dbMapping->getOneToOne($entityClass);
-            if (is_array($oneToOneList) && isset($oneToOneList[$property])) {
+            if (isset($oneToOneList[$property])) {
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {

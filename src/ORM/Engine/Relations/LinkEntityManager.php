@@ -327,7 +327,7 @@ class LinkEntityManager
     {
         if (!isset($this->mappingCache[$entityName])) {
             $mapping = $this->entityManager->getDbMapping()->getManyToMany($entityName);
-            $this->mappingCache[$entityName] = is_array($mapping) ? $mapping : false;
+            $this->mappingCache[$entityName] = $mapping;
         }
 
         return $this->mappingCache[$entityName];

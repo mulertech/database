@@ -42,45 +42,33 @@ class EntityRelationLoader
 
         if (!empty($entityOneToOne = $this->dbMapping->getOneToOne($entityName))) {
             foreach ($entityOneToOne as $property => $oneToOne) {
-                // Validate that oneToOne is the correct type
-                if ($oneToOne instanceof MtOneToOne) {
-                    $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
-                    if ($result !== null) {
-                        $entitiesToLoad[] = $result;
-                    }
+                $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
+                if ($result !== null) {
+                    $entitiesToLoad[] = $result;
                 }
             }
         }
 
         if (!empty($entityOneToMany = $this->dbMapping->getOneToMany($entityName))) {
             foreach ($entityOneToMany as $property => $oneToMany) {
-                // Validate that oneToMany is the correct type
-                if ($oneToMany instanceof MtOneToMany) {
-                    $result = $this->loadOneToMany($entity, $oneToMany, $property);
-                    $entitiesToLoad[] = $result;
-                }
+                $result = $this->loadOneToMany($entity, $oneToMany, $property);
+                $entitiesToLoad[] = $result;
             }
         }
 
         if (!empty($entityManyToOne = $this->dbMapping->getManyToOne($entityName))) {
             foreach ($entityManyToOne as $property => $manyToOne) {
-                // Validate that manyToOne is the correct type
-                if ($manyToOne instanceof MtManyToOne) {
-                    $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
-                    if ($result !== null) {
-                        $entitiesToLoad[] = $result;
-                    }
+                $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
+                if ($result !== null) {
+                    $entitiesToLoad[] = $result;
                 }
             }
         }
 
         if (!empty($entityManyToMany = $this->dbMapping->getManyToMany($entityName))) {
             foreach ($entityManyToMany as $property => $manyToMany) {
-                // Validate that manyToMany is the correct type
-                if ($manyToMany instanceof MtManyToMany) {
-                    $result = $this->loadManyToMany($entity, $manyToMany, $property);
-                    $entitiesToLoad[] = $result;
-                }
+                $result = $this->loadManyToMany($entity, $manyToMany, $property);
+                $entitiesToLoad[] = $result;
             }
         }
 
@@ -479,6 +467,7 @@ class EntityRelationLoader
      * @param class-string $entityClass
      * @param array<int, mixed> $entitiesData
      * @return array<int, object>
+     * @throws ReflectionException
      */
     private function loadCollectionEntities(string $entityClass, array $entitiesData): array
     {
