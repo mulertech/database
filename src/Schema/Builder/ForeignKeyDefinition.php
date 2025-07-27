@@ -4,151 +4,43 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Builder;
 
-use MulerTech\Database\Schema\Types\ReferentialAction;
+use MulerTech\Database\Mapping\Types\FkRule;
 
 /**
- * Class ForeignKeyDefinition
- * @package MulerTech\Database
- * @author Sébastien Muler
+ * Foreign Key Definition - Fluent interface for foreign key operations
  */
 class ForeignKeyDefinition
 {
-    /**
-     * @var string
-     */
-    private string $name;
-
-    /**
-     * @var array<int, string>
-     */
-    private array $columns = [];
-
-    /**
-     * @var string|null
-     */
+    private ?string $column = null;
     private ?string $referencedTable = null;
+    private ?string $referencedColumn = null;
+    private FkRule $onUpdate = FkRule::NO_ACTION;
+    private FkRule $onDelete = FkRule::NO_ACTION;
 
     /**
-     * @var array<int, string>
+     * Set the column for this foreign key
      */
-    private array $referencedColumns = [];
-
-    /**
-     * @var ReferentialAction|null
-     */
-    private ?ReferentialAction $onDelete = null;
-
-    /**
-     * @var ReferentialAction|null
-     */
-    private ?ReferentialAction $onUpdate = null;
-
-    /**
-     * @var bool
-     */
-    private bool $drop = false;
-
-    /**
-     * @param string $name
-     */
-    public function __construct(string $name)
+    public function column(string $column): self
     {
-        $this->name = $name;
-    }
-
-    /**
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public function getColumns(): array
-    {
-        return $this->columns;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getReferencedTable(): ?string
-    {
-        return $this->referencedTable;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public function getReferencedColumns(): array
-    {
-        return $this->referencedColumns;
-    }
-
-    /**
-     * @return ReferentialAction|null
-     */
-    public function getOnDelete(): ?ReferentialAction
-    {
-        return $this->onDelete;
-    }
-
-    /**
-     * @return ReferentialAction|null
-     */
-    public function getOnUpdate(): ?ReferentialAction
-    {
-        return $this->onUpdate;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isDrop(): bool
-    {
-        return $this->drop;
-    }
-
-    /**
-     * @param string|array<int, string> $columns
-     * @return self
-     */
-    public function columns(string|array $columns): self
-    {
-        $this->columns = is_array($columns) ? $columns : [$columns];
+        $this->column = $column;
         return $this;
     }
 
     /**
-     * @param string $table
-     * @param string|array<int, string> $columns
-     * @return self
+     * Set the referenced table and column
      */
-    public function references(string $table, string|array $columns): self
+    public function references(string $table, string $column): self
     {
         $this->referencedTable = $table;
-        $this->referencedColumns = is_array($columns) ? $columns : [$columns];
+        $this->referencedColumn = $column;
         return $this;
     }
 
     /**
-     * @param ReferentialAction $action
+     * @param FkRule $action
      * @return self
      */
-    public function onDelete(ReferentialAction $action): self
-    {
-        $this->onDelete = $action;
-        return $this;
-    }
-
-    /**
-     * @param ReferentialAction $action
-     * @return self
-     */
-    public function onUpdate(ReferentialAction $action): self
+    public function onUpdate(FkRule $action): self
     {
         $this->onUpdate = $action;
         return $this;
@@ -158,9 +50,21 @@ class ForeignKeyDefinition
      * Mark this foreign key for dropping
      * @return self
      */
-    public function setDrop(): self
+    public function onDelete(FkRule $action): self
     {
-        $this->drop = true;
+        $this->onDelete = $action;
         return $this;
+    }
+
+    /**
+     * Generate SQL for this foreign key
+     */
+    public function toSql(): string
+    {
+        if (!$this->column || !$this->referencedTable || !$this->referencedColumn) {
+            throw new \InvalidArgumentException("Foreign key definition is incomplete");
+        }
+
+        return "FOREIGN KEY (`{$this->column}`) REFERENCES `{$this->referencedTable}`(`{$this->referencedColumn}`) ON UPDATE {$this->onUpdate->value} ON DELETE {$this->onDelete->value}";
     }
 }

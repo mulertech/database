@@ -16,7 +16,7 @@ use MulerTech\Database\Tests\Files\UnitRepository;
 #[MtEntity(repository: UnitRepository::class, tableName: "units_test", autoIncrement: 100)]
 class Unit
 {
-    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, isUnsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
     #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false)]
@@ -25,7 +25,7 @@ class Unit
     #[MtColumn(columnName: "unit_code", columnType: ColumnType::CHAR, length: 10, isNullable: true)]
     private ?string $unitCode = null;
 
-    #[MtColumn(columnName: "priority", columnType: ColumnType::TINYINT, unsigned: true, isNullable: true, columnDefault: 1)]
+    #[MtColumn(columnName: "priority", columnType: ColumnType::TINYINT, isUnsigned: true, isNullable: true, columnDefault: 1)]
     private ?int $priority = null;
 
     #[MtColumn(columnName: "is_enabled", columnType: ColumnType::TINYINT, length: 1, isNullable: false, columnDefault: 1)]

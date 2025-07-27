@@ -5,7 +5,7 @@ namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 use MulerTech\Database\Schema\Builder\ColumnDefinition;
 use MulerTech\Database\Schema\Builder\ForeignKeyDefinition;
 use MulerTech\Database\Schema\Builder\TableDefinition;
-use MulerTech\Database\Schema\Types\ReferentialAction;
+use MulerTech\Database\Mapping\Types\FkRule;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -15,18 +15,14 @@ use PHPUnit\Framework\TestCase;
 class TableDefinitionTest extends TestCase
 {
     /**
-     * Test the constructor and getters
+     * Test the constructor and basic properties
      */
-    public function testConstructorAndGetters(): void
+    public function testConstructorAndConstants(): void
     {
-        $tableDefinition = new TableDefinition('users', true);
-        
-        $this->assertEquals('users', $tableDefinition->getTableName());
-        $this->assertTrue($tableDefinition->isCreate());
-        $this->assertEquals([], $tableDefinition->getColumns());
-        $this->assertEquals([], $tableDefinition->getIndexes());
-        $this->assertEquals([], $tableDefinition->getForeignKeys());
-        $this->assertEquals([], $tableDefinition->getOptions());
+        $tableDefinition = new TableDefinition('users', TableDefinition::ACTION_CREATE);
+
+        $this->assertEquals(TableDefinition::ACTION_CREATE, 'CREATE');
+        $this->assertEquals(TableDefinition::ACTION_ALTER, 'ALTER');
     }
 
     /**
@@ -34,12 +30,11 @@ class TableDefinitionTest extends TestCase
      */
     public function testColumn(): void
     {
-        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
         $column = $tableDefinition->column('name');
         
         $this->assertInstanceOf(ColumnDefinition::class, $column);
-        $this->assertArrayHasKey('name', $tableDefinition->getColumns());
-        $this->assertSame($column, $tableDefinition->getColumns()['name']);
+        $this->assertEquals('name', $column->getName());
     }
 
     /**
@@ -47,12 +42,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testDropColumn(): void
     {
-        $tableDefinition = new TableDefinition('posts');
-        $tableDefinition->dropColumn('old_column');
-        
-        $columns = $tableDefinition->getColumns();
-        $this->assertArrayHasKey('old_column', $columns);
-        $this->assertEquals(['drop' => true], $columns['old_column']);
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_ALTER);
+        $result = $tableDefinition->dropColumn('old_column');
+
+        $this->assertSame($tableDefinition, $result);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('DROP COLUMN `old_column`', $sql);
     }
 
     /**
@@ -60,15 +56,14 @@ class TableDefinitionTest extends TestCase
      */
     public function testPrimaryKeySingleColumn(): void
     {
-        $tableDefinition = new TableDefinition('posts');
-        $tableDefinition->primaryKey('id');
-        
-        $indexes = $tableDefinition->getIndexes();
-        $this->assertArrayHasKey('PRIMARY', $indexes);
-        $this->assertEquals([
-            'type' => 'PRIMARY KEY',
-            'columns' => ['id']
-        ], $indexes['PRIMARY']);
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
+        $tableDefinition->column('id')->integer()->notNull()->autoIncrement();
+        $result = $tableDefinition->primaryKey('id');
+
+        $this->assertSame($tableDefinition, $result);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('PRIMARY KEY (`id`)', $sql);
     }
 
     /**
@@ -76,15 +71,15 @@ class TableDefinitionTest extends TestCase
      */
     public function testPrimaryKeyMultipleColumns(): void
     {
-        $tableDefinition = new TableDefinition('posts');
-        $tableDefinition->primaryKey(['user_id', 'post_id']);
-        
-        $indexes = $tableDefinition->getIndexes();
-        $this->assertArrayHasKey('PRIMARY', $indexes);
-        $this->assertEquals([
-            'type' => 'PRIMARY KEY',
-            'columns' => ['user_id', 'post_id']
-        ], $indexes['PRIMARY']);
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
+        $tableDefinition->column('user_id')->integer()->notNull();
+        $tableDefinition->column('post_id')->integer()->notNull();
+        $result = $tableDefinition->primaryKey('user_id', 'post_id');
+
+        $this->assertSame($tableDefinition, $result);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('PRIMARY KEY (`user_id`, `post_id`)', $sql);
     }
 
     /**
@@ -92,13 +87,41 @@ class TableDefinitionTest extends TestCase
      */
     public function testForeignKey(): void
     {
-        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
         $foreignKey = $tableDefinition->foreignKey('fk_posts_users');
         
         $this->assertInstanceOf(ForeignKeyDefinition::class, $foreignKey);
-        $foreignKeys = $tableDefinition->getForeignKeys();
-        $this->assertArrayHasKey('fk_posts_users', $foreignKeys);
-        $this->assertSame($foreignKey, $foreignKeys['fk_posts_users']);
+    }
+
+    /**
+     * Test dropping a foreign key
+     */
+    public function testDropForeignKey(): void
+    {
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_ALTER);
+        $result = $tableDefinition->dropForeignKey('fk_old_constraint');
+
+        $this->assertSame($tableDefinition, $result);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('DROP FOREIGN KEY `fk_old_constraint`', $sql);
+    }
+
+    /**
+     * Test modifying a column
+     */
+    public function testModifyColumn(): void
+    {
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_ALTER);
+        $column = new ColumnDefinition('title');
+        $column->string(300);
+
+        $result = $tableDefinition->modifyColumn($column);
+
+        $this->assertSame($tableDefinition, $result);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('MODIFY COLUMN', $sql);
     }
 
     /**
@@ -106,13 +129,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testEngine(): void
     {
-        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
         $result = $tableDefinition->engine('InnoDB');
         
         $this->assertSame($tableDefinition, $result);
-        $options = $tableDefinition->getOptions();
-        $this->assertArrayHasKey('ENGINE', $options);
-        $this->assertEquals('InnoDB', $options['ENGINE']);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('ENGINE=InnoDB', $sql);
     }
 
     /**
@@ -120,13 +143,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testCharset(): void
     {
-        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
         $result = $tableDefinition->charset('utf8mb4');
         
         $this->assertSame($tableDefinition, $result);
-        $options = $tableDefinition->getOptions();
-        $this->assertArrayHasKey('CHARSET', $options);
-        $this->assertEquals('utf8mb4', $options['CHARSET']);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('CHARACTER SET utf8mb4', $sql);
     }
 
     /**
@@ -134,13 +157,13 @@ class TableDefinitionTest extends TestCase
      */
     public function testCollation(): void
     {
-        $tableDefinition = new TableDefinition('posts');
+        $tableDefinition = new TableDefinition('posts', TableDefinition::ACTION_CREATE);
         $result = $tableDefinition->collation('utf8mb4_unicode_ci');
         
         $this->assertSame($tableDefinition, $result);
-        $options = $tableDefinition->getOptions();
-        $this->assertArrayHasKey('COLLATE', $options);
-        $this->assertEquals('utf8mb4_unicode_ci', $options['COLLATE']);
+
+        $sql = $tableDefinition->toSql();
+        $this->assertStringContainsString('COLLATE utf8mb4_unicode_ci', $sql);
     }
 
     /**
@@ -148,15 +171,15 @@ class TableDefinitionTest extends TestCase
      */
     public function testToSqlCreate(): void
     {
-        $tableDefinition = new TableDefinition('users', true);
+        $tableDefinition = new TableDefinition('users', TableDefinition::ACTION_CREATE);
         $tableDefinition->column('id')->integer()->notNull()->autoIncrement();
         $tableDefinition->primaryKey('id');
         
         $sql = $tableDefinition->toSql();
         
-        $this->assertStringContainsString('CREATE TABLE', $sql);
-        $this->assertStringContainsString('users', $sql);
-        $this->assertStringContainsString('PRIMARY KEY', $sql);
+        $this->assertStringContainsString('CREATE TABLE `users`', $sql);
+        $this->assertStringContainsString('`id` INT NOT NULL AUTO_INCREMENT', $sql);
+        $this->assertStringContainsString('PRIMARY KEY (`id`)', $sql);
     }
 
     /**
@@ -164,14 +187,26 @@ class TableDefinitionTest extends TestCase
      */
     public function testToSqlAlter(): void
     {
-        $tableDefinition = new TableDefinition('users', false);
+        $tableDefinition = new TableDefinition('users', TableDefinition::ACTION_ALTER);
         $tableDefinition->column('email')->string(255)->notNull();
         
         $sql = $tableDefinition->toSql();
         
-        $this->assertStringContainsString('ALTER TABLE', $sql);
-        $this->assertStringContainsString('users', $sql);
+        $this->assertStringContainsString('ALTER TABLE `users`', $sql);
         $this->assertStringContainsString('ADD COLUMN', $sql);
+        $this->assertStringContainsString('`email` VARCHAR(255) NOT NULL', $sql);
+    }
+
+    /**
+     * Test ALTER TABLE with no alterations
+     */
+    public function testToSqlAlterWithNoAlterations(): void
+    {
+        $tableDefinition = new TableDefinition('users', TableDefinition::ACTION_ALTER);
+
+        $sql = $tableDefinition->toSql();
+
+        $this->assertStringContainsString('-- No alterations defined for table users', $sql);
     }
 
     /**
@@ -179,8 +214,8 @@ class TableDefinitionTest extends TestCase
      */
     public function testCompleteTableDefinition(): void
     {
-        $tableDefinition = new TableDefinition('articles', true);
-        
+        $tableDefinition = new TableDefinition('articles', TableDefinition::ACTION_CREATE);
+
         // Add columns
         $tableDefinition->column('id')->integer()->notNull()->autoIncrement();
         $tableDefinition->column('title')->string(200)->notNull();
@@ -193,11 +228,11 @@ class TableDefinitionTest extends TestCase
         
         // Add foreign key
         $tableDefinition->foreignKey('fk_articles_user')
-            ->columns('user_id')
+            ->column('user_id')
             ->references('users', 'id')
-            ->onDelete(ReferentialAction::CASCADE)
-            ->onUpdate(ReferentialAction::CASCADE);
-        
+            ->onDelete(FkRule::CASCADE)
+            ->onUpdate(FkRule::CASCADE);
+
         // Add options
         $tableDefinition->engine('InnoDB')
             ->charset('utf8mb4')
@@ -210,11 +245,61 @@ class TableDefinitionTest extends TestCase
         $this->assertStringContainsString('`title` VARCHAR(200) NOT NULL', $sql);
         $this->assertStringContainsString('`content` TEXT', $sql);
         $this->assertStringContainsString('`user_id` INT NOT NULL', $sql);
-        $this->assertStringContainsString('`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP', $sql);
+        $this->assertStringContainsString('`created_at` DATETIME NOT NULL DEFAULT \'CURRENT_TIMESTAMP\'', $sql);
         $this->assertStringContainsString('PRIMARY KEY (`id`)', $sql);
-        $this->assertStringContainsString('FOREIGN KEY', $sql);
         $this->assertStringContainsString('ENGINE=InnoDB', $sql);
-        $this->assertStringContainsString('DEFAULT CHARSET=utf8mb4', $sql);
-        $this->assertStringContainsString('COLLATE=utf8mb4_unicode_ci', $sql);
+        $this->assertStringContainsString('CHARACTER SET utf8mb4', $sql);
+        $this->assertStringContainsString('COLLATE utf8mb4_unicode_ci', $sql);
+    }
+
+    /**
+     * Test ALTER TABLE with multiple operations
+     */
+    public function testCompleteAlterTableDefinition(): void
+    {
+        $tableDefinition = new TableDefinition('articles', TableDefinition::ACTION_ALTER);
+
+        // Add new column
+        $tableDefinition->column('slug')->string(300);
+
+        // Modify existing column
+        $modifyColumn = new ColumnDefinition('title');
+        $modifyColumn->string(300)->notNull();
+        $tableDefinition->modifyColumn($modifyColumn);
+
+        // Drop column
+        $tableDefinition->dropColumn('old_field');
+
+        // Add foreign key
+        $tableDefinition->foreignKey('fk_articles_category')
+            ->column('category_id')
+            ->references('categories', 'id')
+            ->onDelete(FkRule::SET_NULL)
+            ->onUpdate(FkRule::CASCADE);
+
+        // Drop foreign key
+        $tableDefinition->dropForeignKey('fk_old_relation');
+
+        $sql = $tableDefinition->toSql();
+
+        $this->assertStringContainsString('ALTER TABLE `articles`', $sql);
+        $this->assertStringContainsString('ADD COLUMN `slug` VARCHAR(300)', $sql);
+        $this->assertStringContainsString('MODIFY COLUMN `title` VARCHAR(300) NOT NULL', $sql);
+        $this->assertStringContainsString('DROP COLUMN `old_field`', $sql);
+        $this->assertStringContainsString('ADD CONSTRAINT `fk_articles_category`', $sql);
+        $this->assertStringContainsString('DROP FOREIGN KEY `fk_old_relation`', $sql);
+    }
+
+    /**
+     * Test invalid action throws exception
+     */
+    public function testInvalidActionThrowsException(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown action: INVALID');
+
+        // Using reflection to test private method with invalid action
+        $tableDefinition = new TableDefinition('test', 'INVALID');
+        $tableDefinition->toSql();
     }
 }

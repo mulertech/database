@@ -178,12 +178,22 @@ class IndexDefinition
     }
 
     /**
-     * @param bool $visible
+     * Make the index visible
      * @return self
      */
-    public function visible(bool $visible = true): self
+    public function visible(): self
     {
-        $this->visible = $visible;
+        $this->visible = true;
+        return $this;
+    }
+
+    /**
+     * Make the index invisible
+     * @return self
+     */
+    public function invisible(): self
+    {
+        $this->visible = false;
         return $this;
     }
 
@@ -204,11 +214,10 @@ class IndexDefinition
         // Fix: avoid repeating INDEX keyword for standard indexes
         $name = $this->escapeIdentifier($this->name);
         $table = $this->escapeIdentifier($this->table);
-        if ($this->type === IndexType::INDEX) {
-            $sql = "CREATE INDEX $name ON $table ($columnList)";
-        } else {
-            $sql = "CREATE {$this->type->value} INDEX $name ON $table ($columnList)";
-        }
+
+        $sql = ($this->type === IndexType::INDEX)
+            ? "CREATE INDEX $name ON $table ($columnList)"
+            : "CREATE {$this->type->value} INDEX $name ON $table ($columnList)";
 
         $options = [];
 

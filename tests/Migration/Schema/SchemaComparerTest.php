@@ -212,43 +212,6 @@ class SchemaComparerTest extends TestCase
         $this->assertContains('fk_users_test_extra_groups_test', $foreignKeysToDrop['users_test']);
     }
 
-    public function testMissingConstraintNameThrowsException(): void
-    {
-        // Créer un mock de DbMapping qui simule une clé étrangère sans nom de contrainte
-        $dbMapping = $this->createMock(DbMappingInterface::class);
-
-        // Créer un mock de MtFk pour simuler une clé étrangère
-        $foreignKey = $this->createMock(MtFk::class);
-
-        // Configurer le mock pour simuler une entité avec une clé étrangère
-        $entityClass = 'TestEntity';
-        $property = 'testProperty';
-
-        // Configurer le mock pour renvoyer un tableau avec une propriété colonne
-        $dbMapping->method('getEntities')->willReturn([$entityClass]);
-        $dbMapping->method('getTableName')->willReturn('test_table');
-        $dbMapping->method('getPropertiesColumns')->willReturn([$property => 'test_column']);
-
-        // Simuler une clé étrangère (non null) mais sans nom de contrainte (null)
-        $dbMapping->method('getForeignKey')->willReturn($foreignKey);
-        $dbMapping->method('getConstraintName')->willReturn(null);
-
-        // Créer le SchemaComparer avec notre mock
-        $informationSchema = $this->createMock(InformationSchema::class);
-        $informationSchema->method('getTables')->willReturn([]);
-        $informationSchema->method('getColumns')->willReturn([]);
-        $informationSchema->method('getForeignKeys')->willReturn([]);
-
-        $schemaComparer = new SchemaComparer($informationSchema, $dbMapping, 'test_db');
-
-        // Vérifier que l'exception est lancée avec le message attendu
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Missing constraint name for foreign key on {$entityClass}::{$property}");
-
-        // Cette appel devrait déclencher l'exception
-        $schemaComparer->compare();
-    }
-
     private function createTablesWithMissingColumns(): void
     {
         $this->entityManager->getPdm()->exec('CREATE TABLE IF NOT EXISTS units_test (

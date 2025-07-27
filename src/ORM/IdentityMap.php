@@ -93,8 +93,8 @@ final class IdentityMap
         // Initialize class array if needed
         $this->entities[$entityClass] ??= [];
 
-        // Store weak reference
-        $this->entities[$entityClass][$id] = WeakReference::create($entity);
+        // Store weak reference - inject WeakReference factory if needed
+        $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
 
         // Store metadata
         $this->storeMetadata($entity, $id);
@@ -122,13 +122,14 @@ final class IdentityMap
      */
     public function clear(?string $entityClass = null): void
     {
-        if ($entityClass === null) {
-            $this->entities = [];
-            $this->metadata = new WeakMap();
-        } else {
+        if ($entityClass !== null) {
             unset($this->entities[$entityClass]);
-            // Note: We can't selectively clear WeakMap, but GC will handle it
+
+            return;
         }
+
+        $this->entities = [];
+        $this->metadata = new WeakMap();
     }
 
     /**
@@ -146,10 +147,12 @@ final class IdentityMap
             $entity = $weakRef->get();
             if ($entity !== null) {
                 $entities[] = $entity;
-            } else {
-                // Cleanup dead reference
-                unset($this->entities[$entityClass][$id]);
+
+                continue;
             }
+
+            // Cleanup dead reference
+            unset($this->entities[$entityClass][$id]);
         }
 
         return $entities;
@@ -299,7 +302,7 @@ final class IdentityMap
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
                     $value = $prop->getValue($entity);
-                    if ($value !== null && (is_int($value) || is_string($value))) {
+                    if ((is_int($value) || is_string($value))) {
                         return $value;
                     }
                 } catch (ReflectionException) {
@@ -347,5 +350,17 @@ final class IdentityMap
         }
 
         return $data;
+    }
+
+    /**
+     * Create a weak reference to an entity
+     * This method can be overridden for testing or custom weak reference handling
+     *
+     * @param object $entity
+     * @return WeakReference<object>
+     */
+    private function createWeakReference(object $entity): WeakReference
+    {
+        return WeakReference::create($entity);
     }
 }

@@ -281,7 +281,7 @@ class QueryBuilderTest extends TestCase
             ->groupBy('year');
 
         self::assertEquals(
-            'SELECT `year`, sum(profit) AS `profit` FROM `sales` GROUP BY `year`',
+            'SELECT `year`, SUM(profit) AS `profit` FROM `sales` GROUP BY `year`',
             $queryBuilder->toSql()
         );
     }
@@ -342,7 +342,7 @@ class QueryBuilderTest extends TestCase
             ->having('total', 10000, ComparisonOperator::LESS_THAN);
 
         self::assertEquals(
-            'SELECT `ordernumber`, sum(quantityordered) AS `itemscount`, sum(priceeach*quantityordered) AS `total` FROM `orderdetails` GROUP BY `ordernumber` HAVING `total` > :param0 AND `itemsCount` > :param1 AND `total` < :param2',
+            'SELECT `ordernumber`, SUM(quantityOrdered) AS `itemsCount`, SUM(priceeach*quantityOrdered) AS `total` FROM `orderdetails` GROUP BY `ordernumber` HAVING `total` > :param0 AND `itemsCount` > :param1 AND `total` < :param2',
             $queryBuilder->toSql()
         );
     }

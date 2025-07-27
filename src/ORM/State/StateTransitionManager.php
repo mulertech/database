@@ -31,15 +31,32 @@ final class StateTransitionManager
 
     /** @var int */
     private int $maxHistorySize = 1000;
+    /** @var StateValidator|null */
+    private ?StateValidator $stateValidator = null;
 
     /**
      * @param EventDispatcherInterface|null $eventDispatcher
-     * @param StateValidator $stateValidator
+     * @param StateValidator|null $stateValidator
      */
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
-        private readonly StateValidator            $stateValidator = new StateValidator()
+        ?StateValidator $stateValidator = null
     ) {
+        // StateValidator sera créé lazily si pas fourni
+        if ($stateValidator !== null) {
+            $this->stateValidator = $stateValidator;
+        }
+    }
+
+    /**
+     * Get or create StateValidator lazily
+     */
+    private function getStateValidator(): StateValidator
+    {
+        if (!isset($this->stateValidator)) {
+            $this->stateValidator = new StateValidator();
+        }
+        return $this->stateValidator;
     }
 
     /**
@@ -109,7 +126,7 @@ final class StateTransitionManager
         }
 
         // Additional validation
-        return $this->stateValidator->validateTransition($entity, $from, $to);
+        return $this->getStateValidator()->validateTransition($entity, $from, $to);
     }
 
     /**

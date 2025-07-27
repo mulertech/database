@@ -17,10 +17,9 @@ use MulerTech\Database\ORM\IdentityMap;
  */
 final class DirectStateManager implements StateManagerInterface
 {
-    /**
-     * @var array<int, array<int>> Insertion dependencies
-     */
-    private array $insertionDependencies = [];
+    private readonly EntityScheduler $entityScheduler;
+    private readonly DependencyManager $dependencyManager;
+    private readonly StateResolver $stateResolver;
 
     /**
      * @param IdentityMap $identityMap
@@ -34,6 +33,9 @@ final class DirectStateManager implements StateManagerInterface
         private readonly StateValidator $stateValidator,
         private readonly ?ChangeSetManager $changeSetManager = null
     ) {
+        $this->entityScheduler = new EntityScheduler($identityMap, $stateValidator, $changeSetManager);
+        $this->dependencyManager = new DependencyManager();
+        $this->stateResolver = new StateResolver($identityMap, $changeSetManager);
     }
 
     /**
@@ -65,18 +67,7 @@ final class DirectStateManager implements StateManagerInterface
     public function scheduleForInsertion(object $entity): void
     {
         $currentState = $this->getEntityState($entity);
-
-        if (!$this->stateValidator->validateOperation($entity, $currentState, 'persist')) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Cannot schedule entity in %s state for insertion',
-                    $currentState->value
-                )
-            );
-        }
-
-        // Also schedule in ChangeSetManager if available
-        $this->changeSetManager?->scheduleInsert($entity);
+        $this->entityScheduler->scheduleForInsertion($entity, $currentState);
     }
 
     /**
@@ -86,18 +77,7 @@ final class DirectStateManager implements StateManagerInterface
     public function scheduleForUpdate(object $entity): void
     {
         $currentState = $this->getEntityState($entity);
-
-        if (!$this->stateValidator->validateOperation($entity, $currentState, 'update')) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Cannot schedule entity in %s state for update',
-                    $currentState->value
-                )
-            );
-        }
-
-        // Also schedule in ChangeSetManager if available
-        $this->changeSetManager?->scheduleUpdate($entity);
+        $this->entityScheduler->scheduleForUpdate($entity, $currentState);
     }
 
     /**
@@ -107,21 +87,12 @@ final class DirectStateManager implements StateManagerInterface
     public function scheduleForDeletion(object $entity): void
     {
         $currentState = $this->getEntityState($entity);
+        $this->entityScheduler->scheduleForDeletion($entity, $currentState);
 
-        if (!$this->stateValidator->validateOperation($entity, $currentState, 'remove')) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Cannot schedule entity in %s state for deletion',
-                    $currentState->value
-                )
-            );
+        // Only transition to REMOVED state if not already in that state
+        if ($currentState !== EntityState::REMOVED) {
+            $this->transitionToState($entity, EntityState::REMOVED);
         }
-
-        // Transition to REMOVED state
-        $this->transitionToState($entity, EntityState::REMOVED);
-
-        // Also schedule in ChangeSetManager if available
-        $this->changeSetManager?->scheduleDelete($entity);
     }
 
     /**
@@ -142,13 +113,8 @@ final class DirectStateManager implements StateManagerInterface
         }
 
         $this->transitionToState($entity, EntityState::DETACHED);
-
-        // Also detach in ChangeSetManager if available
         $this->changeSetManager?->detach($entity);
-
-        // Remove from dependencies
-        $oid = spl_object_id($entity);
-        unset($this->insertionDependencies[$oid]);
+        $this->dependencyManager->removeDependencies($entity);
     }
 
     /**
@@ -158,10 +124,7 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function addInsertionDependency(object $dependent, object $dependency): void
     {
-        $dependentId = spl_object_id($dependent);
-        $dependencyId = spl_object_id($dependency);
-
-        $this->insertionDependencies[$dependentId][] = $dependencyId;
+        $this->dependencyManager->addInsertionDependency($dependent, $dependency);
     }
 
     /**
@@ -169,18 +132,8 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function getScheduledInsertions(): array
     {
-        // Get from ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            return $this->changeSetManager->getScheduledInsertions();
-        }
-
-        // Fallback to entities in NEW state
-        $insertions = [];
-        foreach ($this->identityMap->getEntitiesByState(EntityState::NEW) as $entity) {
-            $insertions[spl_object_id($entity)] = $entity;
-        }
-
-        return $this->orderByDependencies($insertions);
+        $insertions = $this->entityScheduler->getScheduledInsertions();
+        return $this->dependencyManager->orderByDependencies($insertions);
     }
 
     /**
@@ -188,13 +141,7 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function getScheduledUpdates(): array
     {
-        // Get from ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            return $this->changeSetManager->getScheduledUpdates();
-        }
-
-        // Fallback to empty array
-        return [];
+        return $this->entityScheduler->getScheduledUpdates();
     }
 
     /**
@@ -202,18 +149,7 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function getScheduledDeletions(): array
     {
-        // Get from ChangeSetManager if available
-        if ($this->changeSetManager !== null) {
-            return $this->changeSetManager->getScheduledDeletions();
-        }
-
-        // Fallback to entities in REMOVED state
-        $deletions = [];
-        foreach ($this->identityMap->getEntitiesByState(EntityState::REMOVED) as $entity) {
-            $deletions[spl_object_id($entity)] = $entity;
-        }
-
-        return $deletions;
+        return $this->entityScheduler->getScheduledDeletions();
     }
 
     /**
@@ -238,12 +174,8 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function isScheduledForInsertion(object $entity): bool
     {
-        if ($this->changeSetManager !== null) {
-            $scheduled = $this->changeSetManager->getScheduledInsertions();
-            return in_array($entity, $scheduled, true);
-        }
-
-        return $this->getEntityState($entity) === EntityState::NEW;
+        $currentState = $this->getEntityState($entity);
+        return $this->entityScheduler->isScheduledForInsertion($entity, $currentState);
     }
 
     /**
@@ -252,12 +184,7 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function isScheduledForUpdate(object $entity): bool
     {
-        if ($this->changeSetManager !== null) {
-            $scheduled = $this->changeSetManager->getScheduledUpdates();
-            return in_array($entity, $scheduled, true);
-        }
-
-        return false;
+        return $this->entityScheduler->isScheduledForUpdate($entity);
     }
 
     /**
@@ -266,21 +193,8 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function isScheduledForDeletion(object $entity): bool
     {
-        if ($this->changeSetManager !== null) {
-            $scheduled = $this->changeSetManager->getScheduledDeletions();
-            return in_array($entity, $scheduled, true);
-        }
-
-        return $this->getEntityState($entity) === EntityState::REMOVED;
-    }
-
-    /**
-     * @param object $entity
-     * @return void
-     */
-    public function markAsProcessed(object $entity): void
-    {
-        // Nothing to do here, ChangeSetManager handles this
+        $currentState = $this->getEntityState($entity);
+        return $this->entityScheduler->isScheduledForDeletion($entity, $currentState);
     }
 
     /**
@@ -289,7 +203,6 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function markAsPersisted(object $entity): void
     {
-        // Transition to MANAGED state
         $this->transitionToState($entity, EntityState::MANAGED);
     }
 
@@ -299,7 +212,6 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function markAsRemoved(object $entity): void
     {
-        // Remove from identity map
         $this->identityMap->remove($entity);
     }
 
@@ -308,8 +220,7 @@ final class DirectStateManager implements StateManagerInterface
      */
     public function clear(): void
     {
-        $this->insertionDependencies = [];
-
+        $this->dependencyManager->clear();
         $this->changeSetManager?->clear();
     }
 
@@ -317,29 +228,9 @@ final class DirectStateManager implements StateManagerInterface
      * @param object $entity
      * @return EntityState
      */
-    private function getEntityState(object $entity): EntityState
+    public function getEntityState(object $entity): EntityState
     {
-        $state = $this->identityMap->getEntityState($entity);
-
-        if ($state === null) {
-            // Entity not in identity map, check if scheduled
-            if ($this->changeSetManager !== null) {
-                $scheduled = $this->changeSetManager->getScheduledInsertions();
-                if (in_array($entity, $scheduled, true)) {
-                    return EntityState::NEW;
-                }
-
-                $scheduled = $this->changeSetManager->getScheduledDeletions();
-                if (in_array($entity, $scheduled, true)) {
-                    return EntityState::REMOVED;
-                }
-            }
-
-            // Default to DETACHED for unknown entities
-            return EntityState::DETACHED;
-        }
-
-        return $state;
+        return $this->stateResolver->resolveEntityState($entity);
     }
 
     /**
@@ -351,6 +242,11 @@ final class DirectStateManager implements StateManagerInterface
     {
         $currentState = $this->getEntityState($entity);
 
+        // Skip transition if already in the target state
+        if ($currentState === $newState) {
+            return;
+        }
+
         // Validate and execute transition
         $this->transitionManager->transition($entity, $currentState, $newState);
 
@@ -358,7 +254,6 @@ final class DirectStateManager implements StateManagerInterface
         $metadata = $this->identityMap->getMetadata($entity);
 
         if ($metadata === null && $newState === EntityState::MANAGED) {
-            // Add to identity map if not already there
             $this->identityMap->add($entity);
             $metadata = $this->identityMap->getMetadata($entity);
         }
@@ -374,55 +269,6 @@ final class DirectStateManager implements StateManagerInterface
             );
 
             $this->identityMap->updateMetadata($entity, $newMetadata);
-        }
-    }
-
-    /**
-     * @param array<int, object> $entities
-     * @return array<int, object>
-     */
-    private function orderByDependencies(array $entities): array
-    {
-        if (empty($this->insertionDependencies)) {
-            return $entities;
-        }
-
-        // Simple topological sort for dependencies
-        $ordered = [];
-        $visited = [];
-
-        foreach ($entities as $oid => $entity) {
-            if (!isset($visited[$oid])) {
-                $this->visitDependencies($oid, $entities, $visited, $ordered);
-            }
-        }
-
-        return $ordered;
-    }
-
-    /**
-     * @param int $oid
-     * @param array<int, object> $entities
-     * @param array<int, bool> $visited
-     * @param array<int, object> $ordered
-     * @return void
-     */
-    private function visitDependencies(int $oid, array $entities, array &$visited, array &$ordered): void
-    {
-        $visited[$oid] = true;
-
-        // Visit dependencies first
-        if (isset($this->insertionDependencies[$oid])) {
-            foreach ($this->insertionDependencies[$oid] as $dependencyId) {
-                if (!isset($visited[$dependencyId]) && isset($entities[$dependencyId])) {
-                    $this->visitDependencies($dependencyId, $entities, $visited, $ordered);
-                }
-            }
-        }
-
-        // Add entity after its dependencies
-        if (isset($entities[$oid])) {
-            $ordered[$oid] = $entities[$oid];
         }
     }
 }

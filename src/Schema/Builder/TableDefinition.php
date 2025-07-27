@@ -4,105 +4,41 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Builder;
 
-use MulerTech\Database\Schema\SchemaQueryGenerator;
+use InvalidArgumentException;
 
 /**
- * Class TableDefinition
- * @package MulerTech\Database
- * @author Sébastien Muler
+ * Table Definition - Fluent interface for table operations
  */
 class TableDefinition
 {
-    /**
-     * @var string
-     */
-    private string $tableName;
+    public const string ACTION_CREATE = 'CREATE';
+    public const string ACTION_ALTER = 'ALTER';
 
-    /**
-     * @var bool
-     */
-    private bool $isCreate;
-
-    /**
-     * @var array<string, ColumnDefinition|array{drop: bool}>
-     */
+    /** @var array<string, ColumnDefinition> */
     private array $columns = [];
-
-    /**
-     * @var array<string, array{type: string, columns: array<int, string>}>
-     */
-    private array $indexes = [];
-
-    /**
-     * @var array<string, ForeignKeyDefinition>
-     */
+    /** @var array<string> */
+    private array $primaryKeys = [];
+    /** @var array<string, ForeignKeyDefinition> */
     private array $foreignKeys = [];
+    /** @var array<string> */
+    private array $dropColumns = [];
+    /** @var array<string> */
+    private array $dropForeignKeys = [];
+    /** @var array<string, ColumnDefinition> */
+    private array $modifyColumns = [];
+    private ?string $engine = null;
+    private ?string $charset = null;
+    private ?string $collation = null;
 
-    /**
-     * @var array<string, string>
-     */
-    private array $options = [];
-
-    /**
-     * @param string $tableName
-     * @param bool $isCreate
-     */
-    public function __construct(string $tableName, bool $isCreate = true)
-    {
-        $this->tableName = $tableName;
-        $this->isCreate = $isCreate;
+    public function __construct(
+        private readonly string $tableName,
+        private readonly string $action
+    ) {
     }
 
     /**
-     * @return string
-     */
-    public function getTableName(): string
-    {
-        return $this->tableName;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isCreate(): bool
-    {
-        return $this->isCreate;
-    }
-
-    /**
-     * @return array<string, ColumnDefinition|array{drop: bool}>
-     */
-    public function getColumns(): array
-    {
-        return $this->columns;
-    }
-
-    /**
-     * @return array<string, array{type: string, columns: array<int, string>}>
-     */
-    public function getIndexes(): array
-    {
-        return $this->indexes;
-    }
-
-    /**
-     * @return array<string, ForeignKeyDefinition>
-     */
-    public function getForeignKeys(): array
-    {
-        return $this->foreignKeys;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function getOptions(): array
-    {
-        return $this->options;
-    }
-
-    /**
-     * @param string $name
+     * Add a column definition
+     * @param string $name Column name
      * @return ColumnDefinition
      */
     public function column(string $name): ColumnDefinition
@@ -113,114 +49,176 @@ class TableDefinition
     }
 
     /**
-     * Add a column after another column
-     * @param string $name
-     * @param string $afterColumn
-     * @return ColumnDefinition
-     */
-    public function columnAfter(string $name, string $afterColumn): ColumnDefinition
-    {
-        $column = new ColumnDefinition($name);
-        $column->after($afterColumn);
-        $this->columns[$name] = $column;
-        return $column;
-    }
-
-    /**
-     * Add a column as the first column
-     * @param string $name
-     * @return ColumnDefinition
-     */
-    public function columnFirst(string $name): ColumnDefinition
-    {
-        $column = new ColumnDefinition($name);
-        $column->first();
-        $this->columns[$name] = $column;
-        return $column;
-    }
-
-    /**
-     * @param string $columnName
+     * Set primary key
+     * @param string ...$columns Column names to set as primary key
      * @return self
      */
-    public function dropColumn(string $columnName): self
+    public function primaryKey(string ...$columns): self
     {
-        $this->columns[$columnName] = ['drop' => true];
+        $this->primaryKeys = array_merge($this->primaryKeys, $columns);
         return $this;
     }
 
     /**
-     * @param string|array<int, string> $columns
-     * @return self
-     */
-    public function primaryKey(string|array $columns): self
-    {
-        $this->indexes['PRIMARY'] = [
-            'type' => 'PRIMARY KEY',
-            'columns' => is_array($columns) ? $columns : [$columns],
-        ];
-        return $this;
-    }
-
-    /**
-     * @param string $name
+     * Add foreign key constraint
+     * @param string $constraintName Name of the foreign key constraint
      * @return ForeignKeyDefinition
      */
-    public function foreignKey(string $name): ForeignKeyDefinition
+    public function foreignKey(string $constraintName): ForeignKeyDefinition
     {
-        $foreignKey = new ForeignKeyDefinition($name);
-        $this->foreignKeys[$name] = $foreignKey;
+        $foreignKey = new ForeignKeyDefinition();
+        $this->foreignKeys[$constraintName] = $foreignKey;
         return $foreignKey;
     }
 
     /**
-     * @param string $constraintName
+     * Drop a column
+     * @param string $columnName Name of the column to drop
+     * @return self
+     */
+    public function dropColumn(string $columnName): self
+    {
+        $this->dropColumns[] = $columnName;
+        return $this;
+    }
+
+    /**
+     * Drop a foreign key
+     * @param string $constraintName Name of the foreign key constraint to drop
      * @return self
      */
     public function dropForeignKey(string $constraintName): self
     {
-        if (!isset($this->foreignKeys[$constraintName])) {
-            $this->foreignKeys[$constraintName] = new ForeignKeyDefinition($constraintName);
-        }
-        $this->foreignKeys[$constraintName]->setDrop();
+        $this->dropForeignKeys[] = $constraintName;
         return $this;
     }
 
     /**
-     * @param string $engine
+     * Modify an existing column
+     * @param ColumnDefinition $column Column definition to modify
+     * @return self
+     */
+    public function modifyColumn(ColumnDefinition $column): self
+    {
+        $this->modifyColumns[$column->getName()] = $column;
+        return $this;
+    }
+
+    /**
+     * Set table engine
+     * @param string $engine Engine type (e.g., InnoDB, MyISAM)
      * @return self
      */
     public function engine(string $engine): self
     {
-        $this->options['ENGINE'] = $engine;
+        $this->engine = $engine;
         return $this;
     }
 
     /**
-     * @param string $charset
+     * Set table charset
+     * @param string $charset Character set (e.g., utf8mb4)
      * @return self
      */
     public function charset(string $charset): self
     {
-        $this->options['CHARSET'] = $charset;
+        $this->charset = $charset;
         return $this;
     }
 
     /**
-     * @param string $collation
+     * Set table collation
+     * @param string $collation Collation (e.g., utf8mb4_unicode_ci)
      * @return self
      */
     public function collation(string $collation): self
     {
-        $this->options['COLLATE'] = $collation;
+        $this->collation = $collation;
         return $this;
+    }
+
+    /**
+     * Generate SQL for this table definition
+     * @return string SQL statement
+     */
+    public function toSql(): string
+    {
+        return match ($this->action) {
+            self::ACTION_CREATE => $this->generateCreateTableSql(),
+            self::ACTION_ALTER => $this->generateAlterTableSql(),
+            default => throw new InvalidArgumentException("Unknown action: $this->action")
+        };
     }
 
     /**
      * @return string
      */
-    public function toSql(): string
+    private function generateCreateTableSql(): string
     {
-        return new SchemaQueryGenerator()->generate($this);
+        $sql = "CREATE TABLE `$this->tableName` (\n";
+
+        $columnDefinitions = [];
+        foreach ($this->columns as $column) {
+            $columnDefinitions[] = "    " . $column->toSql();
+        }
+
+        if (!empty($this->primaryKeys)) {
+            $primaryKeyColumns = implode('`, `', $this->primaryKeys);
+            $columnDefinitions[] = "    PRIMARY KEY (`$primaryKeyColumns`)";
+        }
+
+        $sql .= implode(",\n", $columnDefinitions);
+        $sql .= "\n)";
+
+        if ($this->engine) {
+            $sql .= " ENGINE=$this->engine";
+        }
+        if ($this->charset) {
+            $sql .= " CHARACTER SET $this->charset";
+        }
+        if ($this->collation) {
+            $sql .= " COLLATE $this->collation";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @return string
+     */
+    private function generateAlterTableSql(): string
+    {
+        $alterations = [];
+
+        // Add columns
+        foreach ($this->columns as $column) {
+            $alterations[] = "ADD COLUMN " . $column->toSql();
+        }
+
+        // Modify columns
+        foreach ($this->modifyColumns as $column) {
+            $alterations[] = "MODIFY COLUMN " . $column->toSql();
+        }
+
+        // Drop columns
+        foreach ($this->dropColumns as $columnName) {
+            $alterations[] = "DROP COLUMN `$columnName`";
+        }
+
+        // Add foreign keys
+        foreach ($this->foreignKeys as $constraintName => $foreignKey) {
+            $alterations[] = "ADD CONSTRAINT `$constraintName` " . $foreignKey->toSql();
+        }
+
+        // Drop foreign keys
+        foreach ($this->dropForeignKeys as $constraintName) {
+            $alterations[] = "DROP FOREIGN KEY `$constraintName`";
+        }
+
+        if (empty($alterations)) {
+            return "-- No alterations defined for table $this->tableName";
+        }
+
+        return "ALTER TABLE `$this->tableName` " . implode(", ", $alterations);
     }
 }

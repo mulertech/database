@@ -22,7 +22,7 @@ use MulerTech\Database\Tests\Files\Repository\GroupRepository;
 #[MtEntity(repository: GroupRepository::class, tableName: 'groups_test')]
 class Group
 {
-    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, isUnsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
     #[MtColumn(columnType: ColumnType::VARCHAR, length: 255, isNullable: false)]
@@ -34,10 +34,10 @@ class Group
     #[MtColumn(columnName: "created_at", columnType: ColumnType::TIMESTAMP, isNullable: true)]
     private ?string $createdAt = null;
 
-    #[MtColumn(columnName: "member_count", columnType: ColumnType::MEDIUMINT, unsigned: true, isNullable: true, columnDefault: "0")]
+    #[MtColumn(columnName: "member_count", columnType: ColumnType::MEDIUMINT, isUnsigned: true, isNullable: true, columnDefault: "0")]
     private ?int $memberCount = null;
 
-    #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, unsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtColumn(columnName: 'parent_id', columnType: ColumnType::INT, isUnsigned: true, isNullable: true, columnKey: ColumnKey::MULTIPLE_KEY)]
     #[MtFk(referencedTable: Group::class, referencedColumn: "id")]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $parent = null;

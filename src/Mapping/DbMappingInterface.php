@@ -6,6 +6,7 @@ namespace MulerTech\Database\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 
 /**
@@ -166,16 +167,16 @@ interface DbMappingInterface
     /**
      * @param class-string $entityName
      * @param string $property
-     * @return string|null
+     * @return FkRule|null
      */
-    public function getDeleteRule(string $entityName, string $property): ?string;
+    public function getDeleteRule(string $entityName, string $property): ?FkRule;
 
     /**
      * @param class-string $entityName
      * @param string $property
-     * @return string|null
+     * @return FkRule|null
      */
-    public function getUpdateRule(string $entityName, string $property): ?string;
+    public function getUpdateRule(string $entityName, string $property): ?FkRule;
 
     /**
      * @param class-string $entityName

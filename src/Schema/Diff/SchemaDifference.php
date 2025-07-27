@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
+use MulerTech\Database\Mapping\Types\FkRule;
+
 /**
  * Class SchemaDifference
  *
@@ -25,7 +27,13 @@ class SchemaDifference
     private array $tablesToDrop = [];
 
     /**
-     * @var array<string, array<string, array<string, mixed>>> Columns to add [tableName => [columnName => columnDefinition]]
+     * @var array<string, array<string, array{
+     *       COLUMN_TYPE: string,
+     *       IS_NULLABLE: 'YES'|'NO',
+     *       COLUMN_DEFAULT: string|null,
+     *       EXTRA: string|null,
+     *       COLUMN_KEY: string|null
+     *       }>> Columns to add [tableName => [columnName => columnDefinition]]
      */
     private array $columnsToAdd = [];
 
@@ -34,7 +42,8 @@ class SchemaDifference
      *      COLUMN_TYPE?: array{from: string, to: string},
      *      IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
      *      COLUMN_DEFAULT?: array{from: string|null, to: string|null},
-     *      }>> Columns to modify [tableName => [columnName => differences]]
+     *      EXTRA?: array{from: string|null, to: string|null}
+     *      }>>
      */
     private array $columnsToModify = [];
 
@@ -44,7 +53,13 @@ class SchemaDifference
     private array $columnsToDrop = [];
 
     /**
-     * @var array<string, array<string, array<string, mixed>>> Foreign keys to add [tableName => [constraintName => definition]]
+     * @var array<string, array<string, array{
+     *       COLUMN_NAME: string,
+     *       REFERENCED_TABLE_NAME: string|null,
+     *       REFERENCED_COLUMN_NAME: string|null,
+     *       DELETE_RULE: FkRule|null,
+     *       UPDATE_RULE: FkRule|null
+     *       }>> Foreign keys to add [tableName => [constraintName => definition]]
      */
     private array $foreignKeysToAdd = [];
 
@@ -83,7 +98,13 @@ class SchemaDifference
      *
      * @param string $tableName
      * @param string $columnName
-     * @param array<string, mixed> $columnDefinition
+     * @param array{
+     *        COLUMN_TYPE: string,
+     *        IS_NULLABLE: 'YES'|'NO',
+     *        COLUMN_DEFAULT: string|null,
+     *        EXTRA: string|null,
+     *        COLUMN_KEY: string|null
+     *        } $columnDefinition
      * @return $this
      */
     public function addColumnToAdd(string $tableName, string $columnName, array $columnDefinition): self
@@ -140,7 +161,13 @@ class SchemaDifference
      *
      * @param string $tableName
      * @param string $constraintName
-     * @param array<string, mixed> $foreignKeyDefinition
+     * @param array{
+     *        COLUMN_NAME: string,
+     *        REFERENCED_TABLE_NAME: string|null,
+     *        REFERENCED_COLUMN_NAME: string|null,
+     *        DELETE_RULE: FkRule|null,
+     *        UPDATE_RULE: FkRule|null
+     *        } $foreignKeyDefinition
      * @return $this
      */
     public function addForeignKeyToAdd(string $tableName, string $constraintName, array $foreignKeyDefinition): self
@@ -193,7 +220,13 @@ class SchemaDifference
     /**
      * Get columns to add
      *
-     * @return array<string, array<string, array<string, mixed>>>
+     * @return array<string, array<string, array{
+     *        COLUMN_TYPE: string,
+     *        IS_NULLABLE: 'YES'|'NO',
+     *        COLUMN_DEFAULT: string|null,
+     *        EXTRA: string|null,
+     *        COLUMN_KEY: string|null
+     *        }>>
      */
     public function getColumnsToAdd(): array
     {
@@ -203,7 +236,12 @@ class SchemaDifference
     /**
      * Get columns to modify
      *
-     * @return array<string, array<string, array<string, mixed>>>
+     * @return array<string, array<string, array{
+     *       COLUMN_TYPE?: array{from: string, to: string},
+     *       IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *       COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *       EXTRA?: array{from: string|null, to: string|null}
+     *       }>>
      */
     public function getColumnsToModify(): array
     {
@@ -223,7 +261,13 @@ class SchemaDifference
     /**
      * Get foreign keys to add
      *
-     * @return array<string, array<string, array<string, mixed>>>
+     * @return array<string, array<string, array{
+     *         COLUMN_NAME: string,
+     *         REFERENCED_TABLE_NAME: string|null,
+     *         REFERENCED_COLUMN_NAME: string|null,
+     *         DELETE_RULE: FkRule|null,
+     *         UPDATE_RULE: FkRule|null
+     *         }>>
      */
     public function getForeignKeysToAdd(): array
     {

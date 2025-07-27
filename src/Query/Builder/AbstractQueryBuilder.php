@@ -10,7 +10,6 @@ use MulerTech\Database\Core\Traits\ParameterHandlerTrait;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Database\Interface\Statement;
-use MulerTech\Database\Query\Compiler\QueryCompiler;
 use PDO;
 use RuntimeException;
 use stdClass;
@@ -37,11 +36,6 @@ abstract class AbstractQueryBuilder
      * @var QueryStructureCache|null
      */
     protected static ?QueryStructureCache $structureCache = null;
-
-    /**
-     * @var QueryCompiler|null
-     */
-    protected ?QueryCompiler $compiler = null;
 
     /**
      * @var array<string, mixed>
@@ -131,11 +125,10 @@ abstract class AbstractQueryBuilder
 
         if ($fetchClass === stdClass::class) {
             $result = $stmt->fetchAll(PDO::FETCH_OBJ);
-        } else {
-            $result = $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
+            return array_filter($result, 'is_object');
         }
 
-        // Ensure we return an array of objects
+        $result = $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
         return array_filter($result, 'is_object');
     }
 
@@ -150,11 +143,11 @@ abstract class AbstractQueryBuilder
 
         if ($fetchClass === stdClass::class) {
             $result = $stmt->fetch(PDO::FETCH_OBJ);
-        } else {
-            $stmt->setFetchMode(PDO::FETCH_CLASS, $fetchClass);
-            $result = $stmt->fetch();
+            return ($result !== false && is_object($result)) ? $result : null;
         }
 
+        $stmt->setFetchMode(PDO::FETCH_CLASS, $fetchClass);
+        $result = $stmt->fetch();
         return ($result !== false && is_object($result)) ? $result : null;
     }
 
@@ -217,16 +210,6 @@ abstract class AbstractQueryBuilder
     public function getParameterBag(): QueryParameterBag
     {
         return $this->parameterBag;
-    }
-
-    /**
-     * @param QueryCompiler $compiler
-     * @return self
-     */
-    public function setCompiler(QueryCompiler $compiler): self
-    {
-        $this->compiler = $compiler;
-        return $this;
     }
 
     /**
