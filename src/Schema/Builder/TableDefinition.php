@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Builder;
 
+use InvalidArgumentException;
+
 /**
  * Table Definition - Fluent interface for table operations
  */
@@ -36,6 +38,8 @@ class TableDefinition
 
     /**
      * Add a column definition
+     * @param string $name Column name
+     * @return ColumnDefinition
      */
     public function column(string $name): ColumnDefinition
     {
@@ -46,6 +50,8 @@ class TableDefinition
 
     /**
      * Set primary key
+     * @param string ...$columns Column names to set as primary key
+     * @return self
      */
     public function primaryKey(string ...$columns): self
     {
@@ -55,6 +61,8 @@ class TableDefinition
 
     /**
      * Add foreign key constraint
+     * @param string $constraintName Name of the foreign key constraint
+     * @return ForeignKeyDefinition
      */
     public function foreignKey(string $constraintName): ForeignKeyDefinition
     {
@@ -65,6 +73,8 @@ class TableDefinition
 
     /**
      * Drop a column
+     * @param string $columnName Name of the column to drop
+     * @return self
      */
     public function dropColumn(string $columnName): self
     {
@@ -74,6 +84,8 @@ class TableDefinition
 
     /**
      * Drop a foreign key
+     * @param string $constraintName Name of the foreign key constraint to drop
+     * @return self
      */
     public function dropForeignKey(string $constraintName): self
     {
@@ -83,6 +95,8 @@ class TableDefinition
 
     /**
      * Modify an existing column
+     * @param ColumnDefinition $column Column definition to modify
+     * @return self
      */
     public function modifyColumn(ColumnDefinition $column): self
     {
@@ -92,6 +106,8 @@ class TableDefinition
 
     /**
      * Set table engine
+     * @param string $engine Engine type (e.g., InnoDB, MyISAM)
+     * @return self
      */
     public function engine(string $engine): self
     {
@@ -101,6 +117,8 @@ class TableDefinition
 
     /**
      * Set table charset
+     * @param string $charset Character set (e.g., utf8mb4)
+     * @return self
      */
     public function charset(string $charset): self
     {
@@ -110,6 +128,8 @@ class TableDefinition
 
     /**
      * Set table collation
+     * @param string $collation Collation (e.g., utf8mb4_unicode_ci)
+     * @return self
      */
     public function collation(string $collation): self
     {
@@ -119,19 +139,23 @@ class TableDefinition
 
     /**
      * Generate SQL for this table definition
+     * @return string SQL statement
      */
     public function toSql(): string
     {
         return match ($this->action) {
             self::ACTION_CREATE => $this->generateCreateTableSql(),
             self::ACTION_ALTER => $this->generateAlterTableSql(),
-            default => throw new \InvalidArgumentException("Unknown action: {$this->action}")
+            default => throw new InvalidArgumentException("Unknown action: $this->action")
         };
     }
 
+    /**
+     * @return string
+     */
     private function generateCreateTableSql(): string
     {
-        $sql = "CREATE TABLE `{$this->tableName}` (\n";
+        $sql = "CREATE TABLE `$this->tableName` (\n";
 
         $columnDefinitions = [];
         foreach ($this->columns as $column) {
@@ -140,25 +164,28 @@ class TableDefinition
 
         if (!empty($this->primaryKeys)) {
             $primaryKeyColumns = implode('`, `', $this->primaryKeys);
-            $columnDefinitions[] = "    PRIMARY KEY (`{$primaryKeyColumns}`)";
+            $columnDefinitions[] = "    PRIMARY KEY (`$primaryKeyColumns`)";
         }
 
         $sql .= implode(",\n", $columnDefinitions);
         $sql .= "\n)";
 
         if ($this->engine) {
-            $sql .= " ENGINE={$this->engine}";
+            $sql .= " ENGINE=$this->engine";
         }
         if ($this->charset) {
-            $sql .= " CHARACTER SET {$this->charset}";
+            $sql .= " CHARACTER SET $this->charset";
         }
         if ($this->collation) {
-            $sql .= " COLLATE {$this->collation}";
+            $sql .= " COLLATE $this->collation";
         }
 
         return $sql;
     }
 
+    /**
+     * @return string
+     */
     private function generateAlterTableSql(): string
     {
         $alterations = [];
@@ -175,23 +202,23 @@ class TableDefinition
 
         // Drop columns
         foreach ($this->dropColumns as $columnName) {
-            $alterations[] = "DROP COLUMN `{$columnName}`";
+            $alterations[] = "DROP COLUMN `$columnName`";
         }
 
         // Add foreign keys
         foreach ($this->foreignKeys as $constraintName => $foreignKey) {
-            $alterations[] = "ADD CONSTRAINT `{$constraintName}` " . $foreignKey->toSql();
+            $alterations[] = "ADD CONSTRAINT `$constraintName` " . $foreignKey->toSql();
         }
 
         // Drop foreign keys
         foreach ($this->dropForeignKeys as $constraintName) {
-            $alterations[] = "DROP FOREIGN KEY `{$constraintName}`";
+            $alterations[] = "DROP FOREIGN KEY `$constraintName`";
         }
 
         if (empty($alterations)) {
-            return "-- No alterations defined for table {$this->tableName}";
+            return "-- No alterations defined for table $this->tableName";
         }
 
-        return "ALTER TABLE `{$this->tableName}` " . implode(", ", $alterations);
+        return "ALTER TABLE `$this->tableName` " . implode(", ", $alterations);
     }
 }
