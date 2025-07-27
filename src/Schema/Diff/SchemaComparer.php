@@ -194,18 +194,19 @@ readonly class SchemaComparer
     ): void {
         // Get entity columns directly from DbMapping
         foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
-            if (!isset($databaseColumns[$columnName])) {
-                // Build column info directly from DbMapping
-                $columnInfo = $this->getColumnInfo($entityClass, $property);
-
-                if ($columnInfo['COLUMN_TYPE'] === null) {
-                    throw new RuntimeException(
-                        "Column type for $entityClass::$property is not defined in DbMapping"
-                    );
-                }
-
-                $diff->addColumnToAdd($tableName, $columnName, $columnInfo);
+            if (isset($databaseColumns[$columnName])) {
+                continue;
             }
+
+            $columnInfo = $this->getColumnInfo($entityClass, $property);
+
+            if ($columnInfo['COLUMN_TYPE'] === null) {
+                throw new RuntimeException(
+                    "Column type for $entityClass::$property is not defined in DbMapping"
+                );
+            }
+
+            $diff->addColumnToAdd($tableName, $columnName, $columnInfo);
         }
     }
 
