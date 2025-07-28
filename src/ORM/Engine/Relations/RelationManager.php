@@ -35,19 +35,9 @@ class RelationManager
     private ManyToManyProcessor $manyToManyProcessor;
 
     /**
-     * @var OneToManyProcessor
-     */
-    private OneToManyProcessor $oneToManyProcessor;
-
-    /**
      * @var LinkEntityManager
      */
     private LinkEntityManager $linkEntityManager;
-
-    /**
-     * @var CollectionSynchronizer
-     */
-    private CollectionSynchronizer $collectionSynchronizer;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -59,9 +49,7 @@ class RelationManager
     ) {
         $this->relationLoader = new EntityRelationLoader($this->entityManager);
         $this->manyToManyProcessor = new ManyToManyProcessor($this->entityManager, $this->stateManager);
-        $this->oneToManyProcessor = new OneToManyProcessor($this->entityManager, $this->stateManager);
         $this->linkEntityManager = new LinkEntityManager($this->entityManager, $this->stateManager);
-        $this->collectionSynchronizer = new CollectionSynchronizer($this->entityManager, $this->stateManager);
     }
 
     /**
@@ -83,8 +71,6 @@ class RelationManager
     {
         $this->processedEntities = [];
         $this->manyToManyProcessor->startFlushCycle();
-        $this->oneToManyProcessor->startFlushCycle();
-        $this->collectionSynchronizer->startFlushCycle();
     }
 
     /**
@@ -111,8 +97,6 @@ class RelationManager
         foreach ($operations as $operation) {
             $this->linkEntityManager->processOperation($operation);
         }
-
-        $this->collectionSynchronizer->synchronizeAllCollections();
     }
 
     /**
@@ -122,9 +106,7 @@ class RelationManager
     {
         $this->processedEntities = [];
         $this->manyToManyProcessor->clear();
-        $this->oneToManyProcessor->clear();
         $this->linkEntityManager->clear();
-        $this->collectionSynchronizer->clear();
     }
 
     /**
@@ -172,7 +154,6 @@ class RelationManager
         $this->processedEntities[] = $entityId;
         $entityReflection = new ReflectionClass($entity);
 
-        $this->oneToManyProcessor->process($entity, $entityReflection);
         $this->manyToManyProcessor->process($entity, $entityReflection);
     }
 }

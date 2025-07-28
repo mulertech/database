@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Diff;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Schema\Information\InformationSchema;
 use ReflectionException;
 use RuntimeException;
@@ -15,18 +16,117 @@ use RuntimeException;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-readonly class SchemaComparer
+class SchemaComparer
 {
+    /**
+     * Cache for entity properties columns by entity class
+     * @var array<class-string, array<string, string>>
+     */
+    private array $propertiesColumnsCache = [];
+
+    /**
+     * Cache for entity table names by entity class
+     * @var array<class-string, string|null>
+     */
+    private array $tableNameCache = [];
+
+    /**
+     * Cache for column info by entity class and property
+     * @var array<string, array{COLUMN_TYPE: string|null, IS_NULLABLE: 'YES'|'NO', COLUMN_DEFAULT: string|null, EXTRA: string|null, COLUMN_KEY: string|null}>
+     */
+    private array $columnInfoCache = [];
+
+    /**
+     * Cache for foreign key info by entity class and property
+     * @var array<string, array{foreignKey: mixed, constraintName: string|null, referencedTable: string|null, referencedColumn: string|null, deleteRule: FkRule|string|null, updateRule: FkRule|string|null}|null>
+     */
+    private array $foreignKeyInfoCache = [];
+
     /**
      * @param InformationSchema $informationSchema
      * @param DbMappingInterface $dbMapping
      * @param string $databaseName
      */
     public function __construct(
-        private InformationSchema $informationSchema,
-        private DbMappingInterface $dbMapping,
-        private string $databaseName
+        private readonly InformationSchema $informationSchema,
+        private readonly DbMappingInterface $dbMapping,
+        private readonly string $databaseName
     ) {
+    }
+
+    /**
+     * Get cached properties columns for entity class
+     * @param class-string $entityClass
+     * @return array<string, string>
+     */
+    private function getCachedPropertiesColumns(string $entityClass): array
+    {
+        if (!isset($this->propertiesColumnsCache[$entityClass])) {
+            $this->propertiesColumnsCache[$entityClass] = $this->dbMapping->getPropertiesColumns($entityClass);
+        }
+        return $this->propertiesColumnsCache[$entityClass];
+    }
+
+    /**
+     * Get cached table name for entity class
+     * @param class-string $entityClass
+     * @return string|null
+     */
+    private function getCachedTableName(string $entityClass): ?string
+    {
+        if (!isset($this->tableNameCache[$entityClass])) {
+            $this->tableNameCache[$entityClass] = $this->dbMapping->getTableName($entityClass);
+        }
+        return $this->tableNameCache[$entityClass];
+    }
+
+    /**
+     * Get cached column info for entity property
+     * @param class-string $entityClass
+     * @param string $property
+     * @return array{COLUMN_TYPE: string|null, IS_NULLABLE: 'YES'|'NO', COLUMN_DEFAULT: string|null, EXTRA: string|null, COLUMN_KEY: string|null}
+     * @throws ReflectionException
+     */
+    private function getCachedColumnInfo(string $entityClass, string $property): array
+    {
+        $cacheKey = $entityClass . '::' . $property;
+        if (!isset($this->columnInfoCache[$cacheKey])) {
+            $this->columnInfoCache[$cacheKey] = [
+                'COLUMN_TYPE' => $this->dbMapping->getColumnTypeDefinition($entityClass, $property),
+                'IS_NULLABLE' => $this->dbMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
+                'COLUMN_DEFAULT' => $this->dbMapping->getColumnDefault($entityClass, $property),
+                'EXTRA' => $this->dbMapping->getExtra($entityClass, $property),
+                'COLUMN_KEY' => $this->dbMapping->getColumnKey($entityClass, $property),
+            ];
+        }
+        return $this->columnInfoCache[$cacheKey];
+    }
+
+    /**
+     * Get cached foreign key info for entity property
+     * @param class-string $entityClass
+     * @param string $property
+     * @return array{foreignKey: mixed, constraintName: string|null, referencedTable: string|null, referencedColumn: string|null, deleteRule: FkRule|string|null, updateRule: FkRule|string|null}|null
+     */
+    private function getCachedForeignKeyInfo(string $entityClass, string $property): ?array
+    {
+        $cacheKey = $entityClass . '::' . $property;
+        if (!isset($this->foreignKeyInfoCache[$cacheKey])) {
+            $foreignKey = $this->dbMapping->getForeignKey($entityClass, $property);
+            if ($foreignKey === null) {
+                $this->foreignKeyInfoCache[$cacheKey] = null;
+            } else {
+                $this->foreignKeyInfoCache[$cacheKey] = [
+                    'foreignKey' => $foreignKey,
+                    'constraintName' => $this->dbMapping->getConstraintName($entityClass, $property),
+                    'referencedTable' => $this->dbMapping->getReferencedTable($entityClass, $property),
+                    'referencedColumn' => $this->dbMapping->getReferencedColumn($entityClass, $property),
+                    'deleteRule' => $this->dbMapping->getDeleteRule($entityClass, $property),
+                    'updateRule' => $this->dbMapping->getUpdateRule($entityClass, $property),
+                ];
+            }
+        }
+        return $this->foreignKeyInfoCache[$cacheKey];
     }
 
     /**
@@ -110,7 +210,7 @@ readonly class SchemaComparer
         // Get all entity tables
         $entityTables = [];
         foreach ($this->dbMapping->getEntities() as $entityClass) {
-            $tableName = $this->dbMapping->getTableName($entityClass);
+            $tableName = $this->getCachedTableName($entityClass);
             if ($tableName) {
                 $entityTables[$tableName] = $entityClass;
             }
@@ -141,8 +241,11 @@ readonly class SchemaComparer
         foreach ($entityTables as $tableName => $entityClass) {
             // Skip tables that need to be created
             if (!in_array($tableName, $diff->getTablesToCreate(), true)) {
-                $this->compareColumns($tableName, $entityClass, $diff);
-                $this->compareForeignKeys($tableName, $entityClass, $diff);
+                // Use cached properties columns
+                $entityPropertiesColumns = $this->getCachedPropertiesColumns($entityClass);
+
+                $this->compareColumns($tableName, $entityClass, $entityPropertiesColumns, $diff);
+                $this->compareForeignKeys($tableName, $entityClass, $entityPropertiesColumns, $diff);
             }
         }
 
@@ -154,18 +257,18 @@ readonly class SchemaComparer
      *
      * @param string $tableName
      * @param class-string $entityClass
+     * @param array<string, string> $entityPropertiesColumns
      * @param SchemaDifference $diff
      * @return void
      * @throws ReflectionException
      */
-    private function compareColumns(string $tableName, string $entityClass, SchemaDifference $diff): void
+    private function compareColumns(string $tableName, string $entityClass, array $entityPropertiesColumns, SchemaDifference $diff): void
     {
         $databaseColumns = $this->getTableColumns($tableName);
 
-        // Use DbMapping directly instead of building entity columns array
-        $this->findColumnsToAdd($tableName, $entityClass, $databaseColumns, $diff);
-        $this->findColumnsToModify($tableName, $entityClass, $databaseColumns, $diff);
-        $this->findColumnsToDrop($tableName, $entityClass, $databaseColumns, $diff);
+        $this->findColumnsToAdd($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
+        $this->findColumnsToModify($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
+        $this->findColumnsToDrop($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
     }
 
     /**
@@ -182,6 +285,7 @@ readonly class SchemaComparer
      *     COLUMN_DEFAULT: string|null,
      *     COLUMN_KEY: string|null
      * }> $databaseColumns
+     * @param array<string, string> $entityPropertiesColumns
      * @param SchemaDifference $diff
      * @return void
      * @throws ReflectionException
@@ -190,15 +294,16 @@ readonly class SchemaComparer
         string $tableName,
         string $entityClass,
         array $databaseColumns,
+        array $entityPropertiesColumns,
         SchemaDifference $diff
     ): void {
-        // Get entity columns directly from DbMapping
-        foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
+        // Use cached entity columns instead of calling dbMapping again
+        foreach ($entityPropertiesColumns as $property => $columnName) {
             if (isset($databaseColumns[$columnName])) {
                 continue;
             }
 
-            $columnInfo = $this->getColumnInfo($entityClass, $property);
+            $columnInfo = $this->getCachedColumnInfo($entityClass, $property);
 
             if ($columnInfo['COLUMN_TYPE'] === null) {
                 throw new RuntimeException(
@@ -224,6 +329,7 @@ readonly class SchemaComparer
      *     COLUMN_DEFAULT: string|null,
      *     COLUMN_KEY: string|null
      * }> $databaseColumns
+     * @param array<string, string> $entityPropertiesColumns
      * @param SchemaDifference $diff
      * @return void
      * @throws ReflectionException
@@ -232,17 +338,18 @@ readonly class SchemaComparer
         string $tableName,
         string $entityClass,
         array $databaseColumns,
+        array $entityPropertiesColumns,
         SchemaDifference $diff
     ): void {
-        foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
+        foreach ($entityPropertiesColumns as $property => $columnName) {
             if (!isset($databaseColumns[$columnName])) {
                 continue;
             }
 
             $dbColumnInfo = $databaseColumns[$columnName];
 
-            // Get entity column info directly from DbMapping
-            $entityColumnInfo = $this->getColumnInfo($entityClass, $property);
+            // Get entity column info from cache
+            $entityColumnInfo = $this->getCachedColumnInfo($entityClass, $property);
 
             if ($entityColumnInfo['COLUMN_TYPE'] === null) {
                 throw new RuntimeException(
@@ -272,6 +379,7 @@ readonly class SchemaComparer
      *     COLUMN_DEFAULT: string|null,
      *     COLUMN_KEY: string|null
      * }> $databaseColumns
+     * @param array<string, string> $entityPropertiesColumns
      * @param SchemaDifference $diff
      * @return void
      * @throws ReflectionException
@@ -280,12 +388,11 @@ readonly class SchemaComparer
         string $tableName,
         string $entityClass,
         array $databaseColumns,
+        array $entityPropertiesColumns,
         SchemaDifference $diff
     ): void {
-        $entityColumns = $this->dbMapping->getPropertiesColumns($entityClass);
-
         foreach ($databaseColumns as $columnName => $columnInfo) {
-            if (!in_array($columnName, $entityColumns, true)) {
+            if (!in_array($columnName, $entityPropertiesColumns, true)) {
                 $diff->addColumnToDrop($tableName, $columnName);
             }
         }
@@ -296,23 +403,24 @@ readonly class SchemaComparer
      *
      * @param string $tableName
      * @param class-string $entityClass
+     * @param array<string, string> $entityPropertiesColumns
      * @param SchemaDifference $diff
      * @return void
      * @throws ReflectionException
      */
-    private function compareForeignKeys(string $tableName, string $entityClass, SchemaDifference $diff): void
+    private function compareForeignKeys(string $tableName, string $entityClass, array $entityPropertiesColumns, SchemaDifference $diff): void
     {
         $databaseForeignKeys = $this->getTableForeignKeys($tableName);
         $entityForeignKeys = [];
 
-        foreach ($this->dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
-            $foreignKey = $this->dbMapping->getForeignKey($entityClass, $property);
+        foreach ($entityPropertiesColumns as $property => $columnName) {
+            $foreignKeyInfo = $this->getCachedForeignKeyInfo($entityClass, $property);
 
-            if ($foreignKey === null) {
+            if ($foreignKeyInfo === null) {
                 continue;
             }
 
-            $constraintName = $this->dbMapping->getConstraintName($entityClass, $property);
+            $constraintName = $foreignKeyInfo['constraintName'];
 
             if ($constraintName === null) {
                 throw new RuntimeException(
@@ -322,10 +430,10 @@ readonly class SchemaComparer
 
             $entityForeignKeys[$constraintName] = [
                 'COLUMN_NAME' => $columnName,
-                'REFERENCED_TABLE_NAME' => $this->dbMapping->getReferencedTable($entityClass, $property),
-                'REFERENCED_COLUMN_NAME' => $this->dbMapping->getReferencedColumn($entityClass, $property),
-                'DELETE_RULE' => $this->dbMapping->getDeleteRule($entityClass, $property),
-                'UPDATE_RULE' => $this->dbMapping->getUpdateRule($entityClass, $property),
+                'REFERENCED_TABLE_NAME' => $foreignKeyInfo['referencedTable'],
+                'REFERENCED_COLUMN_NAME' => $foreignKeyInfo['referencedColumn'],
+                'DELETE_RULE' => $foreignKeyInfo['deleteRule'] instanceof FkRule ? $foreignKeyInfo['deleteRule'] : null,
+                'UPDATE_RULE' => $foreignKeyInfo['updateRule'] instanceof FkRule ? $foreignKeyInfo['updateRule'] : null,
             ];
         }
 
@@ -502,28 +610,4 @@ readonly class SchemaComparer
         return $value === '' ? null : $value;
     }
 
-    /**
-     * Get column info for a specific entity property
-     *
-     * @param class-string $entityClass
-     * @param string $property
-     * @return array{
-     *     COLUMN_TYPE: string|null,
-     *     IS_NULLABLE: 'YES'|'NO',
-     *     COLUMN_DEFAULT: string|null,
-     *     EXTRA: string|null,
-     *     COLUMN_KEY: string|null
-     * }
-     * @throws ReflectionException
-     */
-    private function getColumnInfo(string $entityClass, string $property): array
-    {
-        return [
-            'COLUMN_TYPE' => $this->dbMapping->getColumnTypeDefinition($entityClass, $property),
-            'IS_NULLABLE' => $this->dbMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
-            'COLUMN_DEFAULT' => $this->dbMapping->getColumnDefault($entityClass, $property),
-            'EXTRA' => $this->dbMapping->getExtra($entityClass, $property),
-            'COLUMN_KEY' => $this->dbMapping->getColumnKey($entityClass, $property),
-        ];
-    }
 }

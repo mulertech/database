@@ -29,7 +29,6 @@ class EntityHydrator implements EntityHydratorInterface
     private MetadataCache $metadataCache;
     private ReflectionService $reflectionService;
     private ValueProcessorManager $valueProcessorManager;
-    private CollectionInitializer $collectionInitializer;
 
     /**
      * @param DbMappingInterface $dbMapping
@@ -44,7 +43,6 @@ class EntityHydrator implements EntityHydratorInterface
         $this->metadataCache = $metadataCache ?? new MetadataCache();
         $this->reflectionService = $reflectionService ?? new ReflectionService();
         $this->valueProcessorManager = new ValueProcessorManager($this);
-        $this->collectionInitializer = new CollectionInitializer($this->dbMapping);
     }
 
 
@@ -58,8 +56,6 @@ class EntityHydrator implements EntityHydratorInterface
     {
         $entity = new $entityName();
         $reflection = new ReflectionClass($entityName);
-
-        $this->collectionInitializer->initializeCollections($entity, $reflection);
 
         try {
             $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityName);
