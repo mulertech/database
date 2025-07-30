@@ -200,10 +200,10 @@ class MigrationStatementGenerator
      * @param string $constraintName
      * @param array{
      *          COLUMN_NAME: string,
-     *          REFERENCED_TABLE_NAME: string|null,
-     *          REFERENCED_COLUMN_NAME: string|null,
-     *          DELETE_RULE: FkRule|null,
-     *          UPDATE_RULE: FkRule|null
+     *          REFERENCED_TABLE_NAME: string,
+     *          REFERENCED_COLUMN_NAME: string,
+     *          DELETE_RULE: FkRule,
+     *          UPDATE_RULE: FkRule
      *          } $foreignKeyInfo
      * * @return string
      */
@@ -215,8 +215,8 @@ class MigrationStatementGenerator
         $columnName = $foreignKeyInfo['COLUMN_NAME'];
         $referencedTable = $foreignKeyInfo['REFERENCED_TABLE_NAME'];
         $referencedColumn = $foreignKeyInfo['REFERENCED_COLUMN_NAME'];
-        $updateRule = $foreignKeyInfo['UPDATE_RULE'] ?? FkRule::NO_ACTION;
-        $deleteRule = $foreignKeyInfo['DELETE_RULE'] ?? FkRule::NO_ACTION;
+        $updateRule = $foreignKeyInfo['UPDATE_RULE'];
+        $deleteRule = $foreignKeyInfo['DELETE_RULE'];
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';

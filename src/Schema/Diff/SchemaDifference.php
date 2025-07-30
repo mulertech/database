@@ -163,10 +163,10 @@ class SchemaDifference
      * @param string $constraintName
      * @param array{
      *        COLUMN_NAME: string,
-     *        REFERENCED_TABLE_NAME: string|null,
-     *        REFERENCED_COLUMN_NAME: string|null,
-     *        DELETE_RULE: FkRule|null,
-     *        UPDATE_RULE: FkRule|null
+     *        REFERENCED_TABLE_NAME: string,
+     *        REFERENCED_COLUMN_NAME: string,
+     *        DELETE_RULE: FkRule,
+     *        UPDATE_RULE: FkRule
      *        } $foreignKeyDefinition
      * @return $this
      */

@@ -87,8 +87,6 @@ class MigrationGenerator
             return null;
         }
 
-        new SchemaDifferenceValidator()->validate($diff);
-
         $upCode = $this->codeGenerator->generateUpCode($diff);
         $downCode = $this->codeGenerator->generateDownCode($diff);
 

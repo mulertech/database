@@ -175,10 +175,10 @@ readonly class MigrationCodeGenerator
                 }
                 /** @phpstan-var array{
                  *     COLUMN_NAME: string,
-                 *     REFERENCED_TABLE_NAME: string|null,
-                 *     REFERENCED_COLUMN_NAME: string|null,
-                 *     DELETE_RULE: FkRule|null,
-                 *     UPDATE_RULE: FkRule|null
+                 *     REFERENCED_TABLE_NAME: string,
+                 *     REFERENCED_COLUMN_NAME: string,
+                 *     DELETE_RULE: FkRule,
+                 *     UPDATE_RULE: FkRule
                  * } $foreignKeyInfo
                  */
                 return $this->statementGenerator->generateAddForeignKeyStatement(
@@ -197,9 +197,7 @@ readonly class MigrationCodeGenerator
     private function addDropTablesCode(SchemaDifference $diff, array &$code): void
     {
         foreach ($diff->getTablesToDrop() as $tableName) {
-            $code[] = '$schema = new SchemaBuilder();';
-            $code[] = '        $sql = $schema->dropTable("' . $tableName . '");';
-            $code[] = '        $this->entityManager->getPdm()->exec($sql);';
+            $code[] = $this->statementGenerator->generateDropTableStatement($tableName);
         }
     }
 
@@ -223,12 +221,8 @@ readonly class MigrationCodeGenerator
      */
     private function addDropCreatedTablesCode(SchemaDifference $diff, array &$code): void
     {
-        $columnsToDrop = $diff->getColumnsToAdd();
         foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
-            $code[] = '$schema = new SchemaBuilder();';
-            $code[] = '        $sql = $schema->dropTable("' . $tableName . '");';
-            $code[] = '        $this->entityManager->getPdm()->exec($sql);';
-            unset($columnsToDrop[$tableName]);
+            $code[] = $this->statementGenerator->generateDropTableStatement($tableName);
         }
     }
 

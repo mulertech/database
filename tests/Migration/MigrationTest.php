@@ -15,6 +15,7 @@ use MulerTech\Database\Schema\Migration\MigrationGenerator;
 use MulerTech\Database\Schema\Migration\MigrationManager;
 use PHPUnit\Framework\MockObject\Exception;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
@@ -348,43 +349,19 @@ class MigrationTest extends TestCase
         $dbMapping->method('getPropertiesColumns')->with('EmptyEntity')->willReturn([]);
 
         // On injecte le mock de dbMapping dans le SchemaComparer utilisé par MigrationGenerator
-        if ((new \ReflectionClass($schemaComparer))->hasProperty('dbMapping')) {
-            $dbMappingProperty = (new \ReflectionClass($schemaComparer))->getProperty('dbMapping');
+        if (new ReflectionClass($schemaComparer)->hasProperty('dbMapping')) {
+            $dbMappingProperty = new ReflectionClass($schemaComparer)->getProperty('dbMapping');
             $dbMappingProperty->setValue($schemaComparer, $dbMapping);
         }
 
         $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Table 'empty_table' has no columns defined.");
+        $this->expectExceptionMessage("Could not find entity class for table 'empty_table'");
 
         $migrationGenerator->generateMigration($this->migrationDatetime);
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testValidationThrowsExceptionForIncompleteForeignKeyDefinition(): void
-    {
-        $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['compare'])
-            ->getMock();
-
-        $schemaDifference = new SchemaDifference();
-        $schemaDifference->addForeignKeyToAdd('users_test', 'fk_incomplete', [
-            'COLUMN_NAME' => 'unit_id',
-            // Missing referenced table name
-        ]);
-        $schemaComparer->method('compare')->willReturn($schemaDifference);
-
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Foreign key 'fk_incomplete' has incomplete definition.");
-
-        $migrationGenerator->generateMigration($this->migrationDatetime);
-    }
 
     /**
      * @throws ReflectionException

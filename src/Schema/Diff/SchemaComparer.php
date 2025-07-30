@@ -32,13 +32,26 @@ class SchemaComparer
 
     /**
      * Cache for column info by entity class and property
-     * @var array<string, array{COLUMN_TYPE: string|null, IS_NULLABLE: 'YES'|'NO', COLUMN_DEFAULT: string|null, EXTRA: string|null, COLUMN_KEY: string|null}>
+     * @var array<string, array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     COLUMN_DEFAULT: string|null,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }>
      */
     private array $columnInfoCache = [];
 
     /**
      * Cache for foreign key info by entity class and property
-     * @var array<string, array{foreignKey: mixed, constraintName: string|null, referencedTable: string|null, referencedColumn: string|null, deleteRule: FkRule|string|null, updateRule: FkRule|string|null}|null>
+     * @var array<string, array{
+     *     foreignKey: mixed,
+     *     constraintName: string|null,
+     *     referencedTable: string|null,
+     *     referencedColumn: string|null,
+     *     deleteRule: FkRule|null,
+     *     updateRule: FkRule|null
+     * }|null>
      */
     private array $foreignKeyInfoCache = [];
 
@@ -86,7 +99,13 @@ class SchemaComparer
      * Get cached column info for entity property
      * @param class-string $entityClass
      * @param string $property
-     * @return array{COLUMN_TYPE: string|null, IS_NULLABLE: 'YES'|'NO', COLUMN_DEFAULT: string|null, EXTRA: string|null, COLUMN_KEY: string|null}
+     * @return array{
+     *     COLUMN_TYPE: string|null,
+     *     IS_NULLABLE: 'YES'|'NO',
+     *     COLUMN_DEFAULT: string|null,
+     *     EXTRA: string|null,
+     *     COLUMN_KEY: string|null
+     * }
      * @throws ReflectionException
      */
     private function getCachedColumnInfo(string $entityClass, string $property): array
@@ -108,7 +127,14 @@ class SchemaComparer
      * Get cached foreign key info for entity property
      * @param class-string $entityClass
      * @param string $property
-     * @return array{foreignKey: mixed, constraintName: string|null, referencedTable: string|null, referencedColumn: string|null, deleteRule: FkRule|string|null, updateRule: FkRule|string|null}|null
+     * @return array{
+     *     foreignKey: mixed,
+     *     constraintName: string|null,
+     *     referencedTable: string|null,
+     *     referencedColumn: string|null,
+     *     deleteRule: FkRule|null,
+     *     updateRule: FkRule|null
+     * }|null
      * @throws ReflectionException
      */
     private function getCachedForeignKeyInfo(string $entityClass, string $property): ?array
@@ -222,6 +248,11 @@ class SchemaComparer
         // Find tables to create (in entity mappings but not in database)
         foreach ($entityTables as $tableName => $entityClass) {
             if (!$this->getTableInfo($tableName)) {
+                // Validate that the table has columns before adding it
+                $columns = $this->dbMapping->getColumns($entityClass);
+                if (empty($columns)) {
+                    throw new RuntimeException("Table '$tableName' has no columns defined.");
+                }
                 $diff->addTableToCreate($tableName, $entityClass);
             }
         }
@@ -265,8 +296,12 @@ class SchemaComparer
      * @return void
      * @throws ReflectionException
      */
-    private function compareColumns(string $tableName, string $entityClass, array $entityPropertiesColumns, SchemaDifference $diff): void
-    {
+    private function compareColumns(
+        string $tableName,
+        string $entityClass,
+        array $entityPropertiesColumns,
+        SchemaDifference $diff
+    ): void {
         $databaseColumns = $this->getTableColumns($tableName);
 
         $this->findColumnsToAdd($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
@@ -426,9 +461,12 @@ class SchemaComparer
 
             $constraintName = $foreignKeyInfo['constraintName'];
 
-            if ($constraintName === null) {
+            if ($constraintName === null
+                || $foreignKeyInfo['referencedTable'] === null
+                || $foreignKeyInfo['referencedColumn'] === null
+            ) {
                 throw new RuntimeException(
-                    "Missing constraint name for foreign key on $entityClass::$property"
+                    "Foreign key for $entityClass::$property is not fully defined in DbMapping"
                 );
             }
 
@@ -436,8 +474,8 @@ class SchemaComparer
                 'COLUMN_NAME' => $columnName,
                 'REFERENCED_TABLE_NAME' => $foreignKeyInfo['referencedTable'],
                 'REFERENCED_COLUMN_NAME' => $foreignKeyInfo['referencedColumn'],
-                'DELETE_RULE' => $foreignKeyInfo['deleteRule'] instanceof FkRule ? $foreignKeyInfo['deleteRule'] : null,
-                'UPDATE_RULE' => $foreignKeyInfo['updateRule'] instanceof FkRule ? $foreignKeyInfo['updateRule'] : null,
+                'DELETE_RULE' => $foreignKeyInfo['deleteRule'] ?? FkRule::NO_ACTION,
+                'UPDATE_RULE' => $foreignKeyInfo['updateRule'] ?? FkRule::NO_ACTION,
             ];
         }
 
