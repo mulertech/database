@@ -6,7 +6,6 @@ namespace MulerTech\Database\Schema\Migration;
 
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
-use MulerTech\Database\Schema\Diff\SchemaDifference;
 use ReflectionException;
 use RuntimeException;
 
@@ -49,10 +48,7 @@ class MigrationGenerator
         }
         EOT;
 
-    private readonly SchemaDifferenceValidator $validator;
     private readonly MigrationCodeGenerator $codeGenerator;
-    private readonly SqlTypeConverter $typeConverter;
-    private readonly MigrationStatementGenerator $statementGenerator;
 
     /**
      * @param SchemaComparer $schemaComparer
@@ -69,11 +65,7 @@ class MigrationGenerator
             throw new RuntimeException("Migration directory does not exist: $migrationsDirectory");
         }
 
-        $this->typeConverter = new SqlTypeConverter();
-        $this->statementGenerator = new MigrationStatementGenerator();
-
-        $this->validator = new SchemaDifferenceValidator();
-        $this->codeGenerator = new MigrationCodeGenerator($dbMapping, $this->typeConverter, $this->statementGenerator);
+        $this->codeGenerator = new MigrationCodeGenerator($dbMapping);
     }
 
     /**
@@ -95,7 +87,7 @@ class MigrationGenerator
             return null;
         }
 
-        $this->validator->validate($diff);
+        new SchemaDifferenceValidator()->validate($diff);
 
         $upCode = $this->codeGenerator->generateUpCode($diff);
         $downCode = $this->codeGenerator->generateDownCode($diff);

@@ -7,7 +7,6 @@ namespace MulerTech\Database\Schema\Migration;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
 use ReflectionException;
-use RuntimeException;
 
 /**
  * Class MigrationCodeGenerator
@@ -16,13 +15,21 @@ use RuntimeException;
  *
  * @package MulerTech\Database\Schema\Migration
  */
-class MigrationCodeGenerator
+readonly class MigrationCodeGenerator
 {
-    public function __construct(
-        private readonly DbMappingInterface $dbMapping,
-        private readonly SqlTypeConverter $typeConverter,
-        private readonly MigrationStatementGenerator $statementGenerator
-    ) {
+    /**
+     * @var SqlTypeConverter $typeConverter
+     */
+    private SqlTypeConverter $typeConverter;
+    /**
+     * @var MigrationStatementGenerator $statementGenerator
+     */
+    private MigrationStatementGenerator $statementGenerator;
+
+    public function __construct(private DbMappingInterface $dbMapping)
+    {
+        $this->typeConverter = new SqlTypeConverter();
+        $this->statementGenerator = new MigrationStatementGenerator();
     }
 
     /**
@@ -93,6 +100,7 @@ class MigrationCodeGenerator
 
     /**
      * @param array<string> &$code
+     * @throws ReflectionException
      */
     private function addCreateTablesCode(SchemaDifference $diff, array &$code): void
     {
@@ -204,7 +212,6 @@ class MigrationCodeGenerator
         $tablesToCreate = array_keys($diff->getTablesToCreate());
 
         foreach ($columnsToAdd as $tableName => $columns) {
-            // Ignorer les colonnes des tables qui ont été créées (elles sont supprimées avec la table)
             if (in_array($tableName, $tablesToCreate, true)) {
                 continue;
             }

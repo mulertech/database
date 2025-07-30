@@ -207,7 +207,7 @@ class SqlTypeConverter
         $currentValue = '';
         $quoteChar = null;
 
-        for ($i = 0; $i < strlen($values); $i++) {
+        for ($i = 0, $iMax = strlen($values); $i < $iMax; $i++) {
             $char = $values[$i];
 
             if (!$inQuotes && ($char === "'" || $char === '"')) {
