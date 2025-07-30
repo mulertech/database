@@ -39,17 +39,5 @@
       "psr-4": {
         "MulerTech\\Database\\Tests\\": "./tests"
       }
-  },
-  "scripts": {
-    "test": "mtdocker test",
-    "test-coverage": "mtdocker test-coverage",
-    "phpstan": "mtdocker phpstan",
-    "cs-fixer": "mtdocker cs-fixer",
-    "up": "mtdocker up",
-    "up-detached": "mtdocker up -d",
-    "down": "mtdocker down",
-    "ps": "mtdocker ps",
-    "name": "mtdocker name",
-    "all": "mtdocker all"
   }
 }
