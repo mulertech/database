@@ -850,5 +850,54 @@ class EntityManagerTest extends TestCase
         self::assertContains('Child1', $childNames, 'Child1 should be loaded');
         self::assertContains('Child2', $childNames, 'Child2 should be loaded');
     }
+
+    public function testDependencyManagerOrdering(): void
+    {
+        $dependencyManager = new \MulerTech\Database\ORM\State\DependencyManager();
+        
+        $unit1 = new Unit();
+        $unit1->setName('Unit1');
+        $unit2 = new Unit();
+        $unit2->setName('Unit2');
+        
+        $user1 = new User();
+        $user1->setUsername('User1');
+        $user1->setUnit($unit1);
+        
+        $user2 = new User();
+        $user2->setUsername('User2');
+        $user2->setUnit($unit2);
+        $user2->setManager($user1);
+
+        $dependencyManager->addInsertionDependency($user2, $user1);
+        $dependencyManager->addInsertionDependency($user2, $unit2);
+        $dependencyManager->addInsertionDependency($user1, $unit1);
+
+        $entities = [
+            spl_object_id($user2) => $user2,
+            spl_object_id($user1) => $user1,
+            spl_object_id($unit2) => $unit2,
+            spl_object_id($unit1) => $unit1,
+        ];
+
+        $ordered = $dependencyManager->orderByDependencies($entities);
+
+        self::assertEquals(4, count($ordered), 'Should have 4 entities');
+
+        $orderedIds = array_keys($ordered);
+        $unit1Position = array_search(spl_object_id($unit1), $orderedIds, true);
+        $unit2Position = array_search(spl_object_id($unit2), $orderedIds, true);
+        $user1Position = array_search(spl_object_id($user1), $orderedIds, true);
+        $user2Position = array_search(spl_object_id($user2), $orderedIds, true);
+
+        self::assertNotFalse($unit1Position, 'Unit1 should be in ordered array');
+        self::assertNotFalse($unit2Position, 'Unit2 should be in ordered array');
+        self::assertNotFalse($user1Position, 'User1 should be in ordered array');
+        self::assertNotFalse($user2Position, 'User2 should be in ordered array');
+
+        self::assertLessThan($user1Position, $unit1Position, 'Unit1 should come before User1');
+        self::assertLessThan($user2Position, $unit2Position, 'Unit2 should come before User2');
+        self::assertLessThan($user2Position, $user1Position, 'User1 should come before User2');
+    }
 }
 

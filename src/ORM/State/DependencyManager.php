@@ -47,9 +47,7 @@ final class DependencyManager
         $visited = [];
 
         foreach ($entities as $oid => $entity) {
-            if (!isset($visited[$oid])) {
-                $this->visitDependencies($oid, $entities, $visited, $ordered);
-            }
+            $this->visitEntity($oid, $entities, $visited, $ordered);
         }
 
         return $ordered;
@@ -60,22 +58,32 @@ final class DependencyManager
      * @param array<int, object> $entities
      * @param array<int, bool> $visited
      * @param array<int, object> $ordered
-     * @return void
      */
-    private function visitDependencies(int $oid, array $entities, array &$visited, array &$ordered): void
+    private function visitEntity(int $oid, array $entities, array &$visited, array &$ordered): void
     {
-        $visited[$oid] = true;
-
-        if (isset($this->insertionDependencies[$oid])) {
-            foreach ($this->insertionDependencies[$oid] as $dependencyId) {
-                if (!isset($visited[$dependencyId]) && isset($entities[$dependencyId])) {
-                    $this->visitDependencies($dependencyId, $entities, $visited, $ordered);
-                }
-            }
+        if (!isset($entities[$oid])) {
+            return;
         }
 
-        if (isset($entities[$oid])) {
-            $ordered[$oid] = $entities[$oid];
+        $visited[$oid] = true;
+
+        $this->visitEntityDependencies($oid, $entities, $visited, $ordered);
+
+        $ordered[$oid] = $entities[$oid];
+    }
+
+    /**
+     * @param int $oid
+     * @param array<int, object> $entities
+     * @param array<int, bool> $visited
+     * @param array<int, object> $ordered
+     */
+    private function visitEntityDependencies(int $oid, array $entities, array &$visited, array &$ordered): void
+    {
+        $dependencies = $this->insertionDependencies[$oid] ?? [];
+
+        foreach ($dependencies as $dependencyId) {
+            $this->visitEntity($dependencyId, $entities, $visited, $ordered);
         }
     }
 }
