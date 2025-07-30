@@ -99,7 +99,6 @@ class EmEngine
      */
     public function find(string $entityName, int|string $idOrWhere): ?object
     {
-        // Pour les recherches par string non-numeric, utiliser whereRaw directement
         if (is_string($idOrWhere) && !is_numeric($idOrWhere)) {
             $queryBuilder = new QueryBuilder($this)
                 ->select('*')
@@ -160,11 +159,14 @@ class EmEngine
         }
 
         if (is_array($fetch)) {
-            // Ensure the array has string keys for createManagedEntity
             $entityData = [];
             foreach ($fetch as $key => $value) {
-                $stringKey = is_string($key) ? $key : (string)$key;
-                $entityData[$stringKey] = $value;
+                $stringKey = (string)$key;
+                if (is_scalar($value) || $value === null) {
+                    $entityData[$stringKey] = $value;
+                } else {
+                    $entityData[$stringKey] = null;
+                }
             }
             return $this->createManagedEntity($entityData, $entityName, $loadRelations);
         }
@@ -194,14 +196,17 @@ class EmEngine
             return null;
         }
 
-        // Ensure all entries have string keys for hydrateEntityList
         $validatedFetchAll = [];
         foreach ($fetchAll as $entityData) {
             if (is_array($entityData)) {
                 $validatedEntityData = [];
                 foreach ($entityData as $key => $value) {
-                    $stringKey = is_string($key) ? $key : (string)$key;
-                    $validatedEntityData[$stringKey] = $value;
+                    $stringKey = (string)$key;
+                    if (is_scalar($value) || $value === null) {
+                        $validatedEntityData[$stringKey] = $value;
+                    } else {
+                        $validatedEntityData[$stringKey] = null;
+                    }
                 }
                 $validatedFetchAll[] = $validatedEntityData;
             }
@@ -245,7 +250,6 @@ class EmEngine
      */
     public function remove(object $entity): void
     {
-        // Use stateManager instead of changeSetManager
         $this->getStateManager()->scheduleForDeletion($entity);
     }
 
@@ -255,7 +259,6 @@ class EmEngine
      */
     public function detach(object $entity): void
     {
-        // Use stateManager for detach
         $this->getStateManager()->detach($entity);
     }
 
@@ -316,7 +319,7 @@ class EmEngine
      */
     private function initializeComponents(): void
     {
-        // Only initialize core components that are directly used by EmEngine
+        // Initialize core components that are directly used by EmEngine
         $this->identityMap = new IdentityMap();
         $this->entityRegistry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
@@ -330,10 +333,6 @@ class EmEngine
 
         // EntityHydrator needs DbMapping
         $this->hydrator = new EntityHydrator($this->entityManager->getDbMapping());
-
-        // StateManager will be created lazily when needed
-        // PersistenceManager will be created lazily when needed
-        // RelationManager will be created lazily when needed
     }
 
     /**
@@ -475,7 +474,7 @@ class EmEngine
     }
 
     /**
-     * @param array<string, mixed> $entityData
+     * @param array<string, bool|float|int|string|null> $entityData
      * @param class-string $entityName
      * @param bool $loadRelations
      * @return object
@@ -494,15 +493,12 @@ class EmEngine
             $this->identityMap->add($entity);
         }
 
-        // Register in entity registry
         $this->entityRegistry->register($entity);
 
-        // Mark as managed in state manager
         if (!$this->getStateManager()->isManaged($entity)) {
             $this->getStateManager()->manage($entity);
         }
 
-        // Load relations after the entity is properly managed
         if ($loadRelations) {
             try {
                 $this->getRelationManager()->loadEntityRelations($entity, $entityData);
@@ -553,29 +549,29 @@ class EmEngine
             $reflection = new ReflectionClass($entity);
             $reflectionProperty = $reflection->getProperty($property);
 
-            // ALWAYS use DatabaseCollection for all relation collections to ensure change tracking
             if (!$reflectionProperty->isInitialized($entity)) {
                 $reflectionProperty->setValue($entity, new DatabaseCollection([]));
-            } else {
-                // If already initialized, ALWAYS convert to DatabaseCollection
-                $currentValue = $reflectionProperty->getValue($entity);
-                if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
-                    // Filter items to ensure they are objects
-                    $items = $currentValue->items();
-                    $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
-                    $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
-                } elseif (!($currentValue instanceof DatabaseCollection)) {
-                    // Initialize with empty DatabaseCollection if it's not a Collection at all
-                    $reflectionProperty->setValue($entity, new DatabaseCollection([]));
-                }
+                return;
             }
+
+            $currentValue = $reflectionProperty->getValue($entity);
+            if ($currentValue instanceof DatabaseCollection) {
+                return;
+            }
+            if ($currentValue instanceof Collection) {
+                $items = $currentValue->items();
+                $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
+                $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
+                return;
+            }
+            $reflectionProperty->setValue($entity, new DatabaseCollection([]));
         } catch (ReflectionException) {
             // Property doesn't exist, ignore
         }
     }
 
     /**
-     * @param array<array<string, mixed>> $entitiesData
+     * @param array<array<string, bool|float|int|string|null>> $entitiesData
      * @param class-string $entityName
      * @param bool $loadRelations
      * @return array<object>
@@ -586,10 +582,13 @@ class EmEngine
         $entities = [];
 
         foreach ($entitiesData as $entityData) {
-            // entityData is already validated as array<string, mixed> by the method signature
-            if (isset($entityData['id'])) {
-                // Check if entity is already in identity map
-                $entityId = $entityData['id'];
+            $validatedEntityData = [];
+            foreach ($entityData as $key => $value) {
+                $stringKey = $key;
+                $validatedEntityData[$stringKey] = $value;
+            }
+            if (isset($validatedEntityData['id'])) {
+                $entityId = $validatedEntityData['id'];
                 if (is_int($entityId) || is_string($entityId)) {
                     $managed = $this->identityMap->get($entityName, $entityId);
                     if ($managed !== null) {
@@ -599,7 +598,7 @@ class EmEngine
                 }
             }
 
-            $entities[] = $this->createManagedEntity($entityData, $entityName, $loadRelations);
+            $entities[] = $this->createManagedEntity($validatedEntityData, $entityName, $loadRelations);
         }
 
         return $entities;
@@ -663,7 +662,7 @@ class EmEngine
      * Update a managed entity with fresh scalar data from the database, preserving relations
      *
      * @param object $entity
-     * @param array<string, mixed> $dbData
+     * @param array<string, string|int|float|bool|null> $dbData
      * @return void
      */
     private function updateManagedEntityScalarPropertiesOnly(object $entity, array $dbData): void

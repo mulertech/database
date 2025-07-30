@@ -23,17 +23,17 @@ readonly class ValueProcessorManager
     /**
      * Process a value according to its type
      *
-     * @param mixed $value
+     * @param array<mixed>|bool|float|int|object|string|null $value
      * @param ReflectionProperty|null $property
      * @param ColumnType|null $columnType
-     * @return mixed
+     * @return array<mixed>|bool|float|int|object|string|null
      * @throws JsonException
      */
     public function processValue(
-        mixed $value,
+        array|bool|float|int|object|string|null $value,
         ?ReflectionProperty $property = null,
         ?ColumnType $columnType = null
-    ): mixed {
+    ): array|bool|float|int|object|string|null {
         if ($value === null) {
             return null;
         }

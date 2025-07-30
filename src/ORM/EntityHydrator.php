@@ -47,7 +47,7 @@ class EntityHydrator implements EntityHydratorInterface
 
 
     /**
-     * @param array<string, mixed> $data
+     * @param array<string, bool|float|int|string|null> $data
      * @param class-string $entityName
      * @return object
      * @throws ReflectionException
@@ -177,24 +177,20 @@ class EntityHydrator implements EntityHydratorInterface
     }
 
     /**
-     * Process a value according to its type (simplified version)
-     *
      * @param class-string $entityClass
      * @param string $propertyName
-     * @param mixed $value
-     * @return mixed
+     * @param bool|float|int|string|null $value
+     * @return array<mixed>|bool|float|int|object|string|null
      * @throws JsonException
      */
-    public function processValue(string $entityClass, string $propertyName, mixed $value): mixed
+    public function processValue(string $entityClass, string $propertyName, bool|float|int|string|null $value): array|bool|float|int|object|string|null
     {
         if ($value === null) {
             return null;
         }
-
         try {
             $columnType = $this->getCachedColumnType($entityClass, $propertyName);
             $property = $this->reflectionService->getProperty($entityClass, $propertyName);
-
             return $this->valueProcessorManager->processValue(
                 $value,
                 $property,

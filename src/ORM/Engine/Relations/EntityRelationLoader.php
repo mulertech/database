@@ -260,8 +260,13 @@ class EntityRelationLoader
                 if (is_array($entityData)) {
                     $validatedEntityData = [];
                     foreach ($entityData as $key => $value) {
-                        $stringKey = is_string($key) ? $key : (string)$key;
-                        $validatedEntityData[$stringKey] = $value;
+                        $stringKey = (string)$key;
+                        // Accept only scalar or null values
+                        if (is_scalar($value) || $value === null) {
+                            $validatedEntityData[$stringKey] = $value;
+                        } else {
+                            $validatedEntityData[$stringKey] = null;
+                        }
                     }
                     // Create new managed entity
                     $relatedEntity = $this->entityManager->getEmEngine()->createManagedEntity($validatedEntityData, $targetEntity, false);

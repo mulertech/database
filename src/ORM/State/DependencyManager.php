@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\State;
 
 /**
- * Handles entity insertion dependencies and ordering
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 final class DependencyManager
 {
