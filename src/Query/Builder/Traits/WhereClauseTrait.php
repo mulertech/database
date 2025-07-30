@@ -30,7 +30,7 @@ trait WhereClauseTrait
 
     /**
      * @param string $column
-     * @param mixed $value
+     * @param string|int|float|bool|null $value
      * @param ComparisonOperator|SqlOperator $operator
      * @param LinkOperator $link
      * @return self
@@ -48,7 +48,7 @@ trait WhereClauseTrait
 
     /**
      * @param string $column
-     * @param mixed $value
+     * @param string|int|float|bool|null $value
      * @param LinkOperator $link
      * @return self
      */
@@ -64,7 +64,7 @@ trait WhereClauseTrait
 
     /**
      * @param string $column
-     * @param mixed $value
+     * @param string|int|float|bool|null $value
      * @param LinkOperator $link
      * @return self
      */
@@ -80,7 +80,7 @@ trait WhereClauseTrait
 
     /**
      * @param string $column
-     * @param mixed $value
+     * @param string|int|float|bool|null $value
      * @param LinkOperator $link
      * @return self
      */

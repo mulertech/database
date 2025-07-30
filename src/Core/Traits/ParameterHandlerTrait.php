@@ -79,7 +79,7 @@ trait ParameterHandlerTrait
     }
 
     /**
-     * @param mixed $value
+     * @param string|int|float|bool|null $value
      * @return int
      */
     protected function detectParameterType(mixed $value): int

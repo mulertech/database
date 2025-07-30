@@ -28,6 +28,11 @@ class DbMapping implements DbMappingInterface
     private ColumnMapping $columnMapping;
     private RelationMapping $relationMapping;
     private ForeignKeyMapping $foreignKeyMapping;
+    /**
+     * @var array<class-string, array<string, true>>
+     */
+    private array $relationPropertiesCache = [];
+
 
     /**
      * @param string|null $entitiesPath
@@ -266,5 +271,33 @@ class DbMapping implements DbMappingInterface
     public function getManyToMany(string $entityName): array
     {
         return $this->relationMapping->getManyToMany($entityName);
+    }
+
+    /**
+     * Check if a property is a relation property (OneToOne, ManyToOne, OneToMany, ManyToMany)
+     * Uses an internal cache for performance.
+     *
+     * @param class-string $entityName
+     * @param string $property
+     * @return bool
+     */
+    public function isRelationProperty(string $entityName, string $property): bool
+    {
+        if (!isset($this->relationPropertiesCache[$entityName])) {
+            $relationProps = array_map(static function () {
+                return true;
+            }, $this->getOneToOne($entityName));
+            $relationProps += array_map(static function () {
+                return true;
+            }, $this->getManyToOne($entityName));
+            $relationProps += array_map(static function () {
+                return true;
+            }, $this->getOneToMany($entityName));
+            $relationProps += array_map(static function () {
+                return true;
+            }, $this->getManyToMany($entityName));
+            $this->relationPropertiesCache[$entityName] = $relationProps;
+        }
+        return isset($this->relationPropertiesCache[$entityName][$property]);
     }
 }

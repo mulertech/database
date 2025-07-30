@@ -10,15 +10,14 @@ use MulerTech\FileManipulation\FileType\Php;
 use ReflectionException;
 
 /**
- * Handles foreign key mapping operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class ForeignKeyMapping
 {
-    private DbMappingInterface $dbMapping;
-
-    public function __construct(DbMappingInterface $dbMapping)
-    {
-        $this->dbMapping = $dbMapping;
+    public function __construct(
+        private readonly DbMappingInterface $dbMapping
+    ) {
     }
 
     /**

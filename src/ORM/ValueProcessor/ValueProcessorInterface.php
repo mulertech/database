@@ -7,23 +7,20 @@ namespace MulerTech\Database\ORM\ValueProcessor;
 use JsonException;
 
 /**
- * Interface for value processing strategies
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 interface ValueProcessorInterface
 {
     /**
-     * Process a value according to its type
-     *
-     * @param mixed $value
-     * @return mixed
+     * @param string|int|float|bool|array<mixed>|object|null $value
+     * @return string|int|float|bool|array<mixed>|object|null
      * @throws JsonException
      */
     public function process(mixed $value): mixed;
 
     /**
-     * Check if this processor can handle the given type information
-     *
-     * @param mixed $typeInfo
+     * @param object|string|null $typeInfo
      * @return bool
      */
     public function canProcess(mixed $typeInfo): bool;
