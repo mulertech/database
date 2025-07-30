@@ -718,33 +718,10 @@ class EmEngine
      * @param class-string $entityClass
      * @param string $propertyName
      * @return bool
-     * @throws ReflectionException
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
-        $dbMapping = $this->entityManager->getDbMapping();
-
-        // Check if it's a OneToOne relation
-        $oneToOneList = $dbMapping->getOneToOne($entityClass);
-        if (isset($oneToOneList[$propertyName])) {
-            return true;
-        }
-
-        // Check if it's a ManyToOne relation
-        $manyToOneList = $dbMapping->getManyToOne($entityClass);
-        if (isset($manyToOneList[$propertyName])) {
-            return true;
-        }
-
-        // Check if it's a OneToMany relation
-        $oneToManyList = $dbMapping->getOneToMany($entityClass);
-        if (isset($oneToManyList[$propertyName])) {
-            return true;
-        }
-
-        // Check if it's a ManyToMany relation
-        $manyToManyList = $dbMapping->getManyToMany($entityClass);
-        return isset($manyToManyList[$propertyName]);
+        return $this->entityManager->getDbMapping()->isRelationProperty($entityClass, $propertyName);
     }
 
     /**
