@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder;
 
+use MulerTech\Database\Query\Builder\Traits\QueryOptionsTrait;
+use MulerTech\Database\Query\Builder\Traits\ValidationTrait;
 use PDO;
 use RuntimeException;
 
@@ -17,6 +19,9 @@ use RuntimeException;
  */
 class InsertBuilder extends AbstractQueryBuilder
 {
+    use QueryOptionsTrait;
+    use ValidationTrait;
+
     /**
      * @var string
      */
@@ -31,11 +36,6 @@ class InsertBuilder extends AbstractQueryBuilder
      * @var array<int, array<string, mixed>>
      */
     private array $batchValues = [];
-
-    /**
-     * @var bool
-     */
-    private bool $ignore = false;
 
     /**
      * @var bool
@@ -58,7 +58,9 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     public function into(string $table): self
     {
+        $this->validateTableName($table);
         $this->table = $table;
+        $this->isDirty = true;
         return $this;
     }
 
@@ -70,11 +72,15 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     public function set(string $column, mixed $value, ?int $type = PDO::PARAM_STR): self
     {
+        $this->validateColumnName($column);
+
         if ($value instanceof Raw) {
-            $this->values[$column] = $this->parameterBag->add($value, $type);
-        } else {
-            $this->values[$column] = $this->parameterBag->add($value, $type);
+            $this->values[$column] = $value->getValue();
+            return $this;
         }
+
+        $this->values[$column] = $this->parameterBag->add($value, $type);
+        $this->isDirty = true;
         return $this;
     }
 
@@ -84,78 +90,44 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     public function batchValues(array $batchData): self
     {
-        if (empty($batchData)) {
-            throw new RuntimeException('Batch data cannot be empty');
-        }
+        $this->validateNotEmpty($batchData, 'Batch data');
 
-        // Determine the complete list of columns
-        $allColumns = [];
-        foreach ($batchData as $row) {
-            foreach (array_keys($row) as $col) {
-                if (!in_array($col, $allColumns, true)) {
-                    $allColumns[] = $col;
-                }
-            }
-        }
-
-        // Normalize each row so it has all columns (with null if missing)
-        $normalizedBatch = [];
-        foreach ($batchData as $row) {
-            $normalizedRow = [];
-            foreach ($allColumns as $col) {
-                $value = $row[$col] ?? null;
-                // Process each value for parameterization
-                if ($value instanceof Raw) {
-                    $normalizedRow[$col] = $value->getValue();
-                } else {
-                    $normalizedRow[$col] = $value; // Will be parameterized in buildBatchInsert
-                }
-            }
-            $normalizedBatch[] = $normalizedRow;
-        }
-
-        $this->batchValues = $normalizedBatch;
+        $this->batchValues = $this->normalizeBatchData($batchData);
+        $this->isDirty = true;
         return $this;
     }
 
     /**
-     * @param bool $ignore
+     * Enable REPLACE option
      * @return self
      */
-    public function ignore(bool $ignore = true): self
+    public function replace(): self
     {
-        $this->ignore = $ignore;
-        $this->replace = false; // Cannot use both IGNORE and REPLACE
-        return $this;
-    }
-
-    /**
-     * @param bool $replace
-     * @return self
-     */
-    public function replace(bool $replace = true): self
-    {
-        $this->replace = $replace;
+        $this->replace = true;
         $this->ignore = false; // Cannot use both IGNORE and REPLACE
+        $this->isDirty = true;
+        return $this;
+    }
+
+    /**
+     * Disable REPLACE option
+     * @return self
+     */
+    public function withoutReplace(): self
+    {
+        $this->replace = false;
+        $this->isDirty = true;
         return $this;
     }
 
     /**
      * @param array<string, mixed> $updates
      * @return self
-     * @todo : use parameterBag for values ?
      */
     public function onDuplicateKeyUpdate(array $updates): self
     {
-        $processedUpdates = [];
-        foreach ($updates as $column => $value) {
-            if ($value instanceof Raw) {
-                $processedUpdates[$column] = $value->getValue();
-            } else {
-                $processedUpdates[$column] = $value;
-            }
-        }
-        $this->onDuplicateUpdate = $processedUpdates;
+        $this->onDuplicateUpdate = $this->processUpdateValues($updates);
+        $this->isDirty = true;
         return $this;
     }
 
@@ -168,19 +140,16 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         $this->selectQuery = $selectQuery;
         if (!empty($columns)) {
+            $this->validateColumnNames($columns);
             $this->values = array_fill_keys($columns, null);
         }
+        $this->isDirty = true;
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function buildSql(): string
+    protected function buildSql(): string
     {
-        if (empty($this->table)) {
-            throw new RuntimeException('Table name must be specified');
-        }
+        $this->validateNotEmpty($this->table, 'Table name');
 
         $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatIdentifier($this->table);
 
@@ -208,6 +177,47 @@ class InsertBuilder extends AbstractQueryBuilder
     }
 
     /**
+     * Normalize batch data to ensure all rows have the same columns
+     * @param array<int, array<string, mixed>> $batchData
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeBatchData(array $batchData): array
+    {
+        $allColumns = $this->extractAllColumns($batchData);
+
+        return array_map(static function (array $row) use ($allColumns) {
+            $normalizedRow = [];
+            foreach ($allColumns as $col) {
+                $value = $row[$col] ?? null;
+                $normalizedRow[$col] = $value instanceof Raw ? $value->getValue() : $value;
+            }
+            return $normalizedRow;
+        }, $batchData);
+    }
+
+    /**
+     * Extract all unique columns from batch data
+     * @param array<int, array<string, mixed>> $batchData
+     * @return array<string>
+     */
+    private function extractAllColumns(array $batchData): array
+    {
+        return array_unique(array_merge(...array_map('array_keys', $batchData)));
+    }
+
+    /**
+     * Process update values for ON DUPLICATE KEY UPDATE
+     * @param array<string, mixed> $updates
+     * @return array<string, mixed>
+     */
+    private function processUpdateValues(array $updates): array
+    {
+        return array_map(static function ($value) {
+            return $value instanceof Raw ? $value->getValue() : $value;
+        }, $updates);
+    }
+
+    /**
      * @return string
      */
     private function getInsertKeyword(): string
@@ -217,8 +227,10 @@ class InsertBuilder extends AbstractQueryBuilder
         }
 
         $keyword = 'INSERT';
-        if ($this->ignore) {
-            $keyword .= ' IGNORE';
+        $modifiers = $this->buildQueryModifiers();
+
+        if (!empty($modifiers)) {
+            $keyword .= ' ' . implode(' ', $modifiers);
         }
 
         return $keyword;
@@ -232,9 +244,7 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         $columns = array_keys($this->values);
         $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
-        $sql .= ' VALUES (';
-
-        $sql .= implode(', ', array_values($this->values)) . ')';
+        $sql .= ' VALUES (' . implode(', ', array_values($this->values)) . ')';
 
         return $this->addOnDuplicateKeyUpdate($sql);
     }
@@ -245,29 +255,29 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     private function buildBatchInsert(string $sql): string
     {
-        if (empty($this->batchValues)) {
-            throw new RuntimeException('No batch values provided');
-        }
-
         $columns = array_keys($this->batchValues[0]);
         $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
-        $sql .= ' VALUES ';
+        $sql .= ' VALUES ' . $this->buildBatchValues($columns);
 
+        return $this->addOnDuplicateKeyUpdate($sql);
+    }
+
+    /**
+     * Build batch values string
+     * @param array<string> $columns
+     * @return string
+     */
+    private function buildBatchValues(array $columns): string
+    {
         $valueGroups = [];
-        $paramCounter = 1;
         foreach ($this->batchValues as $row) {
             $valueParts = [];
             foreach ($columns as $column) {
-                $paramName = ':batchParam' . $paramCounter++;
-                $this->namedParameters[$paramName] = [$row[$column], PDO::PARAM_STR];
-                $valueParts[] = $paramName;
+                $valueParts[] = $this->parameterBag->add($row[$column]);
             }
             $valueGroups[] = '(' . implode(', ', $valueParts) . ')';
         }
-
-        $sql .= implode(', ', $valueGroups);
-
-        return $this->addOnDuplicateKeyUpdate($sql);
+        return implode(', ', $valueGroups);
     }
 
     /**
@@ -281,16 +291,9 @@ class InsertBuilder extends AbstractQueryBuilder
             $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
         }
 
-        // Vérification de nullité avant d'appeler les méthodes
         if ($this->selectQuery instanceof SelectBuilder) {
             $this->selectQuery->setParameterBag($this->parameterBag);
             $sql .= ' ' . $this->selectQuery->toSql();
-
-            // Merge named parameters from SELECT query
-            $selectNamedParams = $this->selectQuery->getNamedParameters();
-            foreach ($selectNamedParams as $key => $value) {
-                $this->namedParameters[$key] = $value;
-            }
         }
 
         return $this->addOnDuplicateKeyUpdate($sql);
@@ -307,52 +310,35 @@ class InsertBuilder extends AbstractQueryBuilder
         }
 
         $sql .= ' ON DUPLICATE KEY UPDATE ';
-
         $updateParts = [];
+
         foreach ($this->onDuplicateUpdate as $column => $value) {
-            $escapedColumn = $this->formatIdentifier($column);
-
-            if ($value === 'VALUES') {
-                $updateParts[] = "$escapedColumn = VALUES($escapedColumn)";
-            } elseif ($value instanceof Raw) {
-                // If the value is a Raw expression, we use it directly
-                $value = $value->getValue();
-                $updateParts[] = "$escapedColumn = $value";
-            } else {
-                $updateParts[] = "$escapedColumn = " . $this->parameterBag->add($value);
-            }
+            $updateParts[] = $this->buildUpdatePart($column, $value);
         }
 
-        $sql .= implode(', ', $updateParts);
-
-        return $sql;
+        return $sql . implode(', ', $updateParts);
     }
 
     /**
-     * @return array<string>
+     * Build individual update part for ON DUPLICATE KEY UPDATE
+     * @param string $column
+     * @param mixed $value
+     * @return string
      */
-    public function getBatchColumns(): array
+    private function buildUpdatePart(string $column, mixed $value): string
     {
-        if (!empty($this->batchValues)) {
-            return array_keys($this->batchValues[0]);
+        $escapedColumn = $this->formatIdentifier($column);
+
+        if ($value === 'VALUES') {
+            return "$escapedColumn = VALUES($escapedColumn)";
         }
 
-        return array_keys($this->values);
+        if ($value instanceof Raw) {
+            return "$escapedColumn = " . $value->getValue();
+        }
+
+        return "$escapedColumn = " . $this->parameterBag->add($value);
     }
 
-    /**
-     * @return int
-     */
-    public function getBatchSize(): int
-    {
-        return count($this->batchValues);
-    }
-
-    /**
-     * @return bool
-     */
-    public function isBatchInsert(): bool
-    {
-        return !empty($this->batchValues);
-    }
+    // ...existing code for utility methods...
 }

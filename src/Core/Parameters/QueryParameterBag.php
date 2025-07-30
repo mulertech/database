@@ -30,9 +30,9 @@ class QueryParameterBag
     /**
      * @param mixed $value
      * @param int|null $type
-     * @return string|int
+     * @return string
      */
-    public function add(mixed $value, ?int $type = null): string|int
+    public function add(mixed $value, ?int $type = null): string
     {
         $type ??= $this->detectType($value);
 

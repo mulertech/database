@@ -182,7 +182,15 @@ readonly class Statement
      */
     public function fetchAll(int $mode = PDO::FETCH_DEFAULT, mixed ...$args): array
     {
-        return $this->statement->fetchAll($mode, ...$args);
+        // Validate args to ensure they are compatible with PDO
+        $validatedArgs = [];
+        foreach ($args as $arg) {
+            if (is_callable($arg) || is_int($arg) || is_string($arg)) {
+                $validatedArgs[] = $arg;
+            }
+        }
+
+        return $this->statement->fetchAll($mode, ...$validatedArgs);
     }
 
     /**
@@ -262,25 +270,13 @@ readonly class Statement
 
     /**
      * @param int $mode
-     * @param mixed ...$params
+     * @param mixed ...$args
      * @return bool
      * @throws RuntimeException
      */
-    public function setFetchMode(int $mode = PDO::FETCH_DEFAULT, mixed ...$params): bool
+    public function setFetchMode(int $mode, mixed ...$args): bool
     {
-        $result = $this->statement->setFetchMode(...func_get_args());
-
-        if ($result === false) {
-            throw new RuntimeException(
-                sprintf(
-                    'Failed to set fetch mode %d. Error: %s',
-                    $mode,
-                    $this->statement->errorInfo()[2] ?? 'Unknown error'
-                )
-            );
-        }
-
-        return $result;
+        return $this->statement->setFetchMode($mode, ...$args);
     }
 
     /**

@@ -10,56 +10,56 @@ namespace MulerTech\Database\Mapping\Types;
 enum ColumnType: string
 {
     // Integer numeric types
-    case INT = 'int';
-    case TINYINT = 'tinyint';
-    case SMALLINT = 'smallint';
-    case MEDIUMINT = 'mediumint';
-    case BIGINT = 'bigint';
+    case INT = 'INT';
+    case TINYINT = 'TINYINT';
+    case SMALLINT = 'SMALLINT';
+    case MEDIUMINT = 'MEDIUMINT';
+    case BIGINT = 'BIGINT';
 
     // Decimal numeric types
-    case DECIMAL = 'decimal'; // or NUMERIC
-    case FLOAT = 'float';
-    case DOUBLE = 'double'; // (synonym for REAL in MySQL)
+    case DECIMAL = 'DECIMAL'; // or NUMERIC
+    case FLOAT = 'FLOAT';
+    case DOUBLE = 'DOUBLE'; // (synonym for REAL in MySQL)
 
     // Fixed-length character types
-    case CHAR = 'char';
-    case VARCHAR = 'varchar';
+    case CHAR = 'CHAR';
+    case VARCHAR = 'VARCHAR';
 
     // Text types
-    case TEXT = 'text';
-    case TINYTEXT = 'tinytext';
-    case MEDIUMTEXT = 'mediumtext';
-    case LONGTEXT = 'longtext';
+    case TEXT = 'TEXT';
+    case TINYTEXT = 'TINYTEXT';
+    case MEDIUMTEXT = 'MEDIUMTEXT';
+    case LONGTEXT = 'LONGTEXT';
 
     // Binary types
-    case BINARY = 'binary';
-    case VARBINARY = 'varbinary';
-    case BLOB = 'blob';
-    case TINYBLOB = 'tinyblob';
-    case MEDIUMBLOB = 'mediumblob';
-    case LONGBLOB = 'longblob';
+    case BINARY = 'BINARY';
+    case VARBINARY = 'VARBINARY';
+    case BLOB = 'BLOB';
+    case TINYBLOB = 'TINYBLOB';
+    case MEDIUMBLOB = 'MEDIUMBLOB';
+    case LONGBLOB = 'LONGBLOB';
 
     // Date and time types
-    case DATE = 'date';
-    case DATETIME = 'datetime';
-    case TIMESTAMP = 'timestamp';
-    case TIME = 'time';
-    case YEAR = 'year';
+    case DATE = 'DATE';
+    case DATETIME = 'DATETIME';
+    case TIMESTAMP = 'TIMESTAMP';
+    case TIME = 'TIME';
+    case YEAR = 'YEAR';
 
     // Boolean types are often represented as TINYINT(1) in MySQL
 
     // Enumeration and set types
-    case ENUM = 'enum';
-    case SET = 'set';
+    case ENUM = 'ENUM';
+    case SET = 'SET';
 
     // JSON type (MySQL 5.7.8+)
-    case JSON = 'json';
+    case JSON = 'JSON';
 
     // Special types
-    case GEOMETRY = 'geometry';
-    case POINT = 'point';
-    case LINESTRING = 'linestring';
-    case POLYGON = 'polygon';
+    case GEOMETRY = 'GEOMETRY';
+    case POINT = 'POINT';
+    case LINESTRING = 'LINESTRING';
+    case POLYGON = 'POLYGON';
 
     /**
      * Determines if the column type can be unsigned
@@ -120,12 +120,16 @@ enum ColumnType: string
      *
      * @param int|null $length Column length
      * @param int|null $scale Scale for decimal types
-     * @param bool $unsigned Whether the type is unsigned
+     * @param bool $isUnsigned Whether the type is unsigned
      * @param array<string> $choices Choices for ENUM or SET types
      * @return string
      */
-    public function toSqlDefinition(?int $length = null, ?int $scale = null, bool $unsigned = false, array $choices = []): string
-    {
+    public function toSqlDefinition(
+        ?int $length = null,
+        ?int $scale = null,
+        bool $isUnsigned = false,
+        array $choices = []
+    ): string {
         $sql = $this->value;
 
         if (null !== $length && $this->requiresPrecision()) {
@@ -137,7 +141,7 @@ enum ColumnType: string
             $sql .= "('" . implode("','", $choices) . "')";
         }
 
-        if ($unsigned && $this->canBeUnsigned()) {
+        if ($isUnsigned && $this->canBeUnsigned()) {
             $sql .= ' unsigned';
         }
 

@@ -16,4 +16,13 @@ enum FkRule: string
     case NO_ACTION = 'NO ACTION';
     case RESTRICT = 'RESTRICT';
     case SET_DEFAULT = 'SET DEFAULT';
+
+    /**
+     * Convert to enum call string for code generation
+     * @return string
+     */
+    public function toEnumCallString(): string
+    {
+        return sprintf('%s::%s', self::class, $this->name);
+    }
 }

@@ -159,6 +159,8 @@ class EntityManagerTest extends TestCase
         $this->createUserTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
+        
+        // Créer les entités avec des relations parent-enfant
         $group1 = new Group();
         $group1->setName('Group1');
         $group2 = new Group();
@@ -167,49 +169,77 @@ class EntityManagerTest extends TestCase
         $group3 = new Group();
         $group3->setName('Group3');
         $group3->setParent($group1);
-        $group1->addChild($group3);
+        
+        // Ne pas utiliser addChild() manuellement - laisser la persistance gérer les relations
         $em->persist($group1);
         $em->persist($group2);
         $em->persist($group3);
         $em->flush();
         
-        $group1 = $em->find(Group::class, 'name=\'Group1\'');
-        self::assertNotNull($group1, 'Group1 should be found');
-        self::assertInstanceOf(Group::class, $group1);
-        self::assertEquals('Group1', $group1->getName());
-        self::assertEquals(2, $group1->getChildren()->count());
+        // Vérifier que les données sont correctement en base
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('SELECT COUNT(*) as count FROM groups_test WHERE parent_id = ?');
+        $stmt->execute([$group1->getId()]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        self::assertEquals(2, $result['count'], 'Should have 2 children in database');
         
-        $group3 = $em->find(Group::class, 'name=\'Group3\'');
-        self::assertNotNull($group3, 'Group3 should be found');
-        self::assertEquals('Group1', $group3->getParent()->getName());
+        // Clear l'entity manager pour forcer le rechargement depuis la base
+        $em->getEmEngine()->clear();
         
-        $group3->setParent(null);
+        // Test 1: Vérifier que les relations OneToMany sont chargées automatiquement depuis la base
+        $reloadedGroup1 = $em->find(Group::class, 'name=\'Group1\'');
+        self::assertNotNull($reloadedGroup1, 'Group1 should be found after clear');
+        self::assertInstanceOf(Group::class, $reloadedGroup1);
+        self::assertEquals('Group1', $reloadedGroup1->getName());
+        
+        // IMPORTANT: Ce test devrait échouer si OneToManyProcessor::processProperty() n'est pas implémenté
+        $children = $reloadedGroup1->getChildren();
+        self::assertNotNull($children, 'Children collection should not be null');
+        self::assertEquals(2, $children->count(), 'Group1 should have 2 children loaded from database');
+        
+        // Vérifier que les enfants sont les bonnes entités
+        $childNames = [];
+        foreach ($children as $child) {
+            $childNames[] = $child->getName();
+        }
+        self::assertContains('Group2', $childNames, 'Group2 should be in children');
+        self::assertContains('Group3', $childNames, 'Group3 should be in children');
+        
+        // Test 2: Vérifier la relation ManyToOne dans l'autre sens
+        $reloadedGroup3 = $em->find(Group::class, 'name=\'Group3\'');
+        self::assertNotNull($reloadedGroup3, 'Group3 should be found');
+        self::assertEquals('Group1', $reloadedGroup3->getParent()->getName());
+        
+        // Test 3: Tester la modification des relations et la synchronisation
+        $reloadedGroup3->setParent(null);
         
         // Check if entity manager detects the change
-        $hasChanges = $em->getEmEngine()->hasChanges($group3);
+        $hasChanges = $em->getEmEngine()->hasChanges($reloadedGroup3);
         
-        if ($hasChanges) {
-            $changes = $em->getEmEngine()->getChanges($group3);
-        }
-        
-        $em->persist($group3);
+        $em->persist($reloadedGroup3);
         $em->flush();
         
-        // Check database directly BEFORE trying to find
-        $pdo = $this->entityManager->getPdm();
-        $statement = $pdo->prepare('SELECT * FROM groups_test WHERE name = ?');
-        $statement->execute(['Group3']);
-        $result = $statement->fetch(\PDO::FETCH_ASSOC);
+        // Vérifier en base que parent_id est null
+        $stmt = $pdo->prepare('SELECT parent_id FROM groups_test WHERE name = ?');
+        $stmt->execute(['Group3']);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        self::assertNull($result['parent_id'], 'Group3 parent_id should be null in database');
         
-        $group3 = $em->find(Group::class, 'name=\'Group3\'');
-        if ($group3 === null) {
-            // Check database directly
-            $statement = $pdo->prepare('SELECT * FROM groups_test WHERE name = ?');
-            $statement->execute(['Group3']);
-            $result = $statement->fetch(\PDO::FETCH_ASSOC);
-        }
-        self::assertNotNull($group3, 'Group3 should still be found after update');
-        self::assertNull($group3->getParent());
+        // Clear et recharger pour vérifier la synchronisation
+        $em->getEmEngine()->clear();
+        
+        $finalGroup1 = $em->find(Group::class, 'name=\'Group1\'');
+        $finalGroup3 = $em->find(Group::class, 'name=\'Group3\'');
+        
+        // Group1 ne devrait plus avoir que 1 enfant
+        self::assertEquals(1, $finalGroup1->getChildren()->count(), 'Group1 should now have only 1 child');
+        
+        // Group3 ne devrait plus avoir de parent
+        self::assertNull($finalGroup3->getParent(), 'Group3 should have no parent after update');
+        
+        // Test 4: Vérifier que l'enfant restant est Group2
+        $remainingChild = $finalGroup1->getChildren()->reset();
+        self::assertEquals('Group2', $remainingChild->getName(), 'Remaining child should be Group2');
     }
 
     public function testFindEntityWithManyToOneRelation(): void
@@ -513,11 +543,12 @@ class EntityManagerTest extends TestCase
         $this->eventManager->addListener(DbEvents::preRemove->value, static function (PreRemoveEvent $event) {
             $manager = $event->getEntity();
             if ($manager instanceof User && $manager->getUsername() === 'Manager') {
-                $otherManager = $event->getEntityManager()->find(User::class, 'username=\'OtherManager\'');
-                $user = $event->getEntityManager()->find(User::class, 'username=\'John\'');
+                $entityManager = $event->getEntityManager();
+                $otherManager = $entityManager->find(User::class, 'username=\'OtherManager\'');
+                $user = $entityManager->find(User::class, 'username=\'John\'');
                 if ($user !== null && $otherManager !== null) {
                     $user->setManager($otherManager);
-                    $event->getEntityManager()->persist($user);
+                    $entityManager->persist($user);
                     // Note: Don't flush here as we're already in a flush cycle
                 }
             }
@@ -525,6 +556,7 @@ class EntityManagerTest extends TestCase
         
         $em->remove($manager);
         $em->flush();
+
         $user = $em->find(User::class, 'username=\'John\'');
         self::assertNotNull($user, 'User should still exist');
         self::assertNotNull($user->getManager(), 'User should have a manager');
@@ -763,6 +795,109 @@ class EntityManagerTest extends TestCase
         self::assertNotNull($user->getManager(), 'User should have a manager');
         self::assertNotNull($user->getUnit(), 'User should have a unit');
         self::assertEquals('OtherManager', $user->getManager()->getUsername());
+    }
+
+    /**
+     * Test spécifique pour démontrer l'importance du OneToManyProcessor
+     * Ce test devrait échouer si OneToManyProcessor::processProperty() n'est pas implémenté
+     */
+    public function testOneToManyProcessorIsRequired(): void
+    {
+        $this->createGroupTestTable();
+        $this->createUserTestTable();
+        $this->createLinkUserGroupTestTable();
+        $em = $this->entityManager;
+        
+        // Créer un parent et ses enfants directement en base
+        $pdo = $this->entityManager->getPdm();
+        
+        // Insérer le parent
+        $stmt = $pdo->prepare('INSERT INTO groups_test (id, name) VALUES (?, ?)');
+        $stmt->execute([1, 'ParentGroup']);
+        
+        // Insérer les enfants avec référence au parent
+        $stmt = $pdo->prepare('INSERT INTO groups_test (id, name, parent_id) VALUES (?, ?, ?)');
+        $stmt->execute([2, 'Child1', 1]);
+        $stmt->execute([3, 'Child2', 1]);
+        
+        // Vérifier que les données sont bien en base
+        $stmt = $pdo->prepare('SELECT COUNT(*) as count FROM groups_test WHERE parent_id = 1');
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        self::assertEquals(2, $result['count'], 'Should have 2 children in database');
+        
+        // Charger le parent via l'EntityManager
+        $parentGroup = $em->find(Group::class, 1);
+        self::assertNotNull($parentGroup, 'Parent group should be found');
+        self::assertEquals('ParentGroup', $parentGroup->getName());
+        
+        // CRITICAL TEST: Vérifier que les enfants sont automatiquement chargés
+        // Si OneToManyProcessor::processProperty() n'est pas implémenté, 
+        // cette assertion devrait échouer car la collection sera vide
+        $children = $parentGroup->getChildren();
+        self::assertNotNull($children, 'Children collection should not be null');
+        self::assertEquals(2, $children->count(), 
+            'Parent should have 2 children loaded automatically by OneToManyProcessor. ' .
+            'If this fails, OneToManyProcessor::processProperty() is not properly implemented.'
+        );
+        
+        // Vérifier les noms des enfants
+        $childNames = [];
+        foreach ($children as $child) {
+            $childNames[] = $child->getName();
+        }
+        self::assertCount(2, $childNames, 'Should have exactly 2 child names');
+        self::assertContains('Child1', $childNames, 'Child1 should be loaded');
+        self::assertContains('Child2', $childNames, 'Child2 should be loaded');
+    }
+
+    public function testDependencyManagerOrdering(): void
+    {
+        $dependencyManager = new \MulerTech\Database\ORM\State\DependencyManager();
+        
+        $unit1 = new Unit();
+        $unit1->setName('Unit1');
+        $unit2 = new Unit();
+        $unit2->setName('Unit2');
+        
+        $user1 = new User();
+        $user1->setUsername('User1');
+        $user1->setUnit($unit1);
+        
+        $user2 = new User();
+        $user2->setUsername('User2');
+        $user2->setUnit($unit2);
+        $user2->setManager($user1);
+
+        $dependencyManager->addInsertionDependency($user2, $user1);
+        $dependencyManager->addInsertionDependency($user2, $unit2);
+        $dependencyManager->addInsertionDependency($user1, $unit1);
+
+        $entities = [
+            spl_object_id($user2) => $user2,
+            spl_object_id($user1) => $user1,
+            spl_object_id($unit2) => $unit2,
+            spl_object_id($unit1) => $unit1,
+        ];
+
+        $ordered = $dependencyManager->orderByDependencies($entities);
+
+        self::assertEquals(4, count($ordered), 'Should have 4 entities');
+
+        $orderedIds = array_keys($ordered);
+        $unit1Position = array_search(spl_object_id($unit1), $orderedIds, true);
+        $unit2Position = array_search(spl_object_id($unit2), $orderedIds, true);
+        $user1Position = array_search(spl_object_id($user1), $orderedIds, true);
+        $user2Position = array_search(spl_object_id($user2), $orderedIds, true);
+
+        self::assertNotFalse($unit1Position, 'Unit1 should be in ordered array');
+        self::assertNotFalse($unit2Position, 'Unit2 should be in ordered array');
+        self::assertNotFalse($user1Position, 'User1 should be in ordered array');
+        self::assertNotFalse($user2Position, 'User2 should be in ordered array');
+
+        self::assertLessThan($user1Position, $unit1Position, 'Unit1 should come before User1');
+        self::assertLessThan($user2Position, $unit2Position, 'Unit2 should come before User2');
+        self::assertLessThan($user2Position, $user1Position, 'User1 should come before User2');
     }
 }
 

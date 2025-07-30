@@ -18,16 +18,16 @@ use MulerTech\Database\Mapping\Types\FkRule;
 #[MtEntity(tableName: "link_user_group_test")]
 class GroupUser
 {
-    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, isUnsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
-    #[MtColumn(columnName: "user_id", columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: User::class, referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
+    #[MtColumn(columnName: "user_id", columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtFk(referencedTable: 'users_test', referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
     #[MtManyToOne(targetEntity: User::class)]
     private ?User $user = null;
 
-    #[MtColumn(columnName: "group_id", columnType: ColumnType::INT, unsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
-    #[MtFk(referencedTable: Group::class, referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
+    #[MtColumn(columnName: "group_id", columnType: ColumnType::INT, isUnsigned: true, isNullable: false, columnKey: ColumnKey::MULTIPLE_KEY)]
+    #[MtFk(referencedTable: 'groups_test', referencedColumn: "id", deleteRule: FkRule::CASCADE, updateRule: FkRule::CASCADE)]
     #[MtManyToOne(targetEntity: Group::class)]
     private ?Group $group = null;
 

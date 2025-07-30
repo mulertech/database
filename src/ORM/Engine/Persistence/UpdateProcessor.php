@@ -105,7 +105,7 @@ readonly class UpdateProcessor
 
             // Check if it's a ManyToOne relation that should have a foreign key column
             $manyToOneList = $this->dbMapping->getManyToOne($entityClass);
-            if (is_array($manyToOneList) && isset($manyToOneList[$property])) {
+            if (isset($manyToOneList[$property])) {
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
@@ -117,7 +117,7 @@ readonly class UpdateProcessor
             }
 
             $oneToOneList = $this->dbMapping->getOneToOne($entityClass);
-            if (is_array($oneToOneList) && isset($oneToOneList[$property])) {
+            if (isset($oneToOneList[$property])) {
                 try {
                     $mappedColumn = $this->dbMapping->getColumnName($entityClass, $property);
                     if ($mappedColumn !== null) {
@@ -136,10 +136,12 @@ readonly class UpdateProcessor
     }
 
     /**
+     * Get the ID of the entity, trying multiple methods
+     *
      * @param object $entity
-     * @return int|null
+     * @return int|string|null
      */
-    private function getId(object $entity): ?int
+    private function getId(object $entity): int|string|null
     {
         if (!method_exists($entity, 'getId')) {
             throw new RuntimeException(
@@ -170,8 +172,30 @@ readonly class UpdateProcessor
             }
 
             $propertyChange = $changes[$property];
-            $updateBuilder->set($column, $this->getReferenceForeignKeyId($propertyChange->newValue));
-            $hasUpdates = true;
+            $newValue = $propertyChange->newValue;
+
+            // Validate type before processing
+            if (is_array($newValue)) {
+                $validArray = true;
+                foreach (array_keys($newValue) as $key) {
+                    if (!is_string($key)) {
+                        $validArray = false;
+                        break;
+                    }
+                }
+                if ($validArray) {
+                    /** @var array<string, mixed> $newValue */
+                    $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
+                    $hasUpdates = true;
+                }
+
+                continue;
+            }
+
+            if (is_object($newValue) || is_string($newValue) || $newValue === null) {
+                $updateBuilder->set($column, $this->getReferenceForeignKeyId($newValue));
+                $hasUpdates = true;
+            }
         }
 
         if (!$hasUpdates) {
@@ -185,7 +209,28 @@ readonly class UpdateProcessor
                 // Try to find a foreign key column for this relation property
                 $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
                 if ($foreignKeyColumn !== null) {
-                    $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($propertyChange->newValue));
+                    // Validate that newValue has the expected type before processing
+                    $newValue = $propertyChange->newValue;
+
+                    if (is_array($newValue)) {
+                        $validArray = true;
+                        foreach (array_keys($newValue) as $key) {
+                            if (!is_string($key)) {
+                                $validArray = false;
+                                break;
+                            }
+                        }
+                        if ($validArray) {
+                            /** @var array<string, mixed> $newValue */
+                            $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
+                        }
+
+                        continue;
+                    }
+
+                    if (is_object($newValue) || is_string($newValue) || $newValue === null) {
+                        $updateBuilder->set($foreignKeyColumn, $this->getReferenceForeignKeyId($newValue));
+                    }
                 }
             }
         }
@@ -206,13 +251,14 @@ readonly class UpdateProcessor
      * Get the foreign key ID from a serialized entity reference or an actual object
      *
      * @param array<string, mixed>|object|string|null $value
-     * @return int|string|array<string, mixed>|null
+     * @return int|string|null
      */
-    private function getReferenceForeignKeyId(array|object|string|null $value): int|string|array|null
+    private function getReferenceForeignKeyId(array|object|string|null $value): int|string|null
     {
         if (is_array($value) && isset($value['__entity__'], $value['__id__'])) {
             // This is a serialized entity reference from ChangeDetector
-            return $value['__id__'];
+            $id = $value['__id__'];
+            return (is_int($id) || is_string($id)) ? $id : null;
         }
 
         if (is_object($value)) {
@@ -221,7 +267,12 @@ readonly class UpdateProcessor
             return $extractedId ?? null;
         }
 
-        return $value;
+        if (is_string($value)) {
+            // String value (could be a UUID or string ID)
+            return $value;
+        }
+
+        return null;
     }
 
     /**
@@ -278,7 +329,8 @@ readonly class UpdateProcessor
             $pdo = $this->entityManager->getPdm();
             $statement = $pdo->prepare("SELECT COUNT(*) FROM `$tableName` WHERE id = :id");
             $statement->execute(['id' => $entityId]);
-            $count = (int) $statement->fetchColumn();
+            $result = $statement->fetchColumn();
+            $count = is_numeric($result) ? (int) $result : 0;
             $statement->closeCursor();
 
             return $count > 0;

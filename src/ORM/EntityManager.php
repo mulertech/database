@@ -134,6 +134,7 @@ class EntityManager implements EntityManagerInterface
         if ($tableName === null) {
             throw new InvalidArgumentException("Entity '$entity' does not have a valid table mapping.");
         }
+
         $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('*')
             ->from($tableName)

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Clause;
 
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\LinkOperator;
 
 /**

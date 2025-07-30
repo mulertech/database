@@ -58,18 +58,19 @@ final class EntityRegistry
             $data['lastAccessed'] = $now;
             $data['accessCount']++;
             $this->registry[$entity] = $data;
-        } else {
-            // New registration
-            $this->registry[$entity] = [
-                'registeredAt' => $now,
-                'lastAccessed' => $now,
-                'accessCount' => 1,
-            ];
-
-            // Update counters
-            $this->entityCountByClass[$entityClass] = ($this->entityCountByClass[$entityClass] ?? 0) + 1;
-            $this->totalEntitiesRegistered++;
+            return;
         }
+
+        // New registration
+        $this->registry[$entity] = [
+            'registeredAt' => $now,
+            'lastAccessed' => $now,
+            'accessCount' => 1,
+        ];
+
+        // Update counters
+        $this->entityCountByClass[$entityClass] = ($this->entityCountByClass[$entityClass] ?? 0) + 1;
+        $this->totalEntitiesRegistered++;
 
         // Update stats
         $this->updateStats($entityClass, 'registered');

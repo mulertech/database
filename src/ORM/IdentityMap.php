@@ -26,9 +26,6 @@ final class IdentityMap
     /** @var WeakMap<object, EntityMetadata> */
     private WeakMap $metadata;
 
-    /** @var array<string, array{methods: array<string>,properties: array<string>}> */
-    private array $identifierMethodsCache = [];
-
     public function __construct()
     {
         $this->metadata = new WeakMap();
@@ -96,8 +93,8 @@ final class IdentityMap
         // Initialize class array if needed
         $this->entities[$entityClass] ??= [];
 
-        // Store weak reference
-        $this->entities[$entityClass][$id] = WeakReference::create($entity);
+        // Store weak reference - inject WeakReference factory if needed
+        $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
 
         // Store metadata
         $this->storeMetadata($entity, $id);
@@ -125,14 +122,14 @@ final class IdentityMap
      */
     public function clear(?string $entityClass = null): void
     {
-        if ($entityClass === null) {
-            $this->entities = [];
-            $this->metadata = new WeakMap();
-            $this->identifierMethodsCache = [];
-        } else {
+        if ($entityClass !== null) {
             unset($this->entities[$entityClass]);
-            // Note: We can't selectively clear WeakMap, but GC will handle it
+
+            return;
         }
+
+        $this->entities = [];
+        $this->metadata = new WeakMap();
     }
 
     /**
@@ -150,10 +147,12 @@ final class IdentityMap
             $entity = $weakRef->get();
             if ($entity !== null) {
                 $entities[] = $entity;
-            } else {
-                // Cleanup dead reference
-                unset($this->entities[$entityClass][$id]);
+
+                continue;
             }
+
+            // Cleanup dead reference
+            unset($this->entities[$entityClass][$id]);
         }
 
         return $entities;
@@ -286,33 +285,24 @@ final class IdentityMap
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        $entityClass = $entity::class;
-
-        // Use cached methods if available
-        if (!isset($this->identifierMethodsCache[$entityClass])) {
-            $this->cacheIdentifierMethods($entityClass);
-        }
-
-        $methods = $this->identifierMethodsCache[$entityClass];
-
-        // Try ID methods
-        foreach ($methods['methods'] as $method) {
-            if (method_exists($entity, $method)) {
-                $value = $entity->$method();
-                if ($value !== null) {
-                    return $value;
-                }
+        // Try common getter methods first
+        if (method_exists($entity, 'getId')) {
+            $id = $entity->getId();
+            if (is_int($id) || is_string($id)) {
+                return $id;
             }
         }
 
-        // Try ID properties
-        foreach ($methods['properties'] as $property) {
+        // Try direct property access
+        $commonIdProperties = ['id', 'uuid', 'identifier'];
+
+        foreach ($commonIdProperties as $property) {
             if (property_exists($entity, $property)) {
                 try {
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
                     $value = $prop->getValue($entity);
-                    if ($value !== null) {
+                    if ((is_int($value) || is_string($value))) {
                         return $value;
                     }
                 } catch (ReflectionException) {
@@ -322,24 +312,6 @@ final class IdentityMap
         }
 
         return null;
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @return void
-     */
-    private function cacheIdentifierMethods(string $entityClass): void
-    {
-        // Common ID getter methods in order of preference
-        $methods = ['getId', 'getIdentifier', 'getUuid', 'getPrimaryKey'];
-
-        // Common ID properties in order of preference
-        $properties = ['id', 'identifier', 'uuid', 'primaryKey'];
-
-        $this->identifierMethodsCache[$entityClass] = [
-            'methods' => $methods,
-            'properties' => $properties,
-        ];
     }
 
     /**
@@ -378,5 +350,17 @@ final class IdentityMap
         }
 
         return $data;
+    }
+
+    /**
+     * Create a weak reference to an entity
+     * This method can be overridden for testing or custom weak reference handling
+     *
+     * @param object $entity
+     * @return WeakReference<object>
+     */
+    private function createWeakReference(object $entity): WeakReference
+    {
+        return WeakReference::create($entity);
     }
 }

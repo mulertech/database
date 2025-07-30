@@ -4,116 +4,44 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
-use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use MulerTech\FileManipulation\FileType\Php;
-use ReflectionClass;
+use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
-use RuntimeException;
-use MulerTech\Database\Mapping\Attributes\MtEntity;
 
 /**
  * Class DbMapping
  *
  * Main implementation of database mapping functionality.
+ * Refactored to use composition and delegate responsibilities to specialized classes.
  *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class DbMapping implements DbMappingInterface
 {
-    /** @var array<class-string, string> $tables */
-    private array $tables = [];
-    /** @var array<string, array<string, string>> $columns */
-    private array $columns = [];
-
-    /** @var string|null $entitiesPath */
-    private ?string $entitiesPath;
+    private EntityProcessor $entityProcessor;
+    private ColumnMapping $columnMapping;
+    private RelationMapping $relationMapping;
+    private ForeignKeyMapping $foreignKeyMapping;
 
     /**
      * @param string|null $entitiesPath
-     * @param bool $recursive
      */
-    public function __construct(
-        ?string $entitiesPath = null,
-        private readonly bool $recursive = true
-    ) {
-        $this->entitiesPath = $entitiesPath;
+    public function __construct(?string $entitiesPath = null)
+    {
+        $this->entityProcessor = new EntityProcessor();
+        $this->columnMapping = new ColumnMapping();
+        $this->relationMapping = new RelationMapping();
+        $this->foreignKeyMapping = new ForeignKeyMapping($this);
+
         if ($entitiesPath !== null) {
-            $this->loadEntities();
+            $this->entityProcessor->loadEntities($entitiesPath);
         }
-    }
-
-    /**
-     * @return void
-     */
-    private function loadEntities(): void
-    {
-        if ($this->entitiesPath === null) {
-            return;
-        }
-
-        $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
-
-        foreach ($classNames as $className) {
-            if (!class_exists($className)) {
-                continue;
-            }
-
-            $reflection = new ReflectionClass($className);
-            $this->processEntityClass($reflection);
-        }
-    }
-
-    /**
-     * @param ReflectionClass<object> $reflection
-     * @return void
-     */
-    private function processEntityClass(ReflectionClass $reflection): void
-    {
-        $className = $reflection->getName();
-
-        // Get table name from MtEntity attribute
-        $entityAttrs = $reflection->getAttributes(MtEntity::class);
-        if (!empty($entityAttrs)) {
-            $entityAttr = $entityAttrs[0]->newInstance();
-            $tableName = $entityAttr->tableName ?? $this->classNameToTableName($className);
-            $this->tables[$className] = $tableName;
-
-            // Process properties for column mappings
-            foreach ($reflection->getProperties() as $property) {
-                $propertyName = $property->getName();
-
-                // Get column mapping from MtColumn attribute
-                $columnAttrs = $property->getAttributes(MtColumn::class);
-                if (!empty($columnAttrs)) {
-                    $columnAttr = $columnAttrs[0]->newInstance();
-                    $columnName = $columnAttr->columnName ?? $propertyName;
-                    $this->columns[$className][$propertyName] = $columnName;
-                }
-            }
-        }
-    }
-
-    /**
-     * Convert class name to table name (basic implementation)
-     * @param string $className
-     * @return string
-     */
-    private function classNameToTableName(string $className): string
-    {
-        /** @var class-string $className */
-        $reflection = new ReflectionClass($className);
-        $shortName = $reflection->getShortName();
-
-        // Convert CamelCase to snake_case
-        $converted = preg_replace('/([a-z])([A-Z])/', '$1_$2', $shortName);
-        return strtolower($converted ?: $shortName);
     }
 
     /**
@@ -122,29 +50,25 @@ class DbMapping implements DbMappingInterface
      */
     public function getTableName(string $entityName): ?string
     {
-        return $this->tables[$entityName] ?? null;
+        return $this->entityProcessor->getTableName($entityName);
     }
 
     /**
      * @return array<string>
-     * @throws ReflectionException
      */
     public function getTables(): array
     {
-        $this->initializeTables();
-        $tables = $this->tables;
+        $tables = $this->entityProcessor->getTables();
         sort($tables);
         return $tables;
     }
 
     /**
      * @return array<class-string>
-     * @throws ReflectionException
      */
     public function getEntities(): array
     {
-        $this->initializeTables();
-        $entities = array_keys($this->tables);
+        $entities = array_keys($this->entityProcessor->getTables());
         sort($entities);
         return $entities;
     }
@@ -156,13 +80,7 @@ class DbMapping implements DbMappingInterface
      */
     public function getRepository(string $entityName): ?string
     {
-        $mtEntity = $this->getMtEntity($entityName);
-
-        if (is_null($mtEntity)) {
-            throw new RuntimeException("The MtEntity mapping is not implemented into the $entityName class.");
-        }
-
-        return $mtEntity->repository;
+        return $this->entityProcessor->getRepository($entityName);
     }
 
     /**
@@ -172,7 +90,7 @@ class DbMapping implements DbMappingInterface
      */
     public function getAutoIncrement(string $entityName): ?int
     {
-        return $this->getMtEntity($entityName)?->autoIncrement;
+        return $this->entityProcessor->getAutoIncrement($entityName);
     }
 
     /**
@@ -182,8 +100,9 @@ class DbMapping implements DbMappingInterface
      */
     public function getColumns(string $entityName): array
     {
-        $this->initializeColumns($entityName);
-        return array_values($this->columns[$entityName]);
+        $this->entityProcessor->initializeColumns($entityName, $this->columnMapping);
+        $columns = $this->entityProcessor->getColumnsMapping()[$entityName] ?? [];
+        return array_values($columns);
     }
 
     /**
@@ -193,8 +112,8 @@ class DbMapping implements DbMappingInterface
      */
     public function getPropertiesColumns(string $entityName): array
     {
-        $this->initializeColumns($entityName);
-        return $this->columns[$entityName];
+        $this->entityProcessor->initializeColumns($entityName, $this->columnMapping);
+        return $this->entityProcessor->getColumnsMapping()[$entityName] ?? [];
     }
 
     /**
@@ -210,429 +129,142 @@ class DbMapping implements DbMappingInterface
             return $columns[$property];
         }
 
-        // If direct mapping not found, check if it's a relation property
-        // and try to find the foreign key column
-        $oneToOneList = $this->getOneToOne($entityName);
+        // Check if it's a relation property
+        $oneToOneList = $this->relationMapping->getOneToOne($entityName);
         if (!empty($oneToOneList) && isset($oneToOneList[$property])) {
-            // For OneToOne relations, try property_id as column name
-            $fkColumn = $property . '_id';
-            // Check if this column exists in the mapped columns
-            foreach ($columns as $col) {
-                if ($col === $fkColumn) {
-                    return $col;
-                }
-            }
-            // If not found in mapped columns, return the convention-based name
-            return $fkColumn;
+            return $this->relationMapping->getRelationColumnName($property, $columns);
         }
 
-        $manyToOneList = $this->getManyToOne($entityName);
+        $manyToOneList = $this->relationMapping->getManyToOne($entityName);
         if (!empty($manyToOneList) && isset($manyToOneList[$property])) {
-            // For ManyToOne relations, try property_id as column name
-            $fkColumn = $property . '_id';
-            // Check if this column exists in the mapped columns
-            foreach ($columns as $col) {
-                if ($col === $fkColumn) {
-                    return $col;
-                }
-            }
-            // If not found in mapped columns, return the convention-based name
-            return $fkColumn;
+            return $this->relationMapping->getRelationColumnName($property, $columns);
         }
 
         return null;
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return ColumnType|null
-     * @throws ReflectionException
-     */
+    // Column-related methods delegated to ColumnMapping
     public function getColumnType(string $entityName, string $property): ?ColumnType
     {
-        return $this->getMtColumns($entityName)[$property]->columnType ?? null;
+        return $this->columnMapping->getColumnType($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return int|null
-     * @throws ReflectionException
-     */
     public function getColumnLength(string $entityName, string $property): ?int
     {
-        return $this->getMtColumns($entityName)[$property]->length ?? null;
+        return $this->columnMapping->getColumnLength($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
-     */
     public function getColumnTypeDefinition(string $entityName, string $property): ?string
     {
-        $mtColumn = $this->getMtColumns($entityName)[$property] ?? null;
-
-        if (!$mtColumn || !$mtColumn->columnType) {
-            return null;
-        }
-
-        return $mtColumn->columnType->toSqlDefinition(
-            $mtColumn->length,
-            $mtColumn->scale,
-            $mtColumn->unsigned ?? false,
-            $mtColumn->choices
-        );
+        return $this->columnMapping->getColumnTypeDefinition($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return bool|null
-     * @throws ReflectionException
-     */
     public function isNullable(string $entityName, string $property): ?bool
     {
-        return $this->getMtColumns($entityName)[$property]->isNullable ?? null;
+        return $this->columnMapping->isNullable($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
-     */
     public function getExtra(string $entityName, string $property): ?string
     {
-        return $this->getMtColumns($entityName)[$property]->extra ?? null;
+        return $this->columnMapping->getExtra($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
-     */
     public function getColumnDefault(string $entityName, string $property): ?string
     {
-        return $this->getMtColumns($entityName)[$property]->columnDefault ?? null;
+        return $this->columnMapping->getColumnDefault($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
-     */
     public function getColumnKey(string $entityName, string $property): ?string
     {
-        return $this->getMtColumns($entityName)[$property]->columnKey->value ?? null;
+        return $this->columnMapping->getColumnKey($entityName, $property);
     }
 
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return MtFk|null
-     * @throws ReflectionException
-     */
+    public function isUnsigned(string $entityName, string $property): bool
+    {
+        return $this->columnMapping->isUnsigned($entityName, $property);
+    }
+
+    // Foreign key methods delegated to ForeignKeyMapping
     public function getForeignKey(string $entityName, string $property): ?MtFk
     {
-        return $this->getMtFk($entityName)[$property] ?? null;
+        return $this->foreignKeyMapping->getForeignKey($entityName, $property);
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
      * @throws ReflectionException
      */
     public function getConstraintName(string $entityName, string $property): ?string
     {
-        $mtFk = $this->getForeignKey($entityName, $property);
-
-        if ($mtFk === null || $mtFk->referencedTable === null) {
-            return null;
-        }
-
-        $referencedTable = $this->getTableName($mtFk->referencedTable);
-        $column = $this->getColumnName($entityName, $property);
-        $table = $this->getTableName($entityName);
-
-        if (!$referencedTable || !$column || !$table) {
-            return null;
-        }
-
-        return sprintf(
-            "fk_%s_%s_%s",
-            strtolower($table),
-            strtolower($column),
-            strtolower($referencedTable)
-        );
+        return $this->foreignKeyMapping->getConstraintName($entityName, $property);
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
      * @throws ReflectionException
      */
     public function getReferencedTable(string $entityName, string $property): ?string
     {
-        $mtFk = $this->getForeignKey($entityName, $property);
-
-        if ($mtFk === null || $mtFk->referencedTable === null) {
-            return null;
-        }
-
-        return $this->getTableName($mtFk->referencedTable);
+        return $this->foreignKeyMapping->getReferencedTable($entityName, $property);
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
      * @throws ReflectionException
      */
     public function getReferencedColumn(string $entityName, string $property): ?string
     {
-        $mtFk = $this->getForeignKey($entityName, $property);
-
-        if ($mtFk === null || $mtFk->referencedTable === null) {
-            return null;
-        }
-
-        return $mtFk->referencedColumn ?? null;
+        return $this->foreignKeyMapping->getReferencedColumn($entityName, $property);
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
      * @throws ReflectionException
      */
-    public function getDeleteRule(string $entityName, string $property): ?string
+    public function getDeleteRule(string $entityName, string $property): ?FkRule
     {
-        $mtFk = $this->getForeignKey($entityName, $property);
-
-        if ($mtFk === null || $mtFk->referencedTable === null) {
-            return null;
-        }
-
-        return $mtFk->deleteRule->value ?? null;
+        return $this->foreignKeyMapping->getDeleteRule($entityName, $property);
     }
 
     /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return string|null
      * @throws ReflectionException
      */
-    public function getUpdateRule(string $entityName, string $property): ?string
+    public function getUpdateRule(string $entityName, string $property): ?FkRule
     {
-        $mtFk = $this->getForeignKey($entityName, $property);
-
-        if ($mtFk === null || $mtFk->referencedTable === null) {
-            return null;
-        }
-
-        return $mtFk->updateRule->value ?? null;
+        return $this->foreignKeyMapping->getUpdateRule($entityName, $property);
     }
 
+    // Relation methods delegated to RelationMapping
+
     /**
-     * Get OneToOne relations for an entity
-     *
      * @param class-string $entityName
      * @return array<string, MtOneToOne>
      */
     public function getOneToOne(string $entityName): array
     {
-        try {
-            $reflection = new ReflectionClass($entityName);
-            $relations = [];
-
-            foreach ($reflection->getProperties() as $property) {
-                $oneToOneAttrs = $property->getAttributes(MtOneToOne::class);
-                if (!empty($oneToOneAttrs)) {
-                    $relations[$property->getName()] = $oneToOneAttrs[0]->newInstance();
-                }
-            }
-
-            return $relations;
-        } catch (ReflectionException) {
-            return [];
-        }
+        return $this->relationMapping->getOneToOne($entityName);
     }
 
     /**
-     * Get ManyToOne relations for an entity
-     *
      * @param class-string $entityName
      * @return array<string, MtManyToOne>
      */
     public function getManyToOne(string $entityName): array
     {
-        try {
-            $reflection = new ReflectionClass($entityName);
-            $relations = [];
-
-            foreach ($reflection->getProperties() as $property) {
-                $manyToOneAttrs = $property->getAttributes(MtManyToOne::class);
-                if (!empty($manyToOneAttrs)) {
-                    $relations[$property->getName()] = $manyToOneAttrs[0]->newInstance();
-                }
-            }
-
-            return $relations;
-        } catch (ReflectionException) {
-            return [];
-        }
+        return $this->relationMapping->getManyToOne($entityName);
     }
 
     /**
-     * Get OneToMany relations for an entity
-     *
      * @param class-string $entityName
      * @return array<string, MtOneToMany>
      */
     public function getOneToMany(string $entityName): array
     {
-        try {
-            $reflection = new ReflectionClass($entityName);
-            $relations = [];
-
-            foreach ($reflection->getProperties() as $property) {
-                $oneToManyAttrs = $property->getAttributes(MtOneToMany::class);
-                if (!empty($oneToManyAttrs)) {
-                    $relations[$property->getName()] = $oneToManyAttrs[0]->newInstance();
-                }
-            }
-
-            return $relations;
-        } catch (ReflectionException) {
-            return [];
-        }
+        return $this->relationMapping->getOneToMany($entityName);
     }
 
     /**
-     * Get ManyToMany relations for an entity
-     *
      * @param class-string $entityName
      * @return array<string, MtManyToMany>
      */
     public function getManyToMany(string $entityName): array
     {
-        try {
-            $reflection = new ReflectionClass($entityName);
-            $relations = [];
-
-            foreach ($reflection->getProperties() as $property) {
-                $manyToManyAttrs = $property->getAttributes(MtManyToMany::class);
-                if (!empty($manyToManyAttrs)) {
-                    $relations[$property->getName()] = $manyToManyAttrs[0]->newInstance();
-                }
-            }
-
-            return $relations;
-        } catch (ReflectionException) {
-            return [];
-        }
-    }
-
-    /**
-     * @return void
-     * @throws ReflectionException
-     */
-    private function initializeTables(): void
-    {
-        if (empty($this->tables) && $this->entitiesPath !== null) {
-            $classNames = Php::getClassNames($this->entitiesPath, $this->recursive);
-            foreach ($classNames as $className) {
-                $table = $this->generateTableName($className);
-                if ($table) {
-                    $this->tables[$className] = $table;
-                }
-            }
-        }
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return string|null
-     * @throws ReflectionException
-     */
-    private function generateTableName(string $entityName): ?string
-    {
-        $mtEntity = $this->getMtEntity($entityName);
-
-        if (!$mtEntity) {
-            return null;
-        }
-
-        return $mtEntity->tableName ?? $this->classNameToTableName($entityName);
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return void
-     * @throws ReflectionException
-     */
-    private function initializeColumns(string $entityName): void
-    {
-        if (!isset($this->columns[$entityName])) {
-            $result = [];
-            foreach ($this->getMtColumns($entityName) as $property => $mtColumn) {
-                $result[$property] = $mtColumn->columnName ?? $property;
-            }
-
-            $this->columns[$entityName] = $result;
-        }
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return MtEntity|null
-     * @throws ReflectionException
-     */
-    private function getMtEntity(string $entityName): ?MtEntity
-    {
-        $entity = Php::getInstanceOfClassAttributeNamed($entityName, MtEntity::class);
-        return $entity instanceof MtEntity ? $entity : null;
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return array<string, MtColumn>
-     * @throws ReflectionException
-     */
-    private function getMtColumns(string $entityName): array
-    {
-        $columns = Php::getInstanceOfPropertiesAttributesNamed($entityName, MtColumn::class);
-        return array_filter($columns, static fn ($column) => $column instanceof MtColumn);
-    }
-
-    /**
-     * @param class-string $entityName
-     * @return array<string, MtFk>
-     * @throws ReflectionException
-     */
-    private function getMtFk(string $entityName): array
-    {
-        return array_filter(
-            Php::getInstanceOfPropertiesAttributesNamed($entityName, MtFk::class),
-            static fn ($fk) => $fk instanceof MtFk
-        );
-    }
-
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return bool
-     * @throws ReflectionException
-     */
-    public function isUnsigned(string $entityName, string $property): bool
-    {
-        return $this->getMtColumns($entityName)[$property]->unsigned ?? false;
+        return $this->relationMapping->getManyToMany($entityName);
     }
 }

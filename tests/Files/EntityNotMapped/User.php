@@ -17,10 +17,10 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
 #[MtEntity(repository: UserRepository::class, tableName: "users_test", autoIncrement: 100)]
 class User
 {
-    #[MtColumn(columnType: ColumnType::INT, unsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
+    #[MtColumn(columnType: ColumnType::INT, isUnsigned: true, isNullable: false, extra: "auto_increment", columnKey: ColumnKey::PRIMARY_KEY)]
     private ?int $id = null;
 
     #[MtColumn(columnName: "account_balance", columnType: ColumnType::FLOAT, length: 10, scale: "2", isNullable: true)]
-    #[MtFk(referencedTable: NotTable::class)]
+    #[MtFk(referencedTable: 'not_table')]
     private ?float $accountBalance = null;
 }

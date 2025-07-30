@@ -16,13 +16,11 @@ final readonly class CacheConfig
     /**
      * @param int $maxSize
      * @param int $ttl
-     * @param bool $enableStats
      * @param string $evictionPolicy
      */
     public function __construct(
         public int $maxSize = 10000,
         public int $ttl = 3600,
-        public bool $enableStats = true,
         public string $evictionPolicy = 'lru' // lru, lfu, fifo
     ) {
         $this->validateEvictionPolicy();

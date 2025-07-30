@@ -3,7 +3,7 @@
 namespace MulerTech\Database\Tests\Relational;
 
 use MulerTech\Database\Query\Builder\QueryBuilder;
-use MulerTech\Database\Query\Clause\ComparisonOperator;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\LinkOperator;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -52,8 +52,7 @@ class QueryBuilderTest extends TestCase
         $insertBuilder = $queryBuilder->insert('atable');
 
         $parameters = $insertBuilder->getParameterBag()->toArray();
-        self::assertEmpty($parameters['named']);
-        self::assertEmpty($parameters['positional']);
+        self::assertEmpty($parameters);
     }
 
     public function testQueryBuilderInsertNamedParameter(): void
@@ -87,7 +86,7 @@ class QueryBuilderTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('No SET values specified for UPDATE');
 
-        // Créer un UpdateBuilder sans spécifier de table
+        // Create an UpdateBuilder without specifying a table
         $queryBuilder = new QueryBuilder();
         $updateBuilder = $queryBuilder->update('test');
         $updateBuilder->toSql();
@@ -282,7 +281,7 @@ class QueryBuilderTest extends TestCase
             ->groupBy('year');
 
         self::assertEquals(
-            'SELECT `year`, sum(profit) AS `profit` FROM `sales` GROUP BY `year`',
+            'SELECT `year`, SUM(profit) AS `profit` FROM `sales` GROUP BY `year`',
             $queryBuilder->toSql()
         );
     }
@@ -343,7 +342,7 @@ class QueryBuilderTest extends TestCase
             ->having('total', 10000, ComparisonOperator::LESS_THAN);
 
         self::assertEquals(
-            'SELECT `ordernumber`, sum(quantityordered) AS `itemscount`, sum(priceeach*quantityordered) AS `total` FROM `orderdetails` GROUP BY `ordernumber` HAVING `total` > :param0 AND `itemsCount` > :param1 AND `total` < :param2',
+            'SELECT `ordernumber`, SUM(quantityOrdered) AS `itemsCount`, SUM(priceeach*quantityOrdered) AS `total` FROM `orderdetails` GROUP BY `ordernumber` HAVING `total` > :param0 AND `itemsCount` > :param1 AND `total` < :param2',
             $queryBuilder->toSql()
         );
     }

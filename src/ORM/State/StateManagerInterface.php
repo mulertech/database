@@ -48,6 +48,12 @@ interface StateManagerInterface
     public function detach(object $entity): void;
 
     /**
+     * @param object $entity
+     * @return EntityState
+     */
+    public function getEntityState(object $entity): EntityState;
+
+    /**
      * @param object $dependent
      * @param object $dependency
      * @return void
@@ -91,12 +97,6 @@ interface StateManagerInterface
      * @return bool
      */
     public function isScheduledForDeletion(object $entity): bool;
-
-    /**
-     * @param object $entity
-     * @return void
-     */
-    public function markAsProcessed(object $entity): void;
 
     /**
      * @param object $entity

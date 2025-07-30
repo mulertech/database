@@ -55,9 +55,9 @@ class EmEngine
     private ChangeSetManager $changeSetManager;
 
     /**
-     * @var EntityFactory
+     * @var EntityHydrator
      */
-    private EntityFactory $entityFactory;
+    private EntityHydrator $hydrator;
 
     /**
      * @var EntityRegistry
@@ -73,11 +73,6 @@ class EmEngine
      * @var RelationManager
      */
     private RelationManager $relationManager;
-
-    /**
-     * @var EntityHydrator
-     */
-    private EntityHydrator $hydrator;
 
     /**
      * @param EntityManagerInterface $entityManager
@@ -104,14 +99,17 @@ class EmEngine
      */
     public function find(string $entityName, int|string $idOrWhere): ?object
     {
-        // Pour les recherches par SqlOperations ou string non-numeric, toujours aller en base
-        // car l'IdentityMap est indexée par ID, pas par autres critères
+        // Pour les recherches par string non-numeric, utiliser whereRaw directement
         if (is_string($idOrWhere) && !is_numeric($idOrWhere)) {
-            return $this->findByStringCondition($entityName, $idOrWhere);
+            $queryBuilder = new QueryBuilder($this)
+                ->select('*')
+                ->from($this->getTableName($entityName))
+                ->whereRaw($idOrWhere);
+
+            return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
         }
 
-        // At this point, $idOrWhere is numeric (int or numeric string)
-        // Check identity map first
+        // Check identity map first for numeric IDs
         $managed = $this->identityMap->get($entityName, $idOrWhere);
         if ($managed !== null) {
             return $managed;
@@ -122,56 +120,7 @@ class EmEngine
             ->from($this->getTableName($entityName))
             ->where('id', $idOrWhere);
 
-        $result = $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
-
-        // Ensure we return null instead of false or any other falsy value
-        return $result ?: null;
-    }
-
-    /**
-     * Find entity by string condition, always going to database
-     *
-     * @param class-string $entityName
-     * @param string $condition
-     * @return object|null
-     * @throws ReflectionException
-     */
-    private function findByStringCondition(string $entityName, string $condition): ?object
-    {
-        $queryBuilder = new QueryBuilder($this)
-            ->select('*')
-            ->from($this->getTableName($entityName))
-            ->whereRaw($condition);
-
-        $pdoStatement = $queryBuilder->getResult();
-        $pdoStatement->execute();
-
-        $fetch = $pdoStatement->fetch(PDO::FETCH_ASSOC);
-        $pdoStatement->closeCursor();
-
-        if ($fetch === false || $fetch === null) {
-            return null;
-        }
-
-        // Check if the entity is already in identity map
-        if (isset($fetch['id'])) {
-            $managed = $this->identityMap->get($entityName, $fetch['id']);
-            if ($managed !== null) {
-                // Update the managed entity with fresh data from database
-                $this->updateManagedEntityFromDbData($managed, $fetch);
-
-                // Force reload of relations to ensure fresh state
-                try {
-                    $this->relationManager->loadEntityRelations($managed, $fetch);
-                } catch (Exception) {
-                    // Continue silently on relation loading errors
-                }
-                return $managed;
-            }
-        }
-
-        // Create new managed entity if not found in identity map
-        return $this->createManagedEntity($fetch, $entityName, true);
+        return $this->getQueryBuilderObjectResult($queryBuilder, $entityName);
     }
 
     /**
@@ -197,25 +146,30 @@ class EmEngine
         }
 
         // Check if the entity is already in identity map
-        if (isset($fetch['id'])) {
-            $managed = $this->identityMap->get($entityName, $fetch['id']);
-            if ($managed !== null) {
-                // Update the managed entity with fresh data from database
-                $this->updateManagedEntityFromDbData($managed, $fetch);
-
-                // Force reload of relations to ensure fresh state
-                if ($loadRelations) {
-                    try {
-                        $this->relationManager->loadEntityRelations($managed, $fetch);
-                    } catch (Exception) {
-                        // Continue silently on relation loading errors
-                    }
+        if (is_array($fetch) && isset($fetch['id'])) {
+            $entityId = $fetch['id'];
+            if (is_int($entityId) || is_string($entityId)) {
+                $managed = $this->identityMap->get($entityName, $entityId);
+                if ($managed !== null) {
+                    // For managed entities, only update scalar properties, NOT relations
+                    // This prevents overwriting relation changes that haven't been flushed yet
+                    $this->updateManagedEntityScalarPropertiesOnly($managed, $fetch);
+                    return $managed;
                 }
-                return $managed;
             }
         }
 
-        return $this->createManagedEntity($fetch, $entityName, $loadRelations);
+        if (is_array($fetch)) {
+            // Ensure the array has string keys for createManagedEntity
+            $entityData = [];
+            foreach ($fetch as $key => $value) {
+                $stringKey = is_string($key) ? $key : (string)$key;
+                $entityData[$stringKey] = $value;
+            }
+            return $this->createManagedEntity($entityData, $entityName, $loadRelations);
+        }
+
+        return null;
     }
 
     /**
@@ -240,7 +194,20 @@ class EmEngine
             return null;
         }
 
-        return $this->hydrateEntityList($fetchAll, $entityName, $loadRelations);
+        // Ensure all entries have string keys for hydrateEntityList
+        $validatedFetchAll = [];
+        foreach ($fetchAll as $entityData) {
+            if (is_array($entityData)) {
+                $validatedEntityData = [];
+                foreach ($entityData as $key => $value) {
+                    $stringKey = is_string($key) ? $key : (string)$key;
+                    $validatedEntityData[$stringKey] = $value;
+                }
+                $validatedFetchAll[] = $validatedEntityData;
+            }
+        }
+
+        return $this->hydrateEntityList($validatedFetchAll, $entityName, $loadRelations);
     }
 
     /**
@@ -258,7 +225,7 @@ class EmEngine
             // Just ensure it's in the identity map and marked as managed
             if (!$isManaged) {
                 $this->identityMap->add($entity);
-                $this->stateManager->manage($entity);
+                $this->getStateManager()->manage($entity);
             }
             return;
         }
@@ -269,7 +236,7 @@ class EmEngine
         }
 
         // Only schedule for insertion if entity doesn't have an ID (is truly new)
-        $this->stateManager->scheduleForInsertion($entity);
+        $this->getStateManager()->scheduleForInsertion($entity);
     }
 
     /**
@@ -279,7 +246,7 @@ class EmEngine
     public function remove(object $entity): void
     {
         // Use stateManager instead of changeSetManager
-        $this->stateManager->scheduleForDeletion($entity);
+        $this->getStateManager()->scheduleForDeletion($entity);
     }
 
     /**
@@ -289,7 +256,7 @@ class EmEngine
     public function detach(object $entity): void
     {
         // Use stateManager for detach
-        $this->stateManager->detach($entity);
+        $this->getStateManager()->detach($entity);
     }
 
     /**
@@ -298,7 +265,7 @@ class EmEngine
      */
     public function flush(): void
     {
-        $this->persistenceManager->flush();
+        $this->getPersistenceManager()->flush();
     }
 
     /**
@@ -309,11 +276,14 @@ class EmEngine
         $this->identityMap->clear();
         $this->entityRegistry->clear();
         $this->changeSetManager->clear();
-        $this->stateManager->clear();
-        $this->relationManager->clear();
 
-        // Clear existing link cache to ensure fresh relation data
-        $this->relationManager->clear();
+        if (isset($this->stateManager)) {
+            $this->stateManager->clear();
+        }
+
+        if (isset($this->relationManager)) {
+            $this->relationManager->clear();
+        }
     }
 
     /**
@@ -346,54 +316,162 @@ class EmEngine
      */
     private function initializeComponents(): void
     {
-        $dbMapping = $this->entityManager->getDbMapping();
-        $eventManager = $this->entityManager->getEventManager();
-
-        // Basic components
+        // Only initialize core components that are directly used by EmEngine
         $this->identityMap = new IdentityMap();
         $this->entityRegistry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
+
+        // ChangeSetManager needs core components
         $this->changeSetManager = new ChangeSetManager(
             $this->identityMap,
             $this->entityRegistry,
             $this->changeDetector
         );
-        $this->hydrator = new EntityHydrator($dbMapping);
-        $this->entityFactory = new EntityFactory($this->hydrator, $this->identityMap);
 
-        // State management - Use direct state manager with ChangeSetManager integration
-        $stateTransitionManager = new StateTransitionManager($eventManager);
-        $stateValidator = new StateValidator();
+        // EntityHydrator needs DbMapping
+        $this->hydrator = new EntityHydrator($this->entityManager->getDbMapping());
 
-        // Create DirectStateManager with ChangeSetManager
-        $this->stateManager = new DirectStateManager(
-            $this->identityMap,
-            $stateTransitionManager,
-            $stateValidator,
-            $this->changeSetManager
-        );
+        // StateManager will be created lazily when needed
+        // PersistenceManager will be created lazily when needed
+        // RelationManager will be created lazily when needed
+    }
 
-        // Persistence processors
-        $insertionProcessor = new InsertionProcessor($this->entityManager, $dbMapping);
-        $updateProcessor = new UpdateProcessor($this->entityManager, $dbMapping);
-        $deletionProcessor = new DeletionProcessor($this->entityManager, $dbMapping);
+    /**
+     * Get or create StateManager lazily
+     *
+     * @return StateManagerInterface
+     */
+    private function getStateManager(): StateManagerInterface
+    {
+        if (!isset($this->stateManager)) {
+            $this->stateManager = new DirectStateManager(
+                $this->identityMap,
+                $this->getStateTransitionManager(),
+                $this->getStateValidator(),
+                $this->changeSetManager
+            );
+        }
 
-        // Relation manager
-        $this->relationManager = new RelationManager($this->entityManager, $this->stateManager);
+        return $this->stateManager;
+    }
 
-        // Main persistence manager
-        $this->persistenceManager = new PersistenceManager(
-            $this->entityManager,
-            $this->stateManager,
-            $this->changeDetector,
-            $this->relationManager,
-            $insertionProcessor,
-            $updateProcessor,
-            $deletionProcessor,
-            $eventManager,
-            $this->changeSetManager,
-            $this->identityMap
-        );
+    /**
+     * Get or create PersistenceManager lazily
+     *
+     * @return PersistenceManager
+     */
+    private function getPersistenceManager(): PersistenceManager
+    {
+        if (!isset($this->persistenceManager)) {
+            $this->persistenceManager = new PersistenceManager(
+                $this->entityManager,
+                $this->getStateManager(),
+                $this->changeDetector,
+                $this->getRelationManager(),
+                $this->getInsertionProcessor(),
+                $this->getUpdateProcessor(),
+                $this->getDeletionProcessor(),
+                $this->entityManager->getEventManager(),
+                $this->changeSetManager,
+                $this->identityMap,
+            );
+        }
+
+        return $this->persistenceManager;
+    }
+
+    /**
+     * Get or create RelationManager lazily
+     *
+     * @return RelationManager
+     */
+    private function getRelationManager(): RelationManager
+    {
+        if (!isset($this->relationManager)) {
+            $this->relationManager = new RelationManager($this->entityManager, $this->getStateManager());
+        }
+
+        return $this->relationManager;
+    }
+
+    /**
+     * Get or create StateTransitionManager lazily
+     *
+     * @return StateTransitionManager
+     */
+    private function getStateTransitionManager(): StateTransitionManager
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new StateTransitionManager($this->entityManager->getEventManager());
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create StateValidator lazily
+     *
+     * @return StateValidator
+     */
+    private function getStateValidator(): StateValidator
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new StateValidator();
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create InsertionProcessor lazily
+     *
+     * @return InsertionProcessor
+     */
+    private function getInsertionProcessor(): InsertionProcessor
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getDbMapping());
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create UpdateProcessor lazily
+     *
+     * @return UpdateProcessor
+     */
+    private function getUpdateProcessor(): UpdateProcessor
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getDbMapping());
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Get or create DeletionProcessor lazily
+     *
+     * @return DeletionProcessor
+     */
+    private function getDeletionProcessor(): DeletionProcessor
+    {
+        static $instance = null;
+
+        if ($instance === null) {
+            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getDbMapping());
+        }
+
+        return $instance;
     }
 
     /**
@@ -405,8 +483,8 @@ class EmEngine
      */
     public function createManagedEntity(array $entityData, string $entityName, bool $loadRelations): object
     {
-        // Use entity factory to create and hydrate the entity
-        $entity = $this->entityFactory->createFromDbData($entityName, $entityData);
+        // Use hydrator directly to create and hydrate the entity
+        $entity = $this->hydrator->hydrate($entityData, $entityName);
 
         // CRITICAL: Ensure all collections are DatabaseCollection before adding to identity map
         $this->ensureCollectionsAreDatabaseCollection($entity);
@@ -420,14 +498,14 @@ class EmEngine
         $this->entityRegistry->register($entity);
 
         // Mark as managed in state manager
-        if (!$this->stateManager->isManaged($entity)) {
-            $this->stateManager->manage($entity);
+        if (!$this->getStateManager()->isManaged($entity)) {
+            $this->getStateManager()->manage($entity);
         }
 
         // Load relations after the entity is properly managed
         if ($loadRelations) {
             try {
-                $this->relationManager->loadEntityRelations($entity, $entityData);
+                $this->getRelationManager()->loadEntityRelations($entity, $entityData);
             } catch (Exception) {
                 // If relation loading fails, log but don't fail the entity creation
                 // This ensures that at least the scalar properties are hydrated
@@ -451,18 +529,14 @@ class EmEngine
 
         // Convert OneToMany collections
         $oneToManyList = $dbMapping->getOneToMany($entityClass);
-        if (is_array($oneToManyList)) {
-            foreach ($oneToManyList as $property => $oneToMany) {
-                $this->convertPropertyToeDatabaseCollection($entity, $property);
-            }
+        foreach ($oneToManyList as $property => $oneToMany) {
+            $this->convertPropertyToeDatabaseCollection($entity, $property);
         }
 
         // Convert ManyToMany collections
         $manyToManyList = $dbMapping->getManyToMany($entityClass);
-        if (is_array($manyToManyList)) {
-            foreach ($manyToManyList as $property => $manyToMany) {
-                $this->convertPropertyToeDatabaseCollection($entity, $property);
-            }
+        foreach ($manyToManyList as $property => $manyToMany) {
+            $this->convertPropertyToeDatabaseCollection($entity, $property);
         }
     }
 
@@ -479,19 +553,24 @@ class EmEngine
             $reflection = new ReflectionClass($entity);
             $reflectionProperty = $reflection->getProperty($property);
 
-            if ($reflectionProperty->isInitialized($entity)) {
-                $value = $reflectionProperty->getValue($entity);
-
-                // Convert Collections to DatabaseCollection
-                if ($value instanceof Collection && !($value instanceof DatabaseCollection)) {
-                    $reflectionProperty->setValue($entity, new DatabaseCollection($value->items()));
-                }
+            // ALWAYS use DatabaseCollection for all relation collections to ensure change tracking
+            if (!$reflectionProperty->isInitialized($entity)) {
+                $reflectionProperty->setValue($entity, new DatabaseCollection([]));
             } else {
-                // Initialize uninitialized collection properties with empty DatabaseCollection
-                $reflectionProperty->setValue($entity, new DatabaseCollection());
+                // If already initialized, ALWAYS convert to DatabaseCollection
+                $currentValue = $reflectionProperty->getValue($entity);
+                if ($currentValue instanceof Collection && !($currentValue instanceof DatabaseCollection)) {
+                    // Filter items to ensure they are objects
+                    $items = $currentValue->items();
+                    $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
+                    $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
+                } elseif (!($currentValue instanceof DatabaseCollection)) {
+                    // Initialize with empty DatabaseCollection if it's not a Collection at all
+                    $reflectionProperty->setValue($entity, new DatabaseCollection([]));
+                }
             }
         } catch (ReflectionException) {
-            // Property doesn't exist or can't be accessed, ignore
+            // Property doesn't exist, ignore
         }
     }
 
@@ -507,12 +586,16 @@ class EmEngine
         $entities = [];
 
         foreach ($entitiesData as $entityData) {
+            // entityData is already validated as array<string, mixed> by the method signature
             if (isset($entityData['id'])) {
                 // Check if entity is already in identity map
-                $managed = $this->identityMap->get($entityName, $entityData['id']);
-                if ($managed !== null) {
-                    $entities[] = $managed;
-                    continue;
+                $entityId = $entityData['id'];
+                if (is_int($entityId) || is_string($entityId)) {
+                    $managed = $this->identityMap->get($entityName, $entityId);
+                    if ($managed !== null) {
+                        $entities[] = $managed;
+                        continue;
+                    }
                 }
             }
 
@@ -577,13 +660,13 @@ class EmEngine
     }
 
     /**
-     * Update a managed entity with fresh data from the database
+     * Update a managed entity with fresh scalar data from the database, preserving relations
      *
      * @param object $entity
      * @param array<string, mixed> $dbData
      * @return void
      */
-    private function updateManagedEntityFromDbData(object $entity, array $dbData): void
+    private function updateManagedEntityScalarPropertiesOnly(object $entity, array $dbData): void
     {
         try {
             $entityClass = $entity::class;
@@ -597,7 +680,7 @@ class EmEngine
                     continue;
                 }
 
-                // Skip relation properties - they will be handled séparément
+                // Skip ALL relation properties to preserve existing relation changes
                 if ($this->isRelationProperty($entityClass, $property)) {
                     continue;
                 }
@@ -606,7 +689,7 @@ class EmEngine
                     $reflectionProperty = $reflection->getProperty($property);
 
                     // Process the value according to its type
-                    $value = $this->hydrator->processPropertyValue($entityClass, $property, $dbData[$column]);
+                    $value = $this->hydrator->processValue($entityClass, $property, $dbData[$column]);
                     $reflectionProperty->setValue($entity, $value);
                 }
             }
@@ -644,25 +727,25 @@ class EmEngine
 
         // Check if it's a OneToOne relation
         $oneToOneList = $dbMapping->getOneToOne($entityClass);
-        if (is_array($oneToOneList) && isset($oneToOneList[$propertyName])) {
+        if (isset($oneToOneList[$propertyName])) {
             return true;
         }
 
         // Check if it's a ManyToOne relation
         $manyToOneList = $dbMapping->getManyToOne($entityClass);
-        if (is_array($manyToOneList) && isset($manyToOneList[$propertyName])) {
+        if (isset($manyToOneList[$propertyName])) {
             return true;
         }
 
         // Check if it's a OneToMany relation
         $oneToManyList = $dbMapping->getOneToMany($entityClass);
-        if (is_array($oneToManyList) && isset($oneToManyList[$propertyName])) {
+        if (isset($oneToManyList[$propertyName])) {
             return true;
         }
 
         // Check if it's a ManyToMany relation
         $manyToManyList = $dbMapping->getManyToMany($entityClass);
-        return is_array($manyToManyList) && isset($manyToManyList[$propertyName]);
+        return isset($manyToManyList[$propertyName]);
     }
 
     /**
@@ -673,15 +756,24 @@ class EmEngine
     {
         // Try common getter methods
         if (method_exists($entity, 'getId')) {
-            return $entity->getId();
+            $id = $entity->getId();
+            if (is_int($id) || is_string($id)) {
+                return $id;
+            }
         }
 
         if (method_exists($entity, 'getIdentifier')) {
-            return $entity->getIdentifier();
+            $id = $entity->getIdentifier();
+            if (is_int($id) || is_string($id)) {
+                return $id;
+            }
         }
 
         if (method_exists($entity, 'getUuid')) {
-            return $entity->getUuid();
+            $id = $entity->getUuid();
+            if (is_int($id) || is_string($id)) {
+                return $id;
+            }
         }
 
         // Try direct property access
@@ -691,7 +783,7 @@ class EmEngine
             if ($reflection->hasProperty($property)) {
                 $prop = $reflection->getProperty($property);
                 $value = $prop->getValue($entity);
-                if ($value !== null) {
+                if (is_int($value) || is_string($value)) {
                     return $value;
                 }
             }

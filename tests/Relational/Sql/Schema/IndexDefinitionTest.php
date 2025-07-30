@@ -3,8 +3,8 @@
 namespace MulerTech\Database\Tests\Relational\Sql\Schema;
 
 use InvalidArgumentException;
-use MulerTech\Database\Schema\IndexDefinition;
-use MulerTech\Database\Schema\IndexType;
+use MulerTech\Database\Schema\Builder\IndexDefinition;
+use MulerTech\Database\Schema\Types\IndexType;
 use PHPUnit\Framework\TestCase;
 
 class IndexDefinitionTest extends TestCase
@@ -115,7 +115,7 @@ class IndexDefinitionTest extends TestCase
         $this->assertTrue($index->isVisible());
         
         // Test setting to invisible
-        $result = $index->visible(false);
+        $result = $index->invisible();
         $this->assertSame($index, $result, 'Method should return $this for chaining');
         $this->assertFalse($index->isVisible());
         
@@ -183,7 +183,7 @@ class IndexDefinitionTest extends TestCase
               ->algorithm('BTREE')
               ->keyBlockSize(2048)
               ->comment('Complex index example')
-              ->visible(false);
+              ->invisible();
         
         $expected = 'CREATE UNIQUE INDEX `idx_complex` ON `products` (`name`, `description`) ' .
                    'ALGORITHM = BTREE KEY_BLOCK_SIZE = 2048 ' .

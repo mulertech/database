@@ -6,9 +6,11 @@ namespace MulerTech\Database\Query\Clause;
 
 use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\JoinType;
 use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;
+use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -121,7 +123,7 @@ class JoinClauseBuilder
     public function addCondition(
         int $index,
         string $leftColumn,
-        ComparisonOperator $operator,
+        ComparisonOperator|SqlOperator $operator,
         mixed $rightColumn,
         LinkOperator $link = LinkOperator::AND
     ): void {
@@ -129,10 +131,18 @@ class JoinClauseBuilder
             throw new RuntimeException('Invalid join index: ' . $index);
         }
 
+        // Ensure right column is a string
+        $rightColumnStr = match (true) {
+            is_string($rightColumn) => $rightColumn,
+            is_null($rightColumn) => '',
+            is_scalar($rightColumn) => (string)$rightColumn,
+            default => throw new InvalidArgumentException('Right column must be a string or scalar value')
+        };
+
         $this->joins[$index]['conditions'][] = [
             'left' => $leftColumn,
             'operator' => $operator,
-            'right' => $rightColumn,
+            'right' => $rightColumnStr,
             'link' => $link,
         ];
     }
@@ -182,11 +192,9 @@ class JoinClauseBuilder
             $left = $this->formatIdentifier($condition['left']);
 
             // Check if right side is a column reference or a value
-            if (is_string($condition['right']) && $this->isColumnReference($condition['right'])) {
-                $right = $this->formatIdentifier($condition['right']);
-            } else {
-                $right = $this->parameterBag->add($condition['right']);
-            }
+            $right = (is_string($condition['right']) && $this->isColumnReference($condition['right']))
+                ? $this->formatIdentifier($condition['right'])
+                : $this->parameterBag->add($condition['right']);
 
             $sql .= $left . ' ' . $condition['operator']->value . ' ' . $right;
         }

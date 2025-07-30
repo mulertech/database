@@ -10,7 +10,6 @@ use MulerTech\Database\Core\Traits\ParameterHandlerTrait;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Database\Interface\Statement;
-use MulerTech\Database\Query\Compiler\QueryCompiler;
 use PDO;
 use RuntimeException;
 use stdClass;
@@ -37,11 +36,6 @@ abstract class AbstractQueryBuilder
      * @var QueryStructureCache|null
      */
     protected static ?QueryStructureCache $structureCache = null;
-
-    /**
-     * @var QueryCompiler|null
-     */
-    protected ?QueryCompiler $compiler = null;
 
     /**
      * @var array<string, mixed>
@@ -130,10 +124,12 @@ abstract class AbstractQueryBuilder
         $stmt->execute();
 
         if ($fetchClass === stdClass::class) {
-            return $stmt->fetchAll(PDO::FETCH_OBJ);
+            $result = $stmt->fetchAll(PDO::FETCH_OBJ);
+            return array_filter($result, 'is_object');
         }
 
-        return $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
+        $result = $stmt->fetchAll(PDO::FETCH_CLASS, $fetchClass);
+        return array_filter($result, 'is_object');
     }
 
     /**
@@ -147,12 +143,12 @@ abstract class AbstractQueryBuilder
 
         if ($fetchClass === stdClass::class) {
             $result = $stmt->fetch(PDO::FETCH_OBJ);
-        } else {
-            $stmt->setFetchMode(PDO::FETCH_CLASS, $fetchClass);
-            $result = $stmt->fetch();
+            return ($result !== false && is_object($result)) ? $result : null;
         }
 
-        return $result !== false ? $result : null;
+        $stmt->setFetchMode(PDO::FETCH_CLASS, $fetchClass);
+        $result = $stmt->fetch();
+        return ($result !== false && is_object($result)) ? $result : null;
     }
 
     /**
@@ -217,16 +213,6 @@ abstract class AbstractQueryBuilder
     }
 
     /**
-     * @param QueryCompiler $compiler
-     * @return self
-     */
-    public function setCompiler(QueryCompiler $compiler): self
-    {
-        $this->compiler = $compiler;
-        return $this;
-    }
-
-    /**
      * @return self
      */
     public function clone(): self
@@ -250,5 +236,69 @@ abstract class AbstractQueryBuilder
             'type' => $this->getQueryType(),
             'cached' => !$this->isDirty,
         ];
+    }
+
+    /**
+     * Common method for handling parameter binding across all builders
+     * @param mixed $value
+     * @param int|null $type
+     * @return string Parameter placeholder
+     */
+    protected function bindParameter(mixed $value, ?int $type = PDO::PARAM_STR): string
+    {
+        if ($value instanceof Raw) {
+            return $value->getValue();
+        }
+        return $this->parameterBag->add($value, $type);
+    }
+
+    /**
+     * Common method for validating table names
+     * @param string $table
+     * @return void
+     * @throws RuntimeException
+     */
+    protected function validateTableName(string $table): void
+    {
+        if (empty($table)) {
+            throw new RuntimeException('Table name cannot be empty');
+        }
+
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) {
+            throw new RuntimeException('Invalid table name format');
+        }
+    }
+
+    /**
+     * Common method for validating column names
+     * @param string $column
+     * @return void
+     * @throws RuntimeException
+     */
+    protected function validateColumnName(string $column): void
+    {
+        if (empty($column)) {
+            throw new RuntimeException('Column name cannot be empty');
+        }
+
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $column)) {
+            throw new RuntimeException('Invalid column name format');
+        }
+    }
+
+    /**
+     * Common method for building SET clauses
+     * @param array<string, mixed> $data
+     * @return string
+     */
+    protected function buildSetClause(array $data): string
+    {
+        $setParts = [];
+        foreach ($data as $column => $value) {
+            $this->validateColumnName($column);
+            $placeholder = $this->bindParameter($value);
+            $setParts[] = "`{$column}` = {$placeholder}";
+        }
+        return implode(', ', $setParts);
     }
 }

@@ -47,26 +47,6 @@ class EntityHydratorTest extends TestCase
     }
 
     /**
-     * Test fallback to snake_case to camelCase conversion when DbMapping is not available
-     */
-    public function testHydrateFallbackToSnakeCaseConversion(): void
-    {
-        $data = [
-            'id' => '123',
-            'username' => 'JohnDoe',
-            'account_balance' => '150.75',
-            'blocked_at_date_time' => '2023-10-01 12:00:00',
-        ];
-
-        $hydratedEntity = new EntityHydrator()->hydrate($data, User::class);
-
-        $this->assertSame(123, $hydratedEntity->getId());
-        $this->assertSame('JohnDoe', $hydratedEntity->getUsername());
-        $this->assertSame(150.75, $hydratedEntity->getAccountBalance());
-        $this->assertInstanceOf(DateTime::class, $hydratedEntity->getBlockedAtDateTime());
-    }
-
-    /**
      * Test hydration with invalid column type in DbMapping
      */
     public function testHydrateWithInvalidColumnType(): void

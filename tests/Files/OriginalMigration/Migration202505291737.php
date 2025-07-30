@@ -86,7 +86,7 @@ class Migration202505291737 extends Migration
         $tableDefinition->column("score")->smallInt();
         $tableDefinition->column("views")->mediumInt()->unsigned();
         $tableDefinition->column("big_number")->bigInteger()->unsigned();
-        $tableDefinition->column("decimal_value")->decimal(10, 2);
+        $tableDefinition->column("decimal_value")->decimal(10, 2)->default("0.00");
         $tableDefinition->column("double_value")->double();
         $tableDefinition->column("char_code")->char(5);
         $tableDefinition->column("description")->text();
@@ -103,8 +103,8 @@ class Migration202505291737 extends Migration
         $tableDefinition->column("created_at")->datetime();
         $tableDefinition->column("updated_at")->timestamp();
         $tableDefinition->column("work_time")->time();
-        $tableDefinition->column("birth_year")->year();
-        $tableDefinition->column("is_active")->tinyInt(1)->default(0);
+        $tableDefinition->column("birth_year")->year()->default(null);
+        $tableDefinition->column("is_active")->tinyInt(1)->default('0');
         $tableDefinition->column("is_verified")->tinyInt(1);
         $tableDefinition->column("status")->enum(['active', 'inactive', 'pending', 'banned']);
         $tableDefinition->column("permissions")->set(['read', 'write', 'delete', 'update']);
@@ -123,50 +123,50 @@ class Migration202505291737 extends Migration
         $schema = new SchemaBuilder();
         $tableDefinition = $schema->alterTable("groups_test");
         $tableDefinition->foreignKey("fk_groups_test_parent_id_groups_test")
-            ->columns("parent_id")
+            ->column("parent_id")
             ->references("groups_test", "id")
-            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::CASCADE)
-            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Mapping\Types\FkRule::CASCADE)
+            ->onUpdate(\MulerTech\Database\Mapping\Types\FkRule::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
         $tableDefinition = $schema->alterTable("link_user_group_test");
         $tableDefinition->foreignKey("fk_link_user_group_test_user_id_users_test")
-            ->columns("user_id")
+            ->column("user_id")
             ->references("users_test", "id")
-            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::CASCADE)
-            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Mapping\Types\FkRule::CASCADE)
+            ->onUpdate(\MulerTech\Database\Mapping\Types\FkRule::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
         $tableDefinition = $schema->alterTable("link_user_group_test");
         $tableDefinition->foreignKey("fk_link_user_group_test_group_id_groups_test")
-            ->columns("group_id")
+            ->column("group_id")
             ->references("groups_test", "id")
-            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::CASCADE)
-            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Mapping\Types\FkRule::CASCADE)
+            ->onUpdate(\MulerTech\Database\Mapping\Types\FkRule::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
         $tableDefinition = $schema->alterTable("users_test");
         $tableDefinition->foreignKey("fk_users_test_unit_id_units_test")
-            ->columns("unit_id")
+            ->column("unit_id")
             ->references("units_test", "id")
-            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::RESTRICT)
-            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Mapping\Types\FkRule::RESTRICT)
+            ->onUpdate(\MulerTech\Database\Mapping\Types\FkRule::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
 
         $schema = new SchemaBuilder();
         $tableDefinition = $schema->alterTable("users_test");
         $tableDefinition->foreignKey("fk_users_test_manager_users_test")
-            ->columns("manager")
+            ->column("manager")
             ->references("users_test", "id")
-            ->onDelete(\MulerTech\Database\Schema\ReferentialAction::SET_NULL)
-            ->onUpdate(\MulerTech\Database\Schema\ReferentialAction::CASCADE);
+            ->onDelete(\MulerTech\Database\Mapping\Types\FkRule::SET_NULL)
+            ->onUpdate(\MulerTech\Database\Mapping\Types\FkRule::CASCADE);
         $sql = $tableDefinition->toSql();
         $this->entityManager->getPdm()->exec($sql);
     }

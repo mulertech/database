@@ -8,6 +8,7 @@ use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\Query\Builder\Raw;
 use MulerTech\Database\Query\Builder\SelectBuilder;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;
 
@@ -184,17 +185,22 @@ class WhereClauseBuilder
     {
         if ($values instanceof SelectBuilder) {
             $condition = $this->formatIdentifier($column) . ' IN (' . $values->toSql() . ')';
-        } elseif (empty($values)) {
-            // IN with empty array is always false
-            $condition = '1 = 0';
-        } else {
-            $placeholders = [];
-            foreach ($values as $value) {
-                $placeholders[] = $this->parameterBag->add($value);
-            }
-            $condition = $this->formatIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
+            $this->conditions[] = ['condition' => $condition, 'link' => $link];
+            return $this;
         }
 
+        if (empty($values)) {
+            // IN with empty array is always false
+            $condition = '1 = 0';
+            $this->conditions[] = ['condition' => $condition, 'link' => $link];
+            return $this;
+        }
+
+        $placeholders = [];
+        foreach ($values as $value) {
+            $placeholders[] = $this->parameterBag->add($value);
+        }
+        $condition = $this->formatIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
         return $this;
     }
@@ -209,17 +215,22 @@ class WhereClauseBuilder
     {
         if ($values instanceof SelectBuilder) {
             $condition = $this->formatIdentifier($column) . ' NOT IN (' . $values->toSql() . ')';
-        } elseif (empty($values)) {
-            // NOT IN with empty array is always true
-            $condition = '1 = 1';
-        } else {
-            $placeholders = [];
-            foreach ($values as $value) {
-                $placeholders[] = $this->parameterBag->add($value);
-            }
-            $condition = $this->formatIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
+            $this->conditions[] = ['condition' => $condition, 'link' => $link];
+            return $this;
         }
 
+        if (empty($values)) {
+            // NOT IN with empty array is always true
+            $condition = '1 = 1';
+            $this->conditions[] = ['condition' => $condition, 'link' => $link];
+            return $this;
+        }
+
+        $placeholders = [];
+        foreach ($values as $value) {
+            $placeholders[] = $this->parameterBag->add($value);
+        }
+        $condition = $this->formatIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
         return $this;
     }
@@ -343,9 +354,9 @@ class WhereClauseBuilder
         foreach ($this->conditions as $index => $item) {
             if ($index === 0) {
                 $sql = $item['condition'];
-            } else {
-                $sql .= ' ' . $item['link']->value . ' ' . $item['condition'];
+                continue;
             }
+            $sql .= ' ' . $item['link']->value . ' ' . $item['condition'];
         }
 
         return $sql;

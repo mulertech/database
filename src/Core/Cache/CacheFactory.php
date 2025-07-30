@@ -14,7 +14,7 @@ use RuntimeException;
 class CacheFactory
 {
     /**
-     * @var array<string, CacheInterface>
+     * @var array<string, CacheInterface|QueryStructureCache>
      */
     private static array $instances = [];
 
@@ -24,11 +24,6 @@ class CacheFactory
     private static ?CacheConfig $defaultConfig = null;
 
     /**
-     * @var CacheInvalidator|null
-     */
-    private static ?CacheInvalidator $invalidator = null;
-
-    /**
      * @param string $name
      * @param CacheConfig|null $config
      * @return MemoryCache
@@ -36,13 +31,15 @@ class CacheFactory
     public static function createMemoryCache(string $name, ?CacheConfig $config = null): MemoryCache
     {
         if (!isset(self::$instances[$name])) {
-            self::$instances[$name] = new MemoryCache($config ?? self::getDefaultConfig());
-            self::registerWithInvalidator($name, self::$instances[$name]);
+            $config ??= self::getDefaultConfig();
+            self::$instances[$name] = new MemoryCache($config);
         }
 
-        return self::$instances[$name] instanceof MemoryCache
-            ? self::$instances[$name]
-            : throw new RuntimeException("Cache instance is not of type MemoryCache");
+        if (!self::$instances[$name] instanceof MemoryCache) {
+            throw new RuntimeException("Cache instance is not of type MemoryCache");
+        }
+
+        return self::$instances[$name];
     }
 
     /**
@@ -50,66 +47,69 @@ class CacheFactory
      * @param CacheConfig|null $config
      * @return MetadataCache
      */
-    public static function createMetadataCache(string $name = 'metadata', ?CacheConfig $config = null): MetadataCache
+    public static function createMetadataCache(string $name, ?CacheConfig $config = null): MetadataCache
     {
         if (!isset(self::$instances[$name])) {
+            $config ??= self::getDefaultConfig();
             self::$instances[$name] = new MetadataCache($config);
-            self::registerWithInvalidator($name, self::$instances[$name]);
         }
 
-        return self::$instances[$name] instanceof MetadataCache
-            ? self::$instances[$name]
-            : throw new RuntimeException("Cache instance is not of type MetadataCache");
+        if (!self::$instances[$name] instanceof MetadataCache) {
+            throw new RuntimeException("Cache instance is not of type MetadataCache");
+        }
+
+        return self::$instances[$name];
     }
 
     /**
      * @param string $name
-     * @param CacheInterface|null $backend
-     * @param int $compressionThreshold
+     * @param CacheConfig|null $config
      * @return ResultSetCache
      */
-    public static function createResultSetCache(
-        string $name = 'resultset',
-        ?CacheInterface $backend = null,
-        int $compressionThreshold = 1024
-    ): ResultSetCache {
+    public static function createResultSetCache(string $name, ?CacheConfig $config = null): ResultSetCache
+    {
         if (!isset(self::$instances[$name])) {
-            $backend ??= self::createMemoryCache($name . '_backend');
-            self::$instances[$name] = new ResultSetCache($backend, $compressionThreshold);
-            self::registerWithInvalidator($name, self::$instances[$name]);
+            $config ??= self::getDefaultConfig();
+            // ResultSetCache needs a CacheInterface as first parameter, not CacheConfig
+            $baseCache = new MemoryCache($config);
+            self::$instances[$name] = new ResultSetCache($baseCache, 1024);
         }
 
-        return self::$instances[$name] instanceof ResultSetCache
-            ? self::$instances[$name]
-            : throw new RuntimeException("Cache instance is not of type ResultSetCache");
+        if (!self::$instances[$name] instanceof ResultSetCache) {
+            throw new RuntimeException("Cache instance is not of type ResultSetCache");
+        }
+
+        return self::$instances[$name];
     }
 
     /**
      * @param string $name
-     * @return CacheInterface|null
+     * @param CacheConfig|null $config
+     * @return QueryStructureCache
      */
-    public static function get(string $name): ?CacheInterface
+    public static function createQueryStructureCache(string $name, ?CacheConfig $config = null): QueryStructureCache
     {
-        return self::$instances[$name] ?? null;
+        if (!isset(self::$instances[$name])) {
+            $config ??= self::getDefaultConfig();
+            // QueryStructureCache expects int maxCacheSize, not CacheConfig
+            self::$instances[$name] = new QueryStructureCache($config->maxSize, $config->ttl);
+            // QueryStructureCache doesn't implement TaggableCacheInterface, so don't register with invalidator
+        }
+
+        if (!self::$instances[$name] instanceof QueryStructureCache) {
+            throw new RuntimeException("Cache instance is not of type QueryStructureCache");
+        }
+
+        return self::$instances[$name];
     }
 
     /**
-     * @return CacheInvalidator
+     * @param string $name
+     * @return CacheInterface|QueryStructureCache|null
      */
-    public static function getInvalidator(): CacheInvalidator
+    public static function get(string $name): CacheInterface|QueryStructureCache|null
     {
-        if (self::$invalidator === null) {
-            self::$invalidator = new CacheInvalidator();
-
-            // Register all existing caches
-            foreach (self::$instances as $name => $cache) {
-                if ($cache instanceof TaggableCacheInterface) {
-                    self::$invalidator->registerCache($name, $cache);
-                }
-            }
-        }
-
-        return self::$invalidator;
+        return self::$instances[$name] ?? null;
     }
 
     /**
@@ -119,7 +119,6 @@ class CacheFactory
     {
         self::$instances = [];
         self::$defaultConfig = null;
-        self::$invalidator = null;
     }
 
     /**
@@ -132,17 +131,5 @@ class CacheFactory
         }
 
         return self::$defaultConfig;
-    }
-
-    /**
-     * @param string $name
-     * @param CacheInterface $cache
-     * @return void
-     */
-    private static function registerWithInvalidator(string $name, CacheInterface $cache): void
-    {
-        if ($cache instanceof TaggableCacheInterface) {
-            self::getInvalidator()->registerCache($name, $cache);
-        }
     }
 }
