@@ -58,6 +58,7 @@ class SchemaComparer
      * Get cached properties columns for entity class
      * @param class-string $entityClass
      * @return array<string, string>
+     * @throws ReflectionException
      */
     private function getCachedPropertiesColumns(string $entityClass): array
     {
@@ -71,6 +72,7 @@ class SchemaComparer
      * Get cached table name for entity class
      * @param class-string $entityClass
      * @return string|null
+     * @throws ReflectionException
      */
     private function getCachedTableName(string $entityClass): ?string
     {
@@ -107,6 +109,7 @@ class SchemaComparer
      * @param class-string $entityClass
      * @param string $property
      * @return array{foreignKey: mixed, constraintName: string|null, referencedTable: string|null, referencedColumn: string|null, deleteRule: FkRule|string|null, updateRule: FkRule|string|null}|null
+     * @throws ReflectionException
      */
     private function getCachedForeignKeyInfo(string $entityClass, string $property): ?array
     {
@@ -268,7 +271,7 @@ class SchemaComparer
 
         $this->findColumnsToAdd($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
         $this->findColumnsToModify($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
-        $this->findColumnsToDrop($tableName, $entityClass, $databaseColumns, $entityPropertiesColumns, $diff);
+        $this->findColumnsToDrop($tableName, $databaseColumns, $entityPropertiesColumns, $diff);
     }
 
     /**
@@ -369,7 +372,6 @@ class SchemaComparer
      * Find columns to drop (in database but not in entity mapping)
      *
      * @param string $tableName
-     * @param class-string $entityClass
      * @param array<string, array{
      *     TABLE_NAME: string,
      *     COLUMN_NAME: string,
@@ -382,11 +384,9 @@ class SchemaComparer
      * @param array<string, string> $entityPropertiesColumns
      * @param SchemaDifference $diff
      * @return void
-     * @throws ReflectionException
      */
     private function findColumnsToDrop(
         string $tableName,
-        string $entityClass,
         array $databaseColumns,
         array $entityPropertiesColumns,
         SchemaDifference $diff
@@ -408,8 +408,12 @@ class SchemaComparer
      * @return void
      * @throws ReflectionException
      */
-    private function compareForeignKeys(string $tableName, string $entityClass, array $entityPropertiesColumns, SchemaDifference $diff): void
-    {
+    private function compareForeignKeys(
+        string $tableName,
+        string $entityClass,
+        array $entityPropertiesColumns,
+        SchemaDifference $diff
+    ): void {
         $databaseForeignKeys = $this->getTableForeignKeys($tableName);
         $entityForeignKeys = [];
 
