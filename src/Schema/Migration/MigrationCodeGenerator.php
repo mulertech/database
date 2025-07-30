@@ -259,7 +259,7 @@ readonly class MigrationCodeGenerator
         $this->processNestedItems(
             $diff->getColumnsToModify(),
             function ($tableName, $columnName, $differences) {
-                if (!is_array($differences) || !$this->shouldRestoreColumn($differences)) {
+                if (!is_array($differences)) {
                     return null;
                 }
                 /** @phpstan-var array{
@@ -269,6 +269,9 @@ readonly class MigrationCodeGenerator
                  *     EXTRA?: array{from: string|null, to: string|null}
                  *     } $differences
                  */
+                if (!$this->shouldRestoreColumn($differences)) {
+                    return null;
+                }
                 return $this->statementGenerator->generateRestoreColumnStatement($tableName, $columnName, $differences);
             },
             $code
@@ -277,16 +280,13 @@ readonly class MigrationCodeGenerator
 
     /**
      * Process nested array items with a callback
-     * @param array<mixed, mixed> $nestedArray
+     * @param array<string, array<string, mixed>> $nestedArray
      * @param callable(string, string, mixed): ?string $callback
-     * @param array<string> $code
+     * @param array<string> &$code
      */
     private function processNestedItems(array $nestedArray, callable $callback, array &$code): void
     {
         foreach ($nestedArray as $tableName => $items) {
-            if (!is_array($items)) {
-                continue;
-            }
             foreach ($items as $itemName => $itemData) {
                 $statement = $callback($tableName, $itemName, $itemData);
                 if ($statement !== null) {
@@ -298,26 +298,31 @@ readonly class MigrationCodeGenerator
 
     /**
      * Check if column should be restored
-     * @param array<mixed, mixed> $differences
+     * @param array{
+     *     COLUMN_TYPE?: array{from: string, to: string},
+     *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
+     *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
+     *     EXTRA?: array{from: string|null, to: string|null}
+     * } $differences
      */
     private function shouldRestoreColumn(array $differences): bool
     {
-        return (is_array($differences['COLUMN_TYPE'] ?? null) && isset($differences['COLUMN_TYPE']['from']))
-            || (is_array($differences['IS_NULLABLE'] ?? null) && isset($differences['IS_NULLABLE']['from']))
-            || (is_array($differences['COLUMN_DEFAULT'] ?? null) && isset($differences['COLUMN_DEFAULT']['from']));
+        return isset($differences['COLUMN_TYPE']['from'])
+            || isset($differences['IS_NULLABLE']['from'])
+            || isset($differences['COLUMN_DEFAULT']['from']);
     }
 
     /**
      * Process columns with table filtering
-     * @param array<mixed, mixed> $columns
+     * @param array<string, array<string, array<string, string|null>>> $columns
      * @param array<int, string> $tablesToSkip
-     * @param array<string> $code
+     * @param array<string> &$code
      * @param callable(string, string, mixed): ?string $callback
      */
     private function processFilteredColumns(array $columns, array $tablesToSkip, array &$code, callable $callback): void
     {
         foreach ($columns as $tableName => $columnData) {
-            if (!is_array($columnData) || in_array($tableName, $tablesToSkip, true)) {
+            if (in_array($tableName, $tablesToSkip, true)) {
                 continue;
             }
 
