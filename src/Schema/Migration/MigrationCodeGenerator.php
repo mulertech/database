@@ -238,7 +238,7 @@ readonly class MigrationCodeGenerator
             $columnsToAdd,
             $tablesToCreate,
             $code,
-            fn ($tableName, $columnName, $definition) => $this->statementGenerator->generateDropColumnStatement(
+            fn ($tableName, $columnName) => $this->statementGenerator->generateDropColumnStatement(
                 $tableName,
                 $columnName
             )
@@ -310,7 +310,7 @@ readonly class MigrationCodeGenerator
      * Process columns with table filtering
      * @param array<string, array<string, array<string, string|null>>> $columns
      * @param array<int, string> $tablesToSkip
-     * @param array<string> &$code
+     * @param array<string> $code
      * @param callable(string, string, mixed): ?string $callback
      */
     private function processFilteredColumns(array $columns, array $tablesToSkip, array &$code, callable $callback): void
