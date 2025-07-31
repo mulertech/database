@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use InvalidArgumentException;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\EventManager\EventManager;
@@ -22,23 +24,22 @@ use ReflectionException;
 class EntityManager implements EntityManagerInterface
 {
     /**
-     * @var EmEngine Entity manager Engine
+     * @var EmEngine
      */
     private EmEngine $emEngine;
 
     /**
-     * EntityManager constructor.
-     *
      * @param PhpDatabaseInterface $pdm
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @param EventManager|null $eventManager
      */
     public function __construct(
         private readonly PhpDatabaseInterface $pdm,
         private readonly DbMappingInterface $dbMapping,
+        private MetadataCache $metadataCache,
         private readonly ?EventManager $eventManager = null
     ) {
-        $this->emEngine = new EmEngine($this);
+        $this->emEngine = new EmEngine($this, $metadataCache);
     }
 
     /**
@@ -72,8 +73,14 @@ class EntityManager implements EntityManagerInterface
      */
     public function getRepository(string $entity): EntityRepository
     {
-        $repository = $this->dbMapping->getRepository($entity);
-        return new $repository($this);
+        $metadata = $this->metadataCache->getEntityMetadata($entity);
+        $repository = $metadata->getRepository();
+        if ($repository === null) {
+            throw new InvalidArgumentException("No repository found for entity '$entity'. Ensure MtEntity attribute specifies a repository.");
+        }
+        /** @var EntityRepository $repoInstance */
+        $repoInstance = new $repository($this);
+        return $repoInstance;
     }
 
     /**
@@ -93,12 +100,10 @@ class EntityManager implements EntityManagerInterface
     public function find(string $entity, string|int $idOrWhere): ?object
     {
         $result = $this->emEngine->find($entity, $idOrWhere);
-        // Ensure we never return false, only null or object
         return $result ?: null;
     }
 
     /**
-     * Count the result of the request with the table $table and the $where conditions
      * @param class-string $entityName
      * @param string|null $where
      * @return int
@@ -111,12 +116,13 @@ class EntityManager implements EntityManagerInterface
 
     /**
      * Checks if a property value is unique for an entity type, with option to exclude one entity by ID.
+     *
      * @param class-string $entity
-     * @param string $property Property to check for uniqueness
-     * @param int|string $search Value to search for
-     * @param int|string|null $id ID of entity to exclude (for update scenarios)
-     * @param bool $matchCase Whether to perform case-sensitive comparison
-     * @return bool True if the property value is unique
+     * @param string $property
+     * @param int|string $search
+     * @param int|string|null $id
+     * @param bool $matchCase
+     * @return bool
      * @throws ReflectionException
      */
     public function isUnique(
@@ -126,13 +132,12 @@ class EntityManager implements EntityManagerInterface
         int|string|null $id = null,
         bool $matchCase = false
     ): bool {
-        // Get column name and prepare search value
-        $column = $this->dbMapping->getColumnName($entity, $property);
+        $metadata = $this->metadataCache->getEntityMetadata($entity);
+        $column = $metadata->getColumnName($property);
+        $tableName = $metadata->tableName;
 
-        // Create and execute query
-        $tableName = $this->dbMapping->getTableName($entity);
-        if ($tableName === null) {
-            throw new InvalidArgumentException("Entity '$entity' does not have a valid table mapping.");
+        if ($column === null) {
+            throw new InvalidArgumentException("Entity '$entity' does not have a valid table or column mapping.");
         }
 
         $queryBuilder = new QueryBuilder($this->emEngine)
@@ -142,32 +147,28 @@ class EntityManager implements EntityManagerInterface
 
         $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
 
-        // No results means the value is unique
         if (empty($results)) {
             return true;
         }
 
-        // Filter results to handle MySQL numeric comparison edge cases
-        $getter = 'get' . ucfirst($property);
+        $getter = $metadata->getGetter($property) ?? 'get' . ucfirst($property);
         $matchingResults = array_filter($results, static function ($item) use ($getter, $search) {
             $value = $item->$getter();
             return !(is_numeric($value) && is_numeric($search) && $value != $search);
         });
 
-        // If no matching results after filtering, it's unique
         if (empty($matchingResults)) {
             return true;
         }
 
-        // If multiple matches, not unique
         if (count($matchingResults) > 1) {
             return false;
         }
 
-        // One match with the same ID is still considered unique (update case)
         if (!method_exists(current($matchingResults), 'getId')) {
-            return false; // No ID method means we can't check uniqueness by ID
+            return false;
         }
+
         return !($id === null) && current($matchingResults)->getId() == $id;
     }
 
@@ -197,5 +198,4 @@ class EntityManager implements EntityManagerInterface
     {
         $this->emEngine->flush();
     }
-
 }

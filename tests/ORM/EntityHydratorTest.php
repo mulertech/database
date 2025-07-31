@@ -3,13 +3,11 @@
 namespace MulerTech\Database\Tests\ORM;
 
 use DateTime;
-use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
-use TypeError;
 
 /**
  * Tests for the EntityHydrator class
@@ -17,13 +15,10 @@ use TypeError;
 class EntityHydratorTest extends TestCase
 {
     private EntityHydrator $hydrator;
-    private DbMappingInterface $dbMapping;
 
     protected function setUp(): void
     {
-        // Mock DbMappingInterface
-        $this->dbMapping = new DbMapping(dirname(__DIR__) . '/Files/Entity');
-        $this->hydrator = new EntityHydrator($this->dbMapping);
+        $this->hydrator = new EntityHydrator(new MetadataCache());
     }
 
     /**

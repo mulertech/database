@@ -27,6 +27,11 @@ interface EntityManagerInterface
     public function getPdm(): PhpDatabaseInterface;
 
     /**
+     * @return DbMappingInterface
+     */
+    public function getDbMapping(): DbMappingInterface;
+
+    /**
      * @param class-string $entity
      * @return EntityRepository
      */
@@ -36,11 +41,6 @@ interface EntityManagerInterface
      * @return EventManager|null
      */
     public function getEventManager(): ?EventManager;
-
-    /**
-     * @return DbMappingInterface
-     */
-    public function getDbMapping(): DbMappingInterface;
 
     /**
      * @param class-string $entity

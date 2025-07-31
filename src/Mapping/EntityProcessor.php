@@ -4,25 +4,42 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
-use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Accessor\PropertyAccessor;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
 /**
- * Handles entity loading and processing operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class EntityProcessor
 {
-    /** @var array<class-string, string> $tables */
+    /**
+     * @var array<class-string, EntityMetadata>
+     */
+    private array $entityMetadata = [];
+
+    /**
+     * @var array<class-string, string>
+     */
     private array $tables = [];
-    /** @var array<string, array<string, string>> $columns */
+
+    /**
+     * @var array<class-string, array<string, string>>
+     */
     private array $columns = [];
 
     /**
-     * Load entities from a given path
+     * Load entities from a given path and store EntityMetadata
      * @param string $entitiesPath
      * @return void
      */
@@ -34,40 +51,156 @@ class EntityProcessor
             if (!class_exists($className)) {
                 continue;
             }
-
             $reflection = new ReflectionClass($className);
-            $this->processEntityClass($reflection);
+
+            // Only process classes that have MtEntity attribute
+            $entityAttrs = $reflection->getAttributes(MtEntity::class);
+            if (empty($entityAttrs)) {
+                // Ignore classes without MtEntity attribute
+                continue;
+            }
+
+            $metadata = $this->buildEntityMetadata($reflection);
+            if ($metadata !== null) {
+                $this->entityMetadata[$className] = $metadata;
+            }
         }
     }
 
     /**
+     * Process a single entity class and store its metadata
      * @param ReflectionClass<object> $reflection
-     * @return void
+     * @return bool True if the entity was processed, false if ignored
      */
-    public function processEntityClass(ReflectionClass $reflection): void
+    public function processEntityClass(ReflectionClass $reflection): bool
+    {
+        // Only process classes that have MtEntity attribute
+        $entityAttrs = $reflection->getAttributes(MtEntity::class);
+        if (empty($entityAttrs)) {
+            // Ignore classes without MtEntity attribute
+            return false;
+        }
+
+        $metadata = $this->buildEntityMetadata($reflection);
+        if ($metadata !== null) {
+            $this->entityMetadata[$reflection->getName()] = $metadata;
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Build EntityMetadata from ReflectionClass
+     * @param ReflectionClass<object> $reflection
+     * @return EntityMetadata|null
+     */
+    private function buildEntityMetadata(ReflectionClass $reflection): ?EntityMetadata
     {
         $className = $reflection->getName();
 
-        // Get table name from MtEntity attribute
+        // Get table name and repository from MtEntity attribute
         $entityAttrs = $reflection->getAttributes(MtEntity::class);
+        $repository = null;
         if (!empty($entityAttrs)) {
             $entityAttr = $entityAttrs[0]->newInstance();
             $tableName = $entityAttr->tableName ?? $this->classNameToTableName($className);
-            $this->tables[$className] = $tableName;
+            $repository = $entityAttr->repository;
+        } else {
+            // Ignore entities without MtEntity attribute
+            return null;
+        }
 
-            // Process properties for column mappings
-            foreach ($reflection->getProperties() as $property) {
-                $propertyName = $property->getName();
+        // Store table mapping
+        $this->tables[$className] = $tableName;
 
-                // Get column mapping from MtColumn attribute
-                $columnAttrs = $property->getAttributes(MtColumn::class);
-                if (!empty($columnAttrs)) {
-                    $columnAttr = $columnAttrs[0]->newInstance();
-                    $columnName = $columnAttr->columnName ?? $propertyName;
-                    $this->columns[$className][$propertyName] = $columnName;
-                }
+        // Process properties for column mappings, relations, and foreign keys
+        $columns = [];
+        $foreignKeys = [];
+        $relationships = [
+            'OneToOne' => [],
+            'ManyToOne' => [],
+            'OneToMany' => [],
+            'ManyToMany' => [],
+        ];
+
+        foreach ($reflection->getProperties() as $property) {
+            $propertyName = $property->getName();
+
+            // Get column mapping from MtColumn attribute
+            $columnAttrs = $property->getAttributes(MtColumn::class);
+            if (!empty($columnAttrs)) {
+                $columnAttr = $columnAttrs[0]->newInstance();
+                $columnName = $columnAttr->columnName ?? $propertyName;
+                $columns[$propertyName] = $columnName;
+            }
+
+            // Get foreign key mapping from MtFk attribute
+            $fkAttrs = $property->getAttributes(MtFk::class);
+            if (!empty($fkAttrs)) {
+                $fkAttr = $fkAttrs[0]->newInstance();
+                $foreignKeys[$propertyName] = [
+                    'constraintName' => $fkAttr->constraintName,
+                    'column' => $fkAttr->column ?? $propertyName,
+                    'referencedTable' => $fkAttr->referencedTable,
+                    'referencedColumn' => $fkAttr->referencedColumn,
+                    'deleteRule' => $fkAttr->deleteRule,
+                    'updateRule' => $fkAttr->updateRule,
+                ];
+            }
+
+            // Get relationship mappings from Mt* relation attributes
+            $oneToOneAttrs = $property->getAttributes(MtOneToOne::class);
+            if (!empty($oneToOneAttrs)) {
+                $relationAttr = $oneToOneAttrs[0]->newInstance();
+                $relationships['OneToOne'][$propertyName] = [
+                    'targetEntity' => $relationAttr->targetEntity,
+                ];
+            }
+
+            $manyToOneAttrs = $property->getAttributes(MtManyToOne::class);
+            if (!empty($manyToOneAttrs)) {
+                $relationAttr = $manyToOneAttrs[0]->newInstance();
+                $relationships['ManyToOne'][$propertyName] = [
+                    'targetEntity' => $relationAttr->targetEntity,
+                ];
+            }
+
+            $oneToManyAttrs = $property->getAttributes(MtOneToMany::class);
+            if (!empty($oneToManyAttrs)) {
+                $relationAttr = $oneToManyAttrs[0]->newInstance();
+                $relationships['OneToMany'][$propertyName] = [
+                    'targetEntity' => $relationAttr->targetEntity,
+                    'inverseJoinProperty' => $relationAttr->inverseJoinProperty ?? null,
+                ];
+            }
+
+            $manyToManyAttrs = $property->getAttributes(MtManyToMany::class);
+            if (!empty($manyToManyAttrs)) {
+                $relationAttr = $manyToManyAttrs[0]->newInstance();
+                $relationships['ManyToMany'][$propertyName] = [
+                    'targetEntity' => $relationAttr->targetEntity,
+                    'mappedBy' => $relationAttr->mappedBy ?? null,
+                    'joinProperty' => $relationAttr->joinProperty ?? null,
+                    'inverseJoinProperty' => $relationAttr->inverseJoinProperty ?? null,
+                ];
             }
         }
+
+        // Always define columns for the table, even if empty
+        $this->columns[$className] = $columns;
+
+        return new EntityMetadata(
+            className: $reflection->getName(),
+            tableName: $tableName,
+            properties: $reflection->getProperties(),
+            getters: array_filter($reflection->getMethods(), fn ($m) => str_starts_with($m->getName(), 'get') || str_starts_with($m->getName(), 'is') || str_starts_with($m->getName(), 'has')),
+            setters: array_filter($reflection->getMethods(), fn ($m) => str_starts_with($m->getName(), 'set')),
+            columns: $columns,
+            foreignKeys: $foreignKeys,
+            relationships: $relationships,
+            repository: $repository
+        );
     }
 
     /**
@@ -128,7 +261,7 @@ class EntityProcessor
      */
     public function getTables(): array
     {
-        return $this->tables;
+        return $this->tables ?? [];
     }
 
     /**
@@ -136,7 +269,7 @@ class EntityProcessor
      */
     public function getColumnsMapping(): array
     {
-        return $this->columns;
+        return $this->columns ?? [];
     }
 
     /**
@@ -165,5 +298,33 @@ class EntityProcessor
 
             $this->columns[$entityName] = $result;
         }
+    }
+
+    /**
+     * @param object $entity
+     * @param PropertyAccessor $accessor
+     * @return array<string, mixed>
+     */
+    public function extractEntityData(object $entity, PropertyAccessor $accessor): array
+    {
+        $entityClass = $entity::class;
+        $metadata = $this->entityMetadata[$entityClass] ?? null;
+        if ($metadata === null) {
+            throw new RuntimeException("No metadata found for $entityClass");
+        }
+        $data = [];
+        foreach ($metadata->getPropertiesColumns() as $property => $column) {
+            try {
+                $getter = $metadata->getGetter($property);
+                if ($getter !== null) {
+                    $data[$column] = $entity->$getter();
+                } else {
+                    $data[$column] = $accessor->getValue($entity, $property);
+                }
+            } catch (RuntimeException) {
+                $data[$column] = null;
+            }
+        }
+        return $data;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -37,6 +38,7 @@ class EntityManagerTest extends TestCase
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'),
+            new MetadataCache(),
             $this->eventManager
         );
     }

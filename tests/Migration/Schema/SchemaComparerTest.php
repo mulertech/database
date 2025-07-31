@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\Migration\Schema;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -35,6 +36,7 @@ class SchemaComparerTest extends TestCase
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             $this->dbMapping,
+            new MetadataCache(),
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());
     }

@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\Migration\Command;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -34,7 +35,8 @@ class MigrationGenerateCommandTest extends TestCase
         );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $this->dbMapping
+            $this->dbMapping,
+            new MetadataCache()
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
         

@@ -7,6 +7,7 @@ namespace MulerTech\Database\ORM;
 use DateTimeImmutable;
 use Exception;
 use MulerTech\Collections\Collection;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
@@ -79,6 +80,7 @@ class EmEngine
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly MetadataCache $metadataCache
     ) {
         $this->initializeComponents();
     }
@@ -332,7 +334,7 @@ class EmEngine
         );
 
         // EntityHydrator needs DbMapping
-        $this->hydrator = new EntityHydrator($this->entityManager->getDbMapping());
+        $this->hydrator = new EntityHydrator($this->metadataCache);
     }
 
     /**
@@ -688,7 +690,8 @@ class EmEngine
                     $reflectionProperty = $reflection->getProperty($property);
 
                     // Process the value according to its type
-                    $value = $this->hydrator->processValue($entityClass, $property, $dbData[$column]);
+                    $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+                    $value = $this->hydrator->processValue($entityMetadata, $property, $dbData[$column]);
                     $reflectionProperty->setValue($entity, $value);
                 }
             }

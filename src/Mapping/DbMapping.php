@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
+use MulerTech\Database\Mapping\Accessor\PropertyAccessor;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
@@ -28,6 +29,7 @@ class DbMapping implements DbMappingInterface
     private ColumnMapping $columnMapping;
     private RelationMapping $relationMapping;
     private ForeignKeyMapping $foreignKeyMapping;
+    private PropertyAccessor $propertyAccessor;
     /**
      * @var array<class-string, array<string, true>>
      */
@@ -43,6 +45,7 @@ class DbMapping implements DbMappingInterface
         $this->columnMapping = new ColumnMapping();
         $this->relationMapping = new RelationMapping();
         $this->foreignKeyMapping = new ForeignKeyMapping($this);
+        $this->propertyAccessor = new PropertyAccessor();
 
         if ($entitiesPath !== null) {
             $this->entityProcessor->loadEntities($entitiesPath);
@@ -75,6 +78,7 @@ class DbMapping implements DbMappingInterface
     {
         $entities = array_keys($this->entityProcessor->getTables());
         sort($entities);
+        /** @var array<class-string> */
         return $entities;
     }
 
@@ -299,5 +303,52 @@ class DbMapping implements DbMappingInterface
             $this->relationPropertiesCache[$entityName] = $relationProps;
         }
         return isset($this->relationPropertiesCache[$entityName][$property]);
+    }
+
+    /**
+     * Get the value of a property using getter if available, otherwise fallback to Reflection.
+     *
+     * @param object $entity
+     * @param string $property
+     * @return mixed
+     */
+    public function getPropertyValue(object $entity, string $property): mixed
+    {
+        try {
+            return $this->propertyAccessor->getValue($entity, $property);
+        } catch (\RuntimeException) {
+            // Fallback to Reflection if no getter exists
+            $reflection = new \ReflectionClass($entity);
+            if ($reflection->hasProperty($property)) {
+                $prop = $reflection->getProperty($property);
+                $prop->setAccessible(true);
+                return $prop->getValue($entity);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Set the value of a property using setter if available, otherwise fallback to Reflection.
+     *
+     * @param object $entity
+     * @param string $property
+     * @param mixed $value
+     * @return void
+     */
+    public function setPropertyValue(object $entity, string $property, mixed $value): void
+    {
+        try {
+            $this->propertyAccessor->setValue($entity, $property, $value);
+        } catch (\RuntimeException) {
+            // Fallback to Reflection if no setter exists
+            $reflection = new \ReflectionClass($entity);
+            if ($reflection->hasProperty($property)) {
+                $prop = $reflection->getProperty($property);
+                $prop->setAccessible(true);
+                $prop->setValue($entity, $value);
+                return;
+            }
+        }
     }
 }

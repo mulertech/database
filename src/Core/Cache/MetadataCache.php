@@ -6,6 +6,8 @@ namespace MulerTech\Database\Core\Cache;
 
 use Exception;
 use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\EntityProcessor;
 use ReflectionClass;
 use RuntimeException;
 
@@ -16,20 +18,11 @@ use RuntimeException;
  */
 final class MetadataCache extends MemoryCache
 {
-    private readonly MetadataRelationsHelper $relationsHelper;
-    private readonly MetadataReflectionHelper $reflectionHelper;
-
     /**
      * @param CacheConfig|null $config
-     * @param DbMappingInterface|null $dbMapping
-     * @param MetadataRelationsHelper|null $relationsHelper
-     * @param MetadataReflectionHelper|null $reflectionHelper
      */
     public function __construct(
         ?CacheConfig $config = null,
-        private readonly ?DbMappingInterface $dbMapping = null,
-        ?MetadataRelationsHelper $relationsHelper = null,
-        ?MetadataReflectionHelper $reflectionHelper = null
     ) {
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
@@ -39,8 +32,6 @@ final class MetadataCache extends MemoryCache
 
         parent::__construct($metadataConfig);
 
-        $this->relationsHelper = $relationsHelper ?? new MetadataRelationsHelper();
-        $this->reflectionHelper = $reflectionHelper ?? new MetadataReflectionHelper();
     }
 
     /**
@@ -64,7 +55,7 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * @param string $entityClass
+     * @param class-string $entityClass
      * @param mixed $metadata
      * @return void
      */
@@ -75,7 +66,7 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * @param string $entityClass
+     * @param class-string $entityClass
      * @param string $property
      * @return mixed
      */
@@ -85,7 +76,7 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * @param string $entityClass
+     * @param class-string $entityClass
      * @param string $property
      * @param mixed $metadata
      * @return void
@@ -99,7 +90,7 @@ final class MetadataCache extends MemoryCache
 
     /**
      * Check if entity metadata has been warmed up
-     * @param string $entityClass
+     * @param class-string $entityClass
      * @return bool
      */
     public function isWarmedUp(string $entityClass): bool
@@ -108,24 +99,23 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * Warm up a single entity class
+     * Warm up a single entity class using Mt* attributes
      * @param class-string $entityClass
      * @return void
      * @throws Exception
      */
     private function warmUpEntity(string $entityClass): void
     {
-        if ($this->dbMapping === null || $this->isWarmedUp($entityClass)) {
+        if ($this->isWarmedUp($entityClass)) {
             return;
         }
 
         try {
-            $this->cacheBasicMetadata($entityClass);
-            $this->cacheRelationsMetadata($entityClass);
-            $this->cacheReflectionMetadata($entityClass);
+            // Pre-load EntityMetadata to cache it
+            $this->getEntityMetadata($entityClass);
 
             // Mark entity as warmed up
-            $this->setEntityMetadata($entityClass . ':warmed', true);
+            $this->setPermanentMetadata($entityClass . ':warmed', true);
 
         } catch (Exception $e) {
             throw new RuntimeException(
@@ -137,65 +127,23 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * Cache basic metadata for entity
-     * @param class-string $entityClass
+     * Warm up multiple entity classes at once
+     * @param array<class-string> $entityClasses
      * @return void
+     * @throws Exception
      */
-    private function cacheBasicMetadata(string $entityClass): void
+    public function warmUpEntities(array $entityClasses): void
     {
-        if ($this->dbMapping === null) {
-            return;
-        }
-
-        // Cache table name
-        $tableName = $this->dbMapping->getTableName($entityClass);
-        if ($tableName !== null) {
-            $this->setEntityMetadata($entityClass . ':table', $tableName);
-        }
-
-        // Cache properties to columns mapping
-        $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityClass);
-        $this->setEntityMetadata($entityClass . ':properties', $propertiesColumns);
-
-        // Cache primary key information
-        $primaryKey = $this->findPrimaryKey($entityClass);
-        if ($primaryKey !== null) {
-            $this->setEntityMetadata($entityClass . ':primaryKey', $primaryKey);
+        foreach ($entityClasses as $entityClass) {
+            $this->warmUpEntity($entityClass);
         }
     }
 
+
+
+
     /**
-     * Cache relations metadata for entity
      * @param class-string $entityClass
-     * @return void
-     */
-    private function cacheRelationsMetadata(string $entityClass): void
-    {
-        if ($this->dbMapping === null) {
-            return;
-        }
-
-        $relations = $this->relationsHelper->buildRelationsData($this->dbMapping, $entityClass);
-
-        if (!empty($relations)) {
-            $this->setEntityMetadata($entityClass . ':relations', $relations);
-        }
-    }
-
-    /**
-     * Cache reflection metadata for entity
-     * @param class-string $entityClass
-     * @return void
-     */
-    private function cacheReflectionMetadata(string $entityClass): void
-    {
-        $reflection = new ReflectionClass($entityClass);
-        $reflectionData = $this->reflectionHelper->buildReflectionData($reflection);
-        $this->setEntityMetadata($entityClass . ':reflection', $reflectionData);
-    }
-
-    /**
-     * @param string $entityClass
      * @return string
      */
     private function getEntityKey(string $entityClass): string
@@ -204,7 +152,7 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * @param string $entityClass
+     * @param class-string $entityClass
      * @param string $property
      * @return string
      */
@@ -214,84 +162,88 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * Get cached table name for entity or load it if not cached
-     * @param string $entityClass
-     * @return string|null
+     * Get table name for entity using EntityMetadata
+     * @param class-string $entityClass
+     * @return string
      * @throws Exception
      */
-    public function getTableName(string $entityClass): ?string
+    public function getTableName(string $entityClass): string
     {
-        $cached = $this->get($entityClass . ':table');
-
-        if ($cached === null && !$this->isWarmedUp($entityClass)) {
-            /** @var class-string $entityClass */
-            $this->warmUpEntity($entityClass);
-            $cached = $this->get($entityClass . ':table');
-        }
-
-        return is_string($cached) ? $cached : null;
+        $metadata = $this->getEntityMetadata($entityClass);
+        return $metadata->tableName;
     }
 
     /**
-     * Get cached properties to columns mapping or load it if not cached
-     * @param string $entityClass
-     * @return array<string, string>|null
+     * Get properties to columns mapping using EntityMetadata
+     * @param class-string $entityClass
+     * @return array<string, string>
      * @throws Exception
      */
-    public function getPropertiesColumns(string $entityClass): ?array
+    public function getPropertiesColumns(string $entityClass): array
     {
-        $cached = $this->get($entityClass . ':properties');
+        $metadata = $this->getEntityMetadata($entityClass);
+        return $metadata->getPropertiesColumns();
+    }
 
-        if ($cached === null && !$this->isWarmedUp($entityClass)) {
-            /** @var class-string $entityClass */
-            $this->warmUpEntity($entityClass);
-            $cached = $this->get($entityClass . ':properties');
-        }
 
-        // Ensure we return the correct type
-        if (is_array($cached)) {
-            // Validate that all keys and values are strings
-            foreach ($cached as $key => $value) {
-                if (!is_string($key) || !is_string($value)) {
-                    return null;
-                }
-            }
-            /** @var array<string, string> $cached */
+    /**
+     * Get EntityMetadata using EntityProcessor for Mt*-only mapping
+     * @param class-string $entityClass
+     * @return EntityMetadata
+     */
+    public function getEntityMetadata(string $entityClass): EntityMetadata
+    {
+        $key = $entityClass . ':entity_metadata';
+        $cached = $this->get($key);
+
+        if ($cached instanceof EntityMetadata) {
             return $cached;
         }
 
-        return null;
+        // Use EntityProcessor to build metadata from Mt* attributes
+        $reflection = new ReflectionClass($entityClass);
+        $entityMetadata = $this->buildEntityMetadataFromAttributes($reflection);
+
+        $this->setPermanentMetadata($key, $entityMetadata);
+
+        // Mark entity as warmed up
+        $this->setPermanentMetadata($entityClass . ':warmed', true);
+
+        return $entityMetadata;
     }
 
     /**
-     * Find primary key column for an entity
-     * @param class-string $entityClass
-     * @return string|null
+     * Build EntityMetadata from Mt* attributes using EntityProcessor logic
+     * @param ReflectionClass<object> $reflection
+     * @return EntityMetadata
      */
-    private function findPrimaryKey(string $entityClass): ?string
+    private function buildEntityMetadataFromAttributes(ReflectionClass $reflection): EntityMetadata
     {
-        if ($this->dbMapping === null) {
-            return null;
+        // Load a temporary EntityProcessor to build metadata
+        $tempProcessor = new EntityProcessor();
+
+        // Use the private buildEntityMetadata method through reflection
+        $method = new \ReflectionMethod($tempProcessor, 'buildEntityMetadata');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($tempProcessor, $reflection);
+        if (!$result instanceof EntityMetadata) {
+            throw new RuntimeException('Failed to build EntityMetadata from EntityProcessor');
         }
 
-        try {
-            $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityClass);
+        return $result;
+    }
 
-            foreach (array_keys($propertiesColumns) as $property) {
-                $columnKey = $this->dbMapping->getColumnKey($entityClass, $property);
-                if ($columnKey === 'PRI') {
-                    return $property;
-                }
-            }
-
-            // If no PRI key found, check for 'id' property as fallback
-            if (isset($propertiesColumns['id'])) {
-                return 'id';
-            }
-
-            return null;
-        } catch (Exception) {
-            return null;
-        }
+    /**
+     * Get the column type for a given property of an entity.
+     *
+     * @param class-string $entityClass
+     * @param string $property
+     * @return \MulerTech\Database\Mapping\Types\ColumnType|null
+     */
+    public function getColumnType(string $entityClass, string $property): ?\MulerTech\Database\Mapping\Types\ColumnType
+    {
+        $metadata = $this->getEntityMetadata($entityClass);
+        return $metadata->getColumnType($property);
     }
 }
