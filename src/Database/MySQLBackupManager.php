@@ -8,8 +8,6 @@ use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use RuntimeException;
 
 /**
- * Class DatabaseBackupManager
- *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -20,44 +18,78 @@ class MySQLBackupManager
      */
     private array $dbParameters;
 
-    /**
-     * DatabaseBackupManager constructor.
-     */
     public function __construct()
     {
         $this->dbParameters = new DatabaseParameterParser()->parseParameters();
     }
 
     /**
-     * @param string $pathMysqldump Path to mysqldump binary, or '' if in OS PATH.
-     * @param string $pathBackup Path to save the backup file.
-     * @param array<int, string>|null $tableList List of tables to backup, or null for all.
-     * @return bool|string True if backup ok, false if backup ok but save nok, or error message as string.
+     * @param string $pathMysqldump
+     * @param string $pathBackup
+     * @param array<int, string>|null $tableList
+     * @return bool
+     * @throws RuntimeException
      */
-    public function createBackup(string $pathMysqldump, string $pathBackup, ?array $tableList = null): bool|string
+    public function createBackup(string $pathMysqldump, string $pathBackup, ?array $tableList = null): bool
     {
         $output = [];
-        $tables = (!is_null($tableList)) ? implode(' ', $tableList) . ' ' : '';
+        $tables = $tableList !== null ? implode(' ', $tableList) . ' ' : '';
         $this->checkPasswordQuotes();
+
+        $backupDir = dirname($pathBackup);
+
+        if (!is_dir($backupDir)) {
+            if (!@mkdir($backupDir, 0o777, true) && !is_dir($backupDir)) {
+                throw new RuntimeException('Unable to create backup directory: ' . $backupDir);
+            }
+        }
+        if (!is_writable($backupDir)) {
+            throw new RuntimeException('Backup directory is not writable: ' . $backupDir);
+        }
+
+        if (file_exists($pathBackup) && !is_writable($pathBackup)) {
+            throw new RuntimeException('Backup file is not writable: ' . $pathBackup);
+        }
+        if (!file_exists($pathBackup)) {
+            $fp = @fopen($pathBackup, 'w');
+            if ($fp === false) {
+                throw new RuntimeException('Cannot create backup file: ' . $pathBackup);
+            }
+            fclose($fp);
+            @unlink($pathBackup);
+        }
 
         $command = $pathMysqldump . 'mysqldump --opt ';
         $command .= $this->getHostCommand();
         $command .= $this->getUserCommand();
         $command .= $this->getPasswordCommand();
         $command .= $this->getDbNameCommand();
-        $command .= $tables . '> ' . $pathBackup;
+        $command .= $tables . '> ' . $pathBackup . ' 2>/dev/null';
 
         exec($command, $output, $result);
 
-        return ($result === 0) ? file_exists($pathBackup) : 'Error number : ' . $result;
+        if ($result !== 0) {
+            throw new RuntimeException('mysqldump failed with error code: ' . $result);
+        }
+
+        if (!file_exists($pathBackup)) {
+            throw new RuntimeException('Backup file was not created: ' . $pathBackup);
+        }
+
+        return true;
     }
 
     /**
-     * @param string $pathFile Path to the SQL backup file to restore.
-     * @return int Result code from exec (0 if success).
+     * @param string $pathFile
+     * @return void
+     * @throws RuntimeException
      */
-    public function restoreBackup(string $pathFile): int
+    public function restoreBackup(string $pathFile): void
     {
+        if (!is_file($pathFile) || !is_readable($pathFile)) {
+            throw new RuntimeException('Backup file does not exist or is not readable: ' . $pathFile);
+        }
+
         $output = [];
         $this->checkPasswordQuotes();
         $command = 'mysql ';
@@ -65,15 +97,18 @@ class MySQLBackupManager
         $command .= $this->getUserCommand();
         $command .= $this->getPasswordCommand();
         $command .= $this->getDbNameCommand();
-        $command .= '< ' . $pathFile;
+        $command .= '< ' . $pathFile . ' 2>/dev/null';
 
         exec($command, $output, $result);
 
-        return $result;
+        if ($result !== 0) {
+            throw new RuntimeException('mysql restore failed with error code: ' . $result);
+        }
     }
 
     /**
      * @return void
+     * @throws RuntimeException
      */
     private function checkPasswordQuotes(): void
     {
