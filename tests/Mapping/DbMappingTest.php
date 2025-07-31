@@ -22,7 +22,7 @@ use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
-class MappingTest extends TestCase
+class DbMappingTest extends TestCase
 {
     /**
      * @var DbMapping
