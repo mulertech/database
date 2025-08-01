@@ -26,9 +26,9 @@ use ReflectionException;
 class DbMappingTest extends TestCase
 {
     /**
-     * @var DbMapping
+     * @var DbMapping|null
      */
-    private DbMapping $dbMapping;
+    private ?DbMapping $dbMapping = null;
 
     /**
      * @return DbMapping
@@ -37,6 +37,10 @@ class DbMappingTest extends TestCase
     {
         if ($this->dbMapping === null) {
             $metadataCache = new MetadataCache();
+            // Load entities from test directory
+            $metadataCache->loadEntitiesFromPath(
+                dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+            );
             $this->dbMapping = new DbMapping($metadataCache);
         }
         return $this->dbMapping;

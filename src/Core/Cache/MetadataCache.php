@@ -35,6 +35,22 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
+     * Load entities from a directory path and cache their metadata
+     * @param string $entitiesPath
+     * @return void
+     */
+    public function loadEntitiesFromPath(string $entitiesPath): void
+    {
+        $this->entityProcessor->loadEntities($entitiesPath);
+
+        // Now warm up the cache with all discovered entities
+        $tables = $this->entityProcessor->getTables();
+        foreach (array_keys($tables) as $entityClass) {
+            $this->warmUpEntity($entityClass);
+        }
+    }
+
+    /**
      * @param string $key
      * @param mixed $metadata
      * @return void
@@ -215,7 +231,7 @@ final class MetadataCache extends MemoryCache
     public function getLoadedEntities(): array
     {
         $entities = [];
-        foreach ($this->data as $key => $value) {
+        foreach ($this->cache as $key => $value) {
             if (str_ends_with($key, ':entity_metadata') && $value instanceof \MulerTech\Database\Mapping\EntityMetadata) {
                 $entities[] = $value->className;
             }
@@ -231,7 +247,7 @@ final class MetadataCache extends MemoryCache
     public function getLoadedTables(): array
     {
         $tables = [];
-        foreach ($this->data as $key => $value) {
+        foreach ($this->cache as $key => $value) {
             if (str_ends_with($key, ':entity_metadata') && $value instanceof \MulerTech\Database\Mapping\EntityMetadata) {
                 $tables[] = $value->tableName;
             }

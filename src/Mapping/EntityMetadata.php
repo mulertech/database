@@ -25,7 +25,7 @@ final readonly class EntityMetadata
      * @param array<string, string> $columns
      * @param array<string, mixed> $foreignKeys
      * @param array<string, array<string, mixed>> $relationships
-     * @param string|null $repository
+     * @param class-string|null $repository
      * @param int|null $autoIncrement
      */
     public function __construct(

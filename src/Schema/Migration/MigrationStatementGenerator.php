@@ -113,7 +113,7 @@ class MigrationStatementGenerator
             new SqlTypeConverter()
         );
 
-        $code[] = '        $tableDefinition->modifyColumn(' . $columnDefinitionCode . ');';
+        $code[] = '        $tableDefinition->modifyColumn(' . rtrim($columnDefinitionCode, ';') . ');';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -154,7 +154,7 @@ class MigrationStatementGenerator
             new SqlTypeConverter()
         );
 
-        $code[] = '        $tableDefinition->modifyColumn(' . $columnDefinitionCode . ');';
+        $code[] = '        $tableDefinition->modifyColumn(' . rtrim($columnDefinitionCode, ';') . ');';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 

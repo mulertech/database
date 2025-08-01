@@ -63,6 +63,10 @@ class ForeignKeyMappingTest extends TestCase
     public function testGetConstraintNameReturnsCorrectConstraintName(): void
     {
         $this->dbMapping->expects($this->once())
+            ->method('getEntities')
+            ->willReturn([TestEntityWithForeignKeys::class]);
+        
+        $this->dbMapping->expects($this->once())
             ->method('getColumnName')
             ->with(TestEntityWithForeignKeys::class, 'userId')
             ->willReturn('user_id');
@@ -86,6 +90,10 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetConstraintNameReturnsNullWhenDbMappingReturnsNull(): void
     {
+        $this->dbMapping->expects($this->once())
+            ->method('getEntities')
+            ->willReturn([TestEntityWithForeignKeys::class]);
+        
         $this->dbMapping->expects($this->once())
             ->method('getColumnName')
             ->with(TestEntityWithForeignKeys::class, 'userId')

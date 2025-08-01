@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
+use Exception;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
@@ -13,6 +14,7 @@ use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use ReflectionException;
+use RuntimeException;
 
 /**
  * Class DbMapping
@@ -49,7 +51,7 @@ class DbMapping implements DbMappingInterface
     {
         try {
             return $this->metadataCache->getTableName($entityName);
-        } catch (\Exception) {
+        } catch (Exception) {
             return null;
         }
     }
@@ -73,27 +75,26 @@ class DbMapping implements DbMappingInterface
     /**
      * @param class-string $entityName
      * @return class-string|null
-     * @throws ReflectionException
+     * @throws RuntimeException
      */
     public function getRepository(string $entityName): ?string
     {
         try {
             return $this->metadataCache->getEntityMetadata($entityName)->repository;
-        } catch (\Exception) {
-            return null;
+        } catch (Exception) {
+            throw new RuntimeException("The MtEntity mapping is not implemented into the $entityName class.");
         }
     }
 
     /**
      * @param class-string $entityName
      * @return int|null
-     * @throws ReflectionException
      */
     public function getAutoIncrement(string $entityName): ?int
     {
         try {
             return $this->metadataCache->getEntityMetadata($entityName)->autoIncrement;
-        } catch (\Exception) {
+        } catch (Exception) {
             return null;
         }
     }
@@ -101,13 +102,12 @@ class DbMapping implements DbMappingInterface
     /**
      * @param class-string $entityName
      * @return array<string>
-     * @throws ReflectionException
      */
     public function getColumns(string $entityName): array
     {
         try {
             return array_values($this->metadataCache->getPropertiesColumns($entityName));
-        } catch (\Exception) {
+        } catch (Exception) {
             return [];
         }
     }
@@ -115,13 +115,12 @@ class DbMapping implements DbMappingInterface
     /**
      * @param class-string $entityName
      * @return array<string, string>
-     * @throws ReflectionException
      */
     public function getPropertiesColumns(string $entityName): array
     {
         try {
             return $this->metadataCache->getPropertiesColumns($entityName);
-        } catch (\Exception) {
+        } catch (Exception) {
             return [];
         }
     }

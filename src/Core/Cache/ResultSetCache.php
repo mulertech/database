@@ -245,11 +245,10 @@ readonly class ResultSetCache implements TaggableCacheInterface
         }
 
         try {
-            $result = @unserialize($serialized, ['allowed_classes' => false]);
+            $result = unserialize($serialized, ['allowed_classes' => false]);
             if ($result === false && $serialized !== serialize(false)) {
                 return null;
             }
-            // Defensive: allow only arrays and scalars, never objects
             if (is_object($result)) {
                 return null;
             }
