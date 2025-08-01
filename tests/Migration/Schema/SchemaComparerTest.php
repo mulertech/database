@@ -30,11 +30,9 @@ class SchemaComparerTest extends TestCase
     
     protected function setUp(): void
     {
-        $metadataCache = new MetadataCache();
-        // Load entities from the test directory
-        $metadataCache->loadEntitiesFromPath(
-            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-        );
+        // Create MetadataCache with automatic entity loading from test directory
+        $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
+        $metadataCache = new MetadataCache(null, $entitiesPath);
         $this->dbMapping = new DbMapping($metadataCache);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),

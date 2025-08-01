@@ -45,13 +45,17 @@ class CacheFactory
     /**
      * @param string $name
      * @param CacheConfig|null $config
+     * @param string|null $entitiesPath Automatic loading of entities from this path
      * @return MetadataCache
      */
-    public static function createMetadataCache(string $name, ?CacheConfig $config = null): MetadataCache
-    {
+    public static function createMetadataCache(
+        string $name,
+        ?CacheConfig $config = null,
+        ?string $entitiesPath = null
+    ): MetadataCache {
         if (!isset(self::$instances[$name])) {
             $config ??= self::getDefaultConfig();
-            self::$instances[$name] = new MetadataCache($config);
+            self::$instances[$name] = new MetadataCache($config, $entitiesPath);
         }
 
         if (!self::$instances[$name] instanceof MetadataCache) {

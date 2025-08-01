@@ -287,23 +287,4 @@ class EntityProcessor
     {
         return $this->tables[$entityName] ?? null;
     }
-
-    /**
-     * Initialize columns for a specific entity if not already done
-     * @param class-string $entityName
-     * @param ColumnMapping $columnMapping
-     * @return void
-     * @throws ReflectionException
-     */
-    public function initializeColumns(string $entityName, ColumnMapping $columnMapping): void
-    {
-        if (!isset($this->columns[$entityName])) {
-            $result = [];
-            foreach ($columnMapping->getMtColumns($entityName) as $property => $mtColumn) {
-                $result[$property] = $mtColumn->columnName ?? $property;
-            }
-
-            $this->columns[$entityName] = $result;
-        }
-    }
 }

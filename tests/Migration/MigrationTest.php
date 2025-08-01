@@ -35,11 +35,9 @@ class MigrationTest extends TestCase
      */
     protected function setUp(): void
     {
-        $metadataCache = new MetadataCache();
-        // Load entities from the test directory
-        $metadataCache->loadEntitiesFromPath(
-            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-        );
+        // Create MetadataCache with automatic entity loading from test directory
+        $entitiesPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
+        $metadataCache = new MetadataCache(null, $entitiesPath);
         // Also load system entities like MigrationHistory
         $metadataCache->getEntityMetadata(MigrationHistory::class);
         $this->dbMapping = new DbMapping($metadataCache);

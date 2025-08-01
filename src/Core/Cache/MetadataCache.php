@@ -20,9 +20,11 @@ final class MetadataCache extends MemoryCache
 
     /**
      * @param CacheConfig|null $config
+     * @param string|null $entitiesPath Automatic loading of entities from this path
      */
     public function __construct(
         ?CacheConfig $config = null,
+        ?string $entitiesPath = null,
     ) {
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
@@ -32,6 +34,11 @@ final class MetadataCache extends MemoryCache
 
         parent::__construct($metadataConfig);
         $this->entityProcessor = new EntityProcessor();
+
+        // Automatically load entities if path is provided
+        if ($entitiesPath !== null) {
+            $this->loadEntitiesFromPath($entitiesPath);
+        }
     }
 
     /**
