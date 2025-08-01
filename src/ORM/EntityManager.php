@@ -7,7 +7,6 @@ namespace MulerTech\Database\ORM;
 use InvalidArgumentException;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
-use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\EventManager\EventManager;

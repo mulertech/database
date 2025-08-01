@@ -35,10 +35,11 @@ class EntityManagerTest extends TestCase
     {
         parent::setUp();
         $this->eventManager = new EventManager();
+        $metadataCache = new MetadataCache();
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'),
-            new MetadataCache(),
+            new DbMapping($metadataCache),
+            $metadataCache,
             $this->eventManager
         );
     }

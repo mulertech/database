@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
-use MulerTech\Database\Mapping\Accessor\PropertyAccessor;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtFk;
@@ -23,11 +22,6 @@ use RuntimeException;
  */
 class EntityProcessor
 {
-    /**
-     * @var array<class-string, EntityMetadata>
-     */
-    private array $entityMetadata = [];
-
     /**
      * @var array<class-string, string>
      */
@@ -60,10 +54,7 @@ class EntityProcessor
                 continue;
             }
 
-            $metadata = $this->buildEntityMetadata($reflection);
-            if ($metadata !== null) {
-                $this->entityMetadata[$className] = $metadata;
-            }
+            $this->buildEntityMetadata($reflection);
         }
     }
 
@@ -82,12 +73,27 @@ class EntityProcessor
         }
 
         $metadata = $this->buildEntityMetadata($reflection);
-        if ($metadata !== null) {
-            $this->entityMetadata[$reflection->getName()] = $metadata;
-            return true;
+        return $metadata !== null;
+    }
+
+    /**
+     * Build EntityMetadata for a class by name
+     * @param class-string $className
+     * @return EntityMetadata
+     * @throws ReflectionException
+     */
+    public function buildEntityMetadataForClass(string $className): EntityMetadata
+    {
+        $reflection = new ReflectionClass($className);
+        $metadata = $this->buildEntityMetadata($reflection);
+
+        if ($metadata === null) {
+            throw new RuntimeException(
+                sprintf('Entity %s does not have MtEntity attribute', $className)
+            );
         }
 
-        return false;
+        return $metadata;
     }
 
     /**
@@ -99,13 +105,13 @@ class EntityProcessor
     {
         $className = $reflection->getName();
 
-        // Get table name and repository from MtEntity attribute
+        // Get table name, repository and autoIncrement from MtEntity attribute
         $entityAttrs = $reflection->getAttributes(MtEntity::class);
-        $repository = null;
         if (!empty($entityAttrs)) {
             $entityAttr = $entityAttrs[0]->newInstance();
             $tableName = $entityAttr->tableName ?? $this->classNameToTableName($className);
             $repository = $entityAttr->repository;
+            $autoIncrement = $entityAttr->autoIncrement;
         } else {
             // Ignore entities without MtEntity attribute
             return null;
@@ -194,12 +200,13 @@ class EntityProcessor
             className: $reflection->getName(),
             tableName: $tableName,
             properties: $reflection->getProperties(),
-            getters: array_filter($reflection->getMethods(), fn ($m) => str_starts_with($m->getName(), 'get') || str_starts_with($m->getName(), 'is') || str_starts_with($m->getName(), 'has')),
-            setters: array_filter($reflection->getMethods(), fn ($m) => str_starts_with($m->getName(), 'set')),
+            getters: array_filter($reflection->getMethods(), static fn ($m) => str_starts_with($m->getName(), 'get') || str_starts_with($m->getName(), 'is') || str_starts_with($m->getName(), 'has')),
+            setters: array_filter($reflection->getMethods(), static fn ($m) => str_starts_with($m->getName(), 'set')),
             columns: $columns,
             foreignKeys: $foreignKeys,
             relationships: $relationships,
-            repository: $repository
+            repository: $repository,
+            autoIncrement: $autoIncrement
         );
     }
 
@@ -298,33 +305,5 @@ class EntityProcessor
 
             $this->columns[$entityName] = $result;
         }
-    }
-
-    /**
-     * @param object $entity
-     * @param PropertyAccessor $accessor
-     * @return array<string, mixed>
-     */
-    public function extractEntityData(object $entity, PropertyAccessor $accessor): array
-    {
-        $entityClass = $entity::class;
-        $metadata = $this->entityMetadata[$entityClass] ?? null;
-        if ($metadata === null) {
-            throw new RuntimeException("No metadata found for $entityClass");
-        }
-        $data = [];
-        foreach ($metadata->getPropertiesColumns() as $property => $column) {
-            try {
-                $getter = $metadata->getGetter($property);
-                if ($getter !== null) {
-                    $data[$column] = $entity->$getter();
-                } else {
-                    $data[$column] = $accessor->getValue($entity, $property);
-                }
-            } catch (RuntimeException) {
-                $data[$column] = null;
-            }
-        }
-        return $data;
     }
 }

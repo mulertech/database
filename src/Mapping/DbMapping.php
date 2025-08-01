@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
-use MulerTech\Database\Mapping\Accessor\PropertyAccessor;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
@@ -12,6 +11,7 @@ use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use ReflectionException;
 
 /**
@@ -25,31 +25,20 @@ use ReflectionException;
  */
 class DbMapping implements DbMappingInterface
 {
-    private EntityProcessor $entityProcessor;
+    private MetadataCache $metadataCache;
     private ColumnMapping $columnMapping;
     private RelationMapping $relationMapping;
     private ForeignKeyMapping $foreignKeyMapping;
-    private PropertyAccessor $propertyAccessor;
-    /**
-     * @var array<class-string, array<string, true>>
-     */
-    private array $relationPropertiesCache = [];
-
 
     /**
-     * @param string|null $entitiesPath
+     * @param MetadataCache $metadataCache
      */
-    public function __construct(?string $entitiesPath = null)
+    public function __construct(MetadataCache $metadataCache)
     {
-        $this->entityProcessor = new EntityProcessor();
+        $this->metadataCache = $metadataCache;
         $this->columnMapping = new ColumnMapping();
         $this->relationMapping = new RelationMapping();
         $this->foreignKeyMapping = new ForeignKeyMapping($this);
-        $this->propertyAccessor = new PropertyAccessor();
-
-        if ($entitiesPath !== null) {
-            $this->entityProcessor->loadEntities($entitiesPath);
-        }
     }
 
     /**
@@ -58,7 +47,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getTableName(string $entityName): ?string
     {
-        return $this->entityProcessor->getTableName($entityName);
+        try {
+            return $this->metadataCache->getTableName($entityName);
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**
@@ -66,9 +59,7 @@ class DbMapping implements DbMappingInterface
      */
     public function getTables(): array
     {
-        $tables = $this->entityProcessor->getTables();
-        sort($tables);
-        return $tables;
+        return $this->metadataCache->getLoadedTables();
     }
 
     /**
@@ -76,10 +67,7 @@ class DbMapping implements DbMappingInterface
      */
     public function getEntities(): array
     {
-        $entities = array_keys($this->entityProcessor->getTables());
-        sort($entities);
-        /** @var array<class-string> */
-        return $entities;
+        return $this->metadataCache->getLoadedEntities();
     }
 
     /**
@@ -89,7 +77,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getRepository(string $entityName): ?string
     {
-        return $this->entityProcessor->getRepository($entityName);
+        try {
+            return $this->metadataCache->getEntityMetadata($entityName)->repository;
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**
@@ -99,7 +91,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getAutoIncrement(string $entityName): ?int
     {
-        return $this->entityProcessor->getAutoIncrement($entityName);
+        try {
+            return $this->metadataCache->getEntityMetadata($entityName)->autoIncrement;
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**
@@ -109,9 +105,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getColumns(string $entityName): array
     {
-        $this->entityProcessor->initializeColumns($entityName, $this->columnMapping);
-        $columns = $this->entityProcessor->getColumnsMapping()[$entityName] ?? [];
-        return array_values($columns);
+        try {
+            return array_values($this->metadataCache->getPropertiesColumns($entityName));
+        } catch (\Exception) {
+            return [];
+        }
     }
 
     /**
@@ -121,8 +119,11 @@ class DbMapping implements DbMappingInterface
      */
     public function getPropertiesColumns(string $entityName): array
     {
-        $this->entityProcessor->initializeColumns($entityName, $this->columnMapping);
-        return $this->entityProcessor->getColumnsMapping()[$entityName] ?? [];
+        try {
+            return $this->metadataCache->getPropertiesColumns($entityName);
+        } catch (\Exception) {
+            return [];
+        }
     }
 
     /**
@@ -275,80 +276,5 @@ class DbMapping implements DbMappingInterface
     public function getManyToMany(string $entityName): array
     {
         return $this->relationMapping->getManyToMany($entityName);
-    }
-
-    /**
-     * Check if a property is a relation property (OneToOne, ManyToOne, OneToMany, ManyToMany)
-     * Uses an internal cache for performance.
-     *
-     * @param class-string $entityName
-     * @param string $property
-     * @return bool
-     */
-    public function isRelationProperty(string $entityName, string $property): bool
-    {
-        if (!isset($this->relationPropertiesCache[$entityName])) {
-            $relationProps = array_map(static function () {
-                return true;
-            }, $this->getOneToOne($entityName));
-            $relationProps += array_map(static function () {
-                return true;
-            }, $this->getManyToOne($entityName));
-            $relationProps += array_map(static function () {
-                return true;
-            }, $this->getOneToMany($entityName));
-            $relationProps += array_map(static function () {
-                return true;
-            }, $this->getManyToMany($entityName));
-            $this->relationPropertiesCache[$entityName] = $relationProps;
-        }
-        return isset($this->relationPropertiesCache[$entityName][$property]);
-    }
-
-    /**
-     * Get the value of a property using getter if available, otherwise fallback to Reflection.
-     *
-     * @param object $entity
-     * @param string $property
-     * @return mixed
-     */
-    public function getPropertyValue(object $entity, string $property): mixed
-    {
-        try {
-            return $this->propertyAccessor->getValue($entity, $property);
-        } catch (\RuntimeException) {
-            // Fallback to Reflection if no getter exists
-            $reflection = new \ReflectionClass($entity);
-            if ($reflection->hasProperty($property)) {
-                $prop = $reflection->getProperty($property);
-                $prop->setAccessible(true);
-                return $prop->getValue($entity);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Set the value of a property using setter if available, otherwise fallback to Reflection.
-     *
-     * @param object $entity
-     * @param string $property
-     * @param mixed $value
-     * @return void
-     */
-    public function setPropertyValue(object $entity, string $property, mixed $value): void
-    {
-        try {
-            $this->propertyAccessor->setValue($entity, $property, $value);
-        } catch (\RuntimeException) {
-            // Fallback to Reflection if no setter exists
-            $reflection = new \ReflectionClass($entity);
-            if ($reflection->hasProperty($property)) {
-                $prop = $reflection->getProperty($property);
-                $prop->setAccessible(true);
-                $prop->setValue($entity, $value);
-                return;
-            }
-        }
     }
 }

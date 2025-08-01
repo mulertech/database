@@ -30,13 +30,12 @@ class SchemaComparerTest extends TestCase
     
     protected function setUp(): void
     {
-        $this->dbMapping = new DbMapping(
-            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-        );
+        $metadataCache = new MetadataCache();
+        $this->dbMapping = new DbMapping($metadataCache);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
             $this->dbMapping,
-            new MetadataCache(),
+            $metadataCache,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());
     }
