@@ -7,6 +7,7 @@ namespace MulerTech\Database\Core\Cache;
 use Exception;
 use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\EntityProcessor;
+use ReflectionException;
 use RuntimeException;
 
 /**
@@ -21,6 +22,7 @@ final class MetadataCache extends MemoryCache
     /**
      * @param CacheConfig|null $config
      * @param string|null $entitiesPath Automatic loading of entities from this path
+     * @throws Exception
      */
     public function __construct(
         ?CacheConfig $config = null,
@@ -45,6 +47,7 @@ final class MetadataCache extends MemoryCache
      * Load entities from a directory path and cache their metadata
      * @param string $entitiesPath
      * @return void
+     * @throws Exception
      */
     public function loadEntitiesFromPath(string $entitiesPath): void
     {
@@ -208,7 +211,7 @@ final class MetadataCache extends MemoryCache
      * Get EntityMetadata using EntityProcessor for Mt*-only mapping
      * @param class-string $entityClass
      * @return EntityMetadata
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function getEntityMetadata(string $entityClass): EntityMetadata
     {
@@ -239,7 +242,7 @@ final class MetadataCache extends MemoryCache
     {
         $entities = [];
         foreach ($this->cache as $key => $value) {
-            if (str_ends_with($key, ':entity_metadata') && $value instanceof \MulerTech\Database\Mapping\EntityMetadata) {
+            if ($value instanceof EntityMetadata && str_ends_with($key, ':entity_metadata')) {
                 $entities[] = $value->className;
             }
         }
@@ -255,7 +258,7 @@ final class MetadataCache extends MemoryCache
     {
         $tables = [];
         foreach ($this->cache as $key => $value) {
-            if (str_ends_with($key, ':entity_metadata') && $value instanceof \MulerTech\Database\Mapping\EntityMetadata) {
+            if ($value instanceof EntityMetadata && str_ends_with($key, ':entity_metadata')) {
                 $tables[] = $value->tableName;
             }
         }

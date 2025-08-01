@@ -121,6 +121,8 @@ class MigrationTest extends TestCase
      */
     public function testGenerateMigrationAndMigrate(): void
     {
+        $migrationDatetime = '202505011025';
+        $migrationName = '20250501-1025';
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
@@ -130,12 +132,12 @@ class MigrationTest extends TestCase
             $this->dbMapping,
             $this->migrationsDirectory,
 //            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Migrations'
-        )->generateMigration('202505011025');
+        )->generateMigration($migrationDatetime);
 
         $fileContent = file_get_contents($filename);
 
         // Test file creation
-        $this->assertStringContainsString('class Migration202505011025', $fileContent);
+        $this->assertStringContainsString('class Migration' . $migrationDatetime, $fileContent);
         $this->assertStringContainsString('$schema = new SchemaBuilder();', $fileContent);
         $this->assertStringContainsString('$tableDefinition = $schema->createTable("users_test")', $fileContent);
         $this->assertStringContainsString('->column("id")', $fileContent);
@@ -154,7 +156,7 @@ class MigrationTest extends TestCase
         $this->migrationManager->registerMigrations($this->migrationsDirectory);
         $this->migrationManager->migrate();
         $migrations = $this->migrationManager->getMigrations();
-        $this->assertTrue($this->migrationManager->isMigrationExecuted($migrations['20250501-1025']));
+        $this->assertTrue($this->migrationManager->isMigrationExecuted($migrations[$migrationName]));
     }
 
     /**
