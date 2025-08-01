@@ -8,6 +8,7 @@ use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\DbMapping;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Tests\Files\Entity\Group;
@@ -25,18 +26,24 @@ use ReflectionException;
 class DbMappingTest extends TestCase
 {
     /**
-     * @var DbMapping
+     * @var DbMapping|null
      */
-    private DbMapping $dbMapping;
+    private ?DbMapping $dbMapping = null;
 
     /**
      * @return DbMapping
      */
     private function getDbMapping(): DbMapping
     {
-        return $this->dbMapping ?? ($this->dbMapping = new DbMapping(
-            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-        ));
+        if ($this->dbMapping === null) {
+            $metadataCache = new MetadataCache();
+            // Load entities from test directory
+            $metadataCache->loadEntitiesFromPath(
+                dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+            );
+            $this->dbMapping = new DbMapping($metadataCache);
+        }
+        return $this->dbMapping;
     }
 
     /**
@@ -85,7 +92,8 @@ class DbMappingTest extends TestCase
      */
     public function testTablesWithEmptyDirectory(): void
     {
-        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
+        $metadataCache = new MetadataCache();
+        $dbMapping = new DbMapping($metadataCache);
         $this->assertEquals([], $dbMapping->getTables());
     }
 
@@ -107,7 +115,8 @@ class DbMappingTest extends TestCase
      */
     public function testGetEntitiesWithEmptyDirectory(): void
     {
-        $dbMapping = new DbMapping(__DIR__ . '/Files/Entity/EmptyEntity');
+        $metadataCache = new MetadataCache();
+        $dbMapping = new DbMapping($metadataCache);
         $this->assertEquals([], $dbMapping->getEntities());
     }
 

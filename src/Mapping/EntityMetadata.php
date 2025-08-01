@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
+use DateTime;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionMethod;
+use ReflectionNamedType;
 use ReflectionProperty;
 
 /**
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-final class EntityMetadata
+final readonly class EntityMetadata
 {
     /**
      * @param class-string $className
@@ -23,17 +25,20 @@ final class EntityMetadata
      * @param array<string, string> $columns
      * @param array<string, mixed> $foreignKeys
      * @param array<string, array<string, mixed>> $relationships
+     * @param class-string|null $repository
+     * @param int|null $autoIncrement
      */
     public function __construct(
-        public readonly string $className,
-        public readonly string $tableName,
-        public readonly array $properties = [],
-        public readonly array $getters = [],
-        public readonly array $setters = [],
-        public readonly array $columns = [],
-        public readonly array $foreignKeys = [],
-        public readonly array $relationships = [],
-        public readonly ?string $repository = null
+        public string $className,
+        public string $tableName,
+        public array $properties = [],
+        public array $getters = [],
+        public array $setters = [],
+        public array $columns = [],
+        public array $foreignKeys = [],
+        public array $relationships = [],
+        public ?string $repository = null,
+        public ?int $autoIncrement = null
     ) {
     }
 
@@ -179,7 +184,7 @@ final class EntityMetadata
         $prop = $this->getProperty($property);
         if ($prop !== null && $prop->getType() !== null) {
             $reflectionType = $prop->getType();
-            if ($reflectionType instanceof \ReflectionNamedType) {
+            if ($reflectionType instanceof ReflectionNamedType) {
                 $typeName = $reflectionType->getName();
                 // Map PHP types to MySQL ColumnType
                 return match($typeName) {
@@ -188,7 +193,7 @@ final class EntityMetadata
                     'float' => ColumnType::FLOAT,
                     'bool' => ColumnType::TINYINT,
                     'array' => ColumnType::JSON,
-                    'DateTime', '\DateTime' => ColumnType::DATETIME,
+                    'DateTime', DateTime::class => ColumnType::DATETIME,
                     default => null
                 };
             }

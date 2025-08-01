@@ -13,7 +13,6 @@ use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
 use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
-use MulerTech\Database\Mapping\Accessor\PropertyAccessor;
 use ReflectionException;
 
 /**

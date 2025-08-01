@@ -52,6 +52,12 @@ class ForeignKeyMapping
      */
     public function getConstraintName(string $entityName, string $property): ?string
     {
+        // Check if entity is already loaded in cache BEFORE trying to get table name
+        $loadedEntities = $this->dbMapping->getEntities();
+        if (!in_array($entityName, $loadedEntities, true)) {
+            return null;
+        }
+
         $mtFk = $this->getForeignKey($entityName, $property);
 
         if ($mtFk === null || $mtFk->referencedTable === null) {

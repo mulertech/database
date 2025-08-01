@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace MulerTech\Database\Core\Cache;
 
 use Exception;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\EntityProcessor;
-use ReflectionClass;
+use ReflectionException;
 use RuntimeException;
 
 /**
@@ -18,11 +17,16 @@ use RuntimeException;
  */
 final class MetadataCache extends MemoryCache
 {
+    private EntityProcessor $entityProcessor;
+
     /**
      * @param CacheConfig|null $config
+     * @param string|null $entitiesPath Automatic loading of entities from this path
+     * @throws Exception
      */
     public function __construct(
         ?CacheConfig $config = null,
+        ?string $entitiesPath = null,
     ) {
         $metadataConfig = new CacheConfig(
             maxSize: $config->maxSize ?? 50000,
@@ -31,7 +35,29 @@ final class MetadataCache extends MemoryCache
         );
 
         parent::__construct($metadataConfig);
+        $this->entityProcessor = new EntityProcessor();
 
+        // Automatically load entities if path is provided
+        if ($entitiesPath !== null) {
+            $this->loadEntitiesFromPath($entitiesPath);
+        }
+    }
+
+    /**
+     * Load entities from a directory path and cache their metadata
+     * @param string $entitiesPath
+     * @return void
+     * @throws Exception
+     */
+    public function loadEntitiesFromPath(string $entitiesPath): void
+    {
+        $this->entityProcessor->loadEntities($entitiesPath);
+
+        // Now warm up the cache with all discovered entities
+        $tables = $this->entityProcessor->getTables();
+        foreach (array_keys($tables) as $entityClass) {
+            $this->warmUpEntity($entityClass);
+        }
     }
 
     /**
@@ -51,7 +77,7 @@ final class MetadataCache extends MemoryCache
      */
     public function setPermanentMetadata(string $key, mixed $metadata): void
     {
-        $this->set($key, $metadata, 0);
+        $this->set($key, $metadata);
     }
 
     /**
@@ -139,9 +165,6 @@ final class MetadataCache extends MemoryCache
         }
     }
 
-
-
-
     /**
      * @param class-string $entityClass
      * @return string
@@ -169,8 +192,7 @@ final class MetadataCache extends MemoryCache
      */
     public function getTableName(string $entityClass): string
     {
-        $metadata = $this->getEntityMetadata($entityClass);
-        return $metadata->tableName;
+        return $this->getEntityMetadata($entityClass)->tableName;
     }
 
     /**
@@ -181,8 +203,7 @@ final class MetadataCache extends MemoryCache
      */
     public function getPropertiesColumns(string $entityClass): array
     {
-        $metadata = $this->getEntityMetadata($entityClass);
-        return $metadata->getPropertiesColumns();
+        return $this->getEntityMetadata($entityClass)->getPropertiesColumns();
     }
 
 
@@ -190,6 +211,7 @@ final class MetadataCache extends MemoryCache
      * Get EntityMetadata using EntityProcessor for Mt*-only mapping
      * @param class-string $entityClass
      * @return EntityMetadata
+     * @throws ReflectionException
      */
     public function getEntityMetadata(string $entityClass): EntityMetadata
     {
@@ -201,8 +223,7 @@ final class MetadataCache extends MemoryCache
         }
 
         // Use EntityProcessor to build metadata from Mt* attributes
-        $reflection = new ReflectionClass($entityClass);
-        $entityMetadata = $this->buildEntityMetadataFromAttributes($reflection);
+        $entityMetadata = $this->entityProcessor->buildEntityMetadataForClass($entityClass);
 
         $this->setPermanentMetadata($key, $entityMetadata);
 
@@ -213,37 +234,35 @@ final class MetadataCache extends MemoryCache
     }
 
     /**
-     * Build EntityMetadata from Mt* attributes using EntityProcessor logic
-     * @param ReflectionClass<object> $reflection
-     * @return EntityMetadata
+     * Get all loaded entities (from cache only)
+     * Note: This only returns entities that have been loaded into cache
+     * @return array<class-string>
      */
-    private function buildEntityMetadataFromAttributes(ReflectionClass $reflection): EntityMetadata
+    public function getLoadedEntities(): array
     {
-        // Load a temporary EntityProcessor to build metadata
-        $tempProcessor = new EntityProcessor();
-
-        // Use the private buildEntityMetadata method through reflection
-        $method = new \ReflectionMethod($tempProcessor, 'buildEntityMetadata');
-        $method->setAccessible(true);
-
-        $result = $method->invoke($tempProcessor, $reflection);
-        if (!$result instanceof EntityMetadata) {
-            throw new RuntimeException('Failed to build EntityMetadata from EntityProcessor');
+        $entities = [];
+        foreach ($this->cache as $key => $value) {
+            if ($value instanceof EntityMetadata && str_ends_with($key, ':entity_metadata')) {
+                $entities[] = $value->className;
+            }
         }
-
-        return $result;
+        sort($entities);
+        return $entities;
     }
 
     /**
-     * Get the column type for a given property of an entity.
-     *
-     * @param class-string $entityClass
-     * @param string $property
-     * @return \MulerTech\Database\Mapping\Types\ColumnType|null
+     * Get all loaded table names (from cache only)
+     * @return array<string>
      */
-    public function getColumnType(string $entityClass, string $property): ?\MulerTech\Database\Mapping\Types\ColumnType
+    public function getLoadedTables(): array
     {
-        $metadata = $this->getEntityMetadata($entityClass);
-        return $metadata->getColumnType($property);
+        $tables = [];
+        foreach ($this->cache as $key => $value) {
+            if ($value instanceof EntityMetadata && str_ends_with($key, ':entity_metadata')) {
+                $tables[] = $value->tableName;
+            }
+        }
+        sort($tables);
+        return $tables;
     }
 }

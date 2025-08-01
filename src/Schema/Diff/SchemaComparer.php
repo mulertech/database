@@ -240,7 +240,7 @@ class SchemaComparer
         $entityTables = [];
         foreach ($this->dbMapping->getEntities() as $entityClass) {
             $tableName = $this->getCachedTableName($entityClass);
-            if ($tableName) {
+            if ($tableName && $tableName !== 'migration_history') {
                 $entityTables[$tableName] = $entityClass;
             }
         }

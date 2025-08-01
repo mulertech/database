@@ -523,16 +523,16 @@ class EmEngine
     private function ensureCollectionsAreDatabaseCollection(object $entity): void
     {
         $entityClass = $entity::class;
-        $dbMapping = $this->entityManager->getDbMapping();
+        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
 
         // Convert OneToMany collections
-        $oneToManyList = $dbMapping->getOneToMany($entityClass);
+        $oneToManyList = $entityMetadata->getRelationsByType('OneToMany');
         foreach ($oneToManyList as $property => $oneToMany) {
             $this->convertPropertyToeDatabaseCollection($entity, $property);
         }
 
         // Convert ManyToMany collections
-        $manyToManyList = $dbMapping->getManyToMany($entityClass);
+        $manyToManyList = $entityMetadata->getRelationsByType('ManyToMany');
         foreach ($manyToManyList as $property => $manyToMany) {
             $this->convertPropertyToeDatabaseCollection($entity, $property);
         }
@@ -613,15 +613,8 @@ class EmEngine
      */
     private function getTableName(string $entityName): string
     {
-        $tableName = $this->entityManager->getDbMapping()->getTableName($entityName);
-
-        if ($tableName === null) {
-            throw new RuntimeException(
-                sprintf('The entity %s is not mapped in the database', $entityName)
-            );
-        }
-
-        return $tableName;
+        $entityMetadata = $this->metadataCache->getEntityMetadata($entityName);
+        return $entityMetadata->tableName;
     }
 
     /**
@@ -671,8 +664,8 @@ class EmEngine
     {
         try {
             $entityClass = $entity::class;
-            $dbMapping = $this->entityManager->getDbMapping();
-            $propertiesColumns = $dbMapping->getPropertiesColumns($entityClass);
+            $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+            $propertiesColumns = $entityMetadata->getPropertiesColumns();
 
             $reflection = new ReflectionClass($entity);
 
@@ -724,7 +717,17 @@ class EmEngine
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
-        return $this->entityManager->getDbMapping()->isRelationProperty($entityClass, $propertyName);
+        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+
+        // Check all relation types
+        foreach (['OneToOne', 'ManyToOne', 'OneToMany', 'ManyToMany'] as $relationType) {
+            $relations = $entityMetadata->getRelationsByType($relationType);
+            if (isset($relations[$propertyName])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
