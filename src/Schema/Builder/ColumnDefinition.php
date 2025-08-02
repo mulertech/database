@@ -288,10 +288,10 @@ class ColumnDefinition
         $sql = "`$this->name` {$this->mtColumn->columnType->value}";
 
         // Add length/precision
-        if ($this->mtColumn->length !== null && $this->mtColumn->scale !== null) {
-            $sql .= "({$this->mtColumn->length},{$this->mtColumn->scale})";
-        } elseif ($this->mtColumn->length !== null) {
-            $sql .= "({$this->mtColumn->length})";
+        if ($this->mtColumn->length !== null) {
+            $sql .= $this->mtColumn->scale !== null
+                ? "({$this->mtColumn->length},{$this->mtColumn->scale})"
+                : "({$this->mtColumn->length})";
         }
 
         // Add enum/set values

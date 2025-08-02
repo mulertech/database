@@ -67,10 +67,10 @@ class EntityHydrator implements EntityHydratorInterface
                 $setter = $metadata->getSetter($property);
                 if ($setter !== null) {
                     $entity->$setter($processedValue);
-                } else {
-                    // Defensive fallback: direct property access if no setter
-                    $entity->$property = $processedValue;
+                    continue;
                 }
+
+                $entity->$property = $processedValue;
             }
         } catch (Exception $e) {
             throw HydrationException::failedToHydrateEntity($entityName, $e);
@@ -84,6 +84,7 @@ class EntityHydrator implements EntityHydratorInterface
      *
      * @param object $entity
      * @return array<string, mixed>
+     * @throws ReflectionException
      */
     public function extract(object $entity): array
     {
@@ -96,9 +97,10 @@ class EntityHydrator implements EntityHydratorInterface
                 $getter = $metadata->getGetter($propertyName);
                 if ($getter !== null) {
                     $data[$columnName] = $entity->$getter();
-                } else {
-                    $data[$columnName] = $entity->$propertyName ?? null;
+                    continue;
                 }
+
+                $data[$columnName] = $entity->$propertyName ?? null;
             } catch (Error|Exception) {
                 $data[$columnName] = null;
             }
@@ -138,12 +140,10 @@ class EntityHydrator implements EntityHydratorInterface
      */
     private function isRelationProperty(EntityMetadata $metadata, string $propertyName): bool
     {
-        foreach (['OneToOne', 'ManyToOne'] as $type) {
-            if (isset($metadata->getRelationsByType($type)[$propertyName])) {
-                return true;
-            }
-        }
-        return false;
+        return array_any(
+            ['OneToOne', 'ManyToOne'],
+            static fn ($type) => isset($metadata->getRelationsByType($type)[$propertyName])
+        );
     }
 
     /**

@@ -47,9 +47,10 @@ class LinkEntityManager
 
         if ($action === 'delete') {
             $this->processDeleteOperation($manyToMany, $entity, $relatedEntity);
-        } else {
-            $this->processInsertOperation($manyToMany, $entity, $relatedEntity);
+            return;
         }
+
+        $this->processInsertOperation($manyToMany, $entity, $relatedEntity);
     }
 
     /**

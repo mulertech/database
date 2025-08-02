@@ -328,12 +328,9 @@ class MigrationStatementGenerator
         $code = '$tableDefinition->column("' . $columnName . '")';
 
         $columnTypeDefinition = $dbMapping->getColumnTypeDefinition($entityClass, $property);
-        if ($columnTypeDefinition) {
-            $typeConverter = new SqlTypeConverter();
-            $code .= $typeConverter->convertToBuilderMethod($columnTypeDefinition);
-        } else {
-            $code .= '->string()';
-        }
+        $code .= $columnTypeDefinition
+            ? new SqlTypeConverter()->convertToBuilderMethod($columnTypeDefinition)
+            : '->string()';
 
         $this->addColumnConstraints($code, $entityClass, $property, $dbMapping);
 
