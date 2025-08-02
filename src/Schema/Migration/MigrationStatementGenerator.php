@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\ColumnMapping;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 use RuntimeException;
@@ -18,23 +19,29 @@ use RuntimeException;
  */
 class MigrationStatementGenerator
 {
+    private readonly ColumnMapping $columnMapping;
+
+    public function __construct()
+    {
+        $this->columnMapping = new ColumnMapping();
+    }
     /**
      * Generate code to create a table with all its columns
      *
      * @param string $tableName
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @return string
      * @throws ReflectionException
      */
-    public function generateCreateTableStatement(string $tableName, DbMappingInterface $dbMapping): string
+    public function generateCreateTableStatement(string $tableName, MetadataCache $metadataCache): string
     {
-        $entityClass = $this->findEntityClassForTable($tableName, $dbMapping);
+        $entityClass = $this->findEntityClassForTable($tableName, $metadataCache);
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '        $tableDefinition = $schema->createTable("' . $tableName . '");';
 
-        $this->addColumnDefinitions($code, $entityClass, $dbMapping);
+        $this->addColumnDefinitions($code, $entityClass, $metadataCache);
         $this->addTableConfiguration($code);
         $this->addExecutionCode($code);
 
@@ -252,14 +259,14 @@ class MigrationStatementGenerator
 
     /**
      * @param string $tableName
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @return class-string
      * @throws ReflectionException
      */
-    private function findEntityClassForTable(string $tableName, DbMappingInterface $dbMapping): string
+    private function findEntityClassForTable(string $tableName, MetadataCache $metadataCache): string
     {
-        foreach ($dbMapping->getEntities() as $entity) {
-            if ($dbMapping->getTableName($entity) === $tableName) {
+        foreach ($metadataCache->getLoadedEntities() as $entity) {
+            if ($metadataCache->getTableName($entity) === $tableName) {
                 return $entity;
             }
         }
@@ -269,22 +276,23 @@ class MigrationStatementGenerator
     /**
      * @param array<string> &$code
      * @param class-string $entityClass
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @return void
      * @throws ReflectionException
      */
-    private function addColumnDefinitions(array &$code, string $entityClass, DbMappingInterface $dbMapping): void
+    private function addColumnDefinitions(array &$code, string $entityClass, MetadataCache $metadataCache): void
     {
-        foreach ($dbMapping->getPropertiesColumns($entityClass) as $property => $columnName) {
+        $propertiesColumns = $metadataCache->getPropertiesColumns($entityClass);
+        foreach ($propertiesColumns as $property => $columnName) {
             $columnDefinitionCode = $this->generateColumnDefinitionFromMapping(
                 $entityClass,
                 $property,
                 $columnName,
-                $dbMapping
+                $metadataCache
             );
             $code[] = '        ' . $columnDefinitionCode;
 
-            if ($dbMapping->getColumnKey($entityClass, $property) === 'PRI') {
+            if ($this->columnMapping->getColumnKey($entityClass, $property) === 'PRI') {
                 $code[] = '        $tableDefinition->primaryKey("' . $columnName . '");';
             }
         }
@@ -315,7 +323,7 @@ class MigrationStatementGenerator
      * @param class-string $entityClass
      * @param string $property
      * @param string $columnName
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @return string
      * @throws ReflectionException
      */
@@ -323,16 +331,16 @@ class MigrationStatementGenerator
         string $entityClass,
         string $property,
         string $columnName,
-        DbMappingInterface $dbMapping
+        MetadataCache $metadataCache
     ): string {
         $code = '$tableDefinition->column("' . $columnName . '")';
 
-        $columnTypeDefinition = $dbMapping->getColumnTypeDefinition($entityClass, $property);
+        $columnTypeDefinition = $this->columnMapping->getColumnTypeDefinition($entityClass, $property);
         $code .= $columnTypeDefinition
             ? new SqlTypeConverter()->convertToBuilderMethod($columnTypeDefinition)
             : '->string()';
 
-        $this->addColumnConstraints($code, $entityClass, $property, $dbMapping);
+        $this->addColumnConstraints($code, $entityClass, $property, $metadataCache);
 
         return $code . ';';
     }
@@ -342,7 +350,7 @@ class MigrationStatementGenerator
      * @param string &$code
      * @param class-string $entityClass
      * @param string $property
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @return void
      * @throws ReflectionException
      */
@@ -350,18 +358,18 @@ class MigrationStatementGenerator
         string &$code,
         string $entityClass,
         string $property,
-        DbMappingInterface $dbMapping
+        MetadataCache $metadataCache
     ): void {
-        if ($dbMapping->isNullable($entityClass, $property) === false) {
+        if ($this->columnMapping->isNullable($entityClass, $property) === false) {
             $code .= '->notNull()';
         }
 
-        $columnDefault = $dbMapping->getColumnDefault($entityClass, $property);
+        $columnDefault = $this->columnMapping->getColumnDefault($entityClass, $property);
         if ($columnDefault !== null && $columnDefault !== '') {
             $code .= '->default("' . addslashes($columnDefault) . '")';
         }
 
-        $columnExtra = $dbMapping->getExtra($entityClass, $property);
+        $columnExtra = $this->columnMapping->getExtra($entityClass, $property);
         if ($columnExtra && str_contains($columnExtra, 'auto_increment')) {
             $code .= '->autoIncrement()';
         }

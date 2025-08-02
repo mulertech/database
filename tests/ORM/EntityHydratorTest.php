@@ -22,9 +22,9 @@ class EntityHydratorTest extends TestCase
     }
 
     /**
-     * Test hydration with DbMapping and setters
+     * Test hydration with entity metadata and setters
      */
-    public function testHydrateWithDbMappingAndSetters(): void
+    public function testHydrateWithEntityMetadataAndSetters(): void
     {
         $data = [
             'id' => '42',
@@ -42,7 +42,7 @@ class EntityHydratorTest extends TestCase
     }
 
     /**
-     * Test hydration with invalid column type in DbMapping
+     * Test hydration with invalid column type in entity metadata
      */
     public function testHydrateWithInvalidColumnType(): void
     {

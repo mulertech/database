@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 use RuntimeException;
@@ -12,7 +12,7 @@ use RuntimeException;
 readonly class ForeignKeyComparer
 {
     public function __construct(
-        private DbMappingInterface $dbMapping
+        private MetadataCache $metadataCache
     ) {
     }
 
@@ -81,7 +81,7 @@ readonly class ForeignKeyComparer
                 || $foreignKeyInfo['referencedColumn'] === null
             ) {
                 throw new RuntimeException(
-                    "Foreign key for $entityClass::$property is not fully defined in DbMapping"
+                    "Foreign key for $entityClass::$property is not fully defined in entity metadata"
                 );
             }
 
@@ -186,18 +186,51 @@ readonly class ForeignKeyComparer
      */
     private function getForeignKeyInfo(string $entityClass, string $property): ?array
     {
-        $foreignKey = $this->dbMapping->getForeignKey($entityClass, $property);
+        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $foreignKey = $metadata->getForeignKey($property);
+
         if ($foreignKey === null) {
             return null;
         }
 
+        // Validate that foreignKey is an array
+        if (!is_array($foreignKey)) {
+            return null;
+        }
+
+        // Generate constraint name if not provided
+        $constraintName = is_string($foreignKey['constraintName'] ?? null) ? $foreignKey['constraintName'] : null;
+        $referencedTable = is_string($foreignKey['referencedTable'] ?? null) ? $foreignKey['referencedTable'] : null;
+        if ($constraintName === null && !empty($referencedTable)) {
+            $tableName = $this->metadataCache->getTableName($entityClass);
+            $columnName = $metadata->getColumnName($property);
+            $constraintName = sprintf(
+                "fk_%s_%s_%s",
+                strtolower($tableName ?: ''),
+                strtolower($columnName ?: ''),
+                strtolower($referencedTable)
+            );
+        }
+
+        $referencedColumn = is_string($foreignKey['referencedColumn'] ?? null) ? $foreignKey['referencedColumn'] : null;
+
+        $deleteRule = null;
+        if (isset($foreignKey['deleteRule']) && $foreignKey['deleteRule'] instanceof FkRule) {
+            $deleteRule = $foreignKey['deleteRule'];
+        }
+
+        $updateRule = null;
+        if (isset($foreignKey['updateRule']) && $foreignKey['updateRule'] instanceof FkRule) {
+            $updateRule = $foreignKey['updateRule'];
+        }
+
         return [
             'foreignKey' => $foreignKey,
-            'constraintName' => $this->dbMapping->getConstraintName($entityClass, $property),
-            'referencedTable' => $this->dbMapping->getReferencedTable($entityClass, $property),
-            'referencedColumn' => $this->dbMapping->getReferencedColumn($entityClass, $property),
-            'deleteRule' => $this->dbMapping->getDeleteRule($entityClass, $property),
-            'updateRule' => $this->dbMapping->getUpdateRule($entityClass, $property),
+            'constraintName' => $constraintName,
+            'referencedTable' => $referencedTable,
+            'referencedColumn' => $referencedColumn,
+            'deleteRule' => $deleteRule,
+            'updateRule' => $updateRule,
         ];
     }
 }

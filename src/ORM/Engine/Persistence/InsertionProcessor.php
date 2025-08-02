@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\InsertBuilder;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -24,11 +24,11 @@ readonly class InsertionProcessor
 {
     /**
      * @param EntityManagerInterface $entityManager
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private DbMappingInterface $dbMapping
+        private MetadataCache $metadataCache
     ) {
     }
 
@@ -144,9 +144,9 @@ readonly class InsertionProcessor
      */
     private function getTableName(string $entityName): string
     {
-        $tableName = $this->dbMapping->getTableName($entityName);
+        $tableName = $this->metadataCache->getTableName($entityName);
 
-        if ($tableName === null) {
+        if ($tableName === null) { // @phpstan-ignore-line
             throw new RuntimeException(
                 sprintf('The entity %s is not mapped in the database', $entityName)
             );
@@ -163,7 +163,7 @@ readonly class InsertionProcessor
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
     {
-        $propertiesColumns = $this->dbMapping->getPropertiesColumns($entityName);
+        $propertiesColumns = $this->metadataCache->getPropertiesColumns($entityName);
 
         if (!$keepId && isset($propertiesColumns['id'])) {
             unset($propertiesColumns['id']);

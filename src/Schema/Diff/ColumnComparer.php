@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Mapping\ColumnMapping;
 use ReflectionException;
 use RuntimeException;
 
@@ -16,9 +16,11 @@ use RuntimeException;
  */
 readonly class ColumnComparer
 {
-    public function __construct(
-        private DbMappingInterface $dbMapping
-    ) {
+    private ColumnMapping $columnMapping;
+
+    public function __construct()
+    {
+        $this->columnMapping = new ColumnMapping();
     }
 
     /**
@@ -87,7 +89,7 @@ readonly class ColumnComparer
 
             if ($columnInfo['COLUMN_TYPE'] === null) {
                 throw new RuntimeException(
-                    "Column type for $entityClass::$property is not defined in DbMapping"
+                    "Column type for $entityClass::$property is not defined in entity metadata"
                 );
             }
 
@@ -131,7 +133,7 @@ readonly class ColumnComparer
 
             if ($entityColumnInfo['COLUMN_TYPE'] === null) {
                 throw new RuntimeException(
-                    "Column type for $entityClass::$property is not defined in DbMapping"
+                    "Column type for $entityClass::$property is not defined in entity metadata"
                 );
             }
 
@@ -190,11 +192,11 @@ readonly class ColumnComparer
     private function getColumnInfo(string $entityClass, string $property): array
     {
         return [
-            'COLUMN_TYPE' => $this->dbMapping->getColumnTypeDefinition($entityClass, $property),
-            'IS_NULLABLE' => $this->dbMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
-            'COLUMN_DEFAULT' => $this->dbMapping->getColumnDefault($entityClass, $property),
-            'EXTRA' => $this->dbMapping->getExtra($entityClass, $property),
-            'COLUMN_KEY' => $this->dbMapping->getColumnKey($entityClass, $property),
+            'COLUMN_TYPE' => $this->columnMapping->getColumnTypeDefinition($entityClass, $property),
+            'IS_NULLABLE' => $this->columnMapping->isNullable($entityClass, $property) === false ? 'NO' : 'YES',
+            'COLUMN_DEFAULT' => $this->columnMapping->getColumnDefault($entityClass, $property),
+            'EXTRA' => $this->columnMapping->getExtra($entityClass, $property),
+            'COLUMN_KEY' => $this->columnMapping->getColumnKey($entityClass, $property),
         ];
     }
 

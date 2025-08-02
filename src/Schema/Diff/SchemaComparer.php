@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Schema\Information\InformationSchema;
 use ReflectionException;
 use RuntimeException;
@@ -40,16 +40,16 @@ class SchemaComparer
 
     /**
      * @param InformationSchema $informationSchema
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @param string $databaseName
      */
     public function __construct(
         private readonly InformationSchema $informationSchema,
-        private readonly DbMappingInterface $dbMapping,
+        private readonly MetadataCache $metadataCache,
         private readonly string $databaseName
     ) {
-        $this->columnComparer = new ColumnComparer($dbMapping);
-        $this->foreignKeyComparer = new ForeignKeyComparer($dbMapping);
+        $this->columnComparer = new ColumnComparer();
+        $this->foreignKeyComparer = new ForeignKeyComparer($metadataCache);
     }
 
     /**
@@ -61,7 +61,7 @@ class SchemaComparer
     private function getCachedPropertiesColumns(string $entityClass): array
     {
         if (!isset($this->propertiesColumnsCache[$entityClass])) {
-            $this->propertiesColumnsCache[$entityClass] = $this->dbMapping->getPropertiesColumns($entityClass);
+            $this->propertiesColumnsCache[$entityClass] = $this->metadataCache->getPropertiesColumns($entityClass);
         }
         return $this->propertiesColumnsCache[$entityClass];
     }
@@ -69,13 +69,13 @@ class SchemaComparer
     /**
      * Get cached table name for entity class
      * @param class-string $entityClass
-     * @return string|null
+     * @return string
      * @throws ReflectionException
      */
-    private function getCachedTableName(string $entityClass): ?string
+    private function getCachedTableName(string $entityClass): string
     {
         if (!isset($this->tableNameCache[$entityClass])) {
-            $this->tableNameCache[$entityClass] = $this->dbMapping->getTableName($entityClass);
+            $this->tableNameCache[$entityClass] = $this->metadataCache->getTableName($entityClass);
         }
         return $this->tableNameCache[$entityClass];
     }
@@ -161,7 +161,7 @@ class SchemaComparer
 
         // Get all entity tables
         $entityTables = [];
-        foreach ($this->dbMapping->getEntities() as $entityClass) {
+        foreach ($this->metadataCache->getLoadedEntities() as $entityClass) {
             $tableName = $this->getCachedTableName($entityClass);
             if ($tableName && $tableName !== 'migration_history') {
                 $entityTables[$tableName] = $entityClass;
@@ -172,7 +172,7 @@ class SchemaComparer
         foreach ($entityTables as $tableName => $entityClass) {
             if (!$this->getTableInfo($tableName)) {
                 // Validate that the table has columns before adding it
-                $columns = $this->dbMapping->getColumns($entityClass);
+                $columns = $this->metadataCache->getPropertiesColumns($entityClass);
                 if (empty($columns)) {
                     throw new RuntimeException("Table '$tableName' has no columns defined.");
                 }
@@ -222,5 +222,4 @@ class SchemaComparer
 
         return $diff;
     }
-
 }

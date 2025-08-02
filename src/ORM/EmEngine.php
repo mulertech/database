@@ -333,7 +333,7 @@ class EmEngine
             $this->changeDetector
         );
 
-        // EntityHydrator needs DbMapping
+        // EntityHydrator uses MetadataCache
         $this->hydrator = new EntityHydrator($this->metadataCache);
     }
 
@@ -437,7 +437,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getDbMapping());
+            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getMetadataCache());
         }
 
         return $instance;
@@ -453,7 +453,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getDbMapping());
+            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getMetadataCache());
         }
 
         return $instance;
@@ -469,7 +469,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getDbMapping());
+            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getMetadataCache());
         }
 
         return $instance;

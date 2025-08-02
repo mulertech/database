@@ -56,11 +56,11 @@ class MigrationManager
     {
         // Create the migration history table if it doesn't exist
         // Using low-level approach to avoid circular dependencies
-        $dbMapping = $this->entityManager->getDbMapping();
+        $metadataCache = $this->entityManager->getMetadataCache();
         $emEngine = $this->entityManager->getEmEngine();
 
-        $tableName = $dbMapping->getTableName($this->migrationHistory);
-        if ($tableName === null) {
+        $tableName = $metadataCache->getTableName($this->migrationHistory);
+        if ($tableName === null) { // @phpstan-ignore-line
             // If migration history is not in the main mapping, use default table name
             $tableName = 'migration_history';
         }
@@ -303,9 +303,9 @@ class MigrationManager
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $tableName = $this->entityManager->getDbMapping()->getTableName($this->migrationHistory);
+        $tableName = $this->entityManager->getMetadataCache()->getTableName($this->migrationHistory);
 
-        if ($tableName === null) {
+        if ($tableName === null) { // @phpstan-ignore-line
             // If migration history is not in the main mapping, use default table name
             $tableName = 'migration_history';
         }

@@ -94,7 +94,7 @@ final class MetadataCacheTest extends TestCase
         $this->assertTrue($this->cache->isWarmedUp('TestEntity'));
     }
 
-    public function testGetTableNameWithoutDbMapping(): void
+    public function testGetTableNameWithEntityProcessor(): void
     {
         $cache = new MetadataCache();
         
@@ -112,7 +112,7 @@ final class MetadataCacheTest extends TestCase
         $this->assertEquals('users_test', $result);
     }
 
-    public function testGetPropertiesColumnsWithoutDbMapping(): void
+    public function testGetPropertiesColumnsWithEntityProcessor(): void
     {
         $cache = new MetadataCache();
         
@@ -195,7 +195,7 @@ final class MetadataCacheTest extends TestCase
         $this->assertEquals(['column' => 'entity_title'], $this->cache->get('property:AnotherEntity:title'));
     }
 
-    public function testWithDbMappingAndHelpers(): void
+    public function testMetadataCacheInstanceCreation(): void
     {
         $cache = new MetadataCache();
         

@@ -6,7 +6,6 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
-use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
@@ -22,7 +21,6 @@ use RuntimeException;
 
 class MigrationTest extends TestCase
 {
-    private DbMapping $dbMapping;
     private EntityManager $entityManager;
     private string $migrationsDirectory;
     private string $databaseName = 'db';
@@ -40,10 +38,8 @@ class MigrationTest extends TestCase
         $metadataCache = new MetadataCache(null, $entitiesPath);
         // Also load system entities like MigrationHistory
         $metadataCache->getEntityMetadata(MigrationHistory::class);
-        $this->dbMapping = new DbMapping($metadataCache);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $this->dbMapping,
             $metadataCache,
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
@@ -54,7 +50,7 @@ class MigrationTest extends TestCase
         // Utilisation des vraies classes pour comparer et mapping
         $this->schemaComparer = new SchemaComparer(
             new InformationSchema($this->entityManager->getEmEngine()),
-            $this->entityManager->getDbMapping(),
+            $this->entityManager->getMetadataCache(),
             $this->databaseName
         );
         $this->migrationManager = new MigrationManager($this->entityManager);
@@ -89,10 +85,10 @@ class MigrationTest extends TestCase
         new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )
             ->generateMigration('invalid-datetime');
@@ -108,10 +104,10 @@ class MigrationTest extends TestCase
         new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $nonExistentDir,
         );
     }
@@ -126,10 +122,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
 //            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Migrations'
         )->generateMigration($migrationDatetime);
@@ -167,10 +163,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011025');
 
@@ -183,10 +179,10 @@ class MigrationTest extends TestCase
         $this->assertNull(new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011506'));
     }
@@ -203,10 +199,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011026');
 
@@ -230,10 +226,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -260,10 +256,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -290,10 +286,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -320,10 +316,10 @@ class MigrationTest extends TestCase
         $filename = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
-                $this->entityManager->getDbMapping(),
+                $this->entityManager->getMetadataCache(),
                 $this->databaseName
             ),
-            $this->dbMapping,
+            $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
         )->generateMigration('202505011024');
 
@@ -348,20 +344,7 @@ class MigrationTest extends TestCase
         $schemaDifference->addTableToCreate('empty_table', 'EmptyEntity');
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        // Mock DbMapping pour retourner aucune colonne
-        $dbMapping = $this->getMockBuilder(DbMapping::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getPropertiesColumns'])
-            ->getMock();
-        $dbMapping->method('getPropertiesColumns')->with('EmptyEntity')->willReturn([]);
-
-        // On injecte le mock de dbMapping dans le SchemaComparer utilisé par MigrationGenerator
-        if (new ReflectionClass($schemaComparer)->hasProperty('dbMapping')) {
-            $dbMappingProperty = new ReflectionClass($schemaComparer)->getProperty('dbMapping');
-            $dbMappingProperty->setValue($schemaComparer, $dbMapping);
-        }
-
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataCache(), $this->migrationsDirectory);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Could not find entity class for table 'empty_table'");
@@ -389,7 +372,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
-        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
+        $migrationGenerator = new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataCache(), $this->migrationsDirectory);
 
         $filePath = $migrationGenerator->generateMigration($this->migrationDatetime);
 
@@ -423,7 +406,7 @@ class MigrationTest extends TestCase
         ]);
         $schemaComparer->method('compare')->willReturn($schemaDifference);
 
-        $generator = new MigrationGenerator($schemaComparer, $this->dbMapping, $this->migrationsDirectory);
+        $generator = new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataCache(), $this->migrationsDirectory);
         $filename = $generator->generateMigration($this->migrationDatetime);
 
         $fileContent = file_get_contents($filename);
@@ -477,7 +460,7 @@ class MigrationTest extends TestCase
             )'
         );
 
-        $filename = new MigrationGenerator($this->schemaComparer, $this->dbMapping, $this->migrationsDirectory)
+        $filename = new MigrationGenerator($this->schemaComparer, $this->entityManager->getMetadataCache(), $this->migrationsDirectory)
             ->generateMigration('202505011030');
 
         $fileContent = file_get_contents($filename);

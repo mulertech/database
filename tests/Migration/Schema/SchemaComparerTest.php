@@ -6,8 +6,6 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
-use MulerTech\Database\Mapping\DbMapping;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Information\InformationSchema;
@@ -23,7 +21,6 @@ use RuntimeException;
 
 class SchemaComparerTest extends TestCase
 {
-    private DbMappingInterface $dbMapping;
     private EntityManager $entityManager;
     private InformationSchema $informationSchema;
     private string $databaseName = 'db';
@@ -33,10 +30,8 @@ class SchemaComparerTest extends TestCase
         // Create MetadataCache with automatic entity loading from test directory
         $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataCache = new MetadataCache(null, $entitiesPath);
-        $this->dbMapping = new DbMapping($metadataCache);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $this->dbMapping,
             $metadataCache,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());
@@ -80,7 +75,7 @@ class SchemaComparerTest extends TestCase
     public function testCompareFindsNewTables(): void
     {
         // Database has no tables
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
         $this->assertTrue($diff->hasDifferences());
         $this->assertEquals([
@@ -102,7 +97,7 @@ class SchemaComparerTest extends TestCase
             'CREATE TABLE IF NOT EXISTS fake (id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT)'
         );
         // Database has a table that should be removed
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
         $this->assertTrue($diff->hasDifferences());
         $this->assertEquals(['fake'], $diff->getTablesToDrop());
@@ -115,7 +110,7 @@ class SchemaComparerTest extends TestCase
             'CREATE TABLE IF NOT EXISTS migration_history (id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT)'
         );
         // Database has migration_history table
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
         $this->assertFalse($diff->hasDifferences());
         $this->assertEmpty($diff->getTablesToCreate());
@@ -126,7 +121,7 @@ class SchemaComparerTest extends TestCase
     {
         $this->createTablesWithMissingColumns();
 
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
 
         $this->assertTrue($diff->hasDifferences());
@@ -143,7 +138,7 @@ class SchemaComparerTest extends TestCase
     {
         $this->createTablesWithDifferentColumns();
 
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
 
         $this->assertTrue($diff->hasDifferences());
@@ -166,7 +161,7 @@ class SchemaComparerTest extends TestCase
     {
         $this->createTablesWithExtraColumns();
 
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
 
         $this->assertTrue($diff->hasDifferences());
@@ -184,7 +179,7 @@ class SchemaComparerTest extends TestCase
     {
         $this->createTablesWithoutForeignKeys();
 
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
 
         $this->assertTrue($diff->hasDifferences());
@@ -203,7 +198,7 @@ class SchemaComparerTest extends TestCase
     {
         $this->createTablesWithExtraForeignKeys();
 
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->dbMapping, $this->databaseName);
+        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
         $diff = $schemaComparer->compare();
 
         $this->assertTrue($diff->hasDifferences());

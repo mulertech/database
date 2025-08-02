@@ -10,7 +10,6 @@ use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -21,11 +20,8 @@ use RuntimeException;
 
 class EntityRelationLoader
 {
-    private DbMappingInterface $dbMapping;
-
     public function __construct(private readonly EntityManagerInterface $entityManager)
     {
-        $this->dbMapping = $entityManager->getDbMapping();
     }
 
     /**
@@ -39,9 +35,14 @@ class EntityRelationLoader
         /** @var class-string $entityName */
         $entityName = get_class($entity);
         $entitiesToLoad = [];
+        $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
 
-        if (!empty($entityOneToOne = $this->dbMapping->getOneToOne($entityName))) {
+        if (!empty($entityOneToOne = $metadata->getRelationsByType('OneToOne'))) {
             foreach ($entityOneToOne as $property => $oneToOne) {
+                if (!is_array($oneToOne)) {
+                    continue;
+                }
+                /** @var array<string, mixed> $oneToOne */
                 $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
                 if ($result !== null) {
                     $entitiesToLoad[] = $result;
@@ -49,15 +50,23 @@ class EntityRelationLoader
             }
         }
 
-        if (!empty($entityOneToMany = $this->dbMapping->getOneToMany($entityName))) {
+        if (!empty($entityOneToMany = $metadata->getRelationsByType('OneToMany'))) {
             foreach ($entityOneToMany as $property => $oneToMany) {
+                if (!is_array($oneToMany)) {
+                    continue;
+                }
+                /** @var array<string, mixed> $oneToMany */
                 $result = $this->loadOneToMany($entity, $oneToMany, $property);
                 $entitiesToLoad[] = $result;
             }
         }
 
-        if (!empty($entityManyToOne = $this->dbMapping->getManyToOne($entityName))) {
+        if (!empty($entityManyToOne = $metadata->getRelationsByType('ManyToOne'))) {
             foreach ($entityManyToOne as $property => $manyToOne) {
+                if (!is_array($manyToOne)) {
+                    continue;
+                }
+                /** @var array<string, mixed> $manyToOne */
                 $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
                 if ($result !== null) {
                     $entitiesToLoad[] = $result;
@@ -65,8 +74,12 @@ class EntityRelationLoader
             }
         }
 
-        if (!empty($entityManyToMany = $this->dbMapping->getManyToMany($entityName))) {
+        if (!empty($entityManyToMany = $metadata->getRelationsByType('ManyToMany'))) {
             foreach ($entityManyToMany as $property => $manyToMany) {
+                if (!is_array($manyToMany)) {
+                    continue;
+                }
+                /** @var array<string, mixed> $manyToMany */
                 $result = $this->loadManyToMany($entity, $manyToMany, $property);
                 $entitiesToLoad[] = $result;
             }
@@ -77,7 +90,7 @@ class EntityRelationLoader
 
     /**
      * @param object $entity
-     * @param MtOneToOne|MtManyToOne $relation
+     * @param array<string, mixed> $relation
      * @param string $property
      * @param array<string, mixed> $entityData
      * @return object|null
@@ -85,7 +98,7 @@ class EntityRelationLoader
      */
     private function loadSingleRelation(
         object $entity,
-        MtOneToOne|MtManyToOne $relation,
+        array $relation,
         string $property,
         array $entityData
     ): ?object {
@@ -132,12 +145,12 @@ class EntityRelationLoader
 
     /**
      * @param object $entity
-     * @param MtOneToMany $oneToMany
+     * @param array<string, mixed> $oneToMany
      * @param string $property
      * @return Collection<int, object>
      * @throws ReflectionException
      */
-    private function loadOneToMany(object $entity, MtOneToMany $oneToMany, string $property): Collection
+    private function loadOneToMany(object $entity, array $oneToMany, string $property): Collection
     {
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
         $setter = 'set' . ucfirst($property);
@@ -158,10 +171,17 @@ class EntityRelationLoader
         $targetEntity = $this->getTargetEntity($entityClass, $oneToMany, $property);
 
         // 'mappedBy' on MtOneToMany is the property name on the target entity
-        $mappedByProperty = $oneToMany->inverseJoinProperty;
+        $mappedByProperty = $oneToMany['inverseJoinProperty'] ?? null;
         if (empty($mappedByProperty)) {
             throw new RuntimeException(sprintf(
                 'The "mappedBy" attribute is not defined for the OneToMany relation "%s" on entity "%s".',
+                $property,
+                $entityClass
+            ));
+        }
+        if (!is_string($mappedByProperty)) {
+            throw new RuntimeException(sprintf(
+                'The "mappedBy" attribute must be a string for the OneToMany relation "%s" on entity "%s".',
                 $property,
                 $entityClass
             ));
@@ -189,12 +209,12 @@ class EntityRelationLoader
 
     /**
      * @param object $entity
-     * @param MtManyToMany $relation
+     * @param array<string, mixed> $relation
      * @param string $property
      * @return Collection<int, object>
      * @throws ReflectionException
      */
-    private function loadManyToMany(object $entity, MtManyToMany $relation, string $property): Collection
+    private function loadManyToMany(object $entity, array $relation, string $property): Collection
     {
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
         $setter = 'set' . ucfirst($property);
@@ -238,7 +258,7 @@ class EntityRelationLoader
         $results = $statement->fetchAll(PDO::FETCH_ASSOC);
         $statement->closeCursor();
 
-        $relation->entity = get_class($entity);
+        $relation['entity'] = get_class($entity);
 
         if (!empty($results)) {
             // Create managed entities from the results
@@ -296,7 +316,8 @@ class EntityRelationLoader
      */
     private function getTableName(string $entityName): string
     {
-        if (null === $tableName = $this->dbMapping->getTableName($entityName)) {
+        $tableName = $this->entityManager->getMetadataCache()->getTableName($entityName);
+        if ($tableName === null) { // @phpstan-ignore-line
             throw new RuntimeException(
                 sprintf(
                     'Table name is not defined for the class "%s". Please check the mapping configuration.',
@@ -314,7 +335,8 @@ class EntityRelationLoader
      */
     private function getColumnName(string $entityName, string $property): string
     {
-        if (null === $columnName = $this->dbMapping->getColumnName($entityName, $property)) {
+        $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+        if (null === $columnName = $metadata->getColumnName($property)) {
             throw new RuntimeException(
                 sprintf(
                     'Column name is not defined for the class "%s" and property "%s". Please check the mapping configuration.',
@@ -329,21 +351,21 @@ class EntityRelationLoader
 
     /**
      * @param string $sourceEntityClass
-     * @param MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relationAttribute
+     * @param array<string, mixed> $relationData
      * @param string $propertyName
      * @return class-string
      */
     private function getTargetEntity(
         string $sourceEntityClass, // Changed signature to match usage
-        MtOneToOne|MtManyToOne|MtOneToMany|MtManyToMany $relationAttribute, // Changed signature
+        array $relationData, // Changed signature to accept array
         string $propertyName // Changed signature
     ): string {
-        /** @var class-string $target */
-        $target = $relationAttribute->targetEntity;
-        if (!class_exists($target)) {
+        $target = $relationData['targetEntity'] ?? '';
+        if (!is_string($target) || $target === '' || !class_exists($target)) {
+            $targetStr = is_string($target) ? $target : gettype($target);
             throw new RuntimeException(sprintf(
                 'Target entity class "%s" for relation "%s" on entity "%s" does not exist.',
-                $target,
+                $targetStr,
                 $propertyName,
                 $sourceEntityClass
             ));
@@ -353,13 +375,14 @@ class EntityRelationLoader
 
     /**
      * @param class-string $entity
-     * @param MtOneToMany|MtManyToMany $relation
+     * @param array<string, mixed> $relation
      * @param string $property
      * @return string
      */
-    private function getInverseJoinProperty(string $entity, MtOneToMany|MtManyToMany $relation, string $property): string
+    private function getInverseJoinProperty(string $entity, array $relation, string $property): string
     {
-        if (null === $inverseJoinProperty = $relation->inverseJoinProperty) {
+        $inverseJoinProperty = $relation['inverseJoinProperty'] ?? null;
+        if ($inverseJoinProperty === null || $inverseJoinProperty === '') {
             throw new RuntimeException(
                 sprintf(
                     'Inverse join property is not defined for the class "%s" and property "%s". Please check the mapping configuration.',
@@ -369,18 +392,27 @@ class EntityRelationLoader
             );
         }
 
+        if (!is_string($inverseJoinProperty)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Inverse join property must be a string for the class "%s" and property "%s". Please check the mapping configuration.',
+                    $entity,
+                    $property
+                )
+            );
+        }
         return $inverseJoinProperty;
     }
 
     /**
      * @param class-string $entity
-     * @param MtManyToMany $relation
+     * @param array<string, mixed> $relation
      * @param string $property
      * @return class-string
      */
-    private function getMappedBy(string $entity, MtManyToMany $relation, string $property): string
+    private function getMappedBy(string $entity, array $relation, string $property): string
     {
-        if (null === $mappedBy = $relation->mappedBy) {
+        if (null === $mappedBy = $relation['mappedBy'] ?? null) {
             throw new RuntimeException(
                 sprintf(
                     'Mapped by property is not defined for the class "%s" and property "%s". Please check the mapping configuration.',
@@ -396,13 +428,14 @@ class EntityRelationLoader
 
     /**
      * @param class-string $entity
-     * @param MtManyToMany $relation
+     * @param array<string, mixed> $relation
      * @param string $property
      * @return string
      */
-    private function getJoinProperty(string $entity, MtManyToMany $relation, string $property): string
+    private function getJoinProperty(string $entity, array $relation, string $property): string
     {
-        if (null === $joinProperty = $relation->joinProperty) {
+        $joinProperty = $relation['joinProperty'] ?? null;
+        if ($joinProperty === null || $joinProperty === '') {
             throw new RuntimeException(
                 sprintf(
                     'Join property is not defined for the class "%s" and property "%s". Please check the mapping configuration.',
@@ -412,6 +445,15 @@ class EntityRelationLoader
             );
         }
 
+        if (!is_string($joinProperty)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Join property must be a string for the class "%s" and property "%s". Please check the mapping configuration.',
+                    $entity,
+                    $property
+                )
+            );
+        }
         return $joinProperty;
     }
 

@@ -35,7 +35,7 @@ class LinkEntityManager
 
     /**
      * Process a ManyToMany operation (insert or delete)
-     * @param array{entity: object, related: object, manyToMany: MtManyToMany, action?: string} $operation
+     * @param array{entity: object, related: object, manyToMany: array<string, mixed>, action?: string} $operation
      * @throws ReflectionException
      */
     public function processOperation(array $operation): void
@@ -55,10 +55,13 @@ class LinkEntityManager
 
     /**
      * Process delete operation
+     * @param array<string, mixed> $manyToMany
+     * @param object $entity
+     * @param object $relatedEntity
      * @throws ReflectionException
      */
     private function processDeleteOperation(
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         object $entity,
         object $relatedEntity
     ): void {
@@ -68,10 +71,13 @@ class LinkEntityManager
 
     /**
      * Process insert operation
+     * @param array<string, mixed> $manyToMany
+     * @param object $entity
+     * @param object $relatedEntity
      * @throws ReflectionException
      */
     private function processInsertOperation(
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         object $entity,
         object $relatedEntity
     ): void {
@@ -85,10 +91,14 @@ class LinkEntityManager
 
     /**
      * Find existing link relation
+     * @param array<string, mixed> $manyToMany
+     * @param object $entity
+     * @param object $relatedEntity
+     * @return object|null
      * @throws ReflectionException
      */
     public function findExistingLinkRelation(
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         object $entity,
         object $relatedEntity
     ): ?object {
@@ -117,9 +127,13 @@ class LinkEntityManager
 
     /**
      * Create link entity
+     * @param array<string, mixed> $manyToMany
+     * @param object $entity
+     * @param object $relatedEntity
+     * @return object
      */
     public function createLinkEntity(
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         object $entity,
         object $relatedEntity
     ): object {
@@ -135,7 +149,7 @@ class LinkEntityManager
         }
 
         /** @var class-string $linkEntityClass */
-        $linkEntityClass = $manyToMany->mappedBy;
+        $linkEntityClass = $manyToMany['mappedBy'];
         $linkEntity = new $linkEntityClass();
 
         $this->setJoinProperties($linkEntity, $manyToMany, $entity, $relatedEntity);
@@ -145,10 +159,13 @@ class LinkEntityManager
 
     /**
      * Schedule existing link for deletion
+     * @param array<string, mixed> $manyToMany
+     * @param object $entity
+     * @param object $relatedEntity
      * @throws ReflectionException
      */
     private function scheduleExistingLinkForDeletion(
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         object $entity,
         object $relatedEntity
     ): void {
@@ -161,12 +178,15 @@ class LinkEntityManager
 
     /**
      * Remove entity from collection
+     * @param object $entity
+     * @param object $relatedEntity
+     * @param array<string, mixed> $manyToMany
      * @throws ReflectionException
      */
     private function removeFromEntityCollection(
         object $entity,
         object $relatedEntity,
-        MtManyToMany $manyToMany
+        array $manyToMany
     ): void {
         $entityReflection = new ReflectionClass($entity);
         $entityName = $entity::class;
@@ -222,21 +242,30 @@ class LinkEntityManager
 
     /**
      * Validate join properties
+     * @param array<string, mixed> $manyToMany
+     * @return bool
      */
-    private function validateJoinProperties(MtManyToMany $manyToMany): bool
+    private function validateJoinProperties(array $manyToMany): bool
     {
-        return $manyToMany->joinProperty !== null && $manyToMany->inverseJoinProperty !== null;
+        return $manyToMany['joinProperty'] !== null && $manyToMany['inverseJoinProperty'] !== null;
     }
 
     /**
      * Build cache key
+     * @param array<string, mixed> $manyToMany
+     * @param int|string $entityId
+     * @param int|string $relatedEntityId
+     * @return string
      */
-    private function buildCacheKey(MtManyToMany $manyToMany, int|string $entityId, int|string $relatedEntityId): string
+    private function buildCacheKey(array $manyToMany, int|string $entityId, int|string $relatedEntityId): string
     {
+        $mappedBy = $manyToMany['mappedBy'] ?? '';
+        $joinProperty = $manyToMany['joinProperty'] ?? '';
+
         return sprintf(
             '%s_%s_%s_%s',
-            $manyToMany->mappedBy,
-            $manyToMany->joinProperty,
+            is_string($mappedBy) ? $mappedBy : '',
+            is_string($joinProperty) ? $joinProperty : '',
             $entityId,
             $relatedEntityId
         );
@@ -244,28 +273,27 @@ class LinkEntityManager
 
     /**
      * Query existing link from database
+     * @param array<string, mixed> $manyToMany
+     * @param int|string $entityId
+     * @param int|string $relatedEntityId
+     * @return object|null
      * @throws ReflectionException
      */
-    private function queryExistingLink(MtManyToMany $manyToMany, int|string $entityId, int|string $relatedEntityId): ?object
+    private function queryExistingLink(array $manyToMany, int|string $entityId, int|string $relatedEntityId): ?object
     {
         /** @var class-string $linkEntityClass */
-        $linkEntityClass = $manyToMany->mappedBy;
+        $linkEntityClass = $manyToMany['mappedBy'];
 
-        $joinProperty = $manyToMany->joinProperty;
-        $inverseJoinProperty = $manyToMany->inverseJoinProperty;
+        $joinProperty = $manyToMany['joinProperty'];
+        $inverseJoinProperty = $manyToMany['inverseJoinProperty'];
 
-        if ($joinProperty === null || $inverseJoinProperty === null) {
+        if (!is_string($joinProperty) || !is_string($inverseJoinProperty)) {
             return null;
         }
 
-        $joinColumn = $this->entityManager->getDbMapping()->getColumnName(
-            $linkEntityClass,
-            $joinProperty
-        );
-        $inverseJoinColumn = $this->entityManager->getDbMapping()->getColumnName(
-            $linkEntityClass,
-            $inverseJoinProperty
-        );
+        $linkMetadata = $this->entityManager->getMetadataCache()->getEntityMetadata($linkEntityClass);
+        $joinColumn = $linkMetadata->getColumnName($joinProperty);
+        $inverseJoinColumn = $linkMetadata->getColumnName($inverseJoinProperty);
 
         $where = sprintf(
             "%s = %s AND %s = %s",
@@ -280,17 +308,21 @@ class LinkEntityManager
 
     /**
      * Set join properties on link entity
+     * @param object $linkEntity
+     * @param array<string, mixed> $manyToMany
+     * @param object $entity
+     * @param object $relatedEntity
      */
     private function setJoinProperties(
         object $linkEntity,
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         object $entity,
         object $relatedEntity
     ): void {
-        $joinProperty = $manyToMany->joinProperty;
-        $inverseJoinProperty = $manyToMany->inverseJoinProperty;
+        $joinProperty = $manyToMany['joinProperty'];
+        $inverseJoinProperty = $manyToMany['inverseJoinProperty'];
 
-        if ($joinProperty === null || $inverseJoinProperty === null) {
+        if (!is_string($joinProperty) || !is_string($inverseJoinProperty)) {
             return;
         }
 
@@ -327,7 +359,8 @@ class LinkEntityManager
     private function getManyToManyMapping(string $entityName): array|false
     {
         if (!isset($this->mappingCache[$entityName])) {
-            $mapping = $this->entityManager->getDbMapping()->getManyToMany($entityName);
+            $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+            $mapping = $metadata->getRelationsByType('ManyToMany');
             $this->mappingCache[$entityName] = $mapping;
         }
 

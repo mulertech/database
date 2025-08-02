@@ -7,7 +7,6 @@ namespace MulerTech\Database\ORM;
 use InvalidArgumentException;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
@@ -34,7 +33,6 @@ class EntityManager implements EntityManagerInterface
      */
     public function __construct(
         private readonly PhpDatabaseInterface $pdm,
-        private readonly DbMappingInterface $dbMapping,
         private MetadataCache $metadataCache,
         private readonly ?EventManager $eventManager = null
     ) {
@@ -58,12 +56,13 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @return DbMappingInterface
+     * @return MetadataCache
      */
-    public function getDbMapping(): DbMappingInterface
+    public function getMetadataCache(): MetadataCache
     {
-        return $this->dbMapping;
+        return $this->metadataCache;
     }
+
 
     /**
      * @param class-string $entity

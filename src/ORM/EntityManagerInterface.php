@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
-use MulerTech\Database\Mapping\DbMappingInterface;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 
@@ -27,9 +27,10 @@ interface EntityManagerInterface
     public function getPdm(): PhpDatabaseInterface;
 
     /**
-     * @return DbMappingInterface
+     * @return MetadataCache
      */
-    public function getDbMapping(): DbMappingInterface;
+    public function getMetadataCache(): MetadataCache;
+
 
     /**
      * @param class-string $entity

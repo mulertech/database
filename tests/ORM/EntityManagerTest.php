@@ -13,7 +13,6 @@ use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
-use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -42,7 +41,6 @@ class EntityManagerTest extends TestCase
         );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            new DbMapping($metadataCache),
             $metadataCache,
             $this->eventManager
         );

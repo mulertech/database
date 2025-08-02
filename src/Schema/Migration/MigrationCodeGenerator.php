@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
 use ReflectionException;
@@ -27,7 +27,7 @@ readonly class MigrationCodeGenerator
      */
     private MigrationStatementGenerator $statementGenerator;
 
-    public function __construct(private DbMappingInterface $dbMapping)
+    public function __construct(private MetadataCache $metadataCache)
     {
         $this->typeConverter = new SqlTypeConverter();
         $this->statementGenerator = new MigrationStatementGenerator();
@@ -112,7 +112,7 @@ readonly class MigrationCodeGenerator
     private function addCreateTablesCode(SchemaDifference $diff, array &$code): void
     {
         foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
-            $code[] = $this->statementGenerator->generateCreateTableStatement($tableName, $this->dbMapping);
+            $code[] = $this->statementGenerator->generateCreateTableStatement($tableName, $this->metadataCache);
         }
     }
 
