@@ -4,16 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Database\Interface;
 
-use MulerTech\Database\Core\Cache\CacheConfig;
 use PDO;
 use PDOException;
 use RuntimeException;
 
 /**
- * Class PhpDatabaseManager
- *
- * Enhanced PhpDatabaseManager with prepared statement caching
- *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -21,37 +16,31 @@ class PhpDatabaseManager implements PhpDatabaseInterface
 {
     private ?PDO $connection = null;
     private int $transactionLevel = 0;
-    private ?StatementCacheManager $cacheManager = null;
+    private ?DatabaseParameterParserInterface $parameterParser;
+    private ?QueryExecutorInterface $queryExecutor;
 
     /**
      * @param ConnectorInterface $connector
      * @param array<string, mixed> $parameters
-     * @param CacheConfig|null $cacheConfig
      * @param DatabaseParameterParserInterface|null $parameterParser
      * @param QueryExecutorInterface|null $queryExecutor
      */
     public function __construct(
         private readonly ConnectorInterface $connector,
         private readonly array $parameters,
-        ?CacheConfig $cacheConfig = null,
-        private readonly ?DatabaseParameterParserInterface $parameterParser = null,
-        private readonly ?QueryExecutorInterface $queryExecutor = null
+        ?DatabaseParameterParserInterface $parameterParser = null,
+        ?QueryExecutorInterface $queryExecutor = null
     ) {
-        if ($cacheConfig !== null) {
-            $this->cacheManager = new StatementCacheManager(
-                (string)spl_object_id($this),
-                $cacheConfig
-            );
-        }
+        $this->parameterParser = $parameterParser;
+        $this->queryExecutor = $queryExecutor;
     }
 
     public function getConnection(): PDO
     {
         if (!isset($this->connection)) {
-            $parser = $this->parameterParser ?? new DatabaseParameterParser();
-            $parameters = $parser->parseParameters($this->parameters);
-            $username = $this->ensureString($parameters['user'] ?? '');
-            $password = $this->ensureString($parameters['pass'] ?? '');
+            $parameters = $this->getParameterParser()->parseParameters($this->parameters);
+            $username = is_string($parameters['user']) ? $parameters['user'] : '';
+            $password = is_string($parameters['pass']) ? $parameters['pass'] : '';
 
             $this->connection = $this->connector->connect($parameters, $username, $password);
         }
@@ -65,23 +54,36 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     public function prepare(string $query, array $options = []): Statement
     {
         try {
-            if ($this->cacheManager !== null) {
-                return $this->prepareWithCache($query, $options);
+            $statement = empty($options)
+                ? $this->getConnection()->prepare($query)
+                : $this->getConnection()->prepare($query, $options);
+
+            if ($statement === false) {
+                throw new RuntimeException(
+                    sprintf(
+                        'Failed to prepare statement. Error: %s. Query: %s',
+                        $this->getConnection()->errorInfo()[2] ?? 'Unknown error',
+                        $query
+                    )
+                );
             }
 
-            return $this->prepareDirect($query, $options);
+            return new Statement($statement);
         } catch (PDOException $exception) {
             throw new PDOException($exception->getMessage(), (int)$exception->getCode(), $exception);
         }
     }
 
+    /**
+     * @param array<int, mixed>|null $constructorArgs
+     */
     public function query(
         string $query,
         ?int $fetchMode = null,
         int|string|object $arg3 = '',
         ?array $constructorArgs = null
     ): Statement {
-        return ($this->queryExecutor ?? new QueryExecutorHelper())->executeQuery(
+        return $this->getQueryExecutor()->executeQuery(
             $this->getConnection(),
             $query,
             $fetchMode,
@@ -158,7 +160,6 @@ class PhpDatabaseManager implements PhpDatabaseInterface
             );
         }
 
-        $this->invalidateCacheForStatement($statement);
         return $result;
     }
 
@@ -179,6 +180,9 @@ class PhpDatabaseManager implements PhpDatabaseInterface
         return $errorCode ?? false;
     }
 
+    /**
+     * @return array<int, string|null>
+     */
     public function errorInfo(): array
     {
         return $this->getConnection()->errorInfo();
@@ -195,72 +199,26 @@ class PhpDatabaseManager implements PhpDatabaseInterface
     }
 
     /**
-     * @param array<int, mixed> $options
+     * Lazy loading for parameter parser
      */
-    private function prepareWithCache(string $query, array $options = []): Statement
+    private function getParameterParser(): DatabaseParameterParserInterface
     {
-        if ($this->cacheManager === null) {
-            return $this->prepareDirect($query, $options);
+        if ($this->parameterParser === null) {
+            $this->parameterParser = new DatabaseParameterParser();
         }
 
-        $cacheKey = $this->cacheManager->generateCacheKey($query, $options);
-        $cachedStatement = $this->cacheManager->getCachedStatement($cacheKey, $this->getConnection());
-
-        if ($cachedStatement !== null) {
-            return new Statement($cachedStatement);
-        }
-
-        $statement = $this->prepareDirect($query, $options);
-        $this->cacheManager->cacheStatement($cacheKey, $statement->getPdoStatement(), $query);
-
-        return $statement;
+        return $this->parameterParser;
     }
 
     /**
-     * @param array<int, mixed> $options
+     * Lazy loading for query executor
      */
-    private function prepareDirect(string $query, array $options = []): Statement
+    private function getQueryExecutor(): QueryExecutorInterface
     {
-        $statement = empty($options)
-            ? $this->getConnection()->prepare($query)
-            : $this->getConnection()->prepare($query, $options);
-
-        if ($statement === false) {
-            throw new RuntimeException(
-                sprintf(
-                    'Failed to prepare statement. Error: %s. Query: %s',
-                    $this->getConnection()->errorInfo()[2] ?? 'Unknown error',
-                    $query
-                )
-            );
+        if ($this->queryExecutor === null) {
+            $this->queryExecutor = new QueryExecutorHelper();
         }
 
-        return new Statement($statement);
-    }
-
-    private function ensureString(mixed $value): string
-    {
-        return is_string($value) ? $value : '';
-    }
-
-    private function invalidateCacheForStatement(string $statement): void
-    {
-        $tableName = $this->extractTableFromQuery($statement);
-        $this->cacheManager?->invalidateTableStatements($tableName);
-    }
-
-    private function extractTableFromQuery(string $query): string
-    {
-        $query = strtolower(trim($query));
-
-        if (preg_match('/(?:insert\s+into|update|delete\s+from)\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
-            return $matches[1];
-        }
-
-        if (preg_match('/from\s+([a-z_][a-z0-9_]*)/i', $query, $matches)) {
-            return $matches[1];
-        }
-
-        return 'unknown';
+        return $this->queryExecutor;
     }
 }

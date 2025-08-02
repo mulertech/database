@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use ReflectionException;
 use RuntimeException;
@@ -52,12 +52,12 @@ class MigrationGenerator
 
     /**
      * @param SchemaComparer $schemaComparer
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      * @param string $migrationsDirectory
      */
     public function __construct(
         private readonly SchemaComparer $schemaComparer,
-        DbMappingInterface $dbMapping,
+        MetadataCache $metadataCache,
         private readonly string $migrationsDirectory,
     ) {
         // Ensure migrations directory exists
@@ -65,7 +65,7 @@ class MigrationGenerator
             throw new RuntimeException("Migration directory does not exist: $migrationsDirectory");
         }
 
-        $this->codeGenerator = new MigrationCodeGenerator($dbMapping);
+        $this->codeGenerator = new MigrationCodeGenerator($metadataCache);
     }
 
     /**

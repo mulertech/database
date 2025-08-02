@@ -20,10 +20,14 @@ use WeakReference;
  */
 final class IdentityMap
 {
-    /** @var array<class-string, array<int|string, WeakReference<object>>> */
+    /**
+     * @var array<class-string, array<int|string, WeakReference<object>>>
+     */
     private array $entities = [];
 
-    /** @var WeakMap<object, EntityMetadata> */
+    /**
+     * @var WeakMap<object, EntityMetadata>
+     */
     private WeakMap $metadata;
 
     public function __construct()
@@ -43,9 +47,7 @@ final class IdentityMap
         }
 
         $entity = $this->entities[$entityClass][$id]->get();
-
         if ($entity === null) {
-            // Cleanup dead reference
             unset($this->entities[$entityClass][$id]);
             return false;
         }
@@ -65,9 +67,7 @@ final class IdentityMap
         }
 
         $entity = $this->entities[$entityClass][$id]->get();
-
         if ($entity === null) {
-            // Cleanup dead reference
             unset($this->entities[$entityClass][$id]);
             return null;
         }
@@ -85,18 +85,12 @@ final class IdentityMap
         $id = $this->extractEntityId($entity);
 
         if ($id === null) {
-            // For entities without ID, we still store metadata but can't track in map
             $this->storeMetadata($entity, $id);
             return;
         }
 
-        // Initialize class array if needed
         $this->entities[$entityClass] ??= [];
-
-        // Store weak reference - inject WeakReference factory if needed
         $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
-
-        // Store metadata
         $this->storeMetadata($entity, $id);
     }
 
@@ -124,7 +118,6 @@ final class IdentityMap
     {
         if ($entityClass !== null) {
             unset($this->entities[$entityClass]);
-
             return;
         }
 
@@ -150,8 +143,6 @@ final class IdentityMap
 
                 continue;
             }
-
-            // Cleanup dead reference
             unset($this->entities[$entityClass][$id]);
         }
 
@@ -245,8 +236,6 @@ final class IdentityMap
                     unset($this->entities[$entityClass][$id]);
                 }
             }
-
-            // Remove empty class arrays
             if (empty($this->entities[$entityClass])) {
                 unset($this->entities[$entityClass]);
             }
@@ -261,11 +250,7 @@ final class IdentityMap
     private function storeMetadata(object $entity, int|string|null $id): void
     {
         $entityClass = $entity::class;
-
-        // Determine initial state
         $state = $id === null ? EntityState::NEW : EntityState::MANAGED;
-
-        // Extract current data for original state tracking
         $originalData = $this->extractEntityData($entity);
 
         $metadata = new EntityMetadata(
@@ -285,7 +270,6 @@ final class IdentityMap
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        // Try common getter methods first
         if (method_exists($entity, 'getId')) {
             $id = $entity->getId();
             if (is_int($id) || is_string($id)) {
@@ -293,16 +277,13 @@ final class IdentityMap
             }
         }
 
-        // Try direct property access
-        $commonIdProperties = ['id', 'uuid', 'identifier'];
-
-        foreach ($commonIdProperties as $property) {
+        foreach (['id', 'uuid', 'identifier'] as $property) {
             if (property_exists($entity, $property)) {
                 try {
                     $reflection = new ReflectionClass($entity);
                     $prop = $reflection->getProperty($property);
                     $value = $prop->getValue($entity);
-                    if ((is_int($value) || is_string($value))) {
+                    if (is_int($value) || is_string($value)) {
                         return $value;
                     }
                 } catch (ReflectionException) {
@@ -329,9 +310,8 @@ final class IdentityMap
             }
 
             $propertyName = $property->getName();
-
-            // Try getter method first
             $getterMethod = 'get' . ucfirst($propertyName);
+
             if (method_exists($entity, $getterMethod)) {
                 try {
                     $data[$propertyName] = $entity->$getterMethod();
@@ -344,7 +324,6 @@ final class IdentityMap
             try {
                 $data[$propertyName] = $property->getValue($entity);
             } catch (Error) {
-                // Property uninitialized, store as null
                 $data[$propertyName] = null;
             }
         }
@@ -353,9 +332,6 @@ final class IdentityMap
     }
 
     /**
-     * Create a weak reference to an entity
-     * This method can be overridden for testing or custom weak reference handling
-     *
      * @param object $entity
      * @return WeakReference<object>
      */

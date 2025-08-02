@@ -217,11 +217,4 @@ interface DbMappingInterface
      * @throws ReflectionException
      */
     public function isUnsigned(string $entityName, string $property): bool;
-
-    /**
-     * @param class-string $entityName
-     * @param string $property
-     * @return bool
-     */
-    public function isRelationProperty(string $entityName, string $property): bool;
 }

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use MulerTech\Database\Mapping\DbMappingInterface;
+use Exception;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\DeleteBuilder;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -21,18 +22,18 @@ readonly class DeletionProcessor
 {
     /**
      * @param EntityManagerInterface $entityManager
-     * @param DbMappingInterface $dbMapping
+     * @param MetadataCache $metadataCache
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private DbMappingInterface $dbMapping
+        private MetadataCache $metadataCache
     ) {
     }
 
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     public function process(object $entity): void
     {
@@ -42,7 +43,7 @@ readonly class DeletionProcessor
     /**
      * @param object $entity
      * @return void
-     * @throws ReflectionException
+     * @throws Exception
      */
     public function execute(object $entity): void
     {
@@ -56,7 +57,7 @@ readonly class DeletionProcessor
     /**
      * @param object $entity
      * @return DeleteBuilder
-     * @throws ReflectionException
+     * @throws Exception
      */
     private function buildDeleteQuery(object $entity): DeleteBuilder
     {
@@ -78,19 +79,11 @@ readonly class DeletionProcessor
     /**
      * @param class-string $entityName
      * @return string
-     * @throws ReflectionException
+     * @throws Exception
      */
     private function getTableName(string $entityName): string
     {
-        $tableName = $this->dbMapping->getTableName($entityName);
-
-        if ($tableName === null) {
-            throw new RuntimeException(
-                sprintf('The entity %s is not mapped in the database', $entityName)
-            );
-        }
-
-        return $tableName;
+        return $this->metadataCache->getTableName($entityName);
     }
 
     /**

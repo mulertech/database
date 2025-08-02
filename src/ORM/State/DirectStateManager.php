@@ -15,11 +15,11 @@ use MulerTech\Database\ORM\IdentityMap;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-final class DirectStateManager implements StateManagerInterface
+final readonly class DirectStateManager implements StateManagerInterface
 {
-    private readonly EntityScheduler $entityScheduler;
-    private readonly DependencyManager $dependencyManager;
-    private readonly StateResolver $stateResolver;
+    private EntityScheduler $entityScheduler;
+    private DependencyManager $dependencyManager;
+    private StateResolver $stateResolver;
 
     /**
      * @param IdentityMap $identityMap
@@ -28,10 +28,10 @@ final class DirectStateManager implements StateManagerInterface
      * @param ChangeSetManager|null $changeSetManager
      */
     public function __construct(
-        private readonly IdentityMap $identityMap,
-        private readonly StateTransitionManager $transitionManager,
-        private readonly StateValidator $stateValidator,
-        private readonly ?ChangeSetManager $changeSetManager = null
+        private IdentityMap $identityMap,
+        private StateTransitionManager $transitionManager,
+        private StateValidator $stateValidator,
+        private ?ChangeSetManager $changeSetManager = null
     ) {
         $this->entityScheduler = new EntityScheduler($identityMap, $stateValidator, $changeSetManager);
         $this->dependencyManager = new DependencyManager();

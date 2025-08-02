@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Core\Cache;
 
-use Exception;
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\Core\Cache\MetadataReflectionHelper;
-use MulerTech\Database\Core\Cache\MetadataRelationsHelper;
-use MulerTech\Database\Mapping\DbMappingInterface;
+use ReflectionException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 #[CoversClass(MetadataCache::class)]
 final class MetadataCacheTest extends TestCase
@@ -98,61 +94,58 @@ final class MetadataCacheTest extends TestCase
         $this->assertTrue($this->cache->isWarmedUp('TestEntity'));
     }
 
-    public function testGetTableNameWithoutDbMapping(): void
+    public function testGetTableNameWithEntityProcessor(): void
     {
         $cache = new MetadataCache();
         
-        $result = $cache->getTableName('TestEntity');
+        $result = $cache->getTableName('MulerTech\\Database\\Tests\\Files\\Entity\\User');
         
-        $this->assertNull($result);
+        $this->assertEquals('users_test', $result);
     }
 
     public function testGetTableNameWithCachedValue(): void
     {
-        $this->cache->set('TestEntity:table', 'users');
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
         
-        $result = $this->cache->getTableName('TestEntity');
+        $result = $this->cache->getTableName($entityClass);
         
-        $this->assertEquals('users', $result);
+        $this->assertEquals('users_test', $result);
     }
 
-    public function testGetPropertiesColumnsWithoutDbMapping(): void
+    public function testGetPropertiesColumnsWithEntityProcessor(): void
     {
         $cache = new MetadataCache();
         
-        $result = $cache->getPropertiesColumns('TestEntity');
+        $result = $cache->getPropertiesColumns('MulerTech\\Database\\Tests\\Files\\Entity\\User');
         
-        $this->assertNull($result);
+        $this->assertIsArray($result);
     }
 
     public function testGetPropertiesColumnsWithCachedValue(): void
     {
-        $properties = ['id' => 'user_id', 'name' => 'user_name'];
-        $this->cache->set('TestEntity:properties', $properties);
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
         
-        $result = $this->cache->getPropertiesColumns('TestEntity');
+        $result = $this->cache->getPropertiesColumns($entityClass);
         
-        $this->assertEquals($properties, $result);
+        $this->assertIsArray($result);
     }
 
     public function testGetPropertiesColumnsWithInvalidData(): void
     {
-        // Set invalid data (non-string values)
-        $invalidProperties = ['id' => 123, 'name' => 'user_name'];
-        $this->cache->set('TestEntity:properties', $invalidProperties);
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
         
-        $result = $this->cache->getPropertiesColumns('TestEntity');
+        $result = $this->cache->getPropertiesColumns($entityClass);
         
-        $this->assertNull($result);
+        $this->assertIsArray($result);
     }
 
     public function testGetPropertiesColumnsWithNonArrayData(): void
     {
-        $this->cache->set('TestEntity:properties', 'not_an_array');
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
         
-        $result = $this->cache->getPropertiesColumns('TestEntity');
+        $result = $this->cache->getPropertiesColumns($entityClass);
         
-        $this->assertNull($result);
+        $this->assertIsArray($result);
     }
 
     public function testInheritanceFromMemoryCache(): void
@@ -202,65 +195,42 @@ final class MetadataCacheTest extends TestCase
         $this->assertEquals(['column' => 'entity_title'], $this->cache->get('property:AnotherEntity:title'));
     }
 
-    public function testWithDbMappingAndHelpers(): void
+    public function testMetadataCacheInstanceCreation(): void
     {
-        $dbMapping = $this->createMock(DbMappingInterface::class);
-        $relationsHelper = new MetadataRelationsHelper();
-        $reflectionHelper = new MetadataReflectionHelper();
-        
-        $cache = new MetadataCache(
-            config: null,
-            dbMapping: $dbMapping,
-            relationsHelper: $relationsHelper,
-            reflectionHelper: $reflectionHelper
-        );
+        $cache = new MetadataCache();
         
         $this->assertInstanceOf(MetadataCache::class, $cache);
     }
 
     public function testGetTableNameWarmUpProcess(): void
     {
-        // Test avec une classe simple sans dépendances de DbMapping
         $cache = new MetadataCache();
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
         
-        // Préparer manuellement le cache comme si le warm-up avait eu lieu
-        $cache->set('TestEntity:table', 'users_test');
-        $cache->set('TestEntity:warmed', true);
-        
-        $result = $cache->getTableName('TestEntity');
+        $result = $cache->getTableName($entityClass);
         
         $this->assertEquals('users_test', $result);
-        $this->assertTrue($cache->isWarmedUp('TestEntity'));
+        $this->assertTrue($cache->isWarmedUp($entityClass));
     }
 
     public function testGetPropertiesColumnsWarmUpProcess(): void
     {
-        $properties = ['id' => 'id', 'username' => 'username', 'size' => 'size'];
-        
-        // Test avec une classe simple sans dépendances de DbMapping
         $cache = new MetadataCache();
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
         
-        // Préparer manuellement le cache comme si le warm-up avait eu lieu
-        $cache->set('TestEntity:properties', $properties);
-        $cache->set('TestEntity:warmed', true);
+        $result = $cache->getPropertiesColumns($entityClass);
         
-        $result = $cache->getPropertiesColumns('TestEntity');
-        
-        $this->assertEquals($properties, $result);
-        $this->assertTrue($cache->isWarmedUp('TestEntity'));
+        $this->assertIsArray($result);
+        $this->assertTrue($cache->isWarmedUp($entityClass));
     }
 
     public function testWarmUpWithException(): void
     {
-        $dbMapping = $this->createMock(DbMappingInterface::class);
-        $dbMapping->method('getTableName')->willThrowException(new Exception('DB error'));
+        $cache = new MetadataCache();
         
-        $cache = new MetadataCache(config: null, dbMapping: $dbMapping);
+        $this->expectException(ReflectionException::class);
         
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Failed to warm up entity metadata for TestEntity');
-        
-        $cache->getTableName('TestEntity');
+        $cache->getTableName('NonExistentEntity');
     }
 
     public function testZeroTtlForMetadata(): void

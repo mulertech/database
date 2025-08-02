@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Database\Interface;
 
-use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Database\Interface\ConnectorInterface;
 use MulerTech\Database\Database\Interface\DatabaseParameterParserInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\Interface\QueryExecutorInterface;
 use MulerTech\Database\Database\Interface\Statement;
 use PDO;
-use PDOException;
 use PDOStatement;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -91,7 +89,6 @@ final class PhpDatabaseManagerTest extends TestCase
         $manager = new PhpDatabaseManager(
             $this->mockConnector,
             $this->parameters,
-            null,
             $mockParser
         );
 
@@ -211,7 +208,6 @@ final class PhpDatabaseManagerTest extends TestCase
         $manager = new PhpDatabaseManager(
             $this->mockConnector,
             $this->parameters,
-            null,
             null,
             $mockExecutor
         );
@@ -431,18 +427,6 @@ final class PhpDatabaseManagerTest extends TestCase
         $this->manager->lastInsertId();
     }
 
-    public function testConstructorWithCacheConfig(): void
-    {
-        $cacheConfig = new CacheConfig(maxSize: 50, ttl: 1800);
-
-        $manager = new PhpDatabaseManager(
-            $this->mockConnector,
-            $this->parameters,
-            $cacheConfig
-        );
-
-        $this->assertInstanceOf(PhpDatabaseManager::class, $manager);
-    }
 
     public function testGetConnectionWithEmptyCredentials(): void
     {

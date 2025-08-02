@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\ValueProcessor;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use ReflectionException;
 
 /**
@@ -20,4 +21,11 @@ interface EntityHydratorInterface
      * @throws ReflectionException
      */
     public function hydrate(array $data, string $entityName): object;
+
+    /**
+     * Get the metadata cache
+     *
+     * @return MetadataCache
+     */
+    public function getMetadataCache(): MetadataCache;
 }

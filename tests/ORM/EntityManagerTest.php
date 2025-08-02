@@ -2,6 +2,7 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -12,7 +13,6 @@ use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\Event\PreRemoveEvent;
 use MulerTech\Database\Event\PreUpdateEvent;
-use MulerTech\Database\Mapping\DbMapping;
 use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -34,9 +34,14 @@ class EntityManagerTest extends TestCase
     {
         parent::setUp();
         $this->eventManager = new EventManager();
+        $metadataCache = new MetadataCache();
+        // Load entities from the test directory
+        $metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            new DbMapping(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'),
+            $metadataCache,
             $this->eventManager
         );
     }
