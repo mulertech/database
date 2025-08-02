@@ -101,7 +101,7 @@ class ManyToManyProcessor
 
         if ($entities instanceof DatabaseCollection) {
             $this->processDatabaseCollection($entity, $entities, $manyToMany);
-        } elseif ($this->shouldProcessNewCollection($entities, $manyToMany, $entity)) {
+        } elseif ($this->shouldProcessNewCollection($entities, $entity)) {
             if ($entities instanceof Collection) {
                 $this->processNewCollection($entity, $entities, $manyToMany);
             }
@@ -128,11 +128,10 @@ class ManyToManyProcessor
     /**
      * Check if new collection should be processed
      * @param mixed $entities
-     * @param array<string, mixed> $manyToMany
      * @param object $entity
      * @return bool
      */
-    private function shouldProcessNewCollection(mixed $entities, array $manyToMany, object $entity): bool
+    private function shouldProcessNewCollection(mixed $entities, object $entity): bool
     {
         return $entities instanceof Collection
             && $entities->count() > 0

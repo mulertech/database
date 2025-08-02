@@ -168,7 +168,7 @@ readonly class ColumnComparer
         array $entityPropertiesColumns,
         SchemaDifference $diff
     ): void {
-        foreach ($databaseColumns as $columnName => $_) {
+        foreach ($databaseColumns as $columnName => $value) {
             if (!in_array($columnName, $entityPropertiesColumns, true)) {
                 $diff->addColumnToDrop($tableName, $columnName);
             }

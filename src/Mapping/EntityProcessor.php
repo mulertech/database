@@ -411,13 +411,13 @@ class EntityProcessor
             properties: $reflection->getProperties(),
             getters: array_filter(
                 $reflection->getMethods(),
-                static fn ($m) => str_starts_with($m->getName(), 'get') ||
-                                 str_starts_with($m->getName(), 'is') ||
-                                 str_starts_with($m->getName(), 'has')
+                static fn ($refMethod) => str_starts_with($refMethod->getName(), 'get') ||
+                                 str_starts_with($refMethod->getName(), 'is') ||
+                                 str_starts_with($refMethod->getName(), 'has')
             ),
             setters: array_filter(
                 $reflection->getMethods(),
-                static fn ($m) => str_starts_with($m->getName(), 'set')
+                static fn ($refMethod) => str_starts_with($refMethod->getName(), 'set')
             ),
             columns: $propertyMappings['columns'],
             foreignKeys: $propertyMappings['foreignKeys'],

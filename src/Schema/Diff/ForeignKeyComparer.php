@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
+use Exception;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 use RuntimeException;
 
+/**
+ * Class ForeignKeyComparer
+ * Compares foreign keys between entity mapping and database schema
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 readonly class ForeignKeyComparer
 {
     public function __construct(
@@ -162,7 +169,7 @@ readonly class ForeignKeyComparer
         array $databaseForeignKeys,
         SchemaDifference $diff
     ): void {
-        foreach ($databaseForeignKeys as $constraintName => $_) {
+        foreach ($databaseForeignKeys as $constraintName => $value) {
             if (!isset($entityForeignKeys[$constraintName])) {
                 $diff->addForeignKeyToDrop($tableName, $constraintName);
             }
@@ -189,48 +196,98 @@ readonly class ForeignKeyComparer
         $metadata = $this->metadataCache->getEntityMetadata($entityClass);
         $foreignKey = $metadata->getForeignKey($property);
 
-        if ($foreignKey === null) {
+        if (!$this->isValidForeignKey($foreignKey)) {
             return null;
         }
 
-        // Validate that foreignKey is an array
-        if (!is_array($foreignKey)) {
-            return null;
-        }
+        /** @var array<string, mixed> $foreignKey */
 
-        // Generate constraint name if not provided
-        $constraintName = is_string($foreignKey['constraintName'] ?? null) ? $foreignKey['constraintName'] : null;
-        $referencedTable = is_string($foreignKey['referencedTable'] ?? null) ? $foreignKey['referencedTable'] : null;
-        if ($constraintName === null && !empty($referencedTable)) {
-            $tableName = $this->metadataCache->getTableName($entityClass);
-            $columnName = $metadata->getColumnName($property);
-            $constraintName = sprintf(
-                "fk_%s_%s_%s",
-                strtolower($tableName ?: ''),
-                strtolower($columnName ?: ''),
-                strtolower($referencedTable)
-            );
-        }
-
-        $referencedColumn = is_string($foreignKey['referencedColumn'] ?? null) ? $foreignKey['referencedColumn'] : null;
-
-        $deleteRule = null;
-        if (isset($foreignKey['deleteRule']) && $foreignKey['deleteRule'] instanceof FkRule) {
-            $deleteRule = $foreignKey['deleteRule'];
-        }
-
-        $updateRule = null;
-        if (isset($foreignKey['updateRule']) && $foreignKey['updateRule'] instanceof FkRule) {
-            $updateRule = $foreignKey['updateRule'];
-        }
+        $referencedTable = $this->extractStringValue($foreignKey, 'referencedTable');
+        $constraintName = $this->resolveConstraintName($foreignKey, $entityClass, $property, $referencedTable);
 
         return [
             'foreignKey' => $foreignKey,
             'constraintName' => $constraintName,
             'referencedTable' => $referencedTable,
-            'referencedColumn' => $referencedColumn,
-            'deleteRule' => $deleteRule,
-            'updateRule' => $updateRule,
+            'referencedColumn' => $this->extractStringValue($foreignKey, 'referencedColumn'),
+            'deleteRule' => $this->extractFkRule($foreignKey, 'deleteRule'),
+            'updateRule' => $this->extractFkRule($foreignKey, 'updateRule'),
         ];
+    }
+
+    /**
+     * @param mixed $foreignKey
+     * @return bool
+     */
+    private function isValidForeignKey(mixed $foreignKey): bool
+    {
+        return is_array($foreignKey);
+    }
+
+    /**
+     * @param array<string, mixed> $foreignKey
+     * @param string $key
+     * @return string|null
+     */
+    private function extractStringValue(array $foreignKey, string $key): ?string
+    {
+        $value = $foreignKey[$key] ?? null;
+        return is_string($value) ? $value : null;
+    }
+
+    /**
+     * @param array<string, mixed> $foreignKey
+     * @param string $key
+     * @return FkRule|null
+     */
+    private function extractFkRule(array $foreignKey, string $key): ?FkRule
+    {
+        $value = $foreignKey[$key] ?? null;
+        return $value instanceof FkRule ? $value : null;
+    }
+
+    /**
+     * Resolve constraint name with generation if needed
+     *
+     * @param array<string, mixed> $foreignKey
+     * @param class-string $entityClass
+     * @param string $property
+     * @param string|null $referencedTable
+     * @return string|null
+     * @throws ReflectionException
+     */
+    private function resolveConstraintName(array $foreignKey, string $entityClass, string $property, ?string $referencedTable): ?string
+    {
+        $constraintName = $this->extractStringValue($foreignKey, 'constraintName');
+
+        return $constraintName ?? $this->generateConstraintName($entityClass, $property, $referencedTable);
+    }
+
+    /**
+     * Generate constraint name from entity, property and referenced table
+     *
+     * @param class-string $entityClass
+     * @param string $property
+     * @param string|null $referencedTable
+     * @return string|null
+     * @throws ReflectionException
+     * @throws Exception
+     */
+    private function generateConstraintName(string $entityClass, string $property, ?string $referencedTable): ?string
+    {
+        if (empty($referencedTable)) {
+            return null;
+        }
+
+        $tableName = $this->metadataCache->getTableName($entityClass);
+        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $columnName = $metadata->getColumnName($property);
+
+        return sprintf(
+            "fk_%s_%s_%s",
+            strtolower($tableName ?: ''),
+            strtolower($columnName ?: ''),
+            strtolower($referencedTable)
+        );
     }
 }
