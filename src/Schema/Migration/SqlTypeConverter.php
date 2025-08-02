@@ -288,9 +288,10 @@ class SqlTypeConverter
             if ($token !== null) {
                 $tokens[] = $token['value'];
                 $position = $token['endPosition'];
-            } else {
-                $position++;
+                continue;
             }
+
+            $position++;
         }
 
         return $tokens;

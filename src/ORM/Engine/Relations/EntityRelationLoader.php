@@ -6,10 +6,6 @@ namespace MulerTech\Database\ORM\Engine\Relations;
 
 use Exception;
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\Attributes\MtManyToMany;
-use MulerTech\Database\Mapping\Attributes\MtManyToOne;
-use MulerTech\Database\Mapping\Attributes\MtOneToMany;
-use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -18,9 +14,9 @@ use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
-class EntityRelationLoader
+readonly class EntityRelationLoader
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager)
+    public function __construct(private EntityManagerInterface $entityManager)
     {
     }
 
@@ -123,11 +119,9 @@ class EntityRelationLoader
                     );
 
                     // Only set if we actually found an entity
-                    if ($foundEntity !== null) {
-                        $relatedEntity = $foundEntity;
+                    $relatedEntity = $foundEntity;
+                    if ($foundEntity !== null || $this->setterAcceptsNull($entity, $setter)) {
                         $entity->$setter($relatedEntity);
-                    } elseif ($this->setterAcceptsNull($entity, $setter)) {
-                        $entity->$setter(null);
                     }
                 }
             } catch (Exception) {
@@ -136,11 +130,15 @@ class EntityRelationLoader
                     $entity->$setter(null);
                 }
             }
-        } elseif (method_exists($entity, $setter) && $this->setterAcceptsNull($entity, $setter)) {
+
+            return $relatedEntity;
+        }
+
+        if (method_exists($entity, $setter) && $this->setterAcceptsNull($entity, $setter)) {
             $entity->$setter(null);
         }
 
-        return $relatedEntity;
+        return null;
     }
 
     /**
@@ -313,20 +311,11 @@ class EntityRelationLoader
     /**
      * @param class-string $entityName
      * @throws ReflectionException
+     * @throws Exception
      */
     private function getTableName(string $entityName): string
     {
-        $tableName = $this->entityManager->getMetadataCache()->getTableName($entityName);
-        if ($tableName === null) { // @phpstan-ignore-line
-            throw new RuntimeException(
-                sprintf(
-                    'Table name is not defined for the class "%s". Please check the mapping configuration.',
-                    $entityName
-                )
-            );
-        }
-
-        return $tableName;
+        return $this->entityManager->getMetadataCache()->getTableName($entityName);
     }
 
     /**
@@ -356,9 +345,9 @@ class EntityRelationLoader
      * @return class-string
      */
     private function getTargetEntity(
-        string $sourceEntityClass, // Changed signature to match usage
-        array $relationData, // Changed signature to accept array
-        string $propertyName // Changed signature
+        string $sourceEntityClass,
+        array $relationData,
+        string $propertyName
     ): string {
         $target = $relationData['targetEntity'] ?? '';
         if (!is_string($target) || $target === '' || !class_exists($target)) {
@@ -489,60 +478,5 @@ class EntityRelationLoader
 
         // Check if the parameter allows null
         return $type->allowsNull();
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param mixed $idOrWhere
-     * @return object|null
-     */
-    private function loadRelatedEntity(string $entityClass, mixed $idOrWhere): ?object
-    {
-        // Validate that idOrWhere is the correct type
-        if (!is_int($idOrWhere) && !is_string($idOrWhere)) {
-            return null;
-        }
-
-        try {
-            return $this->entityManager->find($entityClass, $idOrWhere);
-        } catch (Exception) {
-            return null;
-        }
-    }
-
-    /**
-     * @param class-string $entityClass
-     * @param array<int, mixed> $entitiesData
-     * @return array<int, object>
-     * @throws ReflectionException
-     */
-    private function loadCollectionEntities(string $entityClass, array $entitiesData): array
-    {
-        $entities = [];
-
-        foreach ($entitiesData as $entityData) {
-            // Validate that entityData is an array and has an id
-            if (!is_array($entityData) || !isset($entityData['id'])) {
-                continue;
-            }
-
-            $entityId = $entityData['id'];
-            if (!is_int($entityId) && !is_string($entityId)) {
-                continue;
-            }
-
-            // Check if entity is already in identity map
-            $managed = $this->entityManager->getEmEngine()->getIdentityMap()->get($entityClass, $entityId);
-            if ($managed !== null) {
-                $entities[] = $managed;
-                continue;
-            }
-
-            // Create and manage new entity - entityData is already validated as array above
-            $entity = $this->entityManager->getEmEngine()->createManagedEntity($entityData, $entityClass, false);
-            $entities[] = $entity;
-        }
-
-        return $entities;
     }
 }
