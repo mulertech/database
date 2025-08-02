@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -14,6 +13,8 @@ use ReflectionException;
 
 /**
  * Processor for ManyToMany relations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class ManyToManyProcessor
 {
