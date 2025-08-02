@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
+use Exception;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Schema\Information\InformationSchema;
 use ReflectionException;
@@ -56,7 +57,7 @@ class SchemaComparer
      * Get cached properties columns for entity class
      * @param class-string $entityClass
      * @return array<string, string>
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     private function getCachedPropertiesColumns(string $entityClass): array
     {
@@ -70,7 +71,7 @@ class SchemaComparer
      * Get cached table name for entity class
      * @param class-string $entityClass
      * @return string
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     private function getCachedTableName(string $entityClass): string
     {
@@ -154,6 +155,7 @@ class SchemaComparer
      *
      * @return SchemaDifference
      * @throws ReflectionException
+     * @throws Exception
      */
     public function compare(): SchemaDifference
     {

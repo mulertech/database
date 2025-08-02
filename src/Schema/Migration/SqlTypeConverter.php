@@ -9,7 +9,8 @@ namespace MulerTech\Database\Schema\Migration;
  *
  * Converts SQL types to SchemaBuilder method calls
  *
- * @package MulerTech\Database\Schema\Migration
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class SqlTypeConverter
 {
@@ -35,6 +36,10 @@ class SqlTypeConverter
             ?? '->string()'; // Default fallback
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleIntegerTypes(string $sqlType): ?string
     {
         if (preg_match('/^(tiny|small|medium|big)?int(\(\d+\))?\s*(unsigned)?/i', $sqlType, $matches)) {
@@ -54,6 +59,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleStringTypes(string $sqlType): ?string
     {
         if (preg_match('/^varchar\((\d+)\)/i', $sqlType, $matches)) {
@@ -65,6 +74,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleDecimalTypes(string $sqlType): ?string
     {
         if (preg_match('/^decimal\((\d+),(\d+)\)/i', $sqlType, $matches)) {
@@ -79,6 +92,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleBinaryTypes(string $sqlType): ?string
     {
         if (preg_match('/^binary\((\d+)\)/i', $sqlType, $matches)) {
@@ -90,6 +107,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleBlobTypes(string $sqlType): ?string
     {
         $blobTypes = [
@@ -107,6 +128,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleTextTypes(string $sqlType): ?string
     {
         $textTypes = [
@@ -124,6 +149,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleDateTimeTypes(string $sqlType): ?string
     {
         $dateTimeTypes = [
@@ -142,6 +171,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleBooleanTypes(string $sqlType): ?string
     {
         if (stripos($sqlType, 'boolean') === 0 || stripos($sqlType, 'bool') === 0) {
@@ -150,6 +183,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleJsonTypes(string $sqlType): ?string
     {
         if (stripos($sqlType, 'json') === 0) {
@@ -158,6 +195,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleEnumSetTypes(string $sqlType): ?string
     {
         if (preg_match('/^enum\((.*)\)/i', $sqlType, $matches)) {
@@ -172,6 +213,10 @@ class SqlTypeConverter
         return null;
     }
 
+    /**
+     * @param string $sqlType
+     * @return string|null
+     */
     private function handleGeometryTypes(string $sqlType): ?string
     {
         $geometryTypes = [
@@ -196,39 +241,117 @@ class SqlTypeConverter
     /**
      * Parse ENUM/SET values from SQL definition
      *
-     * @param string $values
-     * @return array<string>
+     * Simplified approach using token extraction
+     *
+     * @param string $values Raw ENUM/SET values string like "'value1','value2','val''ue3'"
+     * @return array<string> Array of parsed values
      */
     private function parseEnumSetValues(string $values): array
     {
-        $parsed = [];
         $values = trim($values);
-        $inQuotes = false;
-        $currentValue = '';
-        $quoteChar = null;
 
-        for ($i = 0, $iMax = strlen($values); $i < $iMax; $i++) {
-            $char = $values[$i];
+        if (empty($values)) {
+            return [];
+        }
 
-            if (!$inQuotes && ($char === "'" || $char === '"')) {
-                $inQuotes = true;
-                $quoteChar = $char;
-            } elseif ($inQuotes && $char === $quoteChar) {
-                if ($i < strlen($values) - 1 && $values[$i + 1] === $quoteChar) {
-                    // Escaped quote
-                    $currentValue .= $char;
-                    $i++; // Skip next char
-                } else {
-                    $inQuotes = false;
-                    $parsed[] = $currentValue;
-                    $currentValue = '';
-                    $quoteChar = null;
-                }
-            } elseif ($inQuotes) {
-                $currentValue .= $char;
+        $result = [];
+        $tokens = $this->extractQuotedTokens($values);
+
+        foreach ($tokens as $token) {
+            $result[] = $this->cleanQuotedValue($token);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Extract quoted tokens from the values string
+     *
+     * @param string $values
+     * @return array<string>
+     */
+    private function extractQuotedTokens(string $values): array
+    {
+        $tokens = [];
+        $position = 0;
+
+        while ($position < strlen($values)) {
+            // Skip whitespace and commas
+            $position += strspn($values, ' ,', $position);
+
+            if ($position >= strlen($values)) {
+                break;
+            }
+
+            // Find the quoted token
+            $token = $this->extractSingleQuotedToken($values, $position);
+            if ($token !== null) {
+                $tokens[] = $token['value'];
+                $position = $token['endPosition'];
+            } else {
+                $position++;
             }
         }
 
-        return $parsed;
+        return $tokens;
+    }
+
+    /**
+     * Extract a single quoted token starting at the given position
+     *
+     * @param string $values
+     * @param int $position
+     * @return array{value: string, endPosition: int}|null
+     */
+    private function extractSingleQuotedToken(string $values, int &$position): ?array
+    {
+        if (!isset($values[$position]) || ($values[$position] !== "'" && $values[$position] !== '"')) {
+            return null;
+        }
+
+        $quote = $values[$position];
+        $start = $position;
+        $position++; // Move past opening quote
+
+        // Find closing quote, handling escaped quotes
+        while ($position < strlen($values)) {
+            if ($values[$position] !== $quote) {
+                $position++;
+                continue;
+            }
+
+            if ($position + 1 < strlen($values) && $values[$position + 1] === $quote) {
+                $position += 2; // Skip escaped quote pair
+                continue;
+            }
+
+            $position++; // Move past closing quote
+            break;
+        }
+
+        return [
+            'value' => substr($values, $start, $position - $start),
+            'endPosition' => $position,
+        ];
+    }
+
+    /**
+     * Clean and unescape a quoted value
+     *
+     * @param string $quotedValue Quoted string like "'value'" or "'val''ue'"
+     * @return string Clean unquoted value
+     */
+    private function cleanQuotedValue(string $quotedValue): string
+    {
+        if (strlen($quotedValue) < 2) {
+            return $quotedValue;
+        }
+
+        // Remove outer quotes
+        $content = substr($quotedValue, 1, -1);
+        $quote = $quotedValue[0];
+
+        // Replace escaped quotes ('' becomes ' or "" becomes ")
+        return str_replace($quote . $quote, $quote, $content);
     }
 }
