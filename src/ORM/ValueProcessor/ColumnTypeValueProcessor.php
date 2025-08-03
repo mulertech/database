@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\ValueProcessor;
 
 use DateTime;
+use DateTimeInterface;
 use Exception;
 use JsonException;
 use MulerTech\Database\Mapping\Types\ColumnType;
@@ -15,9 +16,12 @@ use TypeError;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
+class ColumnTypeValueProcessor implements ValueProcessorInterface
 {
-    public function __construct(private ColumnType $columnType)
+    /**
+     * @param ColumnType|null $columnType
+     */
+    public function __construct(private ?ColumnType $columnType = null)
     {
     }
 
@@ -41,47 +45,155 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
             return null;
         }
 
+        if ($this->columnType === null) {
+            return $value;
+        }
+
         return match ($this->columnType) {
             ColumnType::INT, ColumnType::SMALLINT, ColumnType::MEDIUMINT, ColumnType::BIGINT,
-            ColumnType::YEAR => $this->processInt($value),
-            ColumnType::TINYINT => $this->processBool($value),
-            ColumnType::DECIMAL, ColumnType::FLOAT, ColumnType::DOUBLE => $this->processFloat($value),
+            ColumnType::YEAR => $this->convertToInt($value),
+            ColumnType::TINYINT => $this->convertToBool($value),
+            ColumnType::DECIMAL, ColumnType::FLOAT, ColumnType::DOUBLE => $this->convertToFloat($value),
             ColumnType::VARCHAR, ColumnType::CHAR, ColumnType::TEXT,
             ColumnType::TINYTEXT, ColumnType::MEDIUMTEXT, ColumnType::LONGTEXT,
-            ColumnType::ENUM, ColumnType::SET, ColumnType::TIME => $this->processString($value),
-            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->processDateTime($value),
-            ColumnType::JSON => $this->processJson($value),
+            ColumnType::ENUM, ColumnType::SET, ColumnType::TIME => (string) $value,
+            ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->convertToDateString($value),
+            ColumnType::JSON => is_array($value) ? $value : json_decode((string) $value, true),
+            ColumnType::BINARY, ColumnType::VARBINARY, ColumnType::BLOB,
+            ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB, ColumnType::LONGBLOB => (string) $value,
             default => $value,
         };
     }
 
     /**
      * @param mixed $value
+     * @param string $type
+     * @return mixed
+     * @throws JsonException
+     */
+    public function convertToColumnValue(mixed $value, string $type): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return match (strtolower($type)) {
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext' => (string) $value,
+            'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year' => $this->convertToInt($value),
+            'float', 'double', 'decimal' => $this->convertToFloat($value),
+            'bool', 'boolean', 'tinyint' => $this->convertToBool($value),
+            'date', 'datetime', 'timestamp', 'time' => $this->convertToDateString($value),
+            'json' => $this->convertToJsonString($value),
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => (string) $value,
+            default => throw new \InvalidArgumentException("Unsupported column type: $type"),
+        };
+    }
+
+    /**
+     * @param mixed $value
+     * @param string $type
+     * @return mixed
+     * @throws JsonException
+     */
+    public function convertToPhpValue(mixed $value, string $type): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return match (strtolower($type)) {
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext' => (string) $value,
+            'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year' => $this->convertToInt($value),
+            'float', 'double', 'decimal' => $this->convertToFloat($value),
+            'bool', 'boolean', 'tinyint' => $this->convertToBool($value),
+            'date', 'datetime', 'timestamp', 'time' => (string) $value,
+            'json' => $this->convertToJsonString($value),
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => (string) $value,
+            default => throw new \InvalidArgumentException("Unsupported column type: $type"),
+        };
+    }
+
+    /**
+     * @param string $type
+     * @return mixed
+     */
+    public function getDefaultValue(string $type): mixed
+    {
+        return match (strtolower($type)) {
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext' => '',
+            'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year' => 0,
+            'float', 'double', 'decimal' => 0.0,
+            'bool', 'boolean', 'tinyint' => false,
+            'date' => '1970-01-01',
+            'datetime', 'timestamp' => '1970-01-01 00:00:00',
+            'time' => '00:00:00',
+            'json' => '{}',
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => '',
+            default => null,
+        };
+    }
+
+    /**
+     * @param string $type
+     * @return bool
+     */
+    public function isValidType(string $type): bool
+    {
+        return in_array($type, $this->getSupportedTypes(), true);
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getSupportedTypes(): array
+    {
+        return [
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set',
+            'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year',
+            'tinyint', 'bool', 'boolean',
+            'float', 'double', 'decimal',
+            'date', 'datetime', 'timestamp', 'time',
+            'json',
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob'
+        ];
+    }
+
+    /**
+     * @param mixed $value
      * @return int
      */
-    private function processInt(mixed $value): int
+    private function convertToInt(mixed $value): int
     {
+        if (is_int($value)) {
+            return $value;
+        }
         if (is_numeric($value)) {
             return (int) $value;
+        }
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+        if (is_string($value)) {
+            if (strtolower($value) === 'true') {
+                return 1;
+            }
+            if (strtolower($value) === 'false') {
+                return 0;
+            }
+            return (int) filter_var($value, FILTER_SANITIZE_NUMBER_INT);
         }
         return 0;
     }
 
     /**
      * @param mixed $value
-     * @return bool
-     */
-    private function processBool(mixed $value): bool
-    {
-        return (bool) $value;
-    }
-
-    /**
-     * @param mixed $value
      * @return float
      */
-    private function processFloat(mixed $value): float
+    private function convertToFloat(mixed $value): float
     {
+        if (is_float($value)) {
+            return $value;
+        }
         if (is_numeric($value)) {
             return (float) $value;
         }
@@ -90,62 +202,91 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
 
     /**
      * @param mixed $value
-     * @return string
+     * @return bool
      */
-    private function processString(mixed $value): string
+    private function convertToBool(mixed $value): bool
     {
-        if (is_string($value)) {
+        if (is_bool($value)) {
             return $value;
         }
-
-        return match (true) {
-            is_null($value) => '',
-            is_scalar($value) => (string) $value,
-            default => throw new TypeError('Value cannot be converted to string')
-        };
+        if (is_numeric($value)) {
+            return $value != 0;
+        }
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if (in_array($normalized, ['0', 'false', 'no', 'off', ''], true)) {
+                return false;
+            }
+            return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+        }
+        return (bool) $value;
     }
 
     /**
      * @param mixed $value
-     * @return DateTime
+     * @return string
+     * @throws \InvalidArgumentException
      */
-    private function processDateTime(mixed $value): DateTime
+    private function convertToJsonString(mixed $value): string
     {
-        if ($value instanceof DateTime) {
-            return $value;
+        if (is_resource($value)) {
+            throw new \InvalidArgumentException('Invalid JSON data');
         }
 
+        if (is_array($value) || is_object($value)) {
+            try {
+                $result = json_encode($value, JSON_THROW_ON_ERROR);
+                if ($result === false) {
+                    throw new \InvalidArgumentException('Invalid JSON data');
+                }
+                return $result;
+            } catch (JsonException) {
+                throw new \InvalidArgumentException('Invalid JSON data');
+            }
+        }
+        if (is_string($value)) {
+            return $value;
+        }
         try {
-            $dateString = match (true) {
-                is_string($value) => $value,
-                is_null($value) => 'now',
-                is_scalar($value) => (string) $value,
-                default => throw new TypeError('Value cannot be converted to date string')
-            };
-
-            return new DateTime($dateString);
-        } catch (Exception) {
-            return new DateTime(); // Default to current time
+            return json_encode($value, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new \InvalidArgumentException('Invalid JSON data');
         }
     }
 
     /**
-     * @return array<int|string, mixed>
-     * @throws JsonException
+     * @param mixed $value
+     * @return string
      */
-    private function processJson(mixed $value): array
+    private function convertToDateString(mixed $value): string
     {
-        if (is_array($value)) {
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+        if (is_string($value)) {
             return $value;
         }
+        return (new DateTime())->format('Y-m-d H:i:s');
+    }
 
-        if (is_string($value)) {
-            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-            if (is_array($decoded)) {
-                return $decoded;
-            }
-        }
-
-        return []; // Default empty array for invalid JSON
+    /**
+     * @param string $type
+     * @return string
+     */
+    public function normalizeType(string $type): string
+    {
+        return match (strtolower($type)) {
+            'integer' => 'int',
+            'double' => 'float',
+            'boolean' => 'bool',
+            'varchar', 'char' => 'string',
+            'tinyint' => 'bool',
+            'smallint', 'mediumint', 'bigint' => 'int',
+            'decimal' => 'float',
+            'tinytext', 'mediumtext', 'longtext' => 'text',
+            'varbinary' => 'binary',
+            'tinyblob', 'mediumblob', 'longblob' => 'blob',
+            default => $type,
+        };
     }
 }
