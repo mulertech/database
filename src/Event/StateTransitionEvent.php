@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\ORM\State;
+namespace MulerTech\Database\Event;
 
 use InvalidArgumentException;
+use MulerTech\Database\ORM\State\EntityState;
 use MulerTech\EventManager\Event;
 
 /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\State;
 
 use InvalidArgumentException;
+use MulerTech\Database\Event\StateTransitionEvent;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**

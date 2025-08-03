@@ -10,11 +10,16 @@ use MulerTech\Collections\Collection;
 
 /**
  * Processes different types of values for change detection
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class ValueProcessor
 {
     /**
      * Process a value and return its serialized representation
+     * @param mixed $value The value to process
+     * @return mixed The processed value, which can be a string for DateTime, an array for entities or collections,
+     *               or the original value if no processing is needed
      */
     public function processValue(mixed $value): mixed
     {
@@ -30,6 +35,8 @@ class ValueProcessor
 
     /**
      * Process DateTime objects
+     * @param DateTimeInterface $value
+     * @return string The formatted date-time string in 'Y-m-d H:i:s'
      */
     public function processDateTime(DateTimeInterface $value): string
     {
@@ -38,6 +45,7 @@ class ValueProcessor
 
     /**
      * Process entity objects with getId method
+     * @param object $value
      * @return array{__entity__: class-string, __id__: mixed, __hash__: int}
      */
     public function processEntity(object $value): array
@@ -81,6 +89,7 @@ class ValueProcessor
 
     /**
      * Process generic objects
+     * @param object $value
      * @return array{__object__: class-string, __hash__: int}
      */
     public function processObject(object $value): array
@@ -93,6 +102,8 @@ class ValueProcessor
 
     /**
      * Get the type of value for comparison purposes
+     * @param mixed $value The value to check
+     * @return string The type of value: 'scalar', 'entity', 'object', 'collection', 'array', or 'other'
      */
     public function getValueType(mixed $value): string
     {

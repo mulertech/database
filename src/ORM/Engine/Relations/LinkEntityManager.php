@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use ReflectionClass;
@@ -14,6 +13,8 @@ use RuntimeException;
 
 /**
  * Manager for ManyToMany link entities
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class LinkEntityManager
 {
@@ -339,7 +340,8 @@ class LinkEntityManager
     }
 
     /**
-     * Get entity ID
+     * @param object $entity
+     * @return int|string|null
      */
     private function getId(object $entity): int|string|null
     {
@@ -368,7 +370,7 @@ class LinkEntityManager
     }
 
     /**
-     * Clear caches
+     * @return void
      */
     public function clear(): void
     {

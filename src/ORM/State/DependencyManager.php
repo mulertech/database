@@ -15,6 +15,11 @@ final class DependencyManager
      */
     private array $insertionDependencies = [];
 
+    /**
+     * @param object $dependent
+     * @param object $dependency
+     * @return void
+     */
     public function addInsertionDependency(object $dependent, object $dependency): void
     {
         $dependentId = spl_object_id($dependent);
@@ -23,12 +28,19 @@ final class DependencyManager
         $this->insertionDependencies[$dependentId][] = $dependencyId;
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     public function removeDependencies(object $entity): void
     {
         $oid = spl_object_id($entity);
         unset($this->insertionDependencies[$oid]);
     }
 
+    /**
+     * @return void
+     */
     public function clear(): void
     {
         $this->insertionDependencies = [];

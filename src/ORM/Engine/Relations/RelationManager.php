@@ -11,9 +11,6 @@ use ReflectionException;
 
 /**
  * Class RelationManager
- *
- * Manager for relations between entities (OneToMany, ManyToMany, etc.)
- *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -64,7 +61,6 @@ class RelationManager
     }
 
     /**
-     * Start a new flush cycle - reset tracking
      * @return void
      */
     public function startFlushCycle(): void

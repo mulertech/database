@@ -9,15 +9,21 @@ use MulerTech\Database\ORM\IdentityMap;
 
 /**
  * Resolves entity states based on different sources
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
-final class StateResolver
+final readonly class StateResolver
 {
     public function __construct(
-        private readonly IdentityMap $identityMap,
-        private readonly ?ChangeSetManager $changeSetManager = null
+        private IdentityMap $identityMap,
+        private ?ChangeSetManager $changeSetManager = null
     ) {
     }
 
+    /**
+     * @param object $entity
+     * @return EntityState
+     */
     public function resolveEntityState(object $entity): EntityState
     {
         $state = $this->identityMap->getEntityState($entity);
@@ -29,6 +35,10 @@ final class StateResolver
         return $state;
     }
 
+    /**
+     * @param object $entity
+     * @return EntityState
+     */
     private function resolveFromChangeSetManager(object $entity): EntityState
     {
         if ($this->changeSetManager === null) {

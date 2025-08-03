@@ -10,13 +10,15 @@ use MulerTech\Database\ORM\IdentityMap;
 
 /**
  * Handles entity scheduling operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
-final class EntityScheduler
+final readonly class EntityScheduler
 {
     public function __construct(
-        private readonly IdentityMap $identityMap,
-        private readonly StateValidator $stateValidator,
-        private readonly ?ChangeSetManager $changeSetManager = null
+        private IdentityMap $identityMap,
+        private StateValidator $stateValidator,
+        private ?ChangeSetManager $changeSetManager = null
     ) {
     }
 
