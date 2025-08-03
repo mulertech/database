@@ -11,33 +11,20 @@ use MulerTech\Database\ORM\IdentityMap;
 
 /**
  * Manages entity state transitions and metadata updates
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
-class EntityStateManager
+readonly class EntityStateManager
 {
     public function __construct(
-        private readonly IdentityMap $identityMap
+        private IdentityMap $identityMap
     ) {
     }
 
     /**
      * @param object $entity
-     * @param array<string, mixed> $originalData
      * @return void
      */
-    public function transitionToNew(object $entity, array $originalData): void
-    {
-        $metadata = $this->identityMap->getMetadata($entity);
-
-        if ($metadata === null) {
-            $this->identityMap->add($entity);
-            return;
-        }
-
-        if ($metadata->state !== EntityState::NEW) {
-            $this->updateEntityMetadata($entity, $metadata, EntityState::NEW, $originalData);
-        }
-    }
-
     public function transitionToManaged(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);
@@ -47,6 +34,10 @@ class EntityStateManager
         }
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     public function transitionToRemoved(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);
@@ -56,6 +47,10 @@ class EntityStateManager
         }
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     public function transitionToDetached(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);

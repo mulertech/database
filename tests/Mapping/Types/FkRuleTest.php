@@ -1,15 +1,15 @@
 <?php
 
-namespace Mapping;
+declare(strict_types=1);
+
+namespace MulerTech\Database\Tests\Mapping\Types;
 
 use MulerTech\Database\Mapping\Types\FkRule;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use ValueError;
 
-/**
- * Class ReferentialActionTest
- * Tests for ReferentialAction enum
- */
+#[CoversClass(FkRule::class)]
 class FkRuleTest extends TestCase
 {
     /**

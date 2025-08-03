@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Cache;
 
+use Throwable;
+
 /**
  * Class ResultSetCache
  * @package MulerTech\Database
@@ -224,17 +226,72 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
     /**
      * @param array{compressed: bool, data: string} $data
-     * @return mixed
+     * @return array<int|string, mixed>|bool|float|int|string|null
      */
-    private function decompress(array $data): mixed
+    private function decompress(array $data): array|bool|float|int|string|null
+    {
+        $serialized = $this->handleCompression($data);
+        if ($serialized === null) {
+            return null;
+        }
+
+        return $this->deserializeAndValidate($serialized);
+    }
+
+    /**
+     * @param array{compressed: bool, data: string} $data
+     * @return string|null
+     */
+    private function handleCompression(array $data): ?string
     {
         $serialized = $data['data'];
 
-        if ($data['compressed']) {
-            $decompressed = gzuncompress($data['data']);
-            $serialized = $decompressed !== false ? $decompressed : $data['data'];
+        if (!$data['compressed']) {
+            return $serialized;
         }
 
-        return unserialize($serialized, ['allowed_classes' => false]) ?: null;
+        try {
+            $decompressed = @gzuncompress($serialized);
+            return $decompressed === false ? null : $decompressed;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param string $serialized
+     * @return array<int|string, mixed>|bool|float|int|string|null
+     */
+    private function deserializeAndValidate(string $serialized): array|bool|float|int|string|null
+    {
+        try {
+            $result = unserialize($serialized, ['allowed_classes' => false]);
+
+            if ($result === false && $serialized !== serialize(false)) {
+                return null;
+            }
+
+            return $this->validateResultType($result);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param mixed $result
+     * @return array<int|string, mixed>|bool|float|int|string|null
+     */
+    private function validateResultType(mixed $result): array|bool|float|int|string|null
+    {
+        if (is_object($result)) {
+            return null;
+        }
+
+        if (is_array($result) || is_bool($result) || is_float($result) ||
+            is_int($result) || is_string($result) || $result === null) {
+            return $result;
+        }
+
+        return null;
     }
 }

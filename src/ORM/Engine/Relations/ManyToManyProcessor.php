@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Collections\Collection;
-use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -14,11 +13,13 @@ use ReflectionException;
 
 /**
  * Processor for ManyToMany relations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class ManyToManyProcessor
 {
     /**
-     * @var array<int, array{entity: object, related: object, manyToMany: MtManyToMany, action?: string}>
+     * @var array<int, array{entity: object, related: object, manyToMany: array<string, mixed>, action?: string}>
      */
     private array $operations = [];
 
@@ -57,6 +58,10 @@ class ManyToManyProcessor
         $entityId = spl_object_id($entity);
 
         foreach ($manyToManyList as $property => $manyToMany) {
+            if (!is_array($manyToMany)) {
+                continue;
+            }
+            /** @var array<string, mixed> $manyToMany */
             $this->processProperty($entity, $entityReflection, $property, $manyToMany, $entityId);
         }
     }
@@ -67,7 +72,7 @@ class ManyToManyProcessor
      * @param object $entity
      * @param ReflectionClass<T> $entityReflection
      * @param string $property
-     * @param mixed $manyToMany
+     * @param array<string, mixed> $manyToMany
      * @param int $entityId
      * @throws ReflectionException
      */
@@ -75,7 +80,7 @@ class ManyToManyProcessor
         object $entity,
         ReflectionClass $entityReflection,
         string $property,
-        mixed $manyToMany,
+        array $manyToMany,
         int $entityId
     ): void {
         // Create a unique key for this entity+property combination
@@ -97,8 +102,8 @@ class ManyToManyProcessor
 
         if ($entities instanceof DatabaseCollection) {
             $this->processDatabaseCollection($entity, $entities, $manyToMany);
-        } elseif ($this->shouldProcessNewCollection($entities, $manyToMany, $entity)) {
-            if ($entities instanceof Collection && $manyToMany instanceof MtManyToMany) {
+        } elseif ($this->shouldProcessNewCollection($entities, $entity)) {
+            if ($entities instanceof Collection) {
                 $this->processNewCollection($entity, $entities, $manyToMany);
             }
         }
@@ -123,11 +128,13 @@ class ManyToManyProcessor
 
     /**
      * Check if new collection should be processed
+     * @param mixed $entities
+     * @param object $entity
+     * @return bool
      */
-    private function shouldProcessNewCollection(mixed $entities, mixed $manyToMany, object $entity): bool
+    private function shouldProcessNewCollection(mixed $entities, object $entity): bool
     {
         return $entities instanceof Collection
-            && $manyToMany instanceof MtManyToMany
             && $entities->count() > 0
             && $this->stateManager->isScheduledForInsertion($entity);
     }
@@ -138,14 +145,14 @@ class ManyToManyProcessor
      * @template TValue of object
      * @param object $entity
      * @param DatabaseCollection<TKey, TValue> $collection
-     * @param mixed $manyToMany
+     * @param array<string, mixed> $manyToMany
      */
     private function processDatabaseCollection(
         object $entity,
         DatabaseCollection $collection,
-        mixed $manyToMany
+        array $manyToMany
     ): void {
-        if (!($manyToMany instanceof MtManyToMany) || !$collection->hasChanges()) {
+        if (!$collection->hasChanges()) {
             return;
         }
 
@@ -166,12 +173,12 @@ class ManyToManyProcessor
      * @template TValue of object
      * @param object $entity
      * @param Collection<TKey, TValue> $collection
-     * @param MtManyToMany $manyToMany
+     * @param array<string, mixed> $manyToMany
      */
     private function processNewCollection(
         object $entity,
         Collection $collection,
-        MtManyToMany $manyToMany
+        array $manyToMany
     ): void {
         foreach ($collection->items() as $relatedEntity) {
             $this->addOperation($entity, $relatedEntity, $manyToMany, 'insert');
@@ -180,11 +187,15 @@ class ManyToManyProcessor
 
     /**
      * Add operation to queue
+     * @param object $entity
+     * @param object $relatedEntity
+     * @param array<string, mixed> $manyToMany
+     * @param string $action
      */
     private function addOperation(
         object $entity,
         object $relatedEntity,
-        MtManyToMany $manyToMany,
+        array $manyToMany,
         string $action
     ): void {
         $this->operations[] = [
@@ -204,7 +215,8 @@ class ManyToManyProcessor
     private function getManyToManyMapping(string $entityName): array|false
     {
         if (!isset($this->mappingCache[$entityName])) {
-            $mapping = $this->entityManager->getDbMapping()->getManyToMany($entityName);
+            $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+            $mapping = $metadata->getRelationsByType('ManyToMany');
             $this->mappingCache[$entityName] = $mapping;
         }
 
@@ -213,7 +225,7 @@ class ManyToManyProcessor
 
     /**
      * Get all queued operations
-     * @return array<int, array{entity: object, related: object, manyToMany: MtManyToMany, action?: string}>
+     * @return array<int, array{entity: object, related: object, manyToMany: array<string, mixed>, action?: string}>
      */
     public function getOperations(): array
     {

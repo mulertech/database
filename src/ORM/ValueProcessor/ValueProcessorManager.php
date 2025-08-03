@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\ValueProcessor;
 
 use JsonException;
-use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use ReflectionNamedType;
 use ReflectionProperty;
 
 /**
- * Manages value processing strategies
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class ValueProcessorManager
 {
@@ -21,8 +21,6 @@ readonly class ValueProcessorManager
     }
 
     /**
-     * Process a value according to its type
-     *
      * @param array<mixed>|bool|float|int|object|string|null $value
      * @param ReflectionProperty|null $property
      * @param ColumnType|null $columnType
@@ -38,13 +36,11 @@ readonly class ValueProcessorManager
             return null;
         }
 
-        // Try column type first
         if ($columnType !== null) {
             $processor = new ColumnTypeValueProcessor($columnType);
             return $processor->process($value);
         }
 
-        // Try attribute-based approach
         if ($property !== null) {
             $processor = $this->createProcessorFromProperty($property);
             if ($processor !== null) {
@@ -57,18 +53,21 @@ readonly class ValueProcessorManager
 
     private function createProcessorFromProperty(ReflectionProperty $property): ?ValueProcessorInterface
     {
-        // Try MtColumn attribute
-        $mtColumnAttrs = $property->getAttributes(MtColumn::class);
-        if (!empty($mtColumnAttrs)) {
-            $mtColumn = $mtColumnAttrs[0]->newInstance();
-            if ($mtColumn->columnType !== null) {
-                return new ColumnTypeValueProcessor($mtColumn->columnType);
-            }
+        // Try EntityMetadata approach
+        $entityClass = $property->getDeclaringClass()->getName();
+        if (!class_exists($entityClass)) {
+            return null;
+        }
+        /** @var class-string $entityClass */
+        $metadata = $this->hydrator->getMetadataCache()->getEntityMetadata($entityClass);
+        $columnType = $metadata->getColumnType($property->getName());
+        if ($columnType !== null) {
+            return new ColumnTypeValueProcessor($columnType);
         }
 
         // Try PHP type
         $type = $property->getType();
-        if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
+        if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
             $typeName = $type->getName();
             if (class_exists($typeName)) {
                 return new PhpTypeValueProcessor(
