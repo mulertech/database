@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 /**
- * Handles value processing for UPDATE operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class UpdateValueProcessor
 {

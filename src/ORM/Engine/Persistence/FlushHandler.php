@@ -12,6 +12,8 @@ use RuntimeException;
 
 /**
  * Handles the complex flush logic for persistence operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 final class FlushHandler
 {
@@ -56,6 +58,7 @@ final class FlushHandler
     }
 
     /**
+     * @return void
      * @throws ReflectionException
      */
     private function prepareFlush(): void
@@ -66,6 +69,10 @@ final class FlushHandler
     }
 
     /**
+     * @param callable $insertionProcessor
+     * @param callable $updateProcessor
+     * @param callable $deletionProcessor
+     * @return void
      * @throws ReflectionException
      */
     private function processOperations(
@@ -114,6 +121,9 @@ final class FlushHandler
     }
 
     /**
+     * @param callable $insertionProcessor
+     * @param callable $deletionProcessor
+     * @return void
      * @throws ReflectionException
      */
     private function processAdditionalOperations(callable $insertionProcessor, callable $deletionProcessor): void
@@ -142,6 +152,9 @@ final class FlushHandler
         }
     }
 
+    /**
+     * @return void
+     */
     private function finalizeFlush(): void
     {
         $this->changeSetManager->clearProcessedChanges();

@@ -16,6 +16,8 @@ use ReflectionException;
 
 /**
  * Handles entity operations (insert, update, delete) with metadata management
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class EntityOperationProcessor
 {
@@ -34,6 +36,9 @@ class EntityOperationProcessor
     }
 
     /**
+     * @param object $entity
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processInsertion(object $entity, int $flushDepth): void
@@ -52,6 +57,9 @@ class EntityOperationProcessor
     }
 
     /**
+     * @param object $entity
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processUpdate(object $entity, int $flushDepth): void
@@ -69,6 +77,9 @@ class EntityOperationProcessor
     }
 
     /**
+     * @param object $entity
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processDeletion(object $entity, int $flushDepth): void
@@ -87,7 +98,8 @@ class EntityOperationProcessor
 
     /**
      * Process any pending operations that were scheduled during events
-     *
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processPostEventOperations(int $flushDepth): void
@@ -105,6 +117,10 @@ class EntityOperationProcessor
         }
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     private function updateEntityMetadata(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);
@@ -127,11 +143,18 @@ class EntityOperationProcessor
         $this->identityMap->updateMetadata($entity, $newMetadata);
     }
 
+    /**
+     * @param object $entity
+     * @return string|int|null
+     */
     private function extractEntityId(object $entity): string|int|null
     {
         return $this->getEntityProcessor()->extractEntityId($entity);
     }
 
+    /**
+     * @return EntityProcessor
+     */
     private function getEntityProcessor(): EntityProcessor
     {
         if ($this->entityProcessor === null) {

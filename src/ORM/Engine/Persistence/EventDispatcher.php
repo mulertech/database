@@ -14,10 +14,11 @@ use MulerTech\Database\Event\PreUpdateEvent;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\EventManager\EventManager;
-use ReflectionException;
 
 /**
  * Handles event dispatching for persistence operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class EventDispatcher
 {
@@ -35,7 +36,8 @@ class EventDispatcher
     }
 
     /**
-     * Set callback to process operations that occur during events
+     * @param Closure $processor
+     * @return void
      */
     public function setPostEventProcessor(Closure $processor): void
     {
@@ -43,7 +45,10 @@ class EventDispatcher
     }
 
     /**
-     * @throws ReflectionException
+     * @param object $entity
+     * @param string $eventName
+     * @param int $flushDepth
+     * @return void
      */
     public function callEntityEvent(object $entity, string $eventName, int $flushDepth): void
     {
@@ -89,6 +94,10 @@ class EventDispatcher
         };
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     private function dispatchPreUpdateEvent(object $entity): void
     {
         if ($this->eventManager === null) {

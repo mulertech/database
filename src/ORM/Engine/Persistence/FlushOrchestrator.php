@@ -13,6 +13,8 @@ use ReflectionException;
 
 /**
  * Orchestrates the flush process with event handling and iteration management
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class FlushOrchestrator
 {
@@ -28,6 +30,7 @@ readonly class FlushOrchestrator
     }
 
     /**
+     * @return void
      * @throws ReflectionException
      */
     public function performFlush(): void
@@ -52,6 +55,9 @@ readonly class FlushOrchestrator
         } while ($hasMoreWork && $iteration < $maxIterations && $this->flushHandler->getFlushDepth() < 3);
     }
 
+    /**
+     * @return bool
+     */
     private function hasNewOperationsScheduled(): bool
     {
         return !empty($this->changeSetManager->getScheduledInsertions()) ||
@@ -60,6 +66,9 @@ readonly class FlushOrchestrator
                !empty($this->stateManager->getScheduledDeletions());
     }
 
+    /**
+     * @return void
+     */
     private function handlePostFlushEvents(): void
     {
         if ($this->eventManager === null) {

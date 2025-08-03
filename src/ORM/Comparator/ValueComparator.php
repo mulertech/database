@@ -6,6 +6,8 @@ namespace MulerTech\Database\ORM\Comparator;
 
 /**
  * Compares different types of values for change detection
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class ValueComparator
 {

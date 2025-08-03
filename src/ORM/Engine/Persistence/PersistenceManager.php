@@ -15,9 +15,6 @@ use ReflectionException;
 
 /**
  * Class PersistenceManager
- *
- * Main manager for entity persistence
- *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -86,22 +83,35 @@ class PersistenceManager
         );
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     public function persist(object $entity): void
     {
         $this->stateManager->scheduleForInsertion($entity);
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     public function remove(object $entity): void
     {
         $this->stateManager->scheduleForDeletion($entity);
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     public function detach(object $entity): void
     {
         $this->changeSetManager->detach($entity);
     }
 
     /**
+     * @return void
      * @throws ReflectionException
      */
     public function flush(): void
@@ -121,6 +131,9 @@ class PersistenceManager
         }
     }
 
+    /**
+     * @return void
+     */
     public function clear(): void
     {
         $this->changeSetManager->clear();

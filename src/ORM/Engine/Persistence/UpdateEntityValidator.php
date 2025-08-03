@@ -11,6 +11,8 @@ use RuntimeException;
 
 /**
  * Validates entities before UPDATE operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class UpdateEntityValidator
 {
@@ -54,8 +56,6 @@ readonly class UpdateEntityValidator
     }
 
     /**
-     * Check if entity exists in database
-     *
      * @param object $entity
      * @return bool
      */
