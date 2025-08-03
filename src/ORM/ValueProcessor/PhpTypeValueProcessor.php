@@ -11,6 +11,8 @@ use TypeError;
 
 /**
  * Processes values based on PHP types
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class PhpTypeValueProcessor implements ValueProcessorInterface
 {

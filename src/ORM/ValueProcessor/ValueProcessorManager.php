@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\ValueProcessor;
 
 use JsonException;
-use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\Types\ColumnType;
+use ReflectionException;
+use ReflectionNamedType;
 use ReflectionProperty;
 
 /**
@@ -24,14 +25,15 @@ readonly class ValueProcessorManager
      * @param array<mixed>|bool|float|int|object|string|null $value
      * @param ReflectionProperty|null $property
      * @param ColumnType|null $columnType
-     * @return array<mixed>|bool|float|int|object|string|null
+     * @return mixed
      * @throws JsonException
+     * @throws ReflectionException
      */
     public function processValue(
         array|bool|float|int|object|string|null $value,
         ?ReflectionProperty $property = null,
         ?ColumnType $columnType = null
-    ): array|bool|float|int|object|string|null {
+    ): mixed {
         if ($value === null) {
             return null;
         }
@@ -51,6 +53,11 @@ readonly class ValueProcessorManager
         return $value;
     }
 
+    /**
+     * @param ReflectionProperty $property
+     * @return ValueProcessorInterface|null
+     * @throws ReflectionException
+     */
     private function createProcessorFromProperty(ReflectionProperty $property): ?ValueProcessorInterface
     {
         // Try EntityMetadata approach
@@ -67,7 +74,7 @@ readonly class ValueProcessorManager
 
         // Try PHP type
         $type = $property->getType();
-        if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
+        if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
             $typeName = $type->getName();
             if (class_exists($typeName)) {
                 return new PhpTypeValueProcessor(

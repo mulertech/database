@@ -8,6 +8,8 @@ use InvalidArgumentException;
 
 /**
  * Validator for array structures used in change detection
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class ArrayValidator
 {
@@ -83,7 +85,10 @@ class ArrayValidator
     /**
      * Validate collection array structure
      * @param mixed $value
-     * @return array{__collection__: bool, __items__: array<int, array{__entity__: class-string, __id__: mixed, __hash__: int}>}
+     * @return array{
+     *     __collection__: bool,
+     *     __items__: array<int, array{__entity__: class-string, __id__: mixed, __hash__: int}>
+     *         }
      */
     public function validateCollectionArray(mixed $value): array
     {
@@ -124,6 +129,10 @@ class ArrayValidator
         return $validatedItems;
     }
 
+    /**
+     * @param mixed $index
+     * @return void
+     */
     private function validateCollectionItemIndex(mixed $index): void
     {
         if (!is_int($index)) {

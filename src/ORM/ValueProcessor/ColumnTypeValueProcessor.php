@@ -12,6 +12,8 @@ use TypeError;
 
 /**
  * Processes values based on database column types
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
 {
@@ -19,11 +21,20 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
     {
     }
 
+    /**
+     * @param mixed $typeInfo
+     * @return bool
+     */
     public function canProcess(mixed $typeInfo): bool
     {
         return $typeInfo instanceof ColumnType;
     }
 
+    /**
+     * @param mixed $value
+     * @return mixed
+     * @throws JsonException
+     */
     public function process(mixed $value): mixed
     {
         if ($value === null) {
@@ -44,6 +55,10 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
         };
     }
 
+    /**
+     * @param mixed $value
+     * @return int
+     */
     private function processInt(mixed $value): int
     {
         if (is_numeric($value)) {
@@ -52,11 +67,19 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
         return 0;
     }
 
+    /**
+     * @param mixed $value
+     * @return bool
+     */
     private function processBool(mixed $value): bool
     {
         return (bool) $value;
     }
 
+    /**
+     * @param mixed $value
+     * @return float
+     */
     private function processFloat(mixed $value): float
     {
         if (is_numeric($value)) {
@@ -65,6 +88,10 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
         return 0.0;
     }
 
+    /**
+     * @param mixed $value
+     * @return string
+     */
     private function processString(mixed $value): string
     {
         if (is_string($value)) {
@@ -78,6 +105,10 @@ readonly class ColumnTypeValueProcessor implements ValueProcessorInterface
         };
     }
 
+    /**
+     * @param mixed $value
+     * @return DateTime
+     */
     private function processDateTime(mixed $value): DateTime
     {
         if ($value instanceof DateTime) {

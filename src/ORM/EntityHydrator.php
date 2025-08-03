@@ -167,14 +167,14 @@ class EntityHydrator implements EntityHydratorInterface
      * @param EntityMetadata $metadata
      * @param string $propertyName
      * @param bool|float|int|string|null $value
-     * @return array<mixed>|bool|float|int|object|string|null
+     * @return mixed
      * @throws JsonException
      */
     public function processValue(
         EntityMetadata $metadata,
         string $propertyName,
         bool|float|int|string|null $value
-    ): array|bool|float|int|object|string|null {
+    ): mixed {
         if ($value === null) {
             return null;
         }

@@ -50,7 +50,7 @@ final class StateTransitionManager
     }
 
     /**
-     * Get or create StateValidator lazily
+     * @return StateValidator
      */
     private function getStateValidator(): StateValidator
     {

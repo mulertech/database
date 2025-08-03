@@ -20,10 +20,6 @@ final class StateValidator
     /** @var array<string, mixed> */
     private array $validationContext = [];
 
-    public function __construct()
-    {
-    }
-
     /**
      * @param object $entity
      * @param EntityState $currentState
