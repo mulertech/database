@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\PhpInterface;
+namespace MulerTech\Database\Tests\Database\Interface;
 
 use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use MulerTech\Database\Database\Interface\PdoConnector;

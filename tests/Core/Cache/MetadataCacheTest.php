@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\Core\Cache;
 
 use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Core\Cache\CacheInterface;
 use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Tests\Files\Cache\BaseCacheTest;
 use ReflectionException;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MetadataCache::class)]
-final class MetadataCacheTest extends TestCase
+final class MetadataCacheTest extends BaseCacheTest
 {
-    private MetadataCache $cache;
+    protected function createCacheInstance(): CacheInterface
+    {
+        return new MetadataCache();
+    }
 
     protected function setUp(): void
     {
-        $this->cache = new MetadataCache();
+        parent::setUp();
     }
 
     public function testConstructorWithDefaultConfig(): void

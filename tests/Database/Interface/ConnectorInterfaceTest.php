@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 #[CoversClass(PdoConnector::class)]
-final class ConnectorIntegrationTest extends TestCase
+final class ConnectorInterfaceTest extends TestCase
 {
     private ConnectorInterface $connector;
     private array $validParameters;

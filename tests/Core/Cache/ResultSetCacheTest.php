@@ -4,23 +4,50 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Core\Cache;
 
+use MulerTech\Database\Core\Cache\CacheInterface;
 use MulerTech\Database\Core\Cache\ResultSetCache;
+use MulerTech\Database\Tests\Files\Cache\BaseCacheTest;
 use MulerTech\Database\Tests\Files\Cache\Mock\MockCache;
 use MulerTech\Database\Tests\Files\Cache\Mock\SimpleMockCache;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\TestStatus\Notice;
 
 #[CoversClass(ResultSetCache::class)]
-final class ResultSetCacheTest extends TestCase
+final class ResultSetCacheTest extends BaseCacheTest
 {
     private MockCache $mockCache;
-    private ResultSetCache $cache;
+
+    protected function createCacheInstance(): CacheInterface
+    {
+        $this->mockCache = new MockCache();
+        return new ResultSetCache($this->mockCache, 100);
+    }
 
     protected function setUp(): void
     {
-        $this->mockCache = new MockCache();
-        $this->cache = new ResultSetCache($this->mockCache, 100);
+        parent::setUp();
+    }
+
+    public function testDifferentDataTypes(): void
+    {
+        $testCases = [
+            'string' => 'test string',
+            'integer' => 42,
+            'float' => 3.14159,
+            'boolean_true' => true,
+            'boolean_false' => false,
+            'null_value' => null,
+            'array' => ['a', 'b', 'c'],
+            'associative_array' => ['key' => 'value', 'nested' => ['inner' => 'value']]
+        ];
+        
+        foreach ($testCases as $key => $value) {
+            $this->cache->set($key, $value);
+            $this->assertEquals($value, $this->cache->get($key), "Failed to get correct value for key: {$key}");
+            if ($value !== null) {
+                $this->assertTrue($this->cache->has($key), "Failed to find existing key: {$key}");
+            }
+        }
     }
 
     public function testConstructor(): void
