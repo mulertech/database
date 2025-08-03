@@ -85,7 +85,22 @@ class ValueComparator
             if ($classCompare !== 0) {
                 return $classCompare;
             }
-            return ($classA['__id__'] ?? 0) <=> ($classB['__id__'] ?? 0);
+
+            $idA = $classA['__id__'];
+            $idB = $classB['__id__'];
+
+            if ($idA === null && $idB === null) {
+                return $classA['__hash__'] <=> $classB['__hash__'];
+            }
+
+            if ($idA === null) {
+                return -1;
+            }
+            if ($idB === null) {
+                return 1;
+            }
+
+            return $idA <=> $idB;
         };
 
         usort($items1, $sort);

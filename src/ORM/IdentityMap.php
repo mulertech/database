@@ -7,7 +7,6 @@ namespace MulerTech\Database\ORM;
 use DateTimeImmutable;
 use Error;
 use InvalidArgumentException;
-use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use ReflectionClass;
 use ReflectionException;

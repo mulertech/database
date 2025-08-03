@@ -1,0 +1,349 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MulerTech\Database\Tests\ORM\State;
+
+use MulerTech\Database\ORM\EntityState;
+use MulerTech\Database\ORM\IdentityMap;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
+use MulerTech\Database\ORM\State\StateTransitionManager;
+use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\Entity\Unit;
+use PHPUnit\Framework\TestCase;
+
+class StateTransitionManagerTest extends TestCase
+{
+    private StateTransitionManager $transitionManager;
+    private IdentityMap $identityMap;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->identityMap = new IdentityMap();
+        $this->transitionManager = new StateTransitionManager($this->identityMap);
+    }
+
+    public function testTransitionFromNewToManaged(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, null, $entityState);
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+        
+        $metadata = $this->identityMap->getMetadata($user);
+        self::assertNotNull($metadata);
+        self::assertEquals(EntityLifecycleState::MANAGED, $metadata->state);
+    }
+
+    public function testTransitionFromManagedToRemoved(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::MANAGED,
+            ['username' => 'John'],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, 1, $entityState);
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::REMOVED);
+        
+        $metadata = $this->identityMap->getMetadata($user);
+        self::assertNotNull($metadata);
+        self::assertEquals(EntityLifecycleState::REMOVED, $metadata->state);
+    }
+
+    public function testTransitionFromManagedToDetached(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::MANAGED,
+            ['username' => 'John'],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, 1, $entityState);
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
+        
+        $metadata = $this->identityMap->getMetadata($user);
+        self::assertNotNull($metadata);
+        self::assertEquals(EntityLifecycleState::DETACHED, $metadata->state);
+    }
+
+    public function testTransitionFromNewToDetached(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, null, $entityState);
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
+        
+        $metadata = $this->identityMap->getMetadata($user);
+        self::assertNotNull($metadata);
+        self::assertEquals(EntityLifecycleState::DETACHED, $metadata->state);
+    }
+
+    public function testInvalidTransitionFromNewToRemoved(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, null, $entityState);
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid state transition from NEW to REMOVED');
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::REMOVED);
+    }
+
+    public function testInvalidTransitionFromRemovedToManaged(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::REMOVED,
+            ['username' => 'John'],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, 1, $entityState);
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid state transition from REMOVED to MANAGED');
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+    }
+
+    public function testInvalidTransitionFromDetachedToManaged(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::DETACHED,
+            ['username' => 'John'],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, 1, $entityState);
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid state transition from DETACHED to MANAGED');
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+    }
+
+    public function testTransitionUnmanagedEntity(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Entity is not managed');
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+    }
+
+    public function testCanTransitionFromNewToManaged(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::NEW, EntityLifecycleState::MANAGED);
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanTransitionFromManagedToRemoved(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::MANAGED, EntityLifecycleState::REMOVED);
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanTransitionFromManagedToDetached(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::MANAGED, EntityLifecycleState::DETACHED);
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanTransitionFromNewToDetached(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::NEW, EntityLifecycleState::DETACHED);
+        
+        self::assertTrue($result);
+    }
+
+    public function testCannotTransitionFromNewToRemoved(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::NEW, EntityLifecycleState::REMOVED);
+        
+        self::assertFalse($result);
+    }
+
+    public function testCannotTransitionFromRemovedToManaged(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::REMOVED, EntityLifecycleState::MANAGED);
+        
+        self::assertFalse($result);
+    }
+
+    public function testCannotTransitionFromDetachedToManaged(): void
+    {
+        $result = $this->transitionManager->canTransition(EntityLifecycleState::DETACHED, EntityLifecycleState::MANAGED);
+        
+        self::assertFalse($result);
+    }
+
+    public function testGetValidTransitions(): void
+    {
+        $validTransitions = $this->transitionManager->getValidTransitions(EntityLifecycleState::NEW);
+        
+        self::assertIsArray($validTransitions);
+        self::assertContains(EntityLifecycleState::MANAGED, $validTransitions);
+        self::assertContains(EntityLifecycleState::DETACHED, $validTransitions);
+        self::assertNotContains(EntityLifecycleState::REMOVED, $validTransitions);
+    }
+
+    public function testGetValidTransitionsFromManaged(): void
+    {
+        $validTransitions = $this->transitionManager->getValidTransitions(EntityLifecycleState::MANAGED);
+        
+        self::assertIsArray($validTransitions);
+        self::assertContains(EntityLifecycleState::REMOVED, $validTransitions);
+        self::assertContains(EntityLifecycleState::DETACHED, $validTransitions);
+        self::assertNotContains(EntityLifecycleState::NEW, $validTransitions);
+    }
+
+    public function testGetValidTransitionsFromRemoved(): void
+    {
+        $validTransitions = $this->transitionManager->getValidTransitions(EntityLifecycleState::REMOVED);
+        
+        self::assertIsArray($validTransitions);
+        self::assertEmpty($validTransitions);
+    }
+
+    public function testGetValidTransitionsFromDetached(): void
+    {
+        $validTransitions = $this->transitionManager->getValidTransitions(EntityLifecycleState::DETACHED);
+        
+        self::assertIsArray($validTransitions);
+        self::assertEmpty($validTransitions);
+    }
+
+    public function testGetTransitionHistory(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, null, $entityState);
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+        $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
+        
+        $history = $this->transitionManager->getTransitionHistory($user);
+        
+        self::assertIsArray($history);
+        self::assertCount(2, $history);
+        self::assertEquals(EntityLifecycleState::MANAGED, $history[0]['to']);
+        self::assertEquals(EntityLifecycleState::DETACHED, $history[1]['to']);
+    }
+
+    public function testGetTransitionHistoryEmpty(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $history = $this->transitionManager->getTransitionHistory($user);
+        
+        self::assertIsArray($history);
+        self::assertEmpty($history);
+    }
+
+    public function testClearTransitionHistory(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $entityState = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user, null, $entityState);
+        
+        $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+        
+        $history = $this->transitionManager->getTransitionHistory($user);
+        self::assertNotEmpty($history);
+        
+        $this->transitionManager->clearTransitionHistory($user);
+        
+        $history = $this->transitionManager->getTransitionHistory($user);
+        self::assertEmpty($history);
+    }
+
+    public function testMultipleEntitiesTransitions(): void
+    {
+        $user1 = new User();
+        $user1->setUsername('John');
+        $user2 = new User();
+        $user2->setUsername('Jane');
+        
+        $entityState1 = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        $entityState2 = new EntityState(
+            EntityLifecycleState::NEW,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $this->identityMap->add($user1, null, $entityState1);
+        $this->identityMap->add($user2, null, $entityState2);
+        
+        $this->transitionManager->transition($user1, EntityLifecycleState::MANAGED);
+        $this->transitionManager->transition($user2, EntityLifecycleState::DETACHED);
+        
+        $metadata1 = $this->identityMap->getMetadata($user1);
+        $metadata2 = $this->identityMap->getMetadata($user2);
+        
+        self::assertEquals(EntityLifecycleState::MANAGED, $metadata1->state);
+        self::assertEquals(EntityLifecycleState::DETACHED, $metadata2->state);
+    }
+}
