@@ -16,19 +16,15 @@ final readonly class EntityState
 {
     /**
      * @param class-string $className
-     * @param int|string $identifier
      * @param EntityLifecycleState $state
      * @param array<string, mixed> $originalData
-     * @param DateTimeImmutable $loadedAt
-     * @param DateTimeImmutable|null $lastModified
+     * @param DateTimeImmutable $lastModified
      */
     public function __construct(
         public string $className,
-        public int|string $identifier,
         public EntityLifecycleState $state,
         public array $originalData,
-        public DateTimeImmutable $loadedAt,
-        public ?DateTimeImmutable $lastModified = null
+        public DateTimeImmutable $lastModified
     ) {
     }
 
@@ -46,5 +42,21 @@ final readonly class EntityState
     public function isNew(): bool
     {
         return $this->state === EntityLifecycleState::NEW;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRemoved(): bool
+    {
+        return $this->state === EntityLifecycleState::REMOVED;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isDetached(): bool
+    {
+        return $this->state === EntityLifecycleState::DETACHED;
     }
 }

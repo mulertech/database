@@ -52,15 +52,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $this->stateManager->transitionToRemoved($user);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -72,15 +67,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $this->stateManager->transitionToDetached($user);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -92,15 +82,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $state = $this->stateManager->getCurrentState($user);
         
         self::assertEquals(EntityLifecycleState::MANAGED, $state);
@@ -120,15 +105,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         self::assertTrue($this->stateManager->isInState($user, EntityLifecycleState::MANAGED));
         self::assertFalse($this->stateManager->isInState($user, EntityLifecycleState::NEW));
         self::assertFalse($this->stateManager->isInState($user, EntityLifecycleState::REMOVED));
@@ -151,14 +131,8 @@ class EntityStateManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         self::assertTrue($this->stateManager->canTransitionTo($user, EntityLifecycleState::MANAGED));
         self::assertTrue($this->stateManager->canTransitionTo($user, EntityLifecycleState::DETACHED));
         self::assertFalse($this->stateManager->canTransitionTo($user, EntityLifecycleState::REMOVED));
@@ -168,15 +142,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         self::assertTrue($this->stateManager->canTransitionTo($user, EntityLifecycleState::REMOVED));
         self::assertTrue($this->stateManager->canTransitionTo($user, EntityLifecycleState::DETACHED));
         self::assertFalse($this->stateManager->canTransitionTo($user, EntityLifecycleState::NEW));
@@ -197,15 +166,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'Original'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $newData = ['username' => 'Updated'];
         $this->stateManager->updateOriginalData($user, $newData);
         
@@ -231,19 +195,14 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $originalData = ['username' => 'John'];
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            $originalData,
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $result = $this->stateManager->getOriginalData($user);
         
-        self::assertEquals($originalData, $result);
+        self::assertIsArray($result);
+        self::assertEquals('John', $result['username']);
     }
 
     public function testGetOriginalDataUnmanaged(): void
@@ -261,14 +220,8 @@ class EntityStateManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         $this->stateManager->markAsPersisted($user, 123);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -283,15 +236,10 @@ class EntityStateManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Entity is already persisted');
         
@@ -316,3 +264,4 @@ class EntityStateManagerTest extends TestCase
         self::assertTrue($this->stateManager->isInState($unit, EntityLifecycleState::NEW));
     }
 }
+

@@ -103,10 +103,10 @@ class EntityLifecycleStateTest extends TestCase
 
     public function testStringRepresentation(): void
     {
-        self::assertEquals('new', (string) EntityLifecycleState::NEW);
-        self::assertEquals('managed', (string) EntityLifecycleState::MANAGED);
-        self::assertEquals('removed', (string) EntityLifecycleState::REMOVED);
-        self::assertEquals('detached', (string) EntityLifecycleState::DETACHED);
+        self::assertEquals('new', EntityLifecycleState::NEW->value);
+        self::assertEquals('managed', EntityLifecycleState::MANAGED->value);
+        self::assertEquals('removed', EntityLifecycleState::REMOVED->value);
+        self::assertEquals('detached', EntityLifecycleState::DETACHED->value);
     }
 
     public function testStateTransitions(): void

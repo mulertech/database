@@ -29,14 +29,8 @@ class StateTransitionManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -48,15 +42,10 @@ class StateTransitionManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $this->transitionManager->transition($user, EntityLifecycleState::REMOVED);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -68,15 +57,10 @@ class StateTransitionManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::MANAGED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
         $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -89,14 +73,8 @@ class StateTransitionManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
         
         $metadata = $this->identityMap->getMetadata($user);
@@ -109,14 +87,8 @@ class StateTransitionManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid state transition from NEW to REMOVED');
         
@@ -127,15 +99,13 @@ class StateTransitionManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::REMOVED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
+        // First transition to REMOVED state
+        $this->transitionManager->transition($user, EntityLifecycleState::REMOVED);
+
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid state transition from REMOVED to MANAGED');
         
@@ -146,15 +116,13 @@ class StateTransitionManagerTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $entityState = new EntityState(
-            EntityLifecycleState::DETACHED,
-            ['username' => 'John'],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, 1, $entityState);
-        
+        $user->setId(1);
+
+        $this->identityMap->add($user);
+
+        // First transition to DETACHED state
+        $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
+
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid state transition from DETACHED to MANAGED');
         
@@ -262,14 +230,8 @@ class StateTransitionManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
         $this->transitionManager->transition($user, EntityLifecycleState::DETACHED);
         
@@ -297,14 +259,8 @@ class StateTransitionManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $entityState = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user, null, $entityState);
-        
+        $this->identityMap->add($user);
+
         $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
         
         $history = $this->transitionManager->getTransitionHistory($user);
@@ -323,20 +279,9 @@ class StateTransitionManagerTest extends TestCase
         $user2 = new User();
         $user2->setUsername('Jane');
         
-        $entityState1 = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        $entityState2 = new EntityState(
-            EntityLifecycleState::NEW,
-            [],
-            new \DateTimeImmutable()
-        );
-        
-        $this->identityMap->add($user1, null, $entityState1);
-        $this->identityMap->add($user2, null, $entityState2);
-        
+        $this->identityMap->add($user1);
+        $this->identityMap->add($user2);
+
         $this->transitionManager->transition($user1, EntityLifecycleState::MANAGED);
         $this->transitionManager->transition($user2, EntityLifecycleState::DETACHED);
         

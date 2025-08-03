@@ -254,11 +254,10 @@ final class IdentityMap
         $originalData = $this->extractEntityData($entity);
 
         $metadata = new EntityState(
-            className: $entityClass,
-            identifier: $id ?? '',
-            state: $state,
-            originalData: $originalData,
-            loadedAt: new DateTimeImmutable()
+            $entityClass,
+            $state,
+            $originalData,
+            new DateTimeImmutable()
         );
 
         $this->metadata[$entity] = $metadata;
