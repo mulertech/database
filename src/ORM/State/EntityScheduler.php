@@ -24,10 +24,10 @@ final readonly class EntityScheduler
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return void
      */
-    public function scheduleForInsertion(object $entity, EntityState $currentState): void
+    public function scheduleForInsertion(object $entity, EntityLifecycleState $currentState): void
     {
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'persist')) {
             throw new InvalidArgumentException(
@@ -43,10 +43,10 @@ final readonly class EntityScheduler
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return void
      */
-    public function scheduleForUpdate(object $entity, EntityState $currentState): void
+    public function scheduleForUpdate(object $entity, EntityLifecycleState $currentState): void
     {
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'update')) {
             throw new InvalidArgumentException(
@@ -62,10 +62,10 @@ final readonly class EntityScheduler
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return void
      */
-    public function scheduleForDeletion(object $entity, EntityState $currentState): void
+    public function scheduleForDeletion(object $entity, EntityLifecycleState $currentState): void
     {
         if (!$this->stateValidator->validateOperation($entity, $currentState, 'remove')) {
             throw new InvalidArgumentException(
@@ -89,7 +89,7 @@ final readonly class EntityScheduler
         }
 
         $insertions = [];
-        foreach ($this->identityMap->getEntitiesByState(EntityState::NEW) as $entity) {
+        foreach ($this->identityMap->getEntitiesByState(EntityLifecycleState::NEW) as $entity) {
             $insertions[spl_object_id($entity)] = $entity;
         }
 
@@ -118,7 +118,7 @@ final readonly class EntityScheduler
         }
 
         $deletions = [];
-        foreach ($this->identityMap->getEntitiesByState(EntityState::REMOVED) as $entity) {
+        foreach ($this->identityMap->getEntitiesByState(EntityLifecycleState::REMOVED) as $entity) {
             $deletions[spl_object_id($entity)] = $entity;
         }
 
@@ -127,17 +127,17 @@ final readonly class EntityScheduler
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    public function isScheduledForInsertion(object $entity, EntityState $currentState): bool
+    public function isScheduledForInsertion(object $entity, EntityLifecycleState $currentState): bool
     {
         if ($this->changeSetManager !== null) {
             $scheduled = $this->changeSetManager->getScheduledInsertions();
             return in_array($entity, $scheduled, true);
         }
 
-        return $currentState === EntityState::NEW;
+        return $currentState === EntityLifecycleState::NEW;
     }
 
     /**
@@ -156,16 +156,16 @@ final readonly class EntityScheduler
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    public function isScheduledForDeletion(object $entity, EntityState $currentState): bool
+    public function isScheduledForDeletion(object $entity, EntityLifecycleState $currentState): bool
     {
         if ($this->changeSetManager !== null) {
             $scheduled = $this->changeSetManager->getScheduledDeletions();
             return in_array($entity, $scheduled, true);
         }
 
-        return $currentState === EntityState::REMOVED;
+        return $currentState === EntityLifecycleState::REMOVED;
     }
 }

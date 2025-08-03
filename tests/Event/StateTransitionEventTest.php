@@ -6,7 +6,7 @@ namespace MulerTech\Database\Tests\Event;
 
 use InvalidArgumentException;
 use MulerTech\Database\Event\StateTransitionEvent;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -25,14 +25,14 @@ class StateTransitionEventTest extends TestCase
     {
         $event = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
         $this->assertEquals($this->entity, $event->getEntity());
-        $this->assertEquals(EntityState::NEW, $event->getFromState());
-        $this->assertEquals(EntityState::MANAGED, $event->getToState());
+        $this->assertEquals(EntityLifecycleState::NEW, $event->getFromState());
+        $this->assertEquals(EntityLifecycleState::MANAGED, $event->getToState());
         $this->assertEquals('pre', $event->getPhase());
         $this->assertEquals('preStateTransition', $event->getName());
     }
@@ -41,14 +41,14 @@ class StateTransitionEventTest extends TestCase
     {
         $event = new StateTransitionEvent(
             $this->entity,
-            EntityState::MANAGED,
-            EntityState::DETACHED,
+            EntityLifecycleState::MANAGED,
+            EntityLifecycleState::DETACHED,
             'post'
         );
 
         $this->assertEquals($this->entity, $event->getEntity());
-        $this->assertEquals(EntityState::MANAGED, $event->getFromState());
-        $this->assertEquals(EntityState::DETACHED, $event->getToState());
+        $this->assertEquals(EntityLifecycleState::MANAGED, $event->getFromState());
+        $this->assertEquals(EntityLifecycleState::DETACHED, $event->getToState());
         $this->assertEquals('post', $event->getPhase());
         $this->assertEquals('postStateTransition', $event->getName());
     }
@@ -60,8 +60,8 @@ class StateTransitionEventTest extends TestCase
 
         new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'invalid'
         );
     }
@@ -74,8 +74,8 @@ class StateTransitionEventTest extends TestCase
 
         $event = new StateTransitionEvent(
             $entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
@@ -87,39 +87,39 @@ class StateTransitionEventTest extends TestCase
     {
         $event = new StateTransitionEvent(
             $this->entity,
-            EntityState::DETACHED,
-            EntityState::MANAGED,
+            EntityLifecycleState::DETACHED,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
-        $this->assertEquals(EntityState::DETACHED, $event->getFromState());
+        $this->assertEquals(EntityLifecycleState::DETACHED, $event->getFromState());
     }
 
     public function testGetToState(): void
     {
         $event = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::REMOVED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::REMOVED,
             'post'
         );
 
-        $this->assertEquals(EntityState::REMOVED, $event->getToState());
+        $this->assertEquals(EntityLifecycleState::REMOVED, $event->getToState());
     }
 
     public function testGetPhase(): void
     {
         $preEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
         $postEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::MANAGED,
-            EntityState::DETACHED,
+            EntityLifecycleState::MANAGED,
+            EntityLifecycleState::DETACHED,
             'post'
         );
 
@@ -131,15 +131,15 @@ class StateTransitionEventTest extends TestCase
     {
         $preEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
         $postEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::MANAGED,
-            EntityState::DETACHED,
+            EntityLifecycleState::MANAGED,
+            EntityLifecycleState::DETACHED,
             'post'
         );
 
@@ -151,15 +151,15 @@ class StateTransitionEventTest extends TestCase
     {
         $preEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
         $postEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::MANAGED,
-            EntityState::DETACHED,
+            EntityLifecycleState::MANAGED,
+            EntityLifecycleState::DETACHED,
             'post'
         );
 
@@ -174,8 +174,8 @@ class StateTransitionEventTest extends TestCase
 
         $event = new StateTransitionEvent(
             $entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
@@ -191,8 +191,8 @@ class StateTransitionEventTest extends TestCase
     {
         $event = new StateTransitionEvent(
             $this->entity,
-            EntityState::MANAGED,
-            EntityState::REMOVED,
+            EntityLifecycleState::MANAGED,
+            EntityLifecycleState::REMOVED,
             'post'
         );
 
@@ -204,14 +204,14 @@ class StateTransitionEventTest extends TestCase
         $this->assertEquals($expectedKey, $event->getTransitionKey());
     }
 
-    public function testAllEntityStateTransitions(): void
+    public function testAllEntityLifecycleStateTransitions(): void
     {
         $testCases = [
-            [EntityState::NEW, EntityState::MANAGED],
-            [EntityState::NEW, EntityState::DETACHED],
-            [EntityState::MANAGED, EntityState::DETACHED],
-            [EntityState::MANAGED, EntityState::REMOVED],
-            [EntityState::DETACHED, EntityState::MANAGED],
+            [EntityLifecycleState::NEW, EntityLifecycleState::MANAGED],
+            [EntityLifecycleState::NEW, EntityLifecycleState::DETACHED],
+            [EntityLifecycleState::MANAGED, EntityLifecycleState::DETACHED],
+            [EntityLifecycleState::MANAGED, EntityLifecycleState::REMOVED],
+            [EntityLifecycleState::DETACHED, EntityLifecycleState::MANAGED],
         ];
 
         foreach ($testCases as [$fromState, $toState]) {
@@ -233,15 +233,15 @@ class StateTransitionEventTest extends TestCase
     {
         $preEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
         $postEvent = new StateTransitionEvent(
             $this->entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'post'
         );
 
@@ -252,8 +252,8 @@ class StateTransitionEventTest extends TestCase
     public function testEventIsImmutable(): void
     {
         $entity = new stdClass();
-        $fromState = EntityState::NEW;
-        $toState = EntityState::MANAGED;
+        $fromState = EntityLifecycleState::NEW;
+        $toState = EntityLifecycleState::MANAGED;
         $phase = 'pre';
 
         $event = new StateTransitionEvent($entity, $fromState, $toState, $phase);
@@ -278,8 +278,8 @@ class StateTransitionEventTest extends TestCase
 
         $event = new StateTransitionEvent(
             $entity,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
@@ -297,15 +297,15 @@ class StateTransitionEventTest extends TestCase
 
         $event1 = new StateTransitionEvent(
             $entity1,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
         $event2 = new StateTransitionEvent(
             $entity2,
-            EntityState::NEW,
-            EntityState::MANAGED,
+            EntityLifecycleState::NEW,
+            EntityLifecycleState::MANAGED,
             'pre'
         );
 
@@ -323,8 +323,8 @@ class StateTransitionEventTest extends TestCase
         foreach ($validPhases as $phase) {
             $event = new StateTransitionEvent(
                 $this->entity,
-                EntityState::NEW,
-                EntityState::MANAGED,
+                EntityLifecycleState::NEW,
+                EntityLifecycleState::MANAGED,
                 $phase
             );
             
@@ -341,8 +341,8 @@ class StateTransitionEventTest extends TestCase
             try {
                 new StateTransitionEvent(
                     $this->entity,
-                    EntityState::NEW,
-                    EntityState::MANAGED,
+                    EntityLifecycleState::NEW,
+                    EntityLifecycleState::MANAGED,
                     $invalidPhase
                 );
                 $this->fail("Expected InvalidArgumentException for phase: {$invalidPhase}");

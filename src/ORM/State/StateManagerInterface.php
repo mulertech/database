@@ -49,9 +49,9 @@ interface StateManagerInterface
 
     /**
      * @param object $entity
-     * @return EntityState
+     * @return EntityLifecycleState
      */
-    public function getEntityState(object $entity): EntityState;
+    public function getEntityState(object $entity): EntityLifecycleState;
 
     /**
      * @param object $dependent

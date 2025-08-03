@@ -9,7 +9,7 @@ namespace MulerTech\Database\ORM\State;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-enum EntityState: string
+enum EntityLifecycleState: string
 {
     case NEW = 'new';
     case MANAGED = 'managed';

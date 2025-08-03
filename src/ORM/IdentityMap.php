@@ -7,7 +7,8 @@ namespace MulerTech\Database\ORM;
 use DateTimeImmutable;
 use Error;
 use InvalidArgumentException;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use ReflectionClass;
 use ReflectionException;
 use WeakMap;
@@ -26,7 +27,7 @@ final class IdentityMap
     private array $entities = [];
 
     /**
-     * @var WeakMap<object, EntityMetadata>
+     * @var WeakMap<object, EntityState>
      */
     private WeakMap $metadata;
 
@@ -167,10 +168,10 @@ final class IdentityMap
     }
 
     /**
-     * @param EntityState $state
+     * @param EntityLifecycleState $state
      * @return array<object>
      */
-    public function getEntitiesByState(EntityState $state): array
+    public function getEntitiesByState(EntityLifecycleState $state): array
     {
         $entities = [];
 
@@ -185,19 +186,19 @@ final class IdentityMap
 
     /**
      * @param object $entity
-     * @return EntityMetadata|null
+     * @return EntityState|null
      */
-    public function getMetadata(object $entity): ?EntityMetadata
+    public function getMetadata(object $entity): ?EntityState
     {
         return $this->metadata[$entity] ?? null;
     }
 
     /**
      * @param object $entity
-     * @param EntityMetadata $newMetadata
+     * @param EntityState $newMetadata
      * @return void
      */
-    public function updateMetadata(object $entity, EntityMetadata $newMetadata): void
+    public function updateMetadata(object $entity, EntityState $newMetadata): void
     {
         if (!isset($this->metadata[$entity])) {
             throw new InvalidArgumentException('Entity is not managed by this IdentityMap');
@@ -218,9 +219,9 @@ final class IdentityMap
 
     /**
      * @param object $entity
-     * @return EntityState|null
+     * @return EntityLifecycleState|null
      */
-    public function getEntityState(object $entity): ?EntityState
+    public function getEntityState(object $entity): ?EntityLifecycleState
     {
         return $this->getMetadata($entity)?->state;
     }
@@ -250,10 +251,10 @@ final class IdentityMap
     private function storeMetadata(object $entity, int|string|null $id): void
     {
         $entityClass = $entity::class;
-        $state = $id === null ? EntityState::NEW : EntityState::MANAGED;
+        $state = $id === null ? EntityLifecycleState::NEW : EntityLifecycleState::MANAGED;
         $originalData = $this->extractEntityData($entity);
 
-        $metadata = new EntityMetadata(
+        $metadata = new EntityState(
             className: $entityClass,
             identifier: $id ?? '',
             state: $state,

@@ -7,7 +7,7 @@ namespace MulerTech\Database\ORM;
 use InvalidArgumentException;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\EntityStateManager;
 use SplObjectStorage;
 
@@ -116,7 +116,7 @@ final class ChangeSetManager
         $this->visitedEntities = [];
 
         // Process all managed entities
-        $managedEntities = $this->identityMap->getEntitiesByState(EntityState::MANAGED);
+        $managedEntities = $this->identityMap->getEntitiesByState(EntityLifecycleState::MANAGED);
 
         foreach ($managedEntities as $entity) {
             $this->computeEntityChangeSet($entity);

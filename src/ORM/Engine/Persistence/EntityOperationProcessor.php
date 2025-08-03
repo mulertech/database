@@ -7,10 +7,10 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 use DateTimeImmutable;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use ReflectionException;
 
@@ -89,7 +89,7 @@ class EntityOperationProcessor
 
         // Only detach if entity is not already in removed state
         $currentState = $this->stateManager->getEntityState($entity);
-        if ($currentState !== EntityState::REMOVED) {
+        if ($currentState !== EntityLifecycleState::REMOVED) {
             $this->stateManager->detach($entity);
         }
 
@@ -132,10 +132,10 @@ class EntityOperationProcessor
         $entityId = $this->extractEntityId($entity);
         $identifier = $entityId ?? $metadata->identifier;
 
-        $newMetadata = new EntityMetadata(
+        $newMetadata = new EntityState(
             $metadata->className,
             $identifier,
-            EntityState::MANAGED,
+            EntityLifecycleState::MANAGED,
             $currentData,
             $metadata->loadedAt,
             new DateTimeImmutable()

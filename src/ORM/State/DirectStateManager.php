@@ -7,7 +7,7 @@ namespace MulerTech\Database\ORM\State;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 
 /**
@@ -44,7 +44,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function isManaged(object $entity): bool
     {
-        return $this->getEntityState($entity) === EntityState::MANAGED;
+        return $this->getEntityState($entity) === EntityLifecycleState::MANAGED;
     }
 
     /**
@@ -55,8 +55,8 @@ final readonly class DirectStateManager implements StateManagerInterface
     {
         $currentState = $this->getEntityState($entity);
 
-        if ($currentState !== EntityState::MANAGED) {
-            $this->transitionToState($entity, EntityState::MANAGED);
+        if ($currentState !== EntityLifecycleState::MANAGED) {
+            $this->transitionToState($entity, EntityLifecycleState::MANAGED);
         }
     }
 
@@ -90,8 +90,8 @@ final readonly class DirectStateManager implements StateManagerInterface
         $this->entityScheduler->scheduleForDeletion($entity, $currentState);
 
         // Only transition to REMOVED state if not already in that state
-        if ($currentState !== EntityState::REMOVED) {
-            $this->transitionToState($entity, EntityState::REMOVED);
+        if ($currentState !== EntityLifecycleState::REMOVED) {
+            $this->transitionToState($entity, EntityLifecycleState::REMOVED);
         }
     }
 
@@ -112,7 +112,7 @@ final readonly class DirectStateManager implements StateManagerInterface
             );
         }
 
-        $this->transitionToState($entity, EntityState::DETACHED);
+        $this->transitionToState($entity, EntityLifecycleState::DETACHED);
         $this->changeSetManager?->detach($entity);
         $this->dependencyManager->removeDependencies($entity);
     }
@@ -203,7 +203,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function markAsPersisted(object $entity): void
     {
-        $this->transitionToState($entity, EntityState::MANAGED);
+        $this->transitionToState($entity, EntityLifecycleState::MANAGED);
     }
 
     /**
@@ -226,19 +226,19 @@ final readonly class DirectStateManager implements StateManagerInterface
 
     /**
      * @param object $entity
-     * @return EntityState
+     * @return EntityLifecycleState
      */
-    public function getEntityState(object $entity): EntityState
+    public function getEntityState(object $entity): EntityLifecycleState
     {
-        return $this->stateResolver->resolveEntityState($entity);
+        return $this->stateResolver->resolveEntityLifecycleState($entity);
     }
 
     /**
      * @param object $entity
-     * @param EntityState $newState
+     * @param EntityLifecycleState $newState
      * @return void
      */
-    private function transitionToState(object $entity, EntityState $newState): void
+    private function transitionToState(object $entity, EntityLifecycleState $newState): void
     {
         $currentState = $this->getEntityState($entity);
 
@@ -253,13 +253,13 @@ final readonly class DirectStateManager implements StateManagerInterface
         // Update state in identity map
         $metadata = $this->identityMap->getMetadata($entity);
 
-        if ($metadata === null && $newState === EntityState::MANAGED) {
+        if ($metadata === null && $newState === EntityLifecycleState::MANAGED) {
             $this->identityMap->add($entity);
             $metadata = $this->identityMap->getMetadata($entity);
         }
 
         if ($metadata !== null) {
-            $newMetadata = new EntityMetadata(
+            $newMetadata = new EntityState(
                 className: $metadata->className,
                 identifier: $metadata->identifier,
                 state: $newState,

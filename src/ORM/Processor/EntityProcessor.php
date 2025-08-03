@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use Error;
 use InvalidArgumentException;
 use MulerTech\Database\ORM\ChangeDetector;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 use ReflectionClass;
 
@@ -108,7 +108,7 @@ readonly class EntityProcessor
         }
 
         $newData = $this->changeDetector->extractCurrentData($target);
-        $newMetadata = new EntityMetadata(
+        $newMetadata = new EntityState(
             $metadata->className,
             $metadata->identifier,
             $metadata->state,

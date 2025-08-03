@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 
 /**
@@ -23,10 +24,10 @@ final readonly class ChangeSetValidator
 
     /**
      * @param int|string|null $entityId
-     * @param EntityMetadata|null $metadata
+     * @param EntityState|null $metadata
      * @return bool
      */
-    public function shouldSkipInsertion(int|string|null $entityId, ?EntityMetadata $metadata): bool
+    public function shouldSkipInsertion(int|string|null $entityId, ?EntityState $metadata): bool
     {
         if ($entityId !== null && $metadata !== null && $metadata->isManaged()) {
             return true;

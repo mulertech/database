@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Event;
 
 use InvalidArgumentException;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\EventManager\Event;
 
 /**
@@ -17,14 +17,14 @@ final class StateTransitionEvent extends Event
 {
     /**
      * @param object $entity
-     * @param EntityState $fromState
-     * @param EntityState $toState
+     * @param EntityLifecycleState $fromState
+     * @param EntityLifecycleState $toState
      * @param string $phase
      */
     public function __construct(
         private readonly object $entity,
-        private readonly EntityState $fromState,
-        private readonly EntityState $toState,
+        private readonly EntityLifecycleState $fromState,
+        private readonly EntityLifecycleState $toState,
         private readonly string $phase
     ) {
         if (!in_array($phase, ['pre', 'post'], true)) {
@@ -42,17 +42,17 @@ final class StateTransitionEvent extends Event
     }
 
     /**
-     * @return EntityState
+     * @return EntityLifecycleState
      */
-    public function getFromState(): EntityState
+    public function getFromState(): EntityLifecycleState
     {
         return $this->fromState;
     }
 
     /**
-     * @return EntityState
+     * @return EntityLifecycleState
      */
-    public function getToState(): EntityState
+    public function getToState(): EntityLifecycleState
     {
         return $this->toState;
     }

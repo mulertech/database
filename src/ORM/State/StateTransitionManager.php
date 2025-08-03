@@ -24,7 +24,7 @@ final class StateTransitionManager
     /** @var array<string, bool> */
     private array $customTransitions = [];
 
-    /** @var array<int, array{from: EntityState, to: EntityState, entity: object, timestamp: int}> */
+    /** @var array<int, array{from: EntityLifecycleState, to: EntityLifecycleState, entity: object, timestamp: int}> */
     private array $transitionHistory = [];
 
     /** @var bool */
@@ -62,12 +62,12 @@ final class StateTransitionManager
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return void
      * @throws InvalidArgumentException
      */
-    public function transition(object $entity, EntityState $from, EntityState $to): void
+    public function transition(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): void
     {
         // Validate transition
         if (!$this->canTransition($entity, $from, $to)) {
@@ -109,11 +109,11 @@ final class StateTransitionManager
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return bool
      */
-    public function canTransition(object $entity, EntityState $from, EntityState $to): bool
+    public function canTransition(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): bool
     {
         // Check custom transitions first
         $customKey = $this->getCustomTransitionKey($entity::class, $from, $to);
@@ -132,11 +132,11 @@ final class StateTransitionManager
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return void
      */
-    private function executePreTransitionHooks(object $entity, EntityState $from, EntityState $to): void
+    private function executePreTransitionHooks(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): void
     {
         $hooks = $this->findMatchingHooks($this->preTransitionHooks, $from, $to);
 
@@ -147,11 +147,11 @@ final class StateTransitionManager
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return void
      */
-    private function executePostTransitionHooks(object $entity, EntityState $from, EntityState $to): void
+    private function executePostTransitionHooks(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): void
     {
         $hooks = $this->findMatchingHooks($this->postTransitionHooks, $from, $to);
 
@@ -162,11 +162,11 @@ final class StateTransitionManager
 
     /**
      * @param array<string, callable> $hooks
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return array<callable>
      */
-    private function findMatchingHooks(array $hooks, EntityState $from, EntityState $to): array
+    private function findMatchingHooks(array $hooks, EntityLifecycleState $from, EntityLifecycleState $to): array
     {
         $matchingHooks = [];
 
@@ -186,11 +186,11 @@ final class StateTransitionManager
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return void
      */
-    private function recordTransition(object $entity, EntityState $from, EntityState $to): void
+    private function recordTransition(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): void
     {
         $this->transitionHistory[] = [
             'from' => $from,
@@ -219,11 +219,11 @@ final class StateTransitionManager
 
     /**
      * @param class-string $entityClass
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
      * @return string
      */
-    private function getCustomTransitionKey(string $entityClass, EntityState $from, EntityState $to): string
+    private function getCustomTransitionKey(string $entityClass, EntityLifecycleState $from, EntityLifecycleState $to): string
     {
         return sprintf('%s:%s:%s', $entityClass, $from->value, $to->value);
     }

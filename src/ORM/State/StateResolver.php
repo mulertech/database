@@ -22,9 +22,9 @@ final readonly class StateResolver
 
     /**
      * @param object $entity
-     * @return EntityState
+     * @return EntityLifecycleState
      */
-    public function resolveEntityState(object $entity): EntityState
+    public function resolveEntityLifecycleState(object $entity): EntityLifecycleState
     {
         $state = $this->identityMap->getEntityState($entity);
 
@@ -37,24 +37,24 @@ final readonly class StateResolver
 
     /**
      * @param object $entity
-     * @return EntityState
+     * @return EntityLifecycleState
      */
-    private function resolveFromChangeSetManager(object $entity): EntityState
+    private function resolveFromChangeSetManager(object $entity): EntityLifecycleState
     {
         if ($this->changeSetManager === null) {
-            return EntityState::DETACHED;
+            return EntityLifecycleState::DETACHED;
         }
 
         $scheduled = $this->changeSetManager->getScheduledInsertions();
         if (in_array($entity, $scheduled, true)) {
-            return EntityState::NEW;
+            return EntityLifecycleState::NEW;
         }
 
         $scheduled = $this->changeSetManager->getScheduledDeletions();
         if (in_array($entity, $scheduled, true)) {
-            return EntityState::REMOVED;
+            return EntityLifecycleState::REMOVED;
         }
 
-        return EntityState::DETACHED;
+        return EntityLifecycleState::DETACHED;
     }
 }

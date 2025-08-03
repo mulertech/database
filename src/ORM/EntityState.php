@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 
 /**
- * Metadata for entities in the ORM
+ * Runtime state for entities in the ORM
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-final readonly class EntityMetadata
+final readonly class EntityState
 {
     /**
      * @param class-string $className
      * @param int|string $identifier
-     * @param EntityState $state
+     * @param EntityLifecycleState $state
      * @param array<string, mixed> $originalData
      * @param DateTimeImmutable $loadedAt
      * @param DateTimeImmutable|null $lastModified
@@ -25,7 +25,7 @@ final readonly class EntityMetadata
     public function __construct(
         public string $className,
         public int|string $identifier,
-        public EntityState $state,
+        public EntityLifecycleState $state,
         public array $originalData,
         public DateTimeImmutable $loadedAt,
         public ?DateTimeImmutable $lastModified = null
@@ -37,7 +37,7 @@ final readonly class EntityMetadata
      */
     public function isManaged(): bool
     {
-        return $this->state === EntityState::MANAGED;
+        return $this->state === EntityLifecycleState::MANAGED;
     }
 
     /**
@@ -45,6 +45,6 @@ final readonly class EntityMetadata
      */
     public function isNew(): bool
     {
-        return $this->state === EntityState::NEW;
+        return $this->state === EntityLifecycleState::NEW;
     }
 }

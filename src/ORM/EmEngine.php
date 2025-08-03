@@ -14,7 +14,8 @@ use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\State\DirectStateManager;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
@@ -692,10 +693,10 @@ class EmEngine
             $metadata = $this->identityMap->getMetadata($entity);
             if ($metadata !== null) {
                 $currentData = $this->changeDetector->extractCurrentData($entity);
-                $newMetadata = new EntityMetadata(
+                $newMetadata = new EntityState(
                     $metadata->className,
                     $metadata->identifier,
-                    EntityState::MANAGED,
+                    EntityLifecycleState::MANAGED,
                     $currentData,
                     $metadata->loadedAt,
                     new DateTimeImmutable()

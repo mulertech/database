@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM\State;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 
 /**
@@ -30,7 +30,7 @@ readonly class EntityStateManager
         $metadata = $this->identityMap->getMetadata($entity);
 
         if ($metadata !== null) {
-            $this->updateEntityMetadata($entity, $metadata, EntityState::MANAGED, $metadata->originalData);
+            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::MANAGED, $metadata->originalData);
         }
     }
 
@@ -42,8 +42,8 @@ readonly class EntityStateManager
     {
         $metadata = $this->identityMap->getMetadata($entity);
 
-        if ($metadata !== null && $metadata->state !== EntityState::REMOVED) {
-            $this->updateEntityMetadata($entity, $metadata, EntityState::REMOVED, $metadata->originalData);
+        if ($metadata !== null && $metadata->state !== EntityLifecycleState::REMOVED) {
+            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::REMOVED, $metadata->originalData);
         }
     }
 
@@ -55,8 +55,8 @@ readonly class EntityStateManager
     {
         $metadata = $this->identityMap->getMetadata($entity);
 
-        if ($metadata !== null && $metadata->state !== EntityState::DETACHED) {
-            $this->updateEntityMetadata($entity, $metadata, EntityState::DETACHED, $metadata->originalData);
+        if ($metadata !== null && $metadata->state !== EntityLifecycleState::DETACHED) {
+            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::DETACHED, $metadata->originalData);
         }
     }
 
@@ -74,22 +74,22 @@ readonly class EntityStateManager
         }
 
         try {
-            $this->updateEntityMetadata($entity, $metadata, EntityState::NEW, $metadata->originalData);
+            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::NEW, $metadata->originalData);
         } catch (InvalidArgumentException) {
-            $this->updateEntityMetadata($entity, $metadata, EntityState::NEW, $fallbackData);
+            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::NEW, $fallbackData);
         }
     }
 
     /**
      * @param object $entity
-     * @param EntityMetadata $metadata
-     * @param EntityState $newState
+     * @param EntityState $metadata
+     * @param EntityLifecycleState $newState
      * @param array<string, mixed> $originalData
      * @return void
      */
-    private function updateEntityMetadata(object $entity, EntityMetadata $metadata, EntityState $newState, array $originalData): void
+    private function updateEntityMetadata(object $entity, EntityState $metadata, EntityLifecycleState $newState, array $originalData): void
     {
-        $newMetadata = new EntityMetadata(
+        $newMetadata = new EntityState(
             $metadata->className,
             $metadata->identifier,
             $newState,
