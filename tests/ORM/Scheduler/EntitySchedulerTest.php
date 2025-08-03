@@ -9,6 +9,10 @@ use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 class EntitySchedulerTest extends TestCase
 {
     private EntityScheduler $scheduler;
@@ -94,59 +98,59 @@ class EntitySchedulerTest extends TestCase
         self::assertContains($user, $insertions);
     }
 
-    public function testUnscheduleFromInsertion(): void
+    public function testRemoveFromScheduleInsertion(): void
     {
         $user = new User();
         
         $this->scheduler->scheduleForInsertion($user);
         self::assertTrue($this->scheduler->isScheduledForInsertion($user));
         
-        $this->scheduler->unscheduleFromInsertion($user);
-        
+        $this->scheduler->removeFromSchedule($user, 'insertions');
+
         self::assertFalse($this->scheduler->isScheduledForInsertion($user));
         
         $insertions = $this->scheduler->getScheduledInsertions();
         self::assertEmpty($insertions);
     }
 
-    public function testUnscheduleFromUpdate(): void
+    public function testRemoveFromScheduleUpdate(): void
     {
         $user = new User();
         
         $this->scheduler->scheduleForUpdate($user);
         self::assertTrue($this->scheduler->isScheduledForUpdate($user));
         
-        $this->scheduler->unscheduleFromUpdate($user);
-        
+        $this->scheduler->removeFromSchedule($user, 'updates');
+
         self::assertFalse($this->scheduler->isScheduledForUpdate($user));
         
         $updates = $this->scheduler->getScheduledUpdates();
         self::assertEmpty($updates);
     }
 
-    public function testUnscheduleFromDeletion(): void
+    public function testRemoveFromScheduleDeletion(): void
     {
         $user = new User();
         
         $this->scheduler->scheduleForDeletion($user);
         self::assertTrue($this->scheduler->isScheduledForDeletion($user));
         
-        $this->scheduler->unscheduleFromDeletion($user);
-        
+        $this->scheduler->removeFromSchedule($user, 'deletions');
+
         self::assertFalse($this->scheduler->isScheduledForDeletion($user));
         
         $deletions = $this->scheduler->getScheduledDeletions();
         self::assertEmpty($deletions);
     }
 
-    public function testUnscheduleNonScheduledEntity(): void
+    public function testRemoveFromScheduleNonScheduledEntity(): void
     {
         $user = new User();
         
         self::assertFalse($this->scheduler->isScheduledForInsertion($user));
         
-        $this->scheduler->unscheduleFromInsertion($user);
-        
+        $this->scheduler->removeFromSchedule($user, 'insertions');
+
         self::assertFalse($this->scheduler->isScheduledForInsertion($user));
     }
 
@@ -175,46 +179,46 @@ class EntitySchedulerTest extends TestCase
         self::assertEmpty($this->scheduler->getScheduledDeletions());
     }
 
-    public function testHasScheduledEntities(): void
+    public function testHasPendingSchedules(): void
     {
-        self::assertFalse($this->scheduler->hasScheduledEntities());
-        
+        self::assertFalse($this->scheduler->hasPendingSchedules());
+
         $user = new User();
         $this->scheduler->scheduleForInsertion($user);
         
-        self::assertTrue($this->scheduler->hasScheduledEntities());
-        
+        self::assertTrue($this->scheduler->hasPendingSchedules());
+
         $this->scheduler->clear();
         
-        self::assertFalse($this->scheduler->hasScheduledEntities());
+        self::assertFalse($this->scheduler->hasPendingSchedules());
     }
 
-    public function testHasScheduledEntitiesWithDifferentOperations(): void
+    public function testHasPendingSchedulesWithDifferentOperations(): void
     {
         $user1 = new User();
         $user2 = new User();
         $unit = new Unit();
         
-        self::assertFalse($this->scheduler->hasScheduledEntities());
-        
+        self::assertFalse($this->scheduler->hasPendingSchedules());
+
         $this->scheduler->scheduleForUpdate($user1);
-        self::assertTrue($this->scheduler->hasScheduledEntities());
-        
+        self::assertTrue($this->scheduler->hasPendingSchedules());
+
         $this->scheduler->scheduleForDeletion($user2);
-        self::assertTrue($this->scheduler->hasScheduledEntities());
-        
+        self::assertTrue($this->scheduler->hasPendingSchedules());
+
         $this->scheduler->scheduleForInsertion($unit);
-        self::assertTrue($this->scheduler->hasScheduledEntities());
-        
-        $this->scheduler->unscheduleFromUpdate($user1);
-        $this->scheduler->unscheduleFromDeletion($user2);
-        self::assertTrue($this->scheduler->hasScheduledEntities());
-        
-        $this->scheduler->unscheduleFromInsertion($unit);
-        self::assertFalse($this->scheduler->hasScheduledEntities());
+        self::assertTrue($this->scheduler->hasPendingSchedules());
+
+        $this->scheduler->removeFromSchedule($user1, 'updates');
+        $this->scheduler->removeFromSchedule($user2, 'deletions');
+        self::assertTrue($this->scheduler->hasPendingSchedules());
+
+        $this->scheduler->removeFromSchedule($unit, 'insertions');
+        self::assertFalse($this->scheduler->hasPendingSchedules());
     }
 
-    public function testGetAllScheduledEntities(): void
+    public function testGetStatistics(): void
     {
         $user1 = new User();
         $user2 = new User();
@@ -224,32 +228,34 @@ class EntitySchedulerTest extends TestCase
         $this->scheduler->scheduleForUpdate($user2);
         $this->scheduler->scheduleForDeletion($unit);
         
-        $allEntities = $this->scheduler->getAllScheduledEntities();
-        
-        self::assertCount(3, $allEntities);
-        self::assertContains($user1, $allEntities);
-        self::assertContains($user2, $allEntities);
-        self::assertContains($unit, $allEntities);
+        $stats = $this->scheduler->getStatistics();
+
+        self::assertEquals(1, $stats['insertions']);
+        self::assertEquals(1, $stats['updates']);
+        self::assertEquals(1, $stats['deletions']);
     }
 
-    public function testGetAllScheduledEntitiesWithDuplicates(): void
+    public function testGetStatisticsWithDuplicates(): void
     {
         $user = new User();
         
         $this->scheduler->scheduleForInsertion($user);
         $this->scheduler->scheduleForUpdate($user);
         
-        $allEntities = $this->scheduler->getAllScheduledEntities();
-        
-        self::assertCount(1, $allEntities);
-        self::assertContains($user, $allEntities);
+        $stats = $this->scheduler->getStatistics();
+
+        self::assertEquals(1, $stats['insertions']);
+        self::assertEquals(1, $stats['updates']);
+        self::assertEquals(0, $stats['deletions']);
     }
 
-    public function testGetAllScheduledEntitiesEmpty(): void
+    public function testGetStatisticsEmpty(): void
     {
-        $allEntities = $this->scheduler->getAllScheduledEntities();
-        
-        self::assertEmpty($allEntities);
+        $stats = $this->scheduler->getStatistics();
+
+        self::assertEquals(0, $stats['insertions']);
+        self::assertEquals(0, $stats['updates']);
+        self::assertEquals(0, $stats['deletions']);
     }
 
     public function testEntityCanBeInMultipleSchedules(): void
@@ -262,5 +268,37 @@ class EntitySchedulerTest extends TestCase
         self::assertTrue($this->scheduler->isScheduledForInsertion($user));
         self::assertTrue($this->scheduler->isScheduledForUpdate($user));
         self::assertFalse($this->scheduler->isScheduledForDeletion($user));
+    }
+
+    public function testRemoveFromAllSchedules(): void
+    {
+        $user = new User();
+
+        $this->scheduler->scheduleForInsertion($user);
+        $this->scheduler->scheduleForUpdate($user);
+        $this->scheduler->scheduleForDeletion($user);
+
+        self::assertTrue($this->scheduler->isScheduledForInsertion($user));
+        self::assertTrue($this->scheduler->isScheduledForUpdate($user));
+        self::assertTrue($this->scheduler->isScheduledForDeletion($user));
+
+        $this->scheduler->removeFromAllSchedules($user);
+
+        self::assertFalse($this->scheduler->isScheduledForInsertion($user));
+        self::assertFalse($this->scheduler->isScheduledForUpdate($user));
+        self::assertFalse($this->scheduler->isScheduledForDeletion($user));
+    }
+
+    public function testRemoveFromScheduleInvalidType(): void
+    {
+        $user = new User();
+
+        $this->scheduler->scheduleForInsertion($user);
+
+        // Test avec un type de schedule invalide
+        $this->scheduler->removeFromSchedule($user, 'invalid');
+
+        // L'entité doit toujours être présente car le type est invalide
+        self::assertTrue($this->scheduler->isScheduledForInsertion($user));
     }
 }
