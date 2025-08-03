@@ -93,10 +93,8 @@ final readonly class ChangeSetOperationHandler
 
         // Handle state transition
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null && $metadata->state !== EntityState::REMOVED) {
-            if ($metadata->state !== EntityState::NEW) {
-                $stateManager->transitionToRemoved($entity);
-            }
+        if ($metadata !== null && $metadata->state !== EntityState::REMOVED && $metadata->state !== EntityState::NEW) {
+            $stateManager->transitionToRemoved($entity);
         }
 
         $scheduler->removeFromSchedule($entity, 'insertions');

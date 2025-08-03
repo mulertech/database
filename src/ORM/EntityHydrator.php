@@ -169,6 +169,7 @@ class EntityHydrator implements EntityHydratorInterface
      * @param bool|float|int|string|null $value
      * @return mixed
      * @throws JsonException
+     * @throws ReflectionException
      */
     public function processValue(
         EntityMetadata $metadata,

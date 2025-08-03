@@ -21,7 +21,7 @@ class ChangeDetector
     private ArrayValidator $arrayValidator;
 
     /**
-     * Get or create ValueProcessor lazily
+     * @return ValueProcessor
      */
     private function getValueProcessor(): ValueProcessor
     {
@@ -32,7 +32,7 @@ class ChangeDetector
     }
 
     /**
-     * Get or create ValueComparator lazily
+     * @return ValueComparator
      */
     private function getValueComparator(): ValueComparator
     {
@@ -43,7 +43,7 @@ class ChangeDetector
     }
 
     /**
-     * Get or create ArrayValidator lazily
+     * @return ArrayValidator
      */
     private function getArrayValidator(): ArrayValidator
     {

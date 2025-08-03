@@ -33,7 +33,7 @@ class EntityManager implements EntityManagerInterface
      */
     public function __construct(
         private readonly PhpDatabaseInterface $pdm,
-        private MetadataCache $metadataCache,
+        private readonly MetadataCache $metadataCache,
         private readonly ?EventManager $eventManager = null
     ) {
         $this->emEngine = new EmEngine($this, $metadataCache);

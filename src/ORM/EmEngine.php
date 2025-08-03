@@ -23,7 +23,6 @@ use MulerTech\Database\Query\Builder\SelectBuilder;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
-use RuntimeException;
 
 /**
  * Class EmEngine
@@ -77,6 +76,7 @@ class EmEngine
 
     /**
      * @param EntityManagerInterface $entityManager
+     * @param MetadataCache $metadataCache
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -528,13 +528,13 @@ class EmEngine
         // Convert OneToMany collections
         $oneToManyList = $entityMetadata->getRelationsByType('OneToMany');
         foreach ($oneToManyList as $property => $oneToMany) {
-            $this->convertPropertyToeDatabaseCollection($entity, $property);
+            $this->convertPropertyToDatabaseCollection($entity, $property);
         }
 
         // Convert ManyToMany collections
         $manyToManyList = $entityMetadata->getRelationsByType('ManyToMany');
         foreach ($manyToManyList as $property => $manyToMany) {
-            $this->convertPropertyToeDatabaseCollection($entity, $property);
+            $this->convertPropertyToDatabaseCollection($entity, $property);
         }
     }
 
@@ -545,7 +545,7 @@ class EmEngine
      * @param string $property
      * @return void
      */
-    private function convertPropertyToeDatabaseCollection(object $entity, string $property): void
+    private function convertPropertyToDatabaseCollection(object $entity, string $property): void
     {
         try {
             $reflection = new ReflectionClass($entity);
@@ -613,8 +613,7 @@ class EmEngine
      */
     private function getTableName(string $entityName): string
     {
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityName);
-        return $entityMetadata->tableName;
+        return $this->metadataCache->getEntityMetadata($entityName)->tableName;
     }
 
     /**
@@ -714,6 +713,7 @@ class EmEngine
      * @param class-string $entityClass
      * @param string $propertyName
      * @return bool
+     * @throws ReflectionException
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {

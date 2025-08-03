@@ -14,7 +14,12 @@ use SplObjectStorage;
  */
 final class EntityRegistry
 {
-    /** @var SplObjectStorage<object, array{registeredAt: DateTimeImmutable, lastAccessed: DateTimeImmutable, accessCount: int}> */
+    /** @var SplObjectStorage<object, array{
+     *     registeredAt: DateTimeImmutable,
+     *     lastAccessed: DateTimeImmutable,
+     *     accessCount: int
+     * }>
+     */
     private SplObjectStorage $registry;
 
     /** @var array<class-string, int> */
