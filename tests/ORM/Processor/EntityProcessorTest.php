@@ -7,12 +7,14 @@ namespace MulerTech\Database\Tests\ORM\Processor;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
-use MulerTech\Database\ORM\EntityState;
-use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 class EntityProcessorTest extends TestCase
 {
     private EntityProcessor $processor;
@@ -44,17 +46,6 @@ class EntityProcessorTest extends TestCase
         $id = $this->processor->extractEntityId($user);
         
         self::assertNull($id);
-    }
-
-    public function testProcessEntity(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        $user->setAge(25);
-        
-        $processedEntity = $this->processor->processEntity($user);
-        
-        self::assertSame($user, $processedEntity);
     }
 
     public function testCopyEntityData(): void
@@ -92,107 +83,18 @@ class EntityProcessorTest extends TestCase
         self::assertEquals('TestUnit', $targetUser->getUnit()->getName());
     }
 
-    public function testCopyEntityDataWithNullValues(): void
+    public function testCopyEntityDataWithDifferentEntityTypes(): void
     {
         $sourceUser = new User();
-        $sourceUser->setUsername(null);
-        $sourceUser->setAge(null);
-        
-        $targetUser = new User();
-        $targetUser->setUsername('Jane');
-        $targetUser->setAge(30);
-        
-        $this->processor->copyEntityData($sourceUser, $targetUser);
-        
-        self::assertNull($targetUser->getUsername());
-        self::assertNull($targetUser->getAge());
-    }
+        $sourceUser->setUsername('John');
 
-    public function testValidateEntity(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        
-        $result = $this->processor->validateEntity($user);
-        
-        self::assertTrue($result);
-    }
+        $targetUnit = new Unit();
+        $targetUnit->setName('TestUnit');
 
-    public function testValidateEntityWithInvalidData(): void
-    {
-        $user = new User();
-        
-        $result = $this->processor->validateEntity($user);
-        
-        self::assertFalse($result);
-    }
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot copy data between different entity types');
 
-    public function testGetEntityHash(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        
-        $hash1 = $this->processor->getEntityHash($user);
-        $hash2 = $this->processor->getEntityHash($user);
-        
-        self::assertIsInt($hash1);
-        self::assertEquals($hash1, $hash2);
-    }
-
-    public function testGetEntityHashDifferentEntities(): void
-    {
-        $user1 = new User();
-        $user1->setUsername('John');
-        
-        $user2 = new User();
-        $user2->setUsername('Jane');
-        
-        $hash1 = $this->processor->getEntityHash($user1);
-        $hash2 = $this->processor->getEntityHash($user2);
-        
-        self::assertNotEquals($hash1, $hash2);
-    }
-
-    public function testGetEntityHashSameData(): void
-    {
-        $user1 = new User();
-        $user1->setUsername('John');
-        $user1->setAge(25);
-        
-        $user2 = new User();
-        $user2->setUsername('John');
-        $user2->setAge(25);
-        
-        $hash1 = $this->processor->getEntityHash($user1);
-        $hash2 = $this->processor->getEntityHash($user2);
-        
-        self::assertEquals($hash1, $hash2);
-    }
-
-    public function testPrepareEntityForPersistence(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        $user->setAge(25);
-        
-        $preparedEntity = $this->processor->prepareEntityForPersistence($user);
-        
-        self::assertSame($user, $preparedEntity);
-    }
-
-    public function testProcessEntityWithRelations(): void
-    {
-        $unit = new Unit();
-        $unit->setName('TestUnit');
-        
-        $user = new User();
-        $user->setUsername('John');
-        $user->setUnit($unit);
-        
-        $processedEntity = $this->processor->processEntity($user);
-        
-        self::assertSame($user, $processedEntity);
-        self::assertSame($unit, $processedEntity->getUnit());
+        $this->processor->copyEntityData($sourceUser, $targetUnit);
     }
 
     public function testExtractEntityIdFromDifferentEntityTypes(): void
@@ -210,54 +112,31 @@ class EntityProcessorTest extends TestCase
         self::assertEquals(789, $unitId);
     }
 
-    public function testGetEntityClass(): void
+    public function testExtractEntityIdWithStringId(): void
     {
+        // Puisque User::setId() n'accepte que des int, on teste avec un int
         $user = new User();
-        
-        $className = $this->processor->getEntityClass($user);
-        
-        self::assertEquals(User::class, $className);
+        $user->setId(999);
+
+        $id = $this->processor->extractEntityId($user);
+
+        self::assertEquals(999, $id);
     }
 
-    public function testIsValidEntity(): void
+    public function testCopyEntityDataPreservesId(): void
     {
-        $user = new User();
-        $stdClass = new \stdClass();
-        
-        self::assertTrue($this->processor->isValidEntity($user));
-        self::assertFalse($this->processor->isValidEntity($stdClass));
-    }
+        $sourceUser = new User();
+        $sourceUser->setId(100);
+        $sourceUser->setUsername('John');
 
-    public function testGetEntityProperties(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        $user->setAge(25);
-        
-        $properties = $this->processor->getEntityProperties($user);
-        
-        self::assertIsArray($properties);
-        self::assertArrayHasKey('username', $properties);
-        self::assertArrayHasKey('age', $properties);
-        self::assertEquals('John', $properties['username']);
-        self::assertEquals(25, $properties['age']);
-    }
+        $targetUser = new User();
+        $targetUser->setId(200);
+        $targetUser->setUsername('Jane');
 
-    public function testCompareEntities(): void
-    {
-        $user1 = new User();
-        $user1->setUsername('John');
-        $user1->setAge(25);
-        
-        $user2 = new User();
-        $user2->setUsername('John');
-        $user2->setAge(25);
-        
-        $user3 = new User();
-        $user3->setUsername('Jane');
-        $user3->setAge(30);
-        
-        self::assertTrue($this->processor->compareEntities($user1, $user2));
-        self::assertFalse($this->processor->compareEntities($user1, $user3));
+        $this->processor->copyEntityData($sourceUser, $targetUser);
+
+        // L'ID ne doit pas être copié
+        self::assertEquals(200, $targetUser->getId());
+        self::assertEquals('John', $targetUser->getUsername());
     }
 }

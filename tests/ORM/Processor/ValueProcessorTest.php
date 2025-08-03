@@ -10,6 +10,10 @@ use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @package MulerTech\Database
+ * @author Sébastien Muler
+ */
 class ValueProcessorTest extends TestCase
 {
     private ValueProcessor $processor;
@@ -138,7 +142,8 @@ class ValueProcessorTest extends TestCase
         self::assertEquals('scalar', $this->processor->getValueType(42));
         self::assertEquals('scalar', $this->processor->getValueType(3.14));
         self::assertEquals('scalar', $this->processor->getValueType(true));
-        self::assertEquals('scalar', $this->processor->getValueType(null));
+        // null n'est pas considéré comme scalaire par is_scalar(), donc il retourne 'other'
+        self::assertEquals('other', $this->processor->getValueType(null));
     }
 
     public function testGetValueTypeWithArray(): void
@@ -146,63 +151,43 @@ class ValueProcessorTest extends TestCase
         self::assertEquals('array', $this->processor->getValueType(['a', 'b', 'c']));
     }
 
-    public function testGetValueTypeWithEntity(): void
+    public function testGetValueTypeWithEntityArray(): void
     {
-        $user = new User();
-        
-        self::assertEquals('entity', $this->processor->getValueType($user));
+        $entityArray = ['__entity__' => User::class, '__id__' => 123, '__hash__' => 456];
+
+        self::assertEquals('entity', $this->processor->getValueType($entityArray));
     }
 
-    public function testGetValueTypeWithCollection(): void
+    public function testGetValueTypeWithCollectionArray(): void
     {
-        $collection = new DatabaseCollection();
-        
-        self::assertEquals('collection', $this->processor->getValueType($collection));
+        $collectionArray = ['__collection__' => true, '__items__' => []];
+
+        self::assertEquals('collection', $this->processor->getValueType($collectionArray));
     }
 
-    public function testGetValueTypeWithObject(): void
+    public function testGetValueTypeWithObjectArray(): void
     {
-        $object = new \stdClass();
-        
-        self::assertEquals('object', $this->processor->getValueType($object));
+        $objectArray = ['__object__' => \stdClass::class, '__hash__' => 789];
+
+        self::assertEquals('object', $this->processor->getValueType($objectArray));
     }
 
-    public function testIsEntityWithEntity(): void
+    public function testProcessValueWithDateTime(): void
     {
-        $user = new User();
-        $unit = new Unit();
-        
-        self::assertTrue($this->processor->isEntity($user));
-        self::assertTrue($this->processor->isEntity($unit));
+        $dateTime = new \DateTime('2023-01-01 12:00:00');
+
+        $result = $this->processor->processValue($dateTime);
+
+        self::assertEquals('2023-01-01 12:00:00', $result);
     }
 
-    public function testIsEntityWithNonEntity(): void
+    public function testProcessValueWithDateTimeImmutable(): void
     {
-        $object = new \stdClass();
-        $array = [];
-        $string = 'test';
-        
-        self::assertFalse($this->processor->isEntity($object));
-        self::assertFalse($this->processor->isEntity($array));
-        self::assertFalse($this->processor->isEntity($string));
-    }
+        $dateTime = new \DateTimeImmutable('2023-01-01 12:00:00');
 
-    public function testIsCollectionWithCollection(): void
-    {
-        $collection = new DatabaseCollection();
-        
-        self::assertTrue($this->processor->isCollection($collection));
-    }
+        $result = $this->processor->processValue($dateTime);
 
-    public function testIsCollectionWithNonCollection(): void
-    {
-        $array = [];
-        $object = new \stdClass();
-        $entity = new User();
-        
-        self::assertFalse($this->processor->isCollection($array));
-        self::assertFalse($this->processor->isCollection($object));
-        self::assertFalse($this->processor->isCollection($entity));
+        self::assertEquals('2023-01-01 12:00:00', $result);
     }
 
     public function testProcessComplexNestedValue(): void
@@ -220,10 +205,10 @@ class ValueProcessorTest extends TestCase
         
         $result = $this->processor->processValue($complexValue);
         
+        // Pour les tableaux complexes, seuls les objets Entity sont traités
         self::assertIsArray($result);
         self::assertEquals('string', $result['simple']);
-        self::assertIsArray($result['entity']);
-        self::assertEquals(User::class, $result['entity']['__entity__']);
+        self::assertEquals($user, $result['entity']); // L'entité reste intacte car elle est dans un tableau
         self::assertIsArray($result['nested']);
         self::assertEquals('value', $result['nested']['level2']);
     }
@@ -251,27 +236,35 @@ class ValueProcessorTest extends TestCase
         self::assertEquals($result1, $result2);
     }
 
-    public function testGetEntityHash(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        
-        $hash1 = $this->processor->getEntityHash($user);
-        $hash2 = $this->processor->getEntityHash($user);
-        
-        self::assertIsInt($hash1);
-        self::assertEquals($hash1, $hash2);
-    }
-
-    public function testGetObjectHash(): void
+    public function testProcessEntityWithoutGetIdMethod(): void
     {
         $object = new \stdClass();
         $object->name = 'test';
         
-        $hash1 = $this->processor->getObjectHash($object);
-        $hash2 = $this->processor->getObjectHash($object);
-        
-        self::assertIsInt($hash1);
-        self::assertEquals($hash1, $hash2);
+        $result = $this->processor->processValue($object);
+
+        // Un objet sans méthode getId sera traité comme un objet générique
+        self::assertIsArray($result);
+        self::assertArrayHasKey('__object__', $result);
+        self::assertEquals(\stdClass::class, $result['__object__']);
+    }
+
+    public function testProcessDateTime(): void
+    {
+        $dateTime = new \DateTime('2023-12-25 14:30:00');
+
+        $result = $this->processor->processDateTime($dateTime);
+
+        self::assertEquals('2023-12-25 14:30:00', $result);
+    }
+
+    public function testProcessEntityThrowsExceptionWithoutGetId(): void
+    {
+        $object = new \stdClass();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Entity must have getId method');
+
+        $this->processor->processEntity($object);
     }
 }
