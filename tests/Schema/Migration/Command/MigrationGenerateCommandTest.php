@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Migration\Command;
+namespace MulerTech\Database\Tests\Schema\Migration\Command;
 
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
@@ -29,7 +29,7 @@ class MigrationGenerateCommandTest extends TestCase
     {
         $this->terminal = $this->createMock(Terminal::class);
         // Create MetadataCache with automatic entity loading from test directory
-        $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
+        $entitiesPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataCache = new MetadataCache(null, $entitiesPath);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),

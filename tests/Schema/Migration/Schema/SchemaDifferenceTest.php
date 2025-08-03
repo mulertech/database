@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Migration\Schema;
+namespace MulerTech\Database\Tests\Schema\Migration\Schema;
 
 use MulerTech\Database\Schema\Diff\SchemaDifference;
 use PHPUnit\Framework\TestCase;

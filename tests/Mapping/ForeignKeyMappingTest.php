@@ -7,7 +7,7 @@ namespace MulerTech\Database\Tests\Mapping;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtFk;
-use MulerTech\Database\Mapping\DbMappingInterface;
+use MulerTech\Database\Mapping\EntityProcessor;
 use MulerTech\Database\Mapping\ForeignKeyMapping;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
@@ -22,12 +22,12 @@ use MulerTech\Database\Tests\Files\Mapping\TestEntityWithNullReferencedTable;
 class ForeignKeyMappingTest extends TestCase
 {
     private ForeignKeyMapping $foreignKeyMapping;
-    private DbMappingInterface&MockObject $dbMapping;
+    private EntityProcessor&MockObject $entityProcessor;
 
     protected function setUp(): void
     {
-        $this->dbMapping = $this->createMock(DbMappingInterface::class);
-        $this->foreignKeyMapping = new ForeignKeyMapping($this->dbMapping);
+        $this->entityProcessor = $this->createMock(EntityProcessor::class);
+        $this->foreignKeyMapping = new ForeignKeyMapping($this->entityProcessor);
     }
 
     public function testGetMtFkReturnsArrayOfMtFkAttributes(): void
@@ -62,16 +62,16 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetConstraintNameReturnsCorrectConstraintName(): void
     {
-        $this->dbMapping->expects($this->once())
+        $this->entityProcessor->expects($this->once())
             ->method('getEntities')
             ->willReturn([TestEntityWithForeignKeys::class]);
         
-        $this->dbMapping->expects($this->once())
+        $this->entityProcessor->expects($this->once())
             ->method('getColumnName')
             ->with(TestEntityWithForeignKeys::class, 'userId')
             ->willReturn('user_id');
         
-        $this->dbMapping->expects($this->once())
+        $this->entityProcessor->expects($this->once())
             ->method('getTableName')
             ->with(TestEntityWithForeignKeys::class)
             ->willReturn('posts');
@@ -90,11 +90,11 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetConstraintNameReturnsNullWhenDbMappingReturnsNull(): void
     {
-        $this->dbMapping->expects($this->once())
+        $this->entityProcessor->expects($this->once())
             ->method('getEntities')
             ->willReturn([TestEntityWithForeignKeys::class]);
         
-        $this->dbMapping->expects($this->once())
+        $this->entityProcessor->expects($this->once())
             ->method('getColumnName')
             ->with(TestEntityWithForeignKeys::class, 'userId')
             ->willReturn(null);

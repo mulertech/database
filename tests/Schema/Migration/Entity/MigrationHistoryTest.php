@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Migration\Entity;
+namespace MulerTech\Database\Tests\Schema\Migration\Entity;
 
 use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
 use PHPUnit\Framework\TestCase;

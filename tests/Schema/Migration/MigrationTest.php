@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Migration;
+namespace MulerTech\Database\Tests\Schema\Migration;
 
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
@@ -15,7 +15,6 @@ use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
 use MulerTech\Database\Schema\Migration\MigrationGenerator;
 use MulerTech\Database\Schema\Migration\MigrationManager;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
@@ -34,7 +33,7 @@ class MigrationTest extends TestCase
     protected function setUp(): void
     {
         // Create MetadataCache with automatic entity loading from test directory
-        $entitiesPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
+        $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataCache = new MetadataCache(null, $entitiesPath);
         // Also load system entities like MigrationHistory
         $metadataCache->getEntityMetadata(MigrationHistory::class);

@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Migration\Command;
+namespace MulerTech\Database\Tests\Schema\Migration\Command;
 
 use Exception;
 use MulerTech\Database\Schema\Migration\Command\MigrationRollbackCommand;

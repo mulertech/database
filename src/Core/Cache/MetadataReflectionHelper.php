@@ -76,7 +76,7 @@ final class MetadataReflectionHelper
         }
 
         if ($type instanceof ReflectionUnionType) {
-            return implode('|', array_map(function ($reflectionType) {
+            return implode('|', array_map(static function ($reflectionType) {
                 return $reflectionType instanceof ReflectionNamedType ? $reflectionType->getName() : (string)$reflectionType;
             }, $type->getTypes()));
         }

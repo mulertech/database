@@ -504,4 +504,22 @@ class EntityProcessor
     {
         return $this->tables[$entityName] ?? null;
     }
+
+    /**
+     * @param class-string $entityName
+     * @param string $property
+     * @return string|null
+     */
+    public function getColumnName(string $entityName, string $property): ?string
+    {
+        return $this->columns[$entityName][$property] ?? null;
+    }
+
+    /**
+     * @return array<class-string>
+     */
+    public function getEntities(): array
+    {
+        return array_keys($this->tables);
+    }
 }

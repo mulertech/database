@@ -13,10 +13,10 @@ use ReflectionException;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class ForeignKeyMapping
+readonly class ForeignKeyMapping
 {
     public function __construct(
-        private readonly DbMappingInterface $dbMapping
+        private EntityProcessor $entityProcessor
     ) {
     }
 
@@ -53,7 +53,7 @@ class ForeignKeyMapping
     public function getConstraintName(string $entityName, string $property): ?string
     {
         // Check if entity is already loaded in cache BEFORE trying to get table name
-        $loadedEntities = $this->dbMapping->getEntities();
+        $loadedEntities = $this->entityProcessor->getEntities();
         if (!in_array($entityName, $loadedEntities, true)) {
             return null;
         }
@@ -65,8 +65,8 @@ class ForeignKeyMapping
         }
 
         $referencedTable = $mtFk->referencedTable;
-        $column = $this->dbMapping->getColumnName($entityName, $property);
-        $table = $this->dbMapping->getTableName($entityName);
+        $column = $this->entityProcessor->getColumnName($entityName, $property);
+        $table = $this->entityProcessor->getTableName($entityName);
 
         if (!$referencedTable || !$column || !$table) {
             return null;
