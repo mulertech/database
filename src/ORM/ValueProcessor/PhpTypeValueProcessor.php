@@ -44,7 +44,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return mixed
-     * @throws JsonException
+     * @throws JsonException|DateMalformedStringException
      */
     public function process(mixed $value): mixed
     {
@@ -81,15 +81,21 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             return null;
         }
 
-        return match (true) {
-            is_string($value) => $value,
-            is_int($value) => $value,
-            is_float($value) => $value,
-            is_bool($value) => $value ? 1 : 0,
-            is_array($value), is_object($value) => json_encode($value, JSON_THROW_ON_ERROR),
-            $value instanceof DateTimeInterface => $value->format('Y-m-d H:i:s'),
-            default => is_scalar($value) ? (string) $value : $value,
-        };
+        if (is_string($value) || is_int($value) || is_float($value)) {
+            return $value;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+
+        if (is_array($value) || is_object($value)) {
+            if ($value instanceof DateTimeInterface) {
+                return $value->format('Y-m-d H:i:s');
+            }
+            return json_encode($value, JSON_THROW_ON_ERROR);
+        }
+        return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -97,6 +103,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
      * @param string $type
      * @return mixed
      * @throws JsonException
+     * @throws DateMalformedStringException
      */
     public function convertToPhpValue(mixed $value, string $type): mixed
     {
@@ -201,12 +208,16 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             return $value;
         }
 
-        return match (true) {
-            is_null($value) => '',
-            is_scalar($value) => (string) $value,
-            is_array($value) => json_encode($value, JSON_THROW_ON_ERROR),
-            default => (string) $value,
-        };
+        if (is_null($value)) {
+            return '';
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_THROW_ON_ERROR);
+        }
+        return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -282,7 +293,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
 
     /**
      * @param mixed $value
-     * @return array<string, mixed>
+     * @return array<mixed>
      * @throws InvalidArgumentException
      */
     private function processArray(mixed $value): array
@@ -300,7 +311,10 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     throw new InvalidArgumentException('Invalid JSON string');
                 }
-                return is_array($decoded) ? $decoded : [$decoded];
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+                return [$decoded];
             } catch (JsonException) {
                 throw new InvalidArgumentException('Invalid JSON string');
             }

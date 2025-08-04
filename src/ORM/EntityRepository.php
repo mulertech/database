@@ -16,6 +16,7 @@ use stdClass;
 class EntityRepository
 {
     protected EntityManagerInterface $entityManager;
+    /** @var class-string */
     private string $entityName;
 
     /**
@@ -33,6 +34,7 @@ class EntityRepository
      */
     public function getEntityName(): string
     {
+        /** @var class-string */
         return $this->entityName;
     }
 
@@ -82,6 +84,7 @@ class EntityRepository
 
         // Add WHERE conditions for criteria
         foreach ($criteria as $field => $value) {
+            /** @var bool|float|int|string|null $value */
             $queryBuilder->where($field, $value);
         }
 
@@ -117,6 +120,7 @@ class EntityRepository
             try {
                 // Convert stdClass to array if needed
                 $data = $row instanceof stdClass ? (array) $row : $row;
+                /** @var array<string, bool|float|int|string|null> $data */
 
                 $entity = $hydrator->hydrate($data, $this->entityName);
                 $entities[] = $entity;
@@ -124,6 +128,7 @@ class EntityRepository
                 // Create entity manually if hydration fails
                 $entity = new ($this->entityName)();
                 $data = $row instanceof stdClass ? (array) $row : $row;
+                /** @var array<string, mixed> $data */
 
                 foreach ($data as $property => $value) {
                     if (property_exists($entity, $property)) {
@@ -168,11 +173,12 @@ class EntityRepository
 
         // Add WHERE conditions for criteria
         foreach ($criteria as $field => $value) {
+            /** @var bool|float|int|string|null $value */
             $queryBuilder->where($field, $value);
         }
 
         $result = $queryBuilder->fetchScalar();
-        return (int) $result;
+        return is_numeric($result) ? (int) $result : 0;
     }
 
     /**
@@ -186,7 +192,7 @@ class EntityRepository
     /**
      * @param string $method
      * @param array<mixed> $arguments
-     * @return array|object|null
+     * @return array<object>|object|null
      */
     public function __call(string $method, array $arguments): array|null|object
     {
