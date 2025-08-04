@@ -7,15 +7,17 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 use DateTimeImmutable;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use ReflectionException;
 
 /**
  * Handles entity operations (insert, update, delete) with metadata management
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 class EntityOperationProcessor
 {
@@ -34,6 +36,9 @@ class EntityOperationProcessor
     }
 
     /**
+     * @param object $entity
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processInsertion(object $entity, int $flushDepth): void
@@ -52,6 +57,9 @@ class EntityOperationProcessor
     }
 
     /**
+     * @param object $entity
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processUpdate(object $entity, int $flushDepth): void
@@ -69,6 +77,9 @@ class EntityOperationProcessor
     }
 
     /**
+     * @param object $entity
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processDeletion(object $entity, int $flushDepth): void
@@ -78,7 +89,7 @@ class EntityOperationProcessor
 
         // Only detach if entity is not already in removed state
         $currentState = $this->stateManager->getEntityState($entity);
-        if ($currentState !== EntityState::REMOVED) {
+        if ($currentState !== EntityLifecycleState::REMOVED) {
             $this->stateManager->detach($entity);
         }
 
@@ -87,7 +98,8 @@ class EntityOperationProcessor
 
     /**
      * Process any pending operations that were scheduled during events
-     *
+     * @param int $flushDepth
+     * @return void
      * @throws ReflectionException
      */
     public function processPostEventOperations(int $flushDepth): void
@@ -105,6 +117,10 @@ class EntityOperationProcessor
         }
     }
 
+    /**
+     * @param object $entity
+     * @return void
+     */
     private function updateEntityMetadata(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);
@@ -113,25 +129,27 @@ class EntityOperationProcessor
         }
 
         $currentData = $this->changeDetector->extractCurrentData($entity);
-        $entityId = $this->extractEntityId($entity);
-        $identifier = $entityId ?? $metadata->identifier;
-
-        $newMetadata = new EntityMetadata(
+        $newMetadata = new EntityState(
             $metadata->className,
-            $identifier,
-            EntityState::MANAGED,
+            EntityLifecycleState::MANAGED,
             $currentData,
-            $metadata->loadedAt,
             new DateTimeImmutable()
         );
         $this->identityMap->updateMetadata($entity, $newMetadata);
     }
 
+    /**
+     * @param object $entity
+     * @return string|int|null
+     */
     private function extractEntityId(object $entity): string|int|null
     {
         return $this->getEntityProcessor()->extractEntityId($entity);
     }
 
+    /**
+     * @return EntityProcessor
+     */
     private function getEntityProcessor(): EntityProcessor
     {
         if ($this->entityProcessor === null) {

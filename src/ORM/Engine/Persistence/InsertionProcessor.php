@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
+use Exception;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\InsertBuilder;
@@ -14,9 +15,6 @@ use RuntimeException;
 
 /**
  * Class InsertionProcessor
- *
- * Specialized processor for entity insertions
- *
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
@@ -80,6 +78,7 @@ readonly class InsertionProcessor
      * @param array<string, array<int, mixed>> $changes
      * @return InsertBuilder
      * @throws ReflectionException
+     * @throws Exception
      */
     private function buildInsertQuery(object $entity, array $changes): InsertBuilder
     {
@@ -140,26 +139,18 @@ readonly class InsertionProcessor
     /**
      * @param class-string $entityName
      * @return string
-     * @throws ReflectionException
+     * @throws Exception
      */
     private function getTableName(string $entityName): string
     {
-        $tableName = $this->metadataCache->getTableName($entityName);
-
-        if ($tableName === null) { // @phpstan-ignore-line
-            throw new RuntimeException(
-                sprintf('The entity %s is not mapped in the database', $entityName)
-            );
-        }
-
-        return $tableName;
+        return $this->metadataCache->getTableName($entityName);
     }
 
     /**
      * @param class-string $entityName
      * @param bool $keepId
      * @return array<string, string>
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
     {

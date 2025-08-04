@@ -39,28 +39,11 @@ final readonly class ChangeSet
 
     /**
      * @param string $field
-     * @return bool
-     */
-    public function hasChangedField(string $field): bool
-    {
-        return isset($this->changes[$field]);
-    }
-
-    /**
-     * @param string $field
      * @return PropertyChange|null
      */
     public function getFieldChange(string $field): ?PropertyChange
     {
         return $this->changes[$field] ?? null;
-    }
-
-    /**
-     * @return int
-     */
-    public function getChangeCount(): int
-    {
-        return count($this->changes);
     }
 
     /**

@@ -5,225 +5,152 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\State;
 
 use InvalidArgumentException;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use MulerTech\Database\ORM\IdentityMap;
+use MulerTech\Database\ORM\EntityState;
+use DateTimeImmutable;
 
 /**
- * Class StateTransitionManager
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class StateTransitionManager
 {
-    /** @var array<string, callable> */
-    private array $preTransitionHooks = [];
-
-    /** @var array<string, callable> */
-    private array $postTransitionHooks = [];
-
-    /** @var array<string, bool> */
-    private array $customTransitions = [];
-
-    /** @var array<int, array{from: EntityState, to: EntityState, entity: object, timestamp: int}> */
+    /**
+     * @var array<int, array<string, mixed>>
+     */
     private array $transitionHistory = [];
 
-    /** @var bool */
-    private bool $enableHistory = true;
-
-    /** @var int */
-    private int $maxHistorySize = 1000;
-    /** @var StateValidator|null */
-    private ?StateValidator $stateValidator = null;
-
     /**
-     * @param EventDispatcherInterface|null $eventDispatcher
-     * @param StateValidator|null $stateValidator
+     * @param IdentityMap $identityMap
      */
     public function __construct(
-        private readonly ?EventDispatcherInterface $eventDispatcher = null,
-        ?StateValidator $stateValidator = null
+        private readonly IdentityMap $identityMap
     ) {
-        // StateValidator sera créé lazily si pas fourni
-        if ($stateValidator !== null) {
-            $this->stateValidator = $stateValidator;
-        }
-    }
-
-    /**
-     * Get or create StateValidator lazily
-     */
-    private function getStateValidator(): StateValidator
-    {
-        if (!isset($this->stateValidator)) {
-            $this->stateValidator = new StateValidator();
-        }
-        return $this->stateValidator;
     }
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $targetState
      * @return void
      * @throws InvalidArgumentException
      */
-    public function transition(object $entity, EntityState $from, EntityState $to): void
+    public function transition(object $entity, EntityLifecycleState $targetState): void
     {
-        // Validate transition
-        if (!$this->canTransition($entity, $from, $to)) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Invalid state transition from %s to %s for entity %s',
-                    $from->value,
-                    $to->value,
-                    $entity::class
-                )
-            );
-        }
+        $metadata = $this->identityMap->getMetadata($entity);
 
-        // Execute pre-transition hooks
-        $this->executePreTransitionHooks($entity, $from, $to);
+        if ($metadata === null) {
+            // Entity is not in the identity map yet.
+            // This can happen for entities that were persisted but the persist operation
+            // didn't properly add them to the IdentityMap. Let's add them now.
+            $this->identityMap->add($entity);
+            $metadata = $this->identityMap->getMetadata($entity);
 
-        // Dispatch pre-transition event
-        if ($this->eventDispatcher !== null) {
-            $event = new StateTransitionEvent($entity, $from, $to, 'pre');
-            $this->eventDispatcher->dispatch($event);
-        }
-
-        // The actual state change is handled by the caller
-
-        // Execute post-transition hooks
-        $this->executePostTransitionHooks($entity, $from, $to);
-
-        // Dispatch post-transition event
-        if ($this->eventDispatcher !== null) {
-            $event = new StateTransitionEvent($entity, $from, $to, 'post');
-            $this->eventDispatcher->dispatch($event);
-        }
-
-        // Record transition in history
-        if ($this->enableHistory) {
-            $this->recordTransition($entity, $from, $to);
-        }
-    }
-
-    /**
-     * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
-     * @return bool
-     */
-    public function canTransition(object $entity, EntityState $from, EntityState $to): bool
-    {
-        // Check custom transitions first
-        $customKey = $this->getCustomTransitionKey($entity::class, $from, $to);
-        if (isset($this->customTransitions[$customKey])) {
-            return $this->customTransitions[$customKey];
-        }
-
-        // Check default transitions
-        if (!$from->canTransitionTo($to)) {
-            return false;
-        }
-
-        // Additional validation
-        return $this->getStateValidator()->validateTransition($entity, $from, $to);
-    }
-
-    /**
-     * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
-     * @return void
-     */
-    private function executePreTransitionHooks(object $entity, EntityState $from, EntityState $to): void
-    {
-        $hooks = $this->findMatchingHooks($this->preTransitionHooks, $from, $to);
-
-        foreach ($hooks as $hook) {
-            $hook($entity, $from, $to);
-        }
-    }
-
-    /**
-     * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
-     * @return void
-     */
-    private function executePostTransitionHooks(object $entity, EntityState $from, EntityState $to): void
-    {
-        $hooks = $this->findMatchingHooks($this->postTransitionHooks, $from, $to);
-
-        foreach ($hooks as $hook) {
-            $hook($entity, $from, $to);
-        }
-    }
-
-    /**
-     * @param array<string, callable> $hooks
-     * @param EntityState $from
-     * @param EntityState $to
-     * @return array<callable>
-     */
-    private function findMatchingHooks(array $hooks, EntityState $from, EntityState $to): array
-    {
-        $matchingHooks = [];
-
-        foreach ($hooks as $key => $hook) {
-            [$fromValue, $toValue] = explode(':', $key . '::');
-
-            $fromMatch = $fromValue === '*' || $fromValue === $from->value;
-            $toMatch = $toValue === '*' || $toValue === $to->value;
-
-            if ($fromMatch && $toMatch) {
-                $matchingHooks[] = $hook;
+            if ($metadata === null) {
+                throw new InvalidArgumentException('Entity is not managed and could not be managed automatically');
             }
         }
 
-        return $matchingHooks;
+        $currentState = $metadata->state;
+
+        // Skip transition if already in target state
+        if ($currentState === $targetState) {
+            return;
+        }
+
+        if (!$this->canTransition($currentState, $targetState)) {
+            throw new InvalidArgumentException(
+                sprintf('Invalid state transition from %s to %s', $currentState->name, $targetState->name)
+            );
+        }
+
+        // Record transition
+        $this->recordTransition($entity, $currentState, $targetState);
+
+        // Update entity state
+        $this->updateEntityState($entity, $targetState, $metadata);
+    }
+
+    /**
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
+     * @return bool
+     */
+    public function canTransition(EntityLifecycleState $from, EntityLifecycleState $to): bool
+    {
+        return $from->canTransitionTo($to);
+    }
+
+    /**
+     * @param EntityLifecycleState $state
+     * @return array<EntityLifecycleState>
+     */
+    public function getValidTransitions(EntityLifecycleState $state): array
+    {
+        return match ($state) {
+            EntityLifecycleState::NEW => [EntityLifecycleState::MANAGED, EntityLifecycleState::DETACHED, EntityLifecycleState::REMOVED],
+            EntityLifecycleState::MANAGED => [EntityLifecycleState::REMOVED, EntityLifecycleState::DETACHED],
+            EntityLifecycleState::REMOVED, EntityLifecycleState::DETACHED => [],
+        };
     }
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @return array<array<string, mixed>>
+     */
+    public function getTransitionHistory(object $entity): array
+    {
+        $entityId = spl_object_id($entity);
+        return array_filter(
+            $this->transitionHistory,
+            static fn ($transition) => $transition['entity_id'] === $entityId
+        );
+    }
+
+    /**
+     * @param object $entity
      * @return void
      */
-    private function recordTransition(object $entity, EntityState $from, EntityState $to): void
+    public function clearTransitionHistory(object $entity): void
+    {
+        $entityId = spl_object_id($entity);
+        $this->transitionHistory = array_filter(
+            $this->transitionHistory,
+            static fn ($transition) => $transition['entity_id'] !== $entityId
+        );
+    }
+
+    /**
+     * @param object $entity
+     * @param EntityLifecycleState $from
+     * @param EntityLifecycleState $to
+     * @return void
+     */
+    private function recordTransition(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): void
     {
         $this->transitionHistory[] = [
+            'entity_id' => spl_object_id($entity),
             'from' => $from,
             'to' => $to,
-            'entity' => $entity,
-            'timestamp' => time(),
+            'timestamp' => new DateTimeImmutable(),
         ];
-
-        $this->pruneHistory();
     }
 
     /**
+     * @param object $entity
+     * @param EntityLifecycleState $newState
+     * @param EntityState $currentMetadata
      * @return void
      */
-    private function pruneHistory(): void
+    private function updateEntityState(object $entity, EntityLifecycleState $newState, EntityState $currentMetadata): void
     {
-        if (count($this->transitionHistory) > $this->maxHistorySize) {
-            $this->transitionHistory = array_slice(
-                $this->transitionHistory,
-                -$this->maxHistorySize,
-                null,
-                true
-            );
-        }
-    }
+        $entityClassName = $entity::class;
+        $newEntityState = new EntityState(
+            $entityClassName,
+            $newState,
+            $currentMetadata->originalData,
+            new DateTimeImmutable()
+        );
 
-    /**
-     * @param class-string $entityClass
-     * @param EntityState $from
-     * @param EntityState $to
-     * @return string
-     */
-    private function getCustomTransitionKey(string $entityClass, EntityState $from, EntityState $to): string
-    {
-        return sprintf('%s:%s:%s', $entityClass, $from->value, $to->value);
+        $this->identityMap->updateMetadata($entity, $newEntityState);
     }
 }

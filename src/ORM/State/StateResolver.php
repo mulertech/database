@@ -9,16 +9,22 @@ use MulerTech\Database\ORM\IdentityMap;
 
 /**
  * Resolves entity states based on different sources
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
-final class StateResolver
+final readonly class StateResolver
 {
     public function __construct(
-        private readonly IdentityMap $identityMap,
-        private readonly ?ChangeSetManager $changeSetManager = null
+        private IdentityMap $identityMap,
+        private ?ChangeSetManager $changeSetManager = null
     ) {
     }
 
-    public function resolveEntityState(object $entity): EntityState
+    /**
+     * @param object $entity
+     * @return EntityLifecycleState
+     */
+    public function resolveEntityLifecycleState(object $entity): EntityLifecycleState
     {
         $state = $this->identityMap->getEntityState($entity);
 
@@ -29,22 +35,26 @@ final class StateResolver
         return $state;
     }
 
-    private function resolveFromChangeSetManager(object $entity): EntityState
+    /**
+     * @param object $entity
+     * @return EntityLifecycleState
+     */
+    private function resolveFromChangeSetManager(object $entity): EntityLifecycleState
     {
         if ($this->changeSetManager === null) {
-            return EntityState::DETACHED;
+            return EntityLifecycleState::DETACHED;
         }
 
         $scheduled = $this->changeSetManager->getScheduledInsertions();
         if (in_array($entity, $scheduled, true)) {
-            return EntityState::NEW;
+            return EntityLifecycleState::NEW;
         }
 
         $scheduled = $this->changeSetManager->getScheduledDeletions();
         if (in_array($entity, $scheduled, true)) {
-            return EntityState::REMOVED;
+            return EntityLifecycleState::REMOVED;
         }
 
-        return EntityState::DETACHED;
+        return EntityLifecycleState::DETACHED;
     }
 }

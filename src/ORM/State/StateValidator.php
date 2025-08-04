@@ -20,17 +20,13 @@ final class StateValidator
     /** @var array<string, mixed> */
     private array $validationContext = [];
 
-    public function __construct()
-    {
-    }
-
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @param string $operation
      * @return bool
      */
-    public function validateOperation(object $entity, EntityState $currentState, string $operation): bool
+    public function validateOperation(object $entity, EntityLifecycleState $currentState, string $operation): bool
     {
         return match ($operation) {
             'persist' => $this->validatePersist($entity, $currentState),
@@ -45,43 +41,12 @@ final class StateValidator
 
     /**
      * @param object $entity
-     * @param EntityState $from
-     * @param EntityState $to
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    public function validateTransition(object $entity, EntityState $from, EntityState $to): bool
+    private function validatePersist(object $entity, EntityLifecycleState $currentState): bool
     {
-        // Basic state transition validation
-        if (!$from->canTransitionTo($to)) {
-            return false;
-        }
-
-        // Entity-specific validation
-        $entityClass = $entity::class;
-        $validatorKey = sprintf('%s:%s:%s', $entityClass, $from->value, $to->value);
-
-        if (isset($this->validators[$entityClass][$validatorKey])) {
-            $validator = $this->validators[$entityClass][$validatorKey];
-            $result = $validator($entity, $from, $to, $this->validationContext);
-
-            if (!$result) {
-                return false;
-            }
-
-            return $result;
-        }
-
-        return true;
-    }
-
-    /**
-     * @param object $entity
-     * @param EntityState $currentState
-     * @return bool
-     */
-    private function validatePersist(object $entity, EntityState $currentState): bool
-    {
-        if ($currentState !== EntityState::NEW && $currentState !== EntityState::DETACHED) {
+        if ($currentState !== EntityLifecycleState::NEW && $currentState !== EntityLifecycleState::DETACHED) {
             return false;
         }
 
@@ -90,12 +55,12 @@ final class StateValidator
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    private function validateUpdate(object $entity, EntityState $currentState): bool
+    private function validateUpdate(object $entity, EntityLifecycleState $currentState): bool
     {
-        if ($currentState !== EntityState::MANAGED) {
+        if ($currentState !== EntityLifecycleState::MANAGED) {
             return false;
         }
 
@@ -103,30 +68,22 @@ final class StateValidator
     }
 
     /**
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    private function validateRemove(EntityState $currentState): bool
+    private function validateRemove(EntityLifecycleState $currentState): bool
     {
-        if ($currentState === EntityState::NEW) {
-            return false;
-        }
-
-        if ($currentState === EntityState::REMOVED) {
-            return false;
-        }
-
-        return true;
+        return $currentState !== EntityLifecycleState::REMOVED;
     }
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    private function validateMerge(object $entity, EntityState $currentState): bool
+    private function validateMerge(object $entity, EntityLifecycleState $currentState): bool
     {
-        if ($currentState !== EntityState::DETACHED) {
+        if ($currentState !== EntityLifecycleState::DETACHED) {
             return false;
         }
 
@@ -134,30 +91,31 @@ final class StateValidator
     }
 
     /**
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    private function validateDetach(EntityState $currentState): bool
+    private function validateDetach(EntityLifecycleState $currentState): bool
     {
-        return $currentState === EntityState::MANAGED;
+        // Allow detaching entities that are NEW or MANAGED
+        return $currentState === EntityLifecycleState::MANAGED || $currentState === EntityLifecycleState::NEW;
     }
 
     /**
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @return bool
      */
-    private function validateRefresh(EntityState $currentState): bool
+    private function validateRefresh(EntityLifecycleState $currentState): bool
     {
-        return $currentState === EntityState::MANAGED;
+        return $currentState === EntityLifecycleState::MANAGED;
     }
 
     /**
      * @param object $entity
-     * @param EntityState $currentState
+     * @param EntityLifecycleState $currentState
      * @param string $operation
      * @return bool
      */
-    private function validateCustomOperation(object $entity, EntityState $currentState, string $operation): bool
+    private function validateCustomOperation(object $entity, EntityLifecycleState $currentState, string $operation): bool
     {
         // Check if there's a custom validator for this operation
         $entityClass = $entity::class;

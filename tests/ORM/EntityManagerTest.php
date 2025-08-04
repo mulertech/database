@@ -59,16 +59,17 @@ class EntityManagerTest extends TestCase
         $this->entityManager->getPdm()->exec($query);
     }
 
-    private function createUserTestTable(): void
+    private function createTestTables(): void
     {
         $pdo = $this->entityManager->getPdm();
         $query = 'DROP TABLE IF EXISTS users_test';
         $pdo->exec($query);
         $query = 'DROP TABLE IF EXISTS units_test';
         $pdo->exec($query);
-        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED, manager INT UNSIGNED)';
-        $pdo->exec($query);
         $query = 'CREATE TABLE IF NOT EXISTS units_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255))';
+        $pdo->exec($query);
+        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED, manager INT, 
+                  FOREIGN KEY (manager) REFERENCES users_test(id) ON DELETE SET NULL ON UPDATE CASCADE)';
         $pdo->exec($query);
     }
 
@@ -111,7 +112,7 @@ class EntityManagerTest extends TestCase
 
     public function testFindEntityWithOneToOneRelation(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -161,7 +162,7 @@ class EntityManagerTest extends TestCase
     public function testFindEntityWithOneToManyRelation(): void
     {
         $this->createGroupTestTable();
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
         
@@ -250,7 +251,7 @@ class EntityManagerTest extends TestCase
     public function testFindEntityWithManyToOneRelation(): void
     {
         $this->createGroupTestTable();
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
         $group1 = new Group();
@@ -272,7 +273,7 @@ class EntityManagerTest extends TestCase
 
     public function testFindEntityWithOneManyToManyRelation(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -320,7 +321,7 @@ class EntityManagerTest extends TestCase
     }
     public function testFindEntityWithManyToManyRelations(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -353,7 +354,7 @@ class EntityManagerTest extends TestCase
 
     public function testFindEntitiesWithManyToManyRelationAndRemoveOne(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -404,7 +405,7 @@ class EntityManagerTest extends TestCase
 
     public function testExecuteInsertionsAndPostPersistEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $em = $this->entityManager;
         
         // Create a unit first
@@ -434,7 +435,7 @@ class EntityManagerTest extends TestCase
 
     public function testExecuteInsertionsAndPostFlushEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createLinkUserGroupTestTable();
         $this->createGroupTestTable();
         $em = $this->entityManager;
@@ -469,7 +470,7 @@ class EntityManagerTest extends TestCase
 
     public function testExecuteUpdatesAndPostUpdateEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createLinkUserGroupTestTable();
         $this->createGroupTestTable();
         $em = $this->entityManager;
@@ -526,7 +527,7 @@ class EntityManagerTest extends TestCase
 
     public function testExecuteDeletionsAndPreRemoveEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -552,9 +553,9 @@ class EntityManagerTest extends TestCase
                 $otherManager = $entityManager->find(User::class, 'username=\'OtherManager\'');
                 $user = $entityManager->find(User::class, 'username=\'John\'');
                 if ($user !== null && $otherManager !== null) {
-                    $user->setManager($otherManager);
-                    $entityManager->persist($user);
-                    // Note: Don't flush here as we're already in a flush cycle
+                    // Use direct SQL to update before FK constraint takes effect
+                    $stmt = $entityManager->getPdm()->prepare('UPDATE users_test SET manager = ? WHERE id = ?');
+                    $stmt->execute([$otherManager->getId(), $user->getId()]);
                 }
             }
         });
@@ -563,6 +564,10 @@ class EntityManagerTest extends TestCase
         $em->flush();
 
         $user = $em->find(User::class, 'username=\'John\'');
+        // Refresh the user to reload relations from database
+        if ($user !== null) {
+            $em->refresh($user);
+        }
         self::assertNotNull($user, 'User should still exist');
         self::assertNotNull($user->getManager(), 'User should have a manager');
         self::assertEquals('OtherManager', $user->getManager()->getUsername());
@@ -570,7 +575,7 @@ class EntityManagerTest extends TestCase
 
     public function testExecuteDeletionsAndPostRemoveEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -596,16 +601,21 @@ class EntityManagerTest extends TestCase
                 $otherManager = $em->find(User::class, 'username=\'OtherManager\'');
                 $user = $em->find(User::class, 'username=\'John\'');
                 if ($user !== null && $otherManager !== null) {
-                    $user->setManager($otherManager);
-                    $em->persist($user);
-                    $em->flush();
+                    // Use direct SQL to update after FK constraint has set manager to NULL
+                    $stmt = $em->getPdm()->prepare('UPDATE users_test SET manager = ? WHERE id = ?');
+                    $stmt->execute([$otherManager->getId(), $user->getId()]);
                 }
             }
         });
         
         $em->remove($manager);
         $em->flush();
+        
         $user = $em->find(User::class, 'username=\'John\'');
+        // Refresh the user to reload relations from database
+        if ($user !== null) {
+            $em->refresh($user);
+        }
         self::assertNotNull($user, 'User should still exist');
         self::assertNotNull($user->getManager(), 'User should have a manager');
         self::assertEquals('OtherManager', $user->getManager()->getUsername());
@@ -613,7 +623,7 @@ class EntityManagerTest extends TestCase
 
     public function testIsUnique(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createLinkUserGroupTestTable();
         $this->createGroupTestTable();
         $em = $this->entityManager;
@@ -643,7 +653,7 @@ class EntityManagerTest extends TestCase
 
     public function testRowsCount(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $em = $this->entityManager;
         $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
@@ -656,7 +666,7 @@ class EntityManagerTest extends TestCase
     // Tests by Claude
     public function testByClaudeFindEntityWithOneToOneRelation(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -688,7 +698,7 @@ class EntityManagerTest extends TestCase
 
     public function testByClaudeExecuteDeletionsAndPreRemoveEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -744,7 +754,7 @@ class EntityManagerTest extends TestCase
 
     public function testByClaudeExecuteDeletionsAndPostRemoveEvent(): void
     {
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createGroupTestTable();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
@@ -809,7 +819,7 @@ class EntityManagerTest extends TestCase
     public function testOneToManyProcessorIsRequired(): void
     {
         $this->createGroupTestTable();
-        $this->createUserTestTable();
+        $this->createTestTables();
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
         

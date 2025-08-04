@@ -8,12 +8,13 @@ use DateTimeImmutable;
 use Error;
 use InvalidArgumentException;
 use MulerTech\Database\ORM\ChangeDetector;
-use MulerTech\Database\ORM\EntityMetadata;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 use ReflectionClass;
 
 /**
- * Utilities for entity processing operations
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class EntityProcessor
 {
@@ -24,7 +25,8 @@ readonly class EntityProcessor
     }
 
     /**
-     * Extract entity ID from common property names
+     * @param object $entity
+     * @return int|string|null
      */
     public function extractEntityId(object $entity): int|string|null
     {
@@ -47,6 +49,9 @@ readonly class EntityProcessor
 
     /**
      * Copy data from source entity to target entity
+     * @param object $source Source entity from which to copy data
+     * @param object $target Target entity to which data will be copied
+     * @return void
      */
     public function copyEntityData(object $source, object $target): void
     {
@@ -58,6 +63,11 @@ readonly class EntityProcessor
         $this->updateTargetMetadata($target);
     }
 
+    /**
+     * @param object $source
+     * @param object $target
+     * @return void
+     */
     private function copyProperties(object $source, object $target): void
     {
         $reflection = new ReflectionClass($source);
@@ -77,11 +87,19 @@ readonly class EntityProcessor
         }
     }
 
+    /**
+     * @param string $propertyName
+     * @return bool
+     */
     private function shouldSkipProperty(string $propertyName): bool
     {
         return $propertyName === 'id';
     }
 
+    /**
+     * @param object $target
+     * @return void
+     */
     private function updateTargetMetadata(object $target): void
     {
         $metadata = $this->identityMap->getMetadata($target);
@@ -90,12 +108,10 @@ readonly class EntityProcessor
         }
 
         $newData = $this->changeDetector->extractCurrentData($target);
-        $newMetadata = new EntityMetadata(
+        $newMetadata = new EntityState(
             $metadata->className,
-            $metadata->identifier,
             $metadata->state,
             $newData,
-            $metadata->loadedAt,
             new DateTimeImmutable()
         );
 

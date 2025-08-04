@@ -68,6 +68,17 @@ class SchemaComparer
     }
 
     /**
+     * Check if a table should be ignored during schema comparison
+     *
+     * @param string $tableName
+     * @return bool
+     */
+    private function shouldIgnoreTable(string $tableName): bool
+    {
+        return $tableName === 'migration_history';
+    }
+
+    /**
      * Get cached table name for entity class
      * @param class-string $entityClass
      * @return string
@@ -165,7 +176,7 @@ class SchemaComparer
         $entityTables = [];
         foreach ($this->metadataCache->getLoadedEntities() as $entityClass) {
             $tableName = $this->getCachedTableName($entityClass);
-            if ($tableName && $tableName !== 'migration_history') {
+            if ($tableName && !$this->shouldIgnoreTable($tableName)) {
                 $entityTables[$tableName] = $entityClass;
             }
         }
@@ -186,8 +197,8 @@ class SchemaComparer
         foreach ($this->informationSchema->getTables($this->databaseName) as $table) {
             $tableName = $table['TABLE_NAME'];
 
-            // Skip migration_history table
-            if ($tableName === 'migration_history') {
+            // Skip ignored tables
+            if ($this->shouldIgnoreTable($tableName)) {
                 continue;
             }
 

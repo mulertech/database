@@ -7,7 +7,7 @@ namespace MulerTech\Database\ORM;
 use InvalidArgumentException;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\EntityStateManager;
 use SplObjectStorage;
 
@@ -47,7 +47,7 @@ final class ChangeSetManager
     }
 
     /**
-     * Get or create EntityScheduler lazily
+     * @return EntityScheduler
      */
     private function getScheduler(): EntityScheduler
     {
@@ -58,7 +58,7 @@ final class ChangeSetManager
     }
 
     /**
-     * Get or create EntityStateManager lazily
+     * @return EntityStateManager
      */
     private function getStateManager(): EntityStateManager
     {
@@ -69,7 +69,7 @@ final class ChangeSetManager
     }
 
     /**
-     * Get or create EntityProcessor lazily
+     * @return EntityProcessor
      */
     private function getEntityProcessor(): EntityProcessor
     {
@@ -80,7 +80,7 @@ final class ChangeSetManager
     }
 
     /**
-     * Get or create ChangeSetValidator lazily
+     * @return ChangeSetValidator
      */
     private function getValidator(): ChangeSetValidator
     {
@@ -91,7 +91,7 @@ final class ChangeSetManager
     }
 
     /**
-     * Get or create ChangeSetOperationHandler lazily
+     * @return ChangeSetOperationHandler
      */
     private function getOperationHandler(): ChangeSetOperationHandler
     {
@@ -116,7 +116,7 @@ final class ChangeSetManager
         $this->visitedEntities = [];
 
         // Process all managed entities
-        $managedEntities = $this->identityMap->getEntitiesByState(EntityState::MANAGED);
+        $managedEntities = $this->identityMap->getEntitiesByState(EntityLifecycleState::MANAGED);
 
         foreach ($managedEntities as $entity) {
             $this->computeEntityChangeSet($entity);
@@ -250,14 +250,6 @@ final class ChangeSetManager
     }
 
     /**
-     * @return bool
-     */
-    public function hasPendingChanges(): bool
-    {
-        return $this->getScheduler()->hasPendingSchedules() || count($this->changeSets) > 0;
-    }
-
-    /**
      * @return void
      */
     public function clear(): void
@@ -278,22 +270,6 @@ final class ChangeSetManager
         $this->changeSets = new SplObjectStorage();
         $this->getScheduler()->clear();
         $this->visitedEntities = [];
-    }
-
-    /**
-     * @return array{insertions: int, updates: int, deletions: int, changeSets: int, hasChanges: bool}
-     */
-    public function getStatistics(): array
-    {
-        $schedulerStats = $this->getScheduler()->getStatistics();
-
-        return [
-            'insertions' => $schedulerStats['insertions'],
-            'updates' => $schedulerStats['updates'],
-            'deletions' => $schedulerStats['deletions'],
-            'changeSets' => $this->changeSets->count(),
-            'hasChanges' => $this->hasPendingChanges(),
-        ];
     }
 
     /**

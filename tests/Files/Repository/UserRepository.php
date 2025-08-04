@@ -16,4 +16,21 @@ class UserRepository extends EntityRepository
         parent::__construct($entityManager, User::class);
     }
 
+    /**
+     * @param string $username
+     * @return array<User>
+     */
+    public function findByUsername(string $username): array
+    {
+        return $this->findBy(['username' => $username]);
+    }
+
+    /**
+     * @param int $size
+     * @return array<User>
+     */
+    public function findBySize(int $size): array
+    {
+        return $this->findBy(['size' => $size]);
+    }
 }

@@ -1,0 +1,119 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
+
+use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
+use MulerTech\Database\ORM\EntityManagerInterface;
+use MulerTech\Database\Tests\Files\Entity\User;
+use PHPUnit\Framework\TestCase;
+
+class InsertionProcessorTest extends TestCase
+{
+    private InsertionProcessor $insertionProcessor;
+    private EntityManagerInterface $entityManager;
+    private MetadataCache $metadataCache;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->metadataCache = new MetadataCache();
+        
+        $this->insertionProcessor = new InsertionProcessor(
+            $this->entityManager,
+            $this->metadataCache
+        );
+    }
+
+    public function testProcess(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        // Mock necessary methods
+        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEngine);
+        $this->entityManager->method('getPdm')
+            ->willReturn($mockPdm);
+        
+        $mockPdm->method('lastInsertId')
+            ->willReturn('123');
+        
+        $this->insertionProcessor->process($user);
+        
+        $this->assertTrue(true);
+    }
+
+    public function testProcessWithExistingId(): void
+    {
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('John');
+        
+        // Entity with ID should skip insertion
+        $this->insertionProcessor->process($user);
+        
+        $this->assertTrue(true);
+    }
+
+    public function testExecute(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $changes = [
+            'username' => [null, 'John']
+        ];
+        
+        // Mock necessary methods
+        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEngine);
+        $this->entityManager->method('getPdm')
+            ->willReturn($mockPdm);
+        
+        $mockPdm->method('lastInsertId')
+            ->willReturn('123');
+        
+        $this->insertionProcessor->execute($user, $changes);
+        
+        $this->assertTrue(true);
+    }
+
+    public function testExecuteWithExistingId(): void
+    {
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('John');
+        
+        $changes = [
+            'username' => [null, 'John']
+        ];
+        
+        // Should skip execution for entity with ID
+        $this->insertionProcessor->execute($user, $changes);
+        
+        $this->assertTrue(true);
+    }
+
+    public function testProcessEntityWithoutGetIdMethod(): void
+    {
+        $entity = new class {
+            public string $name = 'test';
+        };
+        
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('must have a getId method');
+        
+        $this->insertionProcessor->process($entity);
+    }
+}

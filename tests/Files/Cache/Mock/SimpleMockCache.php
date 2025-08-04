@@ -12,30 +12,51 @@ use MulerTech\Database\Core\Cache\CacheInterface;
 class SimpleMockCache implements CacheInterface
 {
     private array $cache = [];
+    private array $ttl = [];
 
     public function get(string $key): mixed
     {
-        return $this->cache[$key] ?? null;
+        if (!$this->has($key)) {
+            return null;
+        }
+        
+        if ($this->isExpired($key)) {
+            $this->delete($key);
+            return null;
+        }
+        
+        return $this->cache[$key];
     }
 
     public function set(string $key, mixed $value, int $ttl = 0): void
     {
         $this->cache[$key] = $value;
+        $this->ttl[$key] = $ttl > 0 ? time() + $ttl : 0;
     }
 
     public function delete(string $key): void
     {
-        unset($this->cache[$key]);
+        unset($this->cache[$key], $this->ttl[$key]);
     }
 
     public function clear(): void
     {
         $this->cache = [];
+        $this->ttl = [];
     }
 
     public function has(string $key): bool
     {
-        return isset($this->cache[$key]);
+        return isset($this->cache[$key]) && !$this->isExpired($key);
+    }
+
+    private function isExpired(string $key): bool
+    {
+        if (!isset($this->ttl[$key]) || $this->ttl[$key] === 0) {
+            return false;
+        }
+        
+        return time() > $this->ttl[$key];
     }
 
     public function getMultiple(array $keys): array

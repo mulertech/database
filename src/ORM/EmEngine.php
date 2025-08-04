@@ -14,7 +14,7 @@ use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\State\DirectStateManager;
-use MulerTech\Database\ORM\State\EntityState;
+use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
@@ -23,7 +23,6 @@ use MulerTech\Database\Query\Builder\SelectBuilder;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
-use RuntimeException;
 
 /**
  * Class EmEngine
@@ -77,6 +76,7 @@ class EmEngine
 
     /**
      * @param EntityManagerInterface $entityManager
+     * @param MetadataCache $metadataCache
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -101,7 +101,8 @@ class EmEngine
      */
     public function find(string $entityName, int|string $idOrWhere): ?object
     {
-        if (is_string($idOrWhere) && !is_numeric($idOrWhere)) {
+        // Check if the string contains SQL operators, suggesting it's a WHERE clause
+        if (is_string($idOrWhere) && !is_numeric($idOrWhere) && $this->looksLikeWhereClause($idOrWhere)) {
             $queryBuilder = new QueryBuilder($this)
                 ->select('*')
                 ->from($this->getTableName($entityName))
@@ -237,9 +238,19 @@ class EmEngine
             return;
         }
 
-        // Add to identity map if not already there
+        // Add to identity map if not already there with proper metadata
         if (!$isManaged) {
             $this->identityMap->add($entity);
+
+            // Store the original data for change detection
+            $originalData = $this->changeDetector->extractCurrentData($entity);
+            $metadata = new EntityState(
+                $entity::class,
+                EntityLifecycleState::NEW,
+                $originalData,
+                new DateTimeImmutable()
+            );
+            $this->identityMap->updateMetadata($entity, $metadata);
         }
 
         // Only schedule for insertion if entity doesn't have an ID (is truly new)
@@ -405,7 +416,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new StateTransitionManager($this->entityManager->getEventManager());
+            $instance = new StateTransitionManager($this->identityMap);
         }
 
         return $instance;
@@ -528,13 +539,13 @@ class EmEngine
         // Convert OneToMany collections
         $oneToManyList = $entityMetadata->getRelationsByType('OneToMany');
         foreach ($oneToManyList as $property => $oneToMany) {
-            $this->convertPropertyToeDatabaseCollection($entity, $property);
+            $this->convertPropertyToDatabaseCollection($entity, $property);
         }
 
         // Convert ManyToMany collections
         $manyToManyList = $entityMetadata->getRelationsByType('ManyToMany');
         foreach ($manyToManyList as $property => $manyToMany) {
-            $this->convertPropertyToeDatabaseCollection($entity, $property);
+            $this->convertPropertyToDatabaseCollection($entity, $property);
         }
     }
 
@@ -545,7 +556,7 @@ class EmEngine
      * @param string $property
      * @return void
      */
-    private function convertPropertyToeDatabaseCollection(object $entity, string $property): void
+    private function convertPropertyToDatabaseCollection(object $entity, string $property): void
     {
         try {
             $reflection = new ReflectionClass($entity);
@@ -613,8 +624,7 @@ class EmEngine
      */
     private function getTableName(string $entityName): string
     {
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityName);
-        return $entityMetadata->tableName;
+        return $this->metadataCache->getEntityMetadata($entityName)->tableName;
     }
 
     /**
@@ -631,7 +641,13 @@ class EmEngine
      */
     public function hasChanges(object $entity): bool
     {
-        return $this->changeSetManager->hasChanges($entity);
+        $metadata = $this->identityMap->getMetadata($entity);
+        if ($metadata === null) {
+            return false;
+        }
+
+        $changeSet = $this->changeDetector->computeChangeSet($entity, $metadata->originalData);
+        return !$changeSet->isEmpty();
     }
 
     /**
@@ -693,12 +709,10 @@ class EmEngine
             $metadata = $this->identityMap->getMetadata($entity);
             if ($metadata !== null) {
                 $currentData = $this->changeDetector->extractCurrentData($entity);
-                $newMetadata = new EntityMetadata(
+                $newMetadata = new EntityState(
                     $metadata->className,
-                    $metadata->identifier,
-                    EntityState::MANAGED,
+                    EntityLifecycleState::MANAGED,
                     $currentData,
-                    $metadata->loadedAt,
                     new DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
@@ -714,6 +728,7 @@ class EmEngine
      * @param class-string $entityClass
      * @param string $propertyName
      * @return bool
+     * @throws ReflectionException
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
@@ -723,6 +738,42 @@ class EmEngine
         foreach (['OneToOne', 'ManyToOne', 'OneToMany', 'ManyToMany'] as $relationType) {
             $relations = $entityMetadata->getRelationsByType($relationType);
             if (isset($relations[$propertyName])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine if a string looks like a WHERE clause rather than an ID
+     * @param string $value
+     * @return bool
+     */
+    private function looksLikeWhereClause(string $value): bool
+    {
+        // Additional safety: if it's just alphanumeric characters with dashes/underscores,
+        // it's likely an ID value, not a WHERE clause
+        if (preg_match('/^[\w\-]+$/', $value)) {
+            return false;
+        }
+
+        // Check for common SQL operators and keywords that indicate a WHERE clause
+        // Use word boundaries and more precise matching to avoid false positives
+        $patterns = [
+            '/\s*=\s*/',           // Equals
+            '/\s*[><=!]+\s*/',     // Comparison operators
+            '/\bLIKE\b/i',         // LIKE (word boundary)
+            '/\bIN\b/i',           // IN (word boundary)
+            '/\bBETWEEN\b/i',      // BETWEEN (word boundary)
+            '/\bIS\s+NULL\b/i',    // IS NULL (word boundary)
+            '/\bIS\s+NOT\s+NULL\b/i', // IS NOT NULL (word boundary)
+            '/\bAND\b/i',          // AND (word boundary)
+            '/\bOR\b/i',           // OR (word boundary)
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $value)) {
                 return true;
             }
         }
@@ -772,5 +823,141 @@ class EmEngine
         }
 
         return null;
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isManaged(object $entity): bool
+    {
+        return $this->getStateManager()->isManaged($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isNew(object $entity): bool
+    {
+        return $this->getStateManager()->isNew($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isRemoved(object $entity): bool
+    {
+        return $this->getStateManager()->isRemoved($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isDetached(object $entity): bool
+    {
+        return $this->getStateManager()->isDetached($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return object
+     */
+    public function merge(object $entity): object
+    {
+        $entityId = $this->extractEntityId($entity);
+
+        if ($entityId !== null) {
+            $entityClass = $entity::class;
+            $managed = $this->identityMap->get($entityClass, $entityId);
+
+            if ($managed !== null) {
+                return $managed;
+            }
+        }
+
+        $this->identityMap->add($entity);
+        $this->getStateManager()->manage($entity);
+
+        return $entity;
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function refresh(object $entity): void
+    {
+        $entityId = $this->extractEntityId($entity);
+        if ($entityId === null) {
+            return;
+        }
+
+        $entityClass = $entity::class;
+        $freshEntity = $this->find($entityClass, $entityId);
+
+        if ($freshEntity !== null) {
+            // Update the entity's state with fresh data
+            $metadata = $this->identityMap->getMetadata($entity);
+            if ($metadata !== null) {
+                $currentData = $this->changeDetector->extractCurrentData($freshEntity);
+                $newMetadata = new EntityState(
+                    $metadata->className,
+                    EntityLifecycleState::MANAGED,
+                    $currentData,
+                    new DateTimeImmutable()
+                );
+                $this->identityMap->updateMetadata($entity, $newMetadata);
+            }
+        }
+    }
+
+    /**
+     * @return array<object>
+     */
+    public function getScheduledInsertions(): array
+    {
+        return $this->getStateManager()->getScheduledInsertions();
+    }
+
+    /**
+     * @return array<object>
+     */
+    public function getScheduledUpdates(): array
+    {
+        return $this->getStateManager()->getScheduledUpdates();
+    }
+
+    /**
+     * @return array<object>
+     */
+    public function getScheduledDeletions(): array
+    {
+        return $this->getStateManager()->getScheduledDeletions();
+    }
+
+    /**
+     * @param object $entity
+     * @return ChangeSet|null
+     */
+    public function getChangeSet(object $entity): ?ChangeSet
+    {
+        $metadata = $this->identityMap->getMetadata($entity);
+        if ($metadata === null) {
+            return null;
+        }
+
+        $changeSet = $this->changeDetector->computeChangeSet($entity, $metadata->originalData);
+        return $changeSet->isEmpty() ? null : $changeSet;
+    }
+
+    /**
+     * @return void
+     */
+    public function computeChangeSets(): void
+    {
+        $this->changeSetManager->computeChangeSets();
     }
 }

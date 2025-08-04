@@ -5,133 +5,24 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\Core\Cache;
 
 use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Core\Cache\CacheInterface;
 use MulerTech\Database\Core\Cache\MemoryCache;
+use MulerTech\Database\Tests\Files\Cache\BaseCacheTest;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MemoryCache::class)]
-final class MemoryCacheTest extends TestCase
+final class MemoryCacheTest extends BaseCacheTest
 {
-    private MemoryCache $cache;
+    protected function createCacheInstance(): CacheInterface
+    {
+        return new MemoryCache(new CacheConfig(maxSize: 100, ttl: 3600));
+    }
 
     protected function setUp(): void
     {
-        $this->cache = new MemoryCache(new CacheConfig(maxSize: 100, ttl: 3600));
+        parent::setUp();
     }
 
-    public function testSetAndGet(): void
-    {
-        $this->cache->set('key1', 'value1');
-        
-        $this->assertEquals('value1', $this->cache->get('key1'));
-        $this->assertTrue($this->cache->has('key1'));
-    }
-
-    public function testGetNonExistentKey(): void
-    {
-        $this->assertNull($this->cache->get('non_existent'));
-        $this->assertFalse($this->cache->has('non_existent'));
-    }
-
-    public function testSetWithTtl(): void
-    {
-        $this->cache->set('ttl_key', 'ttl_value', 1);
-        
-        $this->assertEquals('ttl_value', $this->cache->get('ttl_key'));
-        
-        sleep(2);
-        
-        $this->assertNull($this->cache->get('ttl_key'));
-        $this->assertFalse($this->cache->has('ttl_key'));
-    }
-
-    public function testDelete(): void
-    {
-        $this->cache->set('delete_key', 'delete_value');
-        $this->assertTrue($this->cache->has('delete_key'));
-        
-        $this->cache->delete('delete_key');
-        
-        $this->assertFalse($this->cache->has('delete_key'));
-        $this->assertNull($this->cache->get('delete_key'));
-    }
-
-    public function testDeleteNonExistentKey(): void
-    {
-        $this->cache->delete('non_existent');
-        
-        $this->assertTrue(true); // Should not throw exception
-    }
-
-    public function testClear(): void
-    {
-        $this->cache->set('key1', 'value1');
-        $this->cache->set('key2', 'value2');
-        
-        $this->cache->clear();
-        
-        $this->assertFalse($this->cache->has('key1'));
-        $this->assertFalse($this->cache->has('key2'));
-    }
-
-    public function testGetMultiple(): void
-    {
-        $this->cache->set('key1', 'value1');
-        $this->cache->set('key2', 'value2');
-        $this->cache->set('key3', 'value3');
-        
-        $result = $this->cache->getMultiple(['key1', 'key2', 'non_existent']);
-        
-        $expected = [
-            'key1' => 'value1',
-            'key2' => 'value2', 
-            'non_existent' => null
-        ];
-        
-        $this->assertEquals($expected, $result);
-    }
-
-    public function testSetMultiple(): void
-    {
-        $values = [
-            'multi1' => 'value1',
-            'multi2' => 'value2'
-        ];
-        
-        $this->cache->setMultiple($values);
-        
-        $this->assertEquals('value1', $this->cache->get('multi1'));
-        $this->assertEquals('value2', $this->cache->get('multi2'));
-    }
-
-    public function testSetMultipleWithTtl(): void
-    {
-        $values = [
-            'ttl_multi1' => 'value1',
-            'ttl_multi2' => 'value2'
-        ];
-        
-        $this->cache->setMultiple($values, 1);
-        
-        $this->assertEquals('value1', $this->cache->get('ttl_multi1'));
-        
-        sleep(2);
-        
-        $this->assertNull($this->cache->get('ttl_multi1'));
-    }
-
-    public function testDeleteMultiple(): void
-    {
-        $this->cache->set('del1', 'value1');
-        $this->cache->set('del2', 'value2');
-        $this->cache->set('del3', 'value3');
-        
-        $this->cache->deleteMultiple(['del1', 'del3']);
-        
-        $this->assertFalse($this->cache->has('del1'));
-        $this->assertTrue($this->cache->has('del2'));
-        $this->assertFalse($this->cache->has('del3'));
-    }
 
     public function testTagging(): void
     {
@@ -306,25 +197,6 @@ final class MemoryCacheTest extends TestCase
         $this->assertEquals(66.67, $stats['hit_rate']); // 2 hits out of 3 requests
     }
 
-    public function testVariousDataTypes(): void
-    {
-        $testCases = [
-            'string' => 'test string',
-            'integer' => 42,
-            'float' => 3.14,
-            'boolean_true' => true,
-            'boolean_false' => false,
-            'null' => null,
-            'array' => ['a', 'b', 'c'],
-            'associative_array' => ['key' => 'value'],
-            'object' => (object) ['property' => 'value']
-        ];
-        
-        foreach ($testCases as $key => $value) {
-            $this->cache->set($key, $value);
-            $this->assertEquals($value, $this->cache->get($key));
-        }
-    }
 
     public function testTagDuplication(): void
     {

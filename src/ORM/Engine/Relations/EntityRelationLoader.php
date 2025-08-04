@@ -65,7 +65,9 @@ readonly class EntityRelationLoader
                 }
                 /** @var array<string, mixed> $oneToMany */
                 $result = $this->loadOneToMany($entity, $oneToMany, $property);
-                $entitiesToLoad[] = $result;
+                if (count($result) > 0) {
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
 
@@ -89,7 +91,9 @@ readonly class EntityRelationLoader
                 }
                 /** @var array<string, mixed> $manyToMany */
                 $result = $this->loadManyToMany($entity, $manyToMany, $property);
-                $entitiesToLoad[] = $result;
+                if (count($result) > 0) {
+                    $entitiesToLoad[] = $result;
+                }
             }
         }
 

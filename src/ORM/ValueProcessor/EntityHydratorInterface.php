@@ -8,7 +8,8 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use ReflectionException;
 
 /**
- * Interface for entity hydration functionality
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 interface EntityHydratorInterface
 {

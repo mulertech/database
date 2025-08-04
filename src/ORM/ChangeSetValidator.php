@@ -23,10 +23,10 @@ final readonly class ChangeSetValidator
 
     /**
      * @param int|string|null $entityId
-     * @param EntityMetadata|null $metadata
+     * @param EntityState|null $metadata
      * @return bool
      */
-    public function shouldSkipInsertion(int|string|null $entityId, ?EntityMetadata $metadata): bool
+    public function shouldSkipInsertion(int|string|null $entityId, ?EntityState $metadata): bool
     {
         if ($entityId !== null && $metadata !== null && $metadata->isManaged()) {
             return true;
@@ -46,5 +46,39 @@ final readonly class ChangeSetValidator
                !$scheduler->isScheduledForInsertion($entity) &&
                !$scheduler->isScheduledForDeletion($entity) &&
                !$scheduler->isScheduledForUpdate($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @param EntityScheduler $scheduler
+     * @return bool
+     */
+    public function canScheduleDeletion(object $entity, EntityScheduler $scheduler): bool
+    {
+        return $this->identityMap->isManaged($entity) &&
+               !$scheduler->isScheduledForInsertion($entity) &&
+               !$scheduler->isScheduledForDeletion($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isValidForPersistence(object $entity): bool
+    {
+        if ($this->identityMap->isManaged($entity)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param ChangeSet $changeSet
+     * @return bool
+     */
+    public function validateChangeSet(ChangeSet $changeSet): bool
+    {
+        return !empty($changeSet->getChanges());
     }
 }

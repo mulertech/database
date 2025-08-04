@@ -233,7 +233,7 @@ class ManyToManyProcessor
     }
 
     /**
-     * Clear all operations and caches
+     * @return void
      */
     public function clear(): void
     {
@@ -243,7 +243,7 @@ class ManyToManyProcessor
     }
 
     /**
-     * Start new flush cycle
+     * @return void
      */
     public function startFlushCycle(): void
     {

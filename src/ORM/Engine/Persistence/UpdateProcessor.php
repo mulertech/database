@@ -12,9 +12,8 @@ use ReflectionException;
 use RuntimeException;
 
 /**
- * Simplified UpdateProcessor using specialized components
- *
- * Orchestrates entity updates by delegating to specialized processors
+ * @package MulerTech\Database
+ * @author Sébastien Muler
  */
 readonly class UpdateProcessor
 {
