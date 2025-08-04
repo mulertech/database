@@ -82,4 +82,38 @@ interface EntityManagerInterface
      *
      */
     public function flush(): void;
+
+    /**
+     * @param Object $entity
+     * @return Object
+     */
+    public function merge(Object $entity): Object;
+
+    /**
+     * @param Object $entity
+     */
+    public function detach(Object $entity): void;
+
+    /**
+     * @param Object $entity
+     */
+    public function refresh(Object $entity): void;
+
+    /**
+     * Clear all entities from the entity manager
+     */
+    public function clear(): void;
+
+    /**
+     * Get row count for an entity type
+     * @param class-string $entityName
+     * @param string|null $where
+     * @return int
+     */
+    public function rowCount(string $entityName, ?string $where = null): int;
+
+    /**
+     * @return EntityHydrator
+     */
+    public function getHydrator(): EntityHydrator;
 }

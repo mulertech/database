@@ -180,17 +180,15 @@ class PersistenceManagerTest extends TestCase
         // Test correct EntityState construction with all required parameters
         $entityState = new EntityState(
             User::class,                    // className (string)
-            123,                           // identifier
             EntityLifecycleState::MANAGED, // state (enum)
             ['username' => 'John'],        // originalData
             new \DateTimeImmutable()       // loadedAt
         );
 
         self::assertEquals(User::class, $entityState->className);
-        self::assertEquals(123, $entityState->identifier);
         self::assertEquals(EntityLifecycleState::MANAGED, $entityState->state);
         self::assertEquals(['username' => 'John'], $entityState->originalData);
-        self::assertInstanceOf(\DateTimeImmutable::class, $entityState->loadedAt);
+        self::assertInstanceOf(\DateTimeImmutable::class, $entityState->lastModified);
     }
 
     public function testIdentityMapIntegration(): void
@@ -202,7 +200,6 @@ class PersistenceManagerTest extends TestCase
         // Create EntityState with correct constructor parameters
         $entityState = new EntityState(
             User::class,                    // className (string)
-            123,                           // identifier
             EntityLifecycleState::MANAGED, // state (enum)
             ['username' => 'John'],        // originalData
             new \DateTimeImmutable()       // loadedAt

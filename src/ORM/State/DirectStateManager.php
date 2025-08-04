@@ -112,7 +112,8 @@ final readonly class DirectStateManager implements StateManagerInterface
             );
         }
 
-        $this->transitionToState($entity, EntityLifecycleState::DETACHED);
+        // Remove entity from identity map instead of transitioning to DETACHED state
+        $this->identityMap->remove($entity);
         $this->changeSetManager?->detach($entity);
         $this->dependencyManager->removeDependencies($entity);
     }
@@ -216,6 +217,44 @@ final readonly class DirectStateManager implements StateManagerInterface
     }
 
     /**
+     * @param object $entity
+     * @return object
+     */
+    public function merge(object $entity): object
+    {
+        // For now, return the entity as-is
+        // This is a placeholder implementation
+        return $entity;
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isNew(object $entity): bool
+    {
+        return $this->getEntityState($entity) === EntityLifecycleState::NEW;
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isRemoved(object $entity): bool
+    {
+        return $this->getEntityState($entity) === EntityLifecycleState::REMOVED;
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isDetached(object $entity): bool
+    {
+        return $this->getEntityState($entity) === EntityLifecycleState::DETACHED;
+    }
+
+    /**
      * @return void
      */
     public function clear(): void
@@ -248,7 +287,7 @@ final readonly class DirectStateManager implements StateManagerInterface
         }
 
         // Validate and execute transition
-        $this->transitionManager->transition($entity, $currentState, $newState);
+        $this->transitionManager->transition($entity, $newState);
 
         // Update state in identity map
         $metadata = $this->identityMap->getMetadata($entity);
@@ -261,10 +300,8 @@ final readonly class DirectStateManager implements StateManagerInterface
         if ($metadata !== null) {
             $newMetadata = new EntityState(
                 className: $metadata->className,
-                identifier: $metadata->identifier,
                 state: $newState,
                 originalData: $metadata->originalData,
-                loadedAt: $metadata->loadedAt,
                 lastModified: new DateTimeImmutable()
             );
 

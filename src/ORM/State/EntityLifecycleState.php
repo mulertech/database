@@ -14,4 +14,18 @@ enum EntityLifecycleState: string
     case MANAGED = 'managed';
     case REMOVED = 'removed';
     case DETACHED = 'detached';
+
+    /**
+     * Check if transition to target state is allowed
+     * @param EntityLifecycleState $to
+     * @return bool
+     */
+    public function canTransitionTo(EntityLifecycleState $to): bool
+    {
+        return match ($this) {
+            self::NEW => $to === self::MANAGED || $to === self::DETACHED || $to === self::REMOVED,
+            self::MANAGED => $to === self::REMOVED || $to === self::DETACHED,
+            self::REMOVED, self::DETACHED => false,
+        };
+    }
 }

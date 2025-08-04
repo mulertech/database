@@ -110,10 +110,8 @@ readonly class EntityProcessor
         $newData = $this->changeDetector->extractCurrentData($target);
         $newMetadata = new EntityState(
             $metadata->className,
-            $metadata->identifier,
             $metadata->state,
             $newData,
-            $metadata->loadedAt,
             new DateTimeImmutable()
         );
 

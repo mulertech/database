@@ -41,37 +41,6 @@ final class StateValidator
 
     /**
      * @param object $entity
-     * @param EntityLifecycleState $from
-     * @param EntityLifecycleState $to
-     * @return bool
-     */
-    public function validateTransition(object $entity, EntityLifecycleState $from, EntityLifecycleState $to): bool
-    {
-        // Basic state transition validation
-        if (!$from->canTransitionTo($to)) {
-            return false;
-        }
-
-        // Entity-specific validation
-        $entityClass = $entity::class;
-        $validatorKey = sprintf('%s:%s:%s', $entityClass, $from->value, $to->value);
-
-        if (isset($this->validators[$entityClass][$validatorKey])) {
-            $validator = $this->validators[$entityClass][$validatorKey];
-            $result = $validator($entity, $from, $to, $this->validationContext);
-
-            if (!$result) {
-                return false;
-            }
-
-            return $result;
-        }
-
-        return true;
-    }
-
-    /**
-     * @param object $entity
      * @param EntityLifecycleState $currentState
      * @return bool
      */
@@ -104,15 +73,7 @@ final class StateValidator
      */
     private function validateRemove(EntityLifecycleState $currentState): bool
     {
-        if ($currentState === EntityLifecycleState::NEW) {
-            return false;
-        }
-
-        if ($currentState === EntityLifecycleState::REMOVED) {
-            return false;
-        }
-
-        return true;
+        return $currentState !== EntityLifecycleState::REMOVED;
     }
 
     /**
@@ -135,7 +96,8 @@ final class StateValidator
      */
     private function validateDetach(EntityLifecycleState $currentState): bool
     {
-        return $currentState === EntityLifecycleState::MANAGED;
+        // Allow detaching entities that are NEW or MANAGED
+        return $currentState === EntityLifecycleState::MANAGED || $currentState === EntityLifecycleState::NEW;
     }
 
     /**

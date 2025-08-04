@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\ValueProcessor;
 
 use Closure;
+use DateMalformedStringException;
 use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Exception;
+use InvalidArgumentException;
 use JsonException;
+use stdClass;
 use TypeError;
 
 /**
@@ -17,7 +20,7 @@ use TypeError;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class PhpTypeValueProcessor implements ValueProcessorInterface
+readonly class PhpTypeValueProcessor implements ValueProcessorInterface
 {
     /**
      * @param string|null $className
@@ -83,10 +86,9 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
             is_int($value) => $value,
             is_float($value) => $value,
             is_bool($value) => $value ? 1 : 0,
-            is_array($value) => json_encode($value, JSON_THROW_ON_ERROR),
+            is_array($value), is_object($value) => json_encode($value, JSON_THROW_ON_ERROR),
             $value instanceof DateTimeInterface => $value->format('Y-m-d H:i:s'),
-            is_object($value) => json_encode($value, JSON_THROW_ON_ERROR),
-            default => (string) $value,
+            default => is_scalar($value) ? (string) $value : $value,
         };
     }
 
@@ -132,7 +134,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
         return [
             'string', 'int', 'integer', 'float', 'double', 'bool', 'boolean',
             'array', 'object', 'datetime', 'datetime_immutable',
-            DateTime::class, DateTimeImmutable::class
+            DateTime::class, DateTimeImmutable::class,
         ];
     }
 
@@ -164,7 +166,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
             'float', 'double' => 0.0,
             'bool', 'boolean' => false,
             'array' => [],
-            'object' => new \stdClass(),
+            'object' => new stdClass(),
             'datetime' => new DateTime(),
             'datetime_immutable' => new DateTimeImmutable(),
             default => null,
@@ -174,6 +176,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return mixed
+     * @throws JsonException
      */
     private function processBasicPhpType(mixed $value): mixed
     {
@@ -183,7 +186,6 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
             'double' => $this->processFloat($value),
             'boolean' => $this->processBool($value),
             'array' => $this->processArray($value),
-            'object' => $value,
             default => $value,
         };
     }
@@ -191,6 +193,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return string
+     * @throws JsonException
      */
     private function processString(mixed $value): string
     {
@@ -280,7 +283,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return array<string, mixed>
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     private function processArray(mixed $value): array
     {
@@ -295,11 +298,11 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
             try {
                 $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \InvalidArgumentException('Invalid JSON string');
+                    throw new InvalidArgumentException('Invalid JSON string');
                 }
                 return is_array($decoded) ? $decoded : [$decoded];
             } catch (JsonException) {
-                throw new \InvalidArgumentException('Invalid JSON string');
+                throw new InvalidArgumentException('Invalid JSON string');
             }
         }
 
@@ -339,6 +342,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return DateTime
+     * @throws DateMalformedStringException
      */
     private function processDateTime(mixed $value): DateTime
     {
@@ -360,13 +364,14 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
 
             return new DateTime($dateString);
         } catch (Exception) {
-            throw new \InvalidArgumentException('Invalid date format');
+            throw new InvalidArgumentException('Invalid date format');
         }
     }
 
     /**
      * @param mixed $value
      * @return DateTimeImmutable
+     * @throws DateMalformedStringException
      */
     private function processDateTimeImmutable(mixed $value): DateTimeImmutable
     {
@@ -388,7 +393,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
 
             return new DateTimeImmutable($dateString);
         } catch (Exception) {
-            throw new \InvalidArgumentException('Invalid date format');
+            throw new InvalidArgumentException('Invalid date format');
         }
     }
 
@@ -399,10 +404,10 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
     private function processCustomClass(mixed $value): object
     {
         if ($this->className === null) {
-            return new \stdClass();
+            return new stdClass();
         }
 
-        if (is_object($value) && $value instanceof $this->className) {
+        if ($value instanceof $this->className) {
             return $value;
         }
 
@@ -414,7 +419,7 @@ class PhpTypeValueProcessor implements ValueProcessorInterface
         try {
             return new $this->className();
         } catch (Exception) {
-            return new \stdClass();
+            return new stdClass();
         }
     }
 }

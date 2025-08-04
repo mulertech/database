@@ -30,9 +30,15 @@ final class IdentityMap
      */
     private WeakMap $metadata;
 
+    /**
+     * @var WeakMap<object, int|string|null>
+     */
+    private WeakMap $entityIds;
+
     public function __construct()
     {
         $this->metadata = new WeakMap();
+        $this->entityIds = new WeakMap();
     }
 
     /**
@@ -77,21 +83,33 @@ final class IdentityMap
 
     /**
      * @param object $entity
+     * @param int|string|null $id
+     * @param EntityState|null $entityState
      * @return void
      */
-    public function add(object $entity): void
+    public function add(object $entity, int|string|null $id = null, ?EntityState $entityState = null): void
     {
         $entityClass = $entity::class;
-        $id = $this->extractEntityId($entity);
 
+        // If ID is explicitly provided, use it; otherwise extract from entity
         if ($id === null) {
-            $this->storeMetadata($entity, $id);
-            return;
+            $id = $this->extractEntityId($entity);
         }
 
-        $this->entities[$entityClass] ??= [];
-        $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
-        $this->storeMetadata($entity, $id);
+        if ($id !== null) {
+            $this->entities[$entityClass] ??= [];
+            $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
+        }
+
+        // Store the ID mapping for later removal
+        $this->entityIds[$entity] = $id;
+
+        // If EntityState is explicitly provided, use it; otherwise create automatically
+        if ($entityState !== null) {
+            $this->metadata[$entity] = $entityState;
+        } else {
+            $this->storeMetadata($entity, $id);
+        }
     }
 
     /**
@@ -101,13 +119,15 @@ final class IdentityMap
     public function remove(object $entity): void
     {
         $entityClass = $entity::class;
-        $id = $this->extractEntityId($entity);
+
+        // Try to get the stored ID first, fallback to extraction
+        $id = $this->entityIds[$entity] ?? $this->extractEntityId($entity);
 
         if ($id !== null && isset($this->entities[$entityClass][$id])) {
             unset($this->entities[$entityClass][$id]);
         }
 
-        unset($this->metadata[$entity]);
+        unset($this->metadata[$entity], $this->entityIds[$entity]);
     }
 
     /**
@@ -123,6 +143,7 @@ final class IdentityMap
 
         $this->entities = [];
         $this->metadata = new WeakMap();
+        $this->entityIds = new WeakMap();
     }
 
     /**

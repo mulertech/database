@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM\ValueProcessor;
 
 use DateTime;
 use DateTimeInterface;
-use Exception;
+use InvalidArgumentException;
 use JsonException;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use TypeError;
@@ -37,7 +37,6 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return mixed
-     * @throws JsonException
      */
     public function process(mixed $value): mixed
     {
@@ -85,7 +84,7 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             'date', 'datetime', 'timestamp', 'time' => $this->convertToDateString($value),
             'json' => $this->convertToJsonString($value),
             'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => (string) $value,
-            default => throw new \InvalidArgumentException("Unsupported column type: $type"),
+            default => throw new InvalidArgumentException("Unsupported column type: $type"),
         };
     }
 
@@ -109,7 +108,7 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             'date', 'datetime', 'timestamp', 'time' => (string) $value,
             'json' => $this->convertToJsonString($value),
             'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => (string) $value,
-            default => throw new \InvalidArgumentException("Unsupported column type: $type"),
+            default => throw new InvalidArgumentException("Unsupported column type: $type"),
         };
     }
 
@@ -120,7 +119,8 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
     public function getDefaultValue(string $type): mixed
     {
         return match (strtolower($type)) {
-            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext' => '',
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext',
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => '',
             'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year' => 0,
             'float', 'double', 'decimal' => 0.0,
             'bool', 'boolean', 'tinyint' => false,
@@ -128,7 +128,6 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             'datetime', 'timestamp' => '1970-01-01 00:00:00',
             'time' => '00:00:00',
             'json' => '{}',
-            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => '',
             default => null,
         };
     }
@@ -154,7 +153,7 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             'float', 'double', 'decimal',
             'date', 'datetime', 'timestamp', 'time',
             'json',
-            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob'
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob',
         ];
     }
 
@@ -225,32 +224,26 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
     /**
      * @param mixed $value
      * @return string
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
+     * @throws JsonException
      */
     private function convertToJsonString(mixed $value): string
     {
         if (is_resource($value)) {
-            throw new \InvalidArgumentException('Invalid JSON data');
+            throw new InvalidArgumentException('Invalid JSON data');
         }
 
         if (is_array($value) || is_object($value)) {
-            try {
-                $result = json_encode($value, JSON_THROW_ON_ERROR);
-                if ($result === false) {
-                    throw new \InvalidArgumentException('Invalid JSON data');
-                }
-                return $result;
-            } catch (JsonException) {
-                throw new \InvalidArgumentException('Invalid JSON data');
-            }
+            return json_encode($value, JSON_THROW_ON_ERROR);
         }
         if (is_string($value)) {
             return $value;
         }
+
         try {
             return json_encode($value, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            throw new \InvalidArgumentException('Invalid JSON data');
+            throw new InvalidArgumentException('Invalid JSON data');
         }
     }
 
@@ -266,7 +259,7 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         if (is_string($value)) {
             return $value;
         }
-        return (new DateTime())->format('Y-m-d H:i:s');
+        return new DateTime()->format('Y-m-d H:i:s');
     }
 
     /**
@@ -276,13 +269,10 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
     public function normalizeType(string $type): string
     {
         return match (strtolower($type)) {
-            'integer' => 'int',
-            'double' => 'float',
-            'boolean' => 'bool',
+            'integer', 'smallint', 'mediumint', 'bigint' => 'int',
+            'double', 'decimal' => 'float',
+            'boolean', 'tinyint' => 'bool',
             'varchar', 'char' => 'string',
-            'tinyint' => 'bool',
-            'smallint', 'mediumint', 'bigint' => 'int',
-            'decimal' => 'float',
             'tinytext', 'mediumtext', 'longtext' => 'text',
             'varbinary' => 'binary',
             'tinyblob', 'mediumblob', 'longblob' => 'blob',

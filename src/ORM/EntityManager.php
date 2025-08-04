@@ -26,6 +26,8 @@ class EntityManager implements EntityManagerInterface
      */
     private EmEngine $emEngine;
 
+    private EntityHydrator $hydrator;
+
     /**
      * @param PhpDatabaseInterface $pdm
      * @param MetadataCache $metadataCache
@@ -37,6 +39,7 @@ class EntityManager implements EntityManagerInterface
         private readonly ?EventManager $eventManager = null
     ) {
         $this->emEngine = new EmEngine($this, $metadataCache);
+        $this->hydrator = new EntityHydrator($metadataCache);
     }
 
     /**
@@ -87,6 +90,14 @@ class EntityManager implements EntityManagerInterface
     public function getEventManager(): ?EventManager
     {
         return $this->eventManager;
+    }
+
+    /**
+     * @return EntityHydrator
+     */
+    public function getHydrator(): EntityHydrator
+    {
+        return $this->hydrator;
     }
 
     /**
@@ -195,5 +206,40 @@ class EntityManager implements EntityManagerInterface
     public function flush(): void
     {
         $this->emEngine->flush();
+    }
+
+    /**
+     * @param object $entity
+     * @return object
+     */
+    public function merge(object $entity): object
+    {
+        return $this->emEngine->merge($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function detach(object $entity): void
+    {
+        $this->emEngine->detach($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return void
+     */
+    public function refresh(object $entity): void
+    {
+        $this->emEngine->refresh($entity);
+    }
+
+    /**
+     * @return void
+     */
+    public function clear(): void
+    {
+        $this->emEngine->clear();
     }
 }

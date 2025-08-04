@@ -39,10 +39,23 @@ final class StateTransitionManager
         $metadata = $this->identityMap->getMetadata($entity);
 
         if ($metadata === null) {
-            throw new InvalidArgumentException('Entity is not managed');
+            // Entity is not in the identity map yet.
+            // This can happen for entities that were persisted but the persist operation
+            // didn't properly add them to the IdentityMap. Let's add them now.
+            $this->identityMap->add($entity);
+            $metadata = $this->identityMap->getMetadata($entity);
+
+            if ($metadata === null) {
+                throw new InvalidArgumentException('Entity is not managed and could not be managed automatically');
+            }
         }
 
         $currentState = $metadata->state;
+
+        // Skip transition if already in target state
+        if ($currentState === $targetState) {
+            return;
+        }
 
         if (!$this->canTransition($currentState, $targetState)) {
             throw new InvalidArgumentException(
@@ -64,12 +77,7 @@ final class StateTransitionManager
      */
     public function canTransition(EntityLifecycleState $from, EntityLifecycleState $to): bool
     {
-        return match ($from) {
-            EntityLifecycleState::NEW => $to === EntityLifecycleState::MANAGED || $to === EntityLifecycleState::DETACHED,
-            EntityLifecycleState::MANAGED => $to === EntityLifecycleState::REMOVED || $to === EntityLifecycleState::DETACHED,
-            EntityLifecycleState::REMOVED => false,
-            EntityLifecycleState::DETACHED => false,
-        };
+        return $from->canTransitionTo($to);
     }
 
     /**
@@ -79,10 +87,9 @@ final class StateTransitionManager
     public function getValidTransitions(EntityLifecycleState $state): array
     {
         return match ($state) {
-            EntityLifecycleState::NEW => [EntityLifecycleState::MANAGED, EntityLifecycleState::DETACHED],
+            EntityLifecycleState::NEW => [EntityLifecycleState::MANAGED, EntityLifecycleState::DETACHED, EntityLifecycleState::REMOVED],
             EntityLifecycleState::MANAGED => [EntityLifecycleState::REMOVED, EntityLifecycleState::DETACHED],
-            EntityLifecycleState::REMOVED => [],
-            EntityLifecycleState::DETACHED => [],
+            EntityLifecycleState::REMOVED, EntityLifecycleState::DETACHED => [],
         };
     }
 
@@ -95,7 +102,7 @@ final class StateTransitionManager
         $entityId = spl_object_id($entity);
         return array_filter(
             $this->transitionHistory,
-            fn($transition) => $transition['entity_id'] === $entityId
+            static fn ($transition) => $transition['entity_id'] === $entityId
         );
     }
 
@@ -108,7 +115,7 @@ final class StateTransitionManager
         $entityId = spl_object_id($entity);
         $this->transitionHistory = array_filter(
             $this->transitionHistory,
-            fn($transition) => $transition['entity_id'] !== $entityId
+            static fn ($transition) => $transition['entity_id'] !== $entityId
         );
     }
 

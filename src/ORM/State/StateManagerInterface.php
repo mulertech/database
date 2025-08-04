@@ -13,9 +13,33 @@ interface StateManagerInterface
 {
     /**
      * @param object $entity
+     * @return object
+     */
+    public function merge(object $entity): object;
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isNew(object $entity): bool;
+
+    /**
+     * @param object $entity
      * @return bool
      */
     public function isManaged(object $entity): bool;
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isRemoved(object $entity): bool;
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isDetached(object $entity): bool;
 
     /**
      * @param object $entity

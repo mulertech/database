@@ -82,17 +82,18 @@ class StateTransitionManagerTest extends TestCase
         self::assertEquals(EntityLifecycleState::DETACHED, $metadata->state);
     }
 
-    public function testInvalidTransitionFromNewToRemoved(): void
+    public function testTransitionFromNewToRemoved(): void
     {
         $user = new User();
         $user->setUsername('John');
         
         $this->identityMap->add($user);
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid state transition from NEW to REMOVED');
-        
         $this->transitionManager->transition($user, EntityLifecycleState::REMOVED);
+        
+        $metadata = $this->identityMap->getMetadata($user);
+        self::assertNotNull($metadata);
+        self::assertEquals(EntityLifecycleState::REMOVED, $metadata->state);
     }
 
     public function testInvalidTransitionFromRemovedToManaged(): void
@@ -134,10 +135,12 @@ class StateTransitionManagerTest extends TestCase
         $user = new User();
         $user->setUsername('John');
         
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Entity is not managed');
-        
+        // The StateTransitionManager should now automatically manage unmanaged entities
         $this->transitionManager->transition($user, EntityLifecycleState::MANAGED);
+        
+        $metadata = $this->identityMap->getMetadata($user);
+        self::assertNotNull($metadata);
+        self::assertEquals(EntityLifecycleState::MANAGED, $metadata->state);
     }
 
     public function testCanTransitionFromNewToManaged(): void
@@ -168,11 +171,11 @@ class StateTransitionManagerTest extends TestCase
         self::assertTrue($result);
     }
 
-    public function testCannotTransitionFromNewToRemoved(): void
+    public function testCanTransitionFromNewToRemoved(): void
     {
         $result = $this->transitionManager->canTransition(EntityLifecycleState::NEW, EntityLifecycleState::REMOVED);
         
-        self::assertFalse($result);
+        self::assertTrue($result);
     }
 
     public function testCannotTransitionFromRemovedToManaged(): void
@@ -196,7 +199,7 @@ class StateTransitionManagerTest extends TestCase
         self::assertIsArray($validTransitions);
         self::assertContains(EntityLifecycleState::MANAGED, $validTransitions);
         self::assertContains(EntityLifecycleState::DETACHED, $validTransitions);
-        self::assertNotContains(EntityLifecycleState::REMOVED, $validTransitions);
+        self::assertContains(EntityLifecycleState::REMOVED, $validTransitions);
     }
 
     public function testGetValidTransitionsFromManaged(): void

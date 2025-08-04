@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
-use SplObjectStorage;
+use WeakMap;
 
 /**
  * Class EntityRegistry
@@ -14,13 +14,13 @@ use SplObjectStorage;
  */
 final class EntityRegistry
 {
-    /** @var SplObjectStorage<object, array{
+    /** @var WeakMap<object, array{
      *     registeredAt: DateTimeImmutable,
      *     lastAccessed: DateTimeImmutable,
      *     accessCount: int
      * }>
      */
-    private SplObjectStorage $registry;
+    private WeakMap $registry;
 
     /** @var array<class-string, int> */
     private array $entityCountByClass = [];
@@ -45,7 +45,7 @@ final class EntityRegistry
 
     public function __construct()
     {
-        $this->registry = new SplObjectStorage();
+        $this->registry = new WeakMap();
     }
 
     /**
@@ -57,7 +57,7 @@ final class EntityRegistry
         $entityClass = $entity::class;
         $now = new DateTimeImmutable();
 
-        if ($this->registry->contains($entity)) {
+        if (isset($this->registry[$entity])) {
             // Update access time
             $data = $this->registry[$entity];
             $data['lastAccessed'] = $now;
@@ -93,7 +93,7 @@ final class EntityRegistry
      */
     public function unregister(object $entity): void
     {
-        if (!$this->registry->contains($entity)) {
+        if (!isset($this->registry[$entity])) {
             return;
         }
 
@@ -121,7 +121,7 @@ final class EntityRegistry
      */
     public function clear(): void
     {
-        $this->registry = new SplObjectStorage();
+        $this->registry = new WeakMap();
         $this->entityCountByClass = [];
         $this->entityStats = [];
         $this->operationCount = 0;
@@ -133,10 +133,8 @@ final class EntityRegistry
     private function runGarbageCollection(): void
     {
         gc_collect_cycles();
-
-        foreach ($this->registry as $entity) {
-            $this->unregister($entity);
-        }
+        // WeakMap automatically removes garbage collected entities
+        // No manual cleanup needed
     }
 
     /**
@@ -158,5 +156,41 @@ final class EntityRegistry
         $this->entityStats[$entityClass][$operation] = ($this->entityStats[$entityClass][$operation] ?? 0) + 1;
         $this->entityStats[$entityClass]['currentCount'] = $this->entityCountByClass[$entityClass] ?? 0;
         $this->entityStats[$entityClass]['lastUpdated'] = time();
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isRegistered(object $entity): bool
+    {
+        return isset($this->registry[$entity]);
+    }
+
+    /**
+     * @return array<object>
+     */
+    public function getRegisteredEntities(): array
+    {
+        $entities = [];
+        foreach ($this->registry as $entity => $data) {
+            $entities[] = $entity;
+        }
+        return $entities;
+    }
+
+    /**
+     * @param class-string $className
+     * @return array<object>
+     */
+    public function getRegisteredEntitiesByClass(string $className): array
+    {
+        $entities = [];
+        foreach ($this->registry as $entity => $data) {
+            if ($entity::class === $className) {
+                $entities[] = $entity;
+            }
+        }
+        return $entities;
     }
 }

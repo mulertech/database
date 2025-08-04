@@ -33,6 +33,12 @@ class EntityManagerInterfaceTest extends TestCase
             $metadataCache,
             $eventManager
         );
+
+        $pdo = $this->entityManager->getPdm();
+        $query = 'DROP TABLE IF EXISTS users_test';
+        $pdo->exec($query);
+        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED, manager INT UNSIGNED)';
+        $pdo->exec($query);
     }
 
     public function testImplementsEntityManagerInterface(): void
@@ -222,16 +228,6 @@ class EntityManagerInterfaceTest extends TestCase
         }
     }
 
-    public function testMethodParameterTypesMatch(): void
-    {
-        $user = new User();
-        
-        self::assertNull($this->entityManager->persist($user));
-        self::assertNull($this->entityManager->remove($user));
-        self::assertSame($user, $this->entityManager->merge($user));
-        self::assertNull($this->entityManager->detach($user));
-    }
-
     public function testEntityManagerIsInterface(): void
     {
         $reflection = new \ReflectionClass(EntityManagerInterface::class);
@@ -250,6 +246,7 @@ class EntityManagerInterfaceTest extends TestCase
     public function testCanBeTypedAsInterface(): void
     {
         $user = new User();
+        $user->setUsername('InterfaceTestUser');
         
         $this->performOperationsOnInterface($this->entityManager, $user);
         

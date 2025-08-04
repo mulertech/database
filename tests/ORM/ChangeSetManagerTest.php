@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM;
 
+use DateTimeImmutable;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\ChangeSetManager;
@@ -15,6 +16,7 @@ use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 class ChangeSetManagerTest extends TestCase
 {
@@ -55,9 +57,10 @@ class ChangeSetManagerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
-            new \DateTimeImmutable()
+            new DateTimeImmutable()
         );
         
         $this->identityMap->add($user, 1, $entityState);
@@ -75,9 +78,10 @@ class ChangeSetManagerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
-            new \DateTimeImmutable()
+            new DateTimeImmutable()
         );
         
         $this->identityMap->add($user, 1, $entityState);
@@ -95,9 +99,10 @@ class ChangeSetManagerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
-            new \DateTimeImmutable()
+            new DateTimeImmutable()
         );
         
         $this->identityMap->add($user, 1, $entityState);
@@ -130,9 +135,10 @@ class ChangeSetManagerTest extends TestCase
         $existingUser->setUsername('Original');
         
         $existingState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'Original'],
-            new \DateTimeImmutable()
+            new DateTimeImmutable()
         );
         
         $this->identityMap->add($existingUser, 123, $existingState);
@@ -168,7 +174,7 @@ class ChangeSetManagerTest extends TestCase
         $propertyChange = new PropertyChange('username', 'Original', 'John');
         $changeSet = new ChangeSet(User::class, ['username' => $propertyChange]);
         
-        $reflection = new \ReflectionClass($this->changeSetManager);
+        $reflection = new ReflectionClass($this->changeSetManager);
         $changeSetsProperty = $reflection->getProperty('changeSets');
         $changeSetsProperty->setAccessible(true);
         $changeSets = $changeSetsProperty->getValue($this->changeSetManager);
@@ -194,16 +200,15 @@ class ChangeSetManagerTest extends TestCase
         $user->setUsername('John');
         
         self::assertFalse($this->changeSetManager->hasChanges($user));
-        
+
         $propertyChange = new PropertyChange('username', 'Original', 'John');
         $changeSet = new ChangeSet(User::class, ['username' => $propertyChange]);
-        
-        $reflection = new \ReflectionClass($this->changeSetManager);
+
+        $reflection = new ReflectionClass($this->changeSetManager);
         $changeSetsProperty = $reflection->getProperty('changeSets');
-        $changeSetsProperty->setAccessible(true);
         $changeSets = $changeSetsProperty->getValue($this->changeSetManager);
         $changeSets[$user] = $changeSet;
-        
+
         self::assertTrue($this->changeSetManager->hasChanges($user));
     }
 
@@ -213,9 +218,8 @@ class ChangeSetManagerTest extends TestCase
         
         $changeSet = new ChangeSet(User::class, []);
         
-        $reflection = new \ReflectionClass($this->changeSetManager);
+        $reflection = new ReflectionClass($this->changeSetManager);
         $changeSetsProperty = $reflection->getProperty('changeSets');
-        $changeSetsProperty->setAccessible(true);
         $changeSets = $changeSetsProperty->getValue($this->changeSetManager);
         $changeSets[$user] = $changeSet;
         
@@ -228,9 +232,10 @@ class ChangeSetManagerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'Original'],
-            new \DateTimeImmutable()
+            new DateTimeImmutable()
         );
         
         $this->identityMap->add($user, 1, $entityState);
@@ -253,12 +258,13 @@ class ChangeSetManagerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
-            new \DateTimeImmutable()
+            new DateTimeImmutable()
         );
         
-        $this->identityMap->add($user, null, $entityState);
+        $this->identityMap->add($user, 1, $entityState);
         $this->changeSetManager->scheduleInsert($user);
         
         $this->changeSetManager->computeChangeSets();
@@ -300,9 +306,8 @@ class ChangeSetManagerTest extends TestCase
         $propertyChange = new PropertyChange('username', null, 'John');
         $changeSet = new ChangeSet(User::class, ['username' => $propertyChange]);
         
-        $reflection = new \ReflectionClass($this->changeSetManager);
+        $reflection = new ReflectionClass($this->changeSetManager);
         $changeSetsProperty = $reflection->getProperty('changeSets');
-        $changeSetsProperty->setAccessible(true);
         $changeSets = $changeSetsProperty->getValue($this->changeSetManager);
         $changeSets[$user] = $changeSet;
         

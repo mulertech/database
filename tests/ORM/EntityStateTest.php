@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use PHPUnit\Framework\TestCase;
+use MulerTech\Database\Tests\Files\Entity\User;
 
 class EntityStateTest extends TestCase
 {
@@ -17,6 +18,7 @@ class EntityStateTest extends TestCase
         $originalData = ['username' => 'John', 'age' => 25];
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             $originalData,
             $timestamp
@@ -24,7 +26,7 @@ class EntityStateTest extends TestCase
         
         self::assertEquals(EntityLifecycleState::NEW, $entityState->state);
         self::assertEquals($originalData, $entityState->originalData);
-        self::assertSame($timestamp, $entityState->timestamp);
+        self::assertSame($timestamp, $entityState->lastModified);
     }
 
     public function testWithDifferentStates(): void
@@ -32,24 +34,28 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $newState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             $timestamp
         );
         
         $managedState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             [],
             $timestamp
         );
         
         $removedState = new EntityState(
+            User::class,
             EntityLifecycleState::REMOVED,
             [],
             $timestamp
         );
         
         $detachedState = new EntityState(
+            User::class,
             EntityLifecycleState::DETACHED,
             [],
             $timestamp
@@ -66,12 +72,14 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $newState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             $timestamp
         );
         
         $managedState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             [],
             $timestamp
@@ -86,12 +94,14 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $newState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             $timestamp
         );
         
         $managedState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             [],
             $timestamp
@@ -106,12 +116,14 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $managedState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             [],
             $timestamp
         );
         
         $removedState = new EntityState(
+            User::class,
             EntityLifecycleState::REMOVED,
             [],
             $timestamp
@@ -126,12 +138,14 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $managedState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             [],
             $timestamp
         );
         
         $detachedState = new EntityState(
+            User::class,
             EntityLifecycleState::DETACHED,
             [],
             $timestamp
@@ -146,6 +160,7 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             $timestamp
@@ -170,6 +185,7 @@ class EntityStateTest extends TestCase
         ];
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             $complexData,
             $timestamp
@@ -189,25 +205,28 @@ class EntityStateTest extends TestCase
         $timestamp2 = new DateTimeImmutable('2023-01-01 12:00:00.654321');
         
         $state1 = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             $timestamp1
         );
         
         $state2 = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             $timestamp2
         );
         
-        self::assertNotEquals($state1->timestamp, $state2->timestamp);
-        self::assertEquals('2023-01-01 12:00:00.123456', $state1->timestamp->format('Y-m-d H:i:s.u'));
-        self::assertEquals('2023-01-01 12:00:00.654321', $state2->timestamp->format('Y-m-d H:i:s.u'));
+        self::assertNotEquals($state1->lastModified, $state2->lastModified);
+        self::assertEquals('2023-01-01 12:00:00.123456', $state1->lastModified->format('Y-m-d H:i:s.u'));
+        self::assertEquals('2023-01-01 12:00:00.654321', $state2->lastModified->format('Y-m-d H:i:s.u'));
     }
 
     public function testReadonlyClass(): void
     {
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             new DateTimeImmutable()
@@ -224,12 +243,14 @@ class EntityStateTest extends TestCase
         $timestamp = new DateTimeImmutable();
         
         $state1 = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             ['username' => 'John'],
             $timestamp
         );
         
         $state2 = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'Jane'],
             $timestamp
@@ -238,6 +259,6 @@ class EntityStateTest extends TestCase
         self::assertNotSame($state1, $state2);
         self::assertNotEquals($state1->state, $state2->state);
         self::assertNotEquals($state1->originalData, $state2->originalData);
-        self::assertSame($state1->timestamp, $state2->timestamp);
+        self::assertSame($state1->lastModified, $state2->lastModified);
     }
 }

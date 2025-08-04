@@ -109,6 +109,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -137,6 +138,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -159,6 +161,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -199,6 +202,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -225,6 +229,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -272,6 +277,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()

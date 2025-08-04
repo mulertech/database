@@ -39,6 +39,18 @@ class EmEngineTest extends TestCase
         );
         
         $this->emEngine = $this->entityManager->getEmEngine();
+        $pdo = $this->entityManager->getPdm();
+        $query = 'DROP TABLE IF EXISTS users_test';
+        $pdo->exec($query);
+        $query = 'CREATE TABLE IF NOT EXISTS users_test (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255), size INT, unit_id INT UNSIGNED, manager INT UNSIGNED)';
+        $pdo->exec($query);
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        $query = 'DROP TABLE IF EXISTS users_test';
+        $this->entityManager->getPdm()->exec($query);
     }
 
     public function testPersist(): void
@@ -169,6 +181,7 @@ class EmEngineTest extends TestCase
         self::assertFalse($this->emEngine->isManaged($user));
         
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::MANAGED,
             [],
             new \DateTimeImmutable()
@@ -232,6 +245,7 @@ class EmEngineTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::MANAGED,
             ['username' => 'OriginalName'],
             new \DateTimeImmutable()

@@ -49,7 +49,7 @@ readonly class EntityStateManager
         $metadata = $this->identityMap->getMetadata($entity);
 
         if ($metadata !== null) {
-            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::MANAGED, $metadata->originalData);
+            $this->updateEntityMetadata($entity, EntityLifecycleState::MANAGED, $metadata->originalData);
         } else {
             $this->identityMap->add($entity);
             $entityClassName = $entity::class;
@@ -72,7 +72,7 @@ readonly class EntityStateManager
         $metadata = $this->identityMap->getMetadata($entity);
 
         if ($metadata !== null && $metadata->state !== EntityLifecycleState::REMOVED) {
-            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::REMOVED, $metadata->originalData);
+            $this->updateEntityMetadata($entity, EntityLifecycleState::REMOVED, $metadata->originalData);
         }
     }
 
@@ -85,7 +85,7 @@ readonly class EntityStateManager
         $metadata = $this->identityMap->getMetadata($entity);
 
         if ($metadata !== null && $metadata->state !== EntityLifecycleState::DETACHED) {
-            $this->updateEntityMetadata($entity, $metadata, EntityLifecycleState::DETACHED, $metadata->originalData);
+            $this->updateEntityMetadata($entity, EntityLifecycleState::DETACHED, $metadata->originalData);
         }
     }
 
@@ -123,10 +123,11 @@ readonly class EntityStateManager
         }
 
         return match ($currentState) {
-            EntityLifecycleState::NEW => $targetState === EntityLifecycleState::MANAGED || $targetState === EntityLifecycleState::DETACHED,
-            EntityLifecycleState::MANAGED => $targetState === EntityLifecycleState::REMOVED || $targetState === EntityLifecycleState::DETACHED,
-            EntityLifecycleState::REMOVED => false,
-            EntityLifecycleState::DETACHED => false,
+            EntityLifecycleState::NEW => $targetState === EntityLifecycleState::MANAGED
+                || $targetState === EntityLifecycleState::DETACHED,
+            EntityLifecycleState::MANAGED => $targetState === EntityLifecycleState::REMOVED
+                || $targetState === EntityLifecycleState::DETACHED,
+            EntityLifecycleState::REMOVED, EntityLifecycleState::DETACHED => false,
         };
     }
 
@@ -144,7 +145,7 @@ readonly class EntityStateManager
             throw new InvalidArgumentException('Entity is not managed');
         }
 
-        $this->updateEntityMetadata($entity, $metadata, $metadata->state, $originalData);
+        $this->updateEntityMetadata($entity, $metadata->state, $originalData);
     }
 
     /**
@@ -153,8 +154,7 @@ readonly class EntityStateManager
      */
     public function getOriginalData(object $entity): ?array
     {
-        $metadata = $this->identityMap->getMetadata($entity);
-        return $metadata?->originalData;
+        return $this->identityMap->getMetadata($entity)?->originalData;
     }
 
     /**
@@ -174,9 +174,6 @@ readonly class EntityStateManager
         // Check if entity is already in MANAGED state with an ID
         $currentEntityState = $this->identityMap->getEntityState($entity);
         if ($currentEntityState === EntityLifecycleState::MANAGED) {
-            // Check if entity already has an ID (is already persisted)
-            $entityClass = $entity::class;
-
             // Try to extract current ID from entity
             $currentId = null;
             if (method_exists($entity, 'getId')) {
@@ -212,14 +209,12 @@ readonly class EntityStateManager
 
     /**
      * @param object $entity
-     * @param EntityState $metadata
      * @param EntityLifecycleState $newState
      * @param array<string, mixed> $originalData
      * @return void
      */
     private function updateEntityMetadata(
         object $entity,
-        EntityState $metadata,
         EntityLifecycleState $newState,
         array $originalData
     ): void {

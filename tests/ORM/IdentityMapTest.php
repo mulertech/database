@@ -27,6 +27,7 @@ class IdentityMapTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -44,6 +45,7 @@ class IdentityMapTest extends TestCase
     {
         $user = new User();
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -73,11 +75,13 @@ class IdentityMapTest extends TestCase
         $user2->setUsername('Jane');
         
         $entityState1 = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
         );
         $entityState2 = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -103,11 +107,13 @@ class IdentityMapTest extends TestCase
         $unit->setName('TestUnit');
         
         $userState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
         );
         $unitState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\Unit',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -129,6 +135,7 @@ class IdentityMapTest extends TestCase
     {
         $user = new User();
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -157,6 +164,7 @@ class IdentityMapTest extends TestCase
     {
         $user = new User();
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -187,11 +195,13 @@ class IdentityMapTest extends TestCase
         $unit = new Unit();
         
         $newState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
         );
         $managedState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::MANAGED,
             [],
             new \DateTimeImmutable()
@@ -218,6 +228,7 @@ class IdentityMapTest extends TestCase
         $unit = new Unit();
         
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -247,6 +258,7 @@ class IdentityMapTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -266,6 +278,7 @@ class IdentityMapTest extends TestCase
     {
         $user = new User();
         $originalState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::NEW,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -274,6 +287,7 @@ class IdentityMapTest extends TestCase
         $this->identityMap->add($user, 1, $originalState);
         
         $newState = new EntityState(
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User',
             EntityLifecycleState::MANAGED,
             ['username' => 'Jane'],
             new \DateTimeImmutable()

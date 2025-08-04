@@ -130,7 +130,7 @@ class ChangeDetectorTest extends TestCase
         $user->setUsername('John');
         $originalData = $this->changeDetector->extractCurrentData($user);
         
-        $user->setUsername(null);
+        $user->setUsername('');
         
         $changeSet = $this->changeDetector->computeChangeSet($user, $originalData);
         
@@ -139,7 +139,7 @@ class ChangeDetectorTest extends TestCase
         $usernameChange = $changeSet->getFieldChange('username');
         self::assertInstanceOf(PropertyChange::class, $usernameChange);
         self::assertEquals('John', $usernameChange->oldValue);
-        self::assertNull($usernameChange->newValue);
+        self::assertEquals('', $usernameChange->newValue);
     }
 
     public function testComputeChangeSetWithRelationChanges(): void

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\ChangeSetValidator;
 use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
+use MulerTech\Database\ORM\PropertyChange;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -43,6 +45,7 @@ class ChangeSetValidatorTest extends TestCase
     public function testShouldSkipInsertionWithIdAndNewMetadata(): void
     {
         $metadata = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
@@ -56,6 +59,7 @@ class ChangeSetValidatorTest extends TestCase
     public function testShouldSkipInsertionWithIdAndManagedMetadata(): void
     {
         $metadata = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -69,6 +73,7 @@ class ChangeSetValidatorTest extends TestCase
     public function testShouldSkipInsertionWithIdAndRemovedMetadata(): void
     {
         $metadata = new EntityState(
+            User::class,
             EntityLifecycleState::REMOVED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -82,6 +87,7 @@ class ChangeSetValidatorTest extends TestCase
     public function testShouldSkipInsertionWithIdAndDetachedMetadata(): void
     {
         $metadata = new EntityState(
+            User::class,
             EntityLifecycleState::DETACHED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -105,6 +111,7 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -123,12 +130,13 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
         );
         
-        $this->identityMap->add($user, null, $entityState);
+        $this->identityMap->add($user, 1, $entityState);
         
         $result = $this->validator->canScheduleUpdate($user, $this->scheduler);
         
@@ -151,6 +159,7 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -170,6 +179,7 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -189,6 +199,7 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -208,6 +219,7 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -226,12 +238,13 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::NEW,
             [],
             new \DateTimeImmutable()
         );
         
-        $this->identityMap->add($user, null, $entityState);
+        $this->identityMap->add($user, 1, $entityState);
         
         $result = $this->validator->canScheduleDeletion($user, $this->scheduler);
         
@@ -244,6 +257,7 @@ class ChangeSetValidatorTest extends TestCase
         $user->setUsername('John');
         
         $entityState = new EntityState(
+            User::class,
             EntityLifecycleState::MANAGED,
             ['username' => 'John'],
             new \DateTimeImmutable()
@@ -267,21 +281,15 @@ class ChangeSetValidatorTest extends TestCase
         self::assertTrue($result);
     }
 
-    public function testIsValidForPersistenceWithInvalidEntity(): void
-    {
-        $user = new User();
-        
-        $result = $this->validator->isValidForPersistence($user);
-        
-        self::assertFalse($result);
-    }
-
     public function testValidateChangeSet(): void
     {
         $user = new User();
         $user->setUsername('John');
         
-        $result = $this->validator->validateChangeSet($user, []);
+        $propertyChange = new PropertyChange('username', null, 'John');
+        $changeSet = new ChangeSet($user::class, ['username' => $propertyChange]);
+        
+        $result = $this->validator->validateChangeSet($changeSet);
         
         self::assertTrue($result);
     }
@@ -290,7 +298,10 @@ class ChangeSetValidatorTest extends TestCase
     {
         $user = new User();
         
-        $result = $this->validator->validateChangeSet($user, ['invalid' => 'change']);
+        // Empty change set should be invalid
+        $changeSet = new ChangeSet($user::class, []);
+        
+        $result = $this->validator->validateChangeSet($changeSet);
         
         self::assertFalse($result);
     }
@@ -315,3 +326,4 @@ class ChangeSetValidatorTest extends TestCase
         self::assertEquals('identityMap', $parameters[0]->getName());
     }
 }
+

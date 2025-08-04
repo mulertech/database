@@ -50,7 +50,7 @@ trait SqlFormatterTrait
         }
 
         // Handle 'column alias' format (space separated, no AS keyword)
-        if (preg_match('/^([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)$/', $identifier, $matches)) {
+        if (preg_match('/^([a-zA-Z_]\w*)\s+([a-zA-Z_]\w*)$/', $identifier, $matches)) {
             return $this->formatIdentifier($matches[1]) . ' AS ' . $this->formatIdentifier($matches[2]);
         }
 
@@ -94,10 +94,15 @@ trait SqlFormatterTrait
      */
     protected function isExpression(string $identifier): bool
     {
+        // Special case: asterisk for SELECT *
+        if ($identifier === '*') {
+            return true;
+        }
+
         // Check for SQL functions or expressions
         $patterns = [
             '/^\w+\s*\(.*\)$/',        // Functions: COUNT(*), SUM(column)
-            '/[\+\-\*\/\%]/',          // Mathematical operators
+            '/\s[\+\-\*\/\%]\s/',      // Mathematical operators (must have spaces around them)
             '/\s+(AND|OR|NOT)\s+/i',   // Logical operators
             '/^\d+$/',                 // Numeric literals
             '/^\'.*\'$/',              // String literals

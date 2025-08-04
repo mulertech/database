@@ -129,15 +129,10 @@ class EntityOperationProcessor
         }
 
         $currentData = $this->changeDetector->extractCurrentData($entity);
-        $entityId = $this->extractEntityId($entity);
-        $identifier = $entityId ?? $metadata->identifier;
-
         $newMetadata = new EntityState(
             $metadata->className,
-            $identifier,
             EntityLifecycleState::MANAGED,
             $currentData,
-            $metadata->loadedAt,
             new DateTimeImmutable()
         );
         $this->identityMap->updateMetadata($entity, $newMetadata);

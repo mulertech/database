@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 
 /**
@@ -47,5 +46,39 @@ final readonly class ChangeSetValidator
                !$scheduler->isScheduledForInsertion($entity) &&
                !$scheduler->isScheduledForDeletion($entity) &&
                !$scheduler->isScheduledForUpdate($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @param EntityScheduler $scheduler
+     * @return bool
+     */
+    public function canScheduleDeletion(object $entity, EntityScheduler $scheduler): bool
+    {
+        return $this->identityMap->isManaged($entity) &&
+               !$scheduler->isScheduledForInsertion($entity) &&
+               !$scheduler->isScheduledForDeletion($entity);
+    }
+
+    /**
+     * @param object $entity
+     * @return bool
+     */
+    public function isValidForPersistence(object $entity): bool
+    {
+        if ($this->identityMap->isManaged($entity)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param ChangeSet $changeSet
+     * @return bool
+     */
+    public function validateChangeSet(ChangeSet $changeSet): bool
+    {
+        return !empty($changeSet->getChanges());
     }
 }
