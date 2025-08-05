@@ -248,4 +248,110 @@ final class MetadataCacheTest extends BaseCacheTest
         // Since we can't easily test TTL without waiting, we verify the value is set
         $this->assertEquals('test_value', $cache->get('test_key'));
     }
+
+    public function testLoadEntitiesFromPath(): void
+    {
+        $cache = new MetadataCache();
+        $entitiesPath = __DIR__ . '/../../Files/Entity';
+        
+        $cache->loadEntitiesFromPath($entitiesPath);
+        
+        // Verify that entities were loaded and warmed up
+        $this->assertTrue($cache->isWarmedUp('MulerTech\\Database\\Tests\\Files\\Entity\\User'));
+    }
+
+    public function testConstructorWithEntitiesPath(): void
+    {
+        $entitiesPath = __DIR__ . '/../../Files/Entity';
+        $cache = new MetadataCache(null, $entitiesPath);
+        
+        // Verify that entities were automatically loaded
+        $this->assertTrue($cache->isWarmedUp('MulerTech\\Database\\Tests\\Files\\Entity\\User'));
+    }
+
+    public function testWarmUpEntities(): void
+    {
+        $cache = new MetadataCache();
+        $entityClasses = [
+            'MulerTech\\Database\\Tests\\Files\\Entity\\User'
+        ];
+        
+        $cache->warmUpEntities($entityClasses);
+        
+        foreach ($entityClasses as $entityClass) {
+            $this->assertTrue($cache->isWarmedUp($entityClass));
+        }
+    }
+
+    public function testGetLoadedEntities(): void
+    {
+        $cache = new MetadataCache();
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
+        
+        // Initially no entities loaded
+        $this->assertEmpty($cache->getLoadedEntities());
+        
+        // Load an entity
+        $cache->getEntityMetadata($entityClass);
+        
+        // Now should have the loaded entity
+        $loadedEntities = $cache->getLoadedEntities();
+        $this->assertContains($entityClass, $loadedEntities);
+    }
+
+    public function testGetLoadedTables(): void
+    {
+        $cache = new MetadataCache();
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
+        
+        // Initially no tables loaded
+        $this->assertEmpty($cache->getLoadedTables());
+        
+        // Load an entity
+        $cache->getEntityMetadata($entityClass);
+        
+        // Now should have the loaded table
+        $loadedTables = $cache->getLoadedTables();
+        $this->assertContains('users_test', $loadedTables);
+    }
+
+    public function testGetEntityMetadataThrowsExceptionForInvalidClass(): void
+    {
+        $cache = new MetadataCache();
+        
+        $this->expectException(\ReflectionException::class);
+        
+        $cache->getEntityMetadata('NonExistentClass');
+    }
+
+    public function testWarmUpEntityWithRuntimeException(): void
+    {
+        $cache = new MetadataCache();
+        
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to warm up entity metadata for NonExistentClass');
+        
+        // This will trigger the private warmUpEntity method via loadEntitiesFromPath
+        // since warmUpEntity is private, we need to test it indirectly
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('warmUpEntity');
+        $method->setAccessible(true);
+        
+        $method->invoke($cache, 'NonExistentClass');
+    }
+
+    public function testGetEntityMetadataCaching(): void
+    {
+        $cache = new MetadataCache();
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
+        
+        // First call - will build metadata
+        $metadata1 = $cache->getEntityMetadata($entityClass);
+        
+        // Second call - should return cached metadata
+        $metadata2 = $cache->getEntityMetadata($entityClass);
+        
+        $this->assertSame($metadata1, $metadata2);
+        $this->assertTrue($cache->isWarmedUp($entityClass));
+    }
 }

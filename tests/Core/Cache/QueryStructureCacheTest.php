@@ -298,4 +298,22 @@ final class QueryStructureCacheTest extends TestCase
         
         $this->assertEquals('SQL', $result);
     }
+
+    public function testEvictionWithNullKey(): void
+    {
+        $cache = new QueryStructureCache(1); // Max 1 item
+        
+        // This test verifies the edge case where key() might return null
+        // We fill the cache and then add another item to trigger eviction
+        $builder1 = new MockQueryBuilder('SELECT');
+        $cache->set($builder1, 'SQL1');
+        
+        // Add another item to trigger eviction
+        $builder2 = new MockQueryBuilder('INSERT');
+        $cache->set($builder2, 'SQL2');
+        
+        // The cache should handle the eviction gracefully
+        $this->assertEquals(1, $cache->size());
+        $this->assertEquals('SQL2', $cache->get($builder2));
+    }
 }

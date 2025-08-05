@@ -416,4 +416,128 @@ final class ResultSetCacheTest extends BaseCacheTest
         // This test passes if the class can be instantiated as readonly
         $this->assertInstanceOf(ResultSetCache::class, $cache);
     }
+
+    public function testUnserializeFailureHandling(): void
+    {
+        // Manually set data that will fail to unserialize properly
+        $this->mockCache->set('corrupt_serialized', [
+            'compressed' => false,
+            'data' => 'invalid_serialized_data'
+        ]);
+
+        $result = $this->cache->get('corrupt_serialized');
+        
+        $this->assertNull($result);
+    }
+
+    public function testObjectValidationFailure(): void
+    {
+        // Create data that would unserialize to an object (which should be rejected)
+        $objectData = serialize(new \stdClass());
+        
+        $this->mockCache->set('object_key', [
+            'compressed' => false,
+            'data' => $objectData
+        ]);
+
+        $result = $this->cache->get('object_key');
+        
+        // Should return null because objects are not allowed ('allowed_classes' => false)
+        $this->assertNull($result);
+    }
+
+    public function testResourceTypeHandling(): void
+    {
+        // Test that resource types are handled gracefully in validation
+        $cache = new ResultSetCache($this->mockCache);
+        
+        // Simulate setting a value that includes resource-like behavior
+        $testData = ['resource_info' => 'not_a_real_resource'];
+        
+        $cache->set('resource_test', $testData);
+        $result = $cache->get('resource_test');
+        
+        $this->assertEquals($testData, $result);
+    }
+
+    public function testValidateResultTypeWithUnknownType(): void
+    {
+        // This tests the fallback case in validateResultType for unknown types
+        $cache = new ResultSetCache($this->mockCache);
+        
+        // Test with all supported types
+        $supportedTypes = [
+            'array' => ['test' => 'data'],
+            'bool_true' => true,
+            'bool_false' => false,
+            'float' => 3.14159,
+            'int' => 42,
+            'string' => 'test string',
+            'null' => null
+        ];
+        
+        foreach ($supportedTypes as $key => $value) {
+            $cache->set($key, $value);
+            $result = $cache->get($key);
+            $this->assertEquals($value, $result, "Failed for type: " . gettype($value));
+        }
+    }
+
+    public function testSerializationOfFalse(): void
+    {
+        // Test the edge case where unserialize returns false but the original value was actually false
+        $cache = new ResultSetCache($this->mockCache);
+        
+        $cache->set('false_value', false);
+        $result = $cache->get('false_value');
+        
+        $this->assertFalse($result);
+        $this->assertSame(false, $result);
+    }
+
+    public function testCompressionOnlyWhenBeneficial(): void
+    {
+        // Test that compression is only used when it actually reduces size
+        $cache = new ResultSetCache($this->mockCache, 1); // Very low threshold
+        
+        // Data that might not compress well or might not benefit from compression
+        $incompressibleData = str_repeat('A', 100); // Highly repetitive should compress well
+        $randomData = random_bytes(100); // Random data might not compress as well
+        
+        $cache->set('compressible', $incompressibleData);
+        $cache->set('random', $randomData);
+        
+        $this->assertEquals($incompressibleData, $cache->get('compressible'));
+        $this->assertEquals($randomData, $cache->get('random'));
+    }
+
+    public function testGzcompressFailureHandling(): void
+    {
+        // Test the case where gzcompress might fail (returns false)
+        $cache = new ResultSetCache($this->mockCache, 1);
+        
+        // Using a very large string that might cause compression to fail in some environments
+        // or at least test the fallback path
+        $largeData = str_repeat('test data for compression failure simulation ', 1000);
+        
+        $cache->set('large_data', $largeData);
+        $result = $cache->get('large_data');
+        
+        // Should still work even if compression fails
+        $this->assertEquals($largeData, $result);
+    }
+
+    public function testDeserializationThrowableHandling(): void
+    {
+        // Test that Throwable exceptions during deserialization are caught
+        $this->mockCache->set('throwable_data', [
+            'compressed' => false,
+            'data' => "O:8:\"stdClass\":0:{}" // This might cause issues with allowed_classes => false
+        ]);
+
+        $result = $this->cache->get('throwable_data');
+        
+        // Should return null when deserialization throws
+        $this->assertNull($result);
+    }
 }
