@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Relational\Sql\Schema;
+namespace MulerTech\Database\Tests\Schema\Builder;
 
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Schema\Builder\ForeignKeyDefinition;

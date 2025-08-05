@@ -50,7 +50,7 @@ class MigrationManager
      * Ensure migration history table exists
      *
      * @return void
-     * @throws ReflectionException
+     * @throws Exception
      */
     private function initializeMigrationTable(): void
     {
@@ -60,10 +60,6 @@ class MigrationManager
         $emEngine = $this->entityManager->getEmEngine();
 
         $tableName = $metadataCache->getTableName($this->migrationHistory);
-        if ($tableName === null) { // @phpstan-ignore-line
-            // If migration history is not in the main mapping, use default table name
-            $tableName = 'migration_history';
-        }
 
         // Check if table exists in the database
         $informationSchema = new InformationSchema($emEngine);

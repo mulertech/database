@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Relational\Sql\Schema;
+namespace MulerTech\Database\Tests\Schema\Types;
 
 use MulerTech\Database\Schema\Types\IndexType;
 use PHPUnit\Framework\TestCase;

@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Relational\Sql\Schema;
+namespace MulerTech\Database\Tests\Schema\Builder;
 
 use InvalidArgumentException;
 use MulerTech\Database\Schema\Builder\IndexDefinition;

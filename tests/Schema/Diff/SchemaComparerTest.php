@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Schema\Migration\Schema;
+namespace MulerTech\Database\Tests\Schema\Diff;
 
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
@@ -28,7 +28,7 @@ class SchemaComparerTest extends TestCase
     protected function setUp(): void
     {
         // Create MetadataCache with automatic entity loading from test directory
-        $entitiesPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
+        $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataCache = new MetadataCache(null, $entitiesPath);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
@@ -42,7 +42,7 @@ class SchemaComparerTest extends TestCase
         // Replace by a migration script
         $migrationManager = new MigrationManager($this->entityManager);
         $migrationManager->registerMigrations(
-            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'OriginalMigration'
+            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'OriginalMigration'
         );
         $migrationManager->migrate();
     }

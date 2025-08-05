@@ -219,15 +219,16 @@ class SqlTypeConverter
      */
     private function handleGeometryTypes(string $sqlType): ?string
     {
+        // Order matters! More specific types (longer strings) must be checked first
         $geometryTypes = [
-            'geometry' => '->geometry()',
-            'point' => '->point()',
-            'linestring' => '->lineString()',
-            'polygon' => '->polygon()',
-            'multipoint' => '->multiPoint()',
+            'geometrycollection' => '->geometryCollection()',
             'multilinestring' => '->multiLineString()',
             'multipolygon' => '->multiPolygon()',
-            'geometrycollection' => '->geometryCollection()',
+            'multipoint' => '->multiPoint()',
+            'linestring' => '->lineString()',
+            'polygon' => '->polygon()',
+            'geometry' => '->geometry()',
+            'point' => '->point()',
         ];
 
         foreach ($geometryTypes as $type => $method) {
