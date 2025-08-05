@@ -308,9 +308,6 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             }
             try {
                 $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new InvalidArgumentException('Invalid JSON string');
-                }
                 if (is_array($decoded)) {
                     return $decoded;
                 }

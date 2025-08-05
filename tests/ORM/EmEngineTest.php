@@ -331,4 +331,213 @@ class EmEngineTest extends TestCase
         
         self::assertIsArray($deletions);
     }
+
+    public function testGetQueryBuilderObjectResultWithDatabaseResult(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['TestUser', 100]);
+        $userId = $pdo->lastInsertId();
+        
+        $queryBuilder = new \MulerTech\Database\Query\Builder\QueryBuilder($this->emEngine)
+            ->select('*')
+            ->from('users_test')
+            ->where('id', $userId);
+            
+        $result = $this->emEngine->getQueryBuilderObjectResult($queryBuilder, User::class);
+        
+        self::assertNotNull($result);
+        self::assertInstanceOf(User::class, $result);
+        self::assertEquals('TestUser', $result->getUsername());
+        self::assertEquals(100, $result->getSize());
+    }
+
+    public function testGetQueryBuilderObjectResultWithEmptyResult(): void
+    {
+        $queryBuilder = new \MulerTech\Database\Query\Builder\QueryBuilder($this->emEngine)
+            ->select('*')
+            ->from('users_test')
+            ->where('id', 999999);
+            
+        $result = $this->emEngine->getQueryBuilderObjectResult($queryBuilder, User::class);
+        
+        self::assertNull($result);
+    }
+
+    public function testGetQueryBuilderListResult(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['User1', 100]);
+        $stmt->execute(['User2', 200]);
+        
+        $queryBuilder = new \MulerTech\Database\Query\Builder\QueryBuilder($this->emEngine)
+            ->select('*')
+            ->from('users_test');
+            
+        $result = $this->emEngine->getQueryBuilderListResult($queryBuilder, User::class);
+        
+        self::assertIsArray($result);
+        self::assertCount(2, $result);
+        self::assertInstanceOf(User::class, $result[0]);
+        self::assertInstanceOf(User::class, $result[1]);
+    }
+
+    public function testGetQueryBuilderListResultEmpty(): void
+    {
+        $queryBuilder = new \MulerTech\Database\Query\Builder\QueryBuilder($this->emEngine)
+            ->select('*')
+            ->from('users_test')
+            ->where('id', 999999);
+            
+        $result = $this->emEngine->getQueryBuilderListResult($queryBuilder, User::class);
+        
+        self::assertNull($result);
+    }
+
+    public function testCreateManagedEntity(): void
+    {
+        $entityData = [
+            'id' => 1,
+            'username' => 'TestUser',
+            'size' => 100
+        ];
+        
+        $entity = $this->emEngine->createManagedEntity($entityData, User::class, false);
+        
+        self::assertInstanceOf(User::class, $entity);
+        self::assertEquals('TestUser', $entity->getUsername());
+        self::assertEquals(100, $entity->getSize());
+        self::assertTrue($this->emEngine->isManaged($entity));
+    }
+
+    public function testRowCount(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['User1', 100]);
+        $stmt->execute(['User2', 200]);
+        
+        $count = $this->emEngine->rowCount(User::class);
+        
+        self::assertEquals(2, $count);
+    }
+
+    public function testRowCountWithNumericFilter(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['User1', 100]);
+        $userId = $pdo->lastInsertId();
+        
+        $count = $this->emEngine->rowCount(User::class, (string)$userId);
+        
+        self::assertEquals(1, $count);
+    }
+
+    public function testRowCountWithStringFilter(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['User1', 100]);
+        $userId = $pdo->lastInsertId();
+        
+        $count = $this->emEngine->rowCount(User::class, 'abc');
+        
+        self::assertIsInt($count);
+    }
+
+    public function testPersistEntityWithExistingId(): void
+    {
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('ExistingUser');
+        
+        $this->emEngine->persist($user);
+        
+        self::assertTrue($this->emEngine->isManaged($user));
+    }
+
+    public function testGetChangesMethod(): void
+    {
+        $user = new User();
+        $user->setUsername('OriginalName');
+        
+        $this->emEngine->persist($user);
+        
+        $changes = $this->emEngine->getChanges($user);
+        self::assertIsArray($changes);
+        
+        $user->setUsername('NewName');
+        
+        $changes = $this->emEngine->getChanges($user);
+        self::assertIsArray($changes);
+    }
+
+    public function testMergeWithExistingManagedEntity(): void
+    {
+        $user1 = new User();
+        $user1->setId(456);
+        $user1->setUsername('FirstUser');
+        
+        $this->emEngine->getIdentityMap()->add($user1);
+        
+        $user2 = new User();
+        $user2->setId(456);
+        $user2->setUsername('SecondUser');
+        
+        $mergedUser = $this->emEngine->merge($user2);
+        
+        self::assertSame($user1, $mergedUser);
+        self::assertNotSame($user2, $mergedUser);
+    }
+
+    public function testRefreshWithoutId(): void
+    {
+        $user = new User();
+        $user->setUsername('NoIdUser');
+        
+        $this->emEngine->refresh($user);
+        
+        // Should not throw exception and should handle gracefully
+        self::assertNull($user->getId());
+    }
+
+    public function testFindWithWhereClause(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['FindUser', 150]);
+        
+        $result = $this->emEngine->find(User::class, "username = 'FindUser'");
+        
+        self::assertInstanceOf(User::class, $result);
+        self::assertEquals('FindUser', $result->getUsername());
+    }
+
+    public function testFindWithNumericStringId(): void
+    {
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['NumericUser', 175]);
+        $userId = $pdo->lastInsertId();
+        
+        $result = $this->emEngine->find(User::class, (string)$userId);
+        
+        self::assertInstanceOf(User::class, $result);
+        self::assertEquals('NumericUser', $result->getUsername());
+    }
+
+    public function testFindReturnsIdentityMapCachedEntity(): void
+    {
+        $user = new User();
+        $user->setId(789);
+        $user->setUsername('CachedUser');
+        
+        $this->emEngine->getIdentityMap()->add($user);
+        
+        $result = $this->emEngine->find(User::class, 789);
+        
+        self::assertSame($user, $result);
+    }
 }
