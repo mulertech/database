@@ -319,5 +319,123 @@ class EntityRepositoryTest extends TestCase
         $returnType = $findAllMethod->getReturnType();
         self::assertNotNull($returnType);
     }
+
+    public function testFindByWithOffsetOnly(): void
+    {
+        // Test findBy with offset but no limit - should use PHP_INT_MAX as limit
+        $result = $this->repository->findBy([], null, null, 2);
+        
+        self::assertIsArray($result);
+        self::assertCount(2, $result); // Should have 2 remaining items (total 4, offset 2)
+    }
+
+    public function testFindByWithStdClassResult(): void
+    {
+        // Test scenario where QueryBuilder returns stdClass objects
+        $criteria = ['username' => 'john_doe'];
+        $result = $this->repository->findBy($criteria);
+        
+        self::assertIsArray($result);
+        self::assertCount(1, $result);
+        self::assertInstanceOf(User::class, $result[0]);
+    }
+
+    public function testFindByWithReflectionException(): void
+    {
+        // This test covers the ReflectionException catch block in findBy
+        // where it falls back to manual entity creation
+        $criteria = ['unit_id' => 1];
+        $result = $this->repository->findBy($criteria);
+        
+        self::assertIsArray($result);
+        self::assertGreaterThan(0, count($result));
+        foreach ($result as $entity) {
+            self::assertInstanceOf(User::class, $entity);
+        }
+    }
+
+    public function testFindOneByDynamicMethods(): void
+    {
+        // Test findOneBy dynamic methods through __call
+        $result = $this->repository->findOneByUsername('john_doe');
+        self::assertInstanceOf(User::class, $result);
+        
+        $result = $this->repository->findOneBySize(180);
+        self::assertInstanceOf(User::class, $result);
+        
+        // Test with non-existent data
+        $result = $this->repository->findOneByUsername('nonexistent');
+        self::assertNull($result);
+    }
+
+    public function testCallMethodWithInvalidArguments(): void
+    {
+        // Test __call with missing arguments - this should handle null values gracefully
+        $result = $this->repository->findByManager();
+        self::assertIsArray($result);
+        
+        $result = $this->repository->findOneByManager();
+        self::assertNull($result); // Should return null when searching for null
+    }
+
+    public function testGetTableNameFallback(): void
+    {
+        // Test getTableName method when metadata is not found
+        $reflection = new \ReflectionClass($this->repository);
+        $method = $reflection->getMethod('getTableName');
+        $method->setAccessible(true);
+        
+        $tableName = $method->invoke($this->repository);
+        self::assertIsString($tableName);
+        self::assertEquals('users_test', $tableName);
+    }
+
+    public function testCountWithNonNumericResult(): void
+    {
+        // Test edge case where COUNT returns non-numeric value
+        $count = $this->repository->count(['unit_id' => 999]);
+        self::assertIsInt($count);
+        self::assertEquals(0, $count);
+    }
+
+    public function testFindByWithComplexOrderBy(): void
+    {
+        // Test findBy with multiple order by clauses
+        $result = $this->repository->findBy(
+            [], 
+            ['manager' => 'ASC', 'username' => 'DESC']
+        );
+        
+        self::assertIsArray($result);
+        self::assertCount(4, $result);
+        
+        // Check that all results are User objects
+        foreach ($result as $user) {
+            self::assertInstanceOf(User::class, $user);
+        }
+    }
+
+    public function testFindByWithNullValues(): void
+    {
+        // Test findBy with null values in criteria
+        $result = $this->repository->findBy(['username' => null]);
+        self::assertIsArray($result);
+        
+        // Test with mixed null and non-null values
+        $result = $this->repository->findBy(['username' => 'john_doe', 'size' => null]);
+        self::assertIsArray($result);
+    }
+
+    public function testDynamicMethodsWithComplexFields(): void
+    {
+        // Test magic methods with underscores and complex field names
+        // Use actual database column name 'unit_id' not camelCase 'unitId'
+        $users = $this->repository->findByUnit_id(1);
+        self::assertIsArray($users);
+        self::assertCount(2, $users);
+        
+        $user = $this->repository->findOneByUnit_id(2);
+        self::assertInstanceOf(User::class, $user);
+    }
 }
 

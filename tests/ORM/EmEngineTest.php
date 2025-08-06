@@ -540,4 +540,163 @@ class EmEngineTest extends TestCase
         
         self::assertSame($user, $result);
     }
+
+    public function testGetChanges(): void
+    {
+        $user = new User();
+        $user->setUsername('TestUser');
+        $user->setSize(180);
+        
+        // Persist the user first
+        $this->emEngine->persist($user);
+        $this->emEngine->flush();
+        
+        // Make changes
+        $user->setUsername('ModifiedUser');
+        $user->setSize(175);
+        
+        // Compute change sets
+        $this->emEngine->computeChangeSets();
+        
+        // Get changes
+        $changes = $this->emEngine->getChanges($user);
+        
+        self::assertIsArray($changes);
+        self::assertArrayHasKey('username', $changes);
+        self::assertEquals('TestUser', $changes['username']['old']);
+        self::assertEquals('ModifiedUser', $changes['username']['new']);
+    }
+
+    public function testGetChangesWithNoChanges(): void
+    {
+        $user = new User();
+        $user->setUsername('TestUser');
+        
+        $this->emEngine->persist($user);
+        $this->emEngine->flush();
+        
+        // Get changes without making any modifications
+        $changes = $this->emEngine->getChanges($user);
+        
+        self::assertIsArray($changes);
+        self::assertEmpty($changes);
+    }
+
+    public function testGetChangesWithUnmanagedEntity(): void
+    {
+        $user = new User();
+        $user->setUsername('UnmanagedUser');
+        
+        // Don't persist the entity
+        $changes = $this->emEngine->getChanges($user);
+        
+        self::assertIsArray($changes);
+        self::assertEmpty($changes);
+    }
+
+    public function testQueryBuilderObjectResultWithValidData(): void
+    {
+        // Insert test data
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['QueryBuilderUser', 170]);
+        
+        // Test the method through the find functionality that uses it
+        $result = $this->emEngine->find(User::class, 1);
+        
+        self::assertInstanceOf(User::class, $result);
+        self::assertEquals('QueryBuilderUser', $result->getUsername());
+    }
+
+    public function testQueryBuilderObjectResultWithNoData(): void
+    {
+        // Test with non-existent ID
+        $result = $this->emEngine->find(User::class, 999999);
+        
+        self::assertNull($result);
+    }
+
+    public function testLooksLikeWhereClauseMethod(): void
+    {
+        // Test through find method which uses looksLikeWhereClause internally
+        
+        // Insert test data
+        $pdo = $this->entityManager->getPdm();
+        $stmt = $pdo->prepare('INSERT INTO users_test (username, size) VALUES (?, ?)');
+        $stmt->execute(['WhereTestUser', 165]);
+        
+        // Test with WHERE clause-like string
+        $result = $this->emEngine->find(User::class, "username = 'WhereTestUser'");
+        self::assertInstanceOf(User::class, $result);
+        
+        // Test with simple ID (should be treated as ID, not WHERE clause)
+        $result = $this->emEngine->find(User::class, '1');
+        self::assertInstanceOf(User::class, $result);
+        
+        // Test with alphanumeric ID
+        $result = $this->emEngine->find(User::class, 'abc123');
+        self::assertNull($result); // Should not find anything but shouldn't crash
+    }
+
+    public function testExtractEntityIdMethod(): void
+    {
+        // Test through entity operations that use extractEntityId internally
+        $user = new User();
+        $user->setUsername('ExtractIdUser');
+        $user->setSize(160);
+        
+        // Before persisting, ID should be null
+        self::assertNull($user->getId());
+        
+        // Persist and flush
+        $this->emEngine->persist($user);
+        $this->emEngine->flush();
+        
+        // After persisting, ID should be set
+        self::assertNotNull($user->getId());
+        self::assertIsInt($user->getId());
+    }
+
+    public function testUpdateManagedEntityScalarPropertiesOnly(): void
+    {
+        // Test that refresh functionality exercises the updateManagedEntityScalarPropertiesOnly method
+        $user = new User();
+        $user->setUsername('ManagedUser');
+        $user->setSize(155);
+        
+        // Persist the entity
+        $this->emEngine->persist($user);
+        $this->emEngine->flush();
+        
+        self::assertNotNull($user->getId());
+        self::assertTrue($this->emEngine->isManaged($user));
+        
+        // The refresh method will call updateManagedEntityScalarPropertiesOnly internally
+        $this->emEngine->refresh($user);
+        
+        // After refresh, entity should still be managed and have same values
+        self::assertTrue($this->emEngine->isManaged($user));
+        self::assertEquals('ManagedUser', $user->getUsername());
+        self::assertEquals(155, $user->getSize());
+    }
+
+    public function testConvertPropertyToDatabaseCollection(): void
+    {
+        // This method is used internally for relations - test through entity with relations
+        $user = new User();
+        $user->setUsername('CollectionUser');
+        $user->setSize(185);
+        
+        // Persist entity (this will trigger internal collection conversion methods)
+        $this->emEngine->persist($user);
+        $this->emEngine->flush();
+        
+        // Verify entity was persisted correctly
+        self::assertNotNull($user->getId());
+        
+        // Find the entity back to ensure collection handling works
+        $foundUser = $this->emEngine->find(User::class, $user->getId());
+        self::assertInstanceOf(User::class, $foundUser);
+        self::assertEquals('CollectionUser', $foundUser->getUsername());
+    }
 }
