@@ -74,4 +74,80 @@ class EntityHydratorTest extends TestCase
         $this->assertNull($hydratedEntity->getId());
         $this->assertNull($hydratedEntity->getUsername());
     }
+
+    public function testGetMetadataCache(): void
+    {
+        $metadataCache = new MetadataCache();
+        $hydrator = new EntityHydrator($metadataCache);
+        
+        self::assertSame($metadataCache, $hydrator->getMetadataCache());
+    }
+
+    public function testExtract(): void
+    {
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('testuser');
+        $user->setSize(180);
+        $user->setAccountBalance(250.75);
+        
+        $extractedData = $this->hydrator->extract($user);
+        
+        self::assertIsArray($extractedData);
+        self::assertEquals(123, $extractedData['id']);
+        self::assertEquals('testuser', $extractedData['username']);
+        self::assertEquals(180, $extractedData['size']);
+        self::assertEquals(250.75, $extractedData['account_balance']);
+    }
+
+    public function testExtractWithNullValues(): void
+    {
+        $user = new User();
+        // Don't set any values, so they remain null
+        
+        $extractedData = $this->hydrator->extract($user);
+        
+        self::assertIsArray($extractedData);
+        self::assertNull($extractedData['id']);
+        self::assertNull($extractedData['username']);
+        self::assertNull($extractedData['size']);
+        self::assertNull($extractedData['account_balance']);
+    }
+
+    public function testHydrateWithRelationProperty(): void
+    {
+        // Test with relation properties that should be skipped
+        $data = [
+            'id' => 42,
+            'username' => 'testuser',
+            'unit_id' => 1, // This is a relation property
+        ];
+
+        $hydratedEntity = $this->hydrator->hydrate($data, User::class);
+
+        self::assertEquals(42, $hydratedEntity->getId());
+        self::assertEquals('testuser', $hydratedEntity->getUsername());
+        // unit should remain null since it's a relation property
+        self::assertNull($hydratedEntity->getUnit());
+    }
+
+    public function testProcessValueWithNullInput(): void
+    {
+        $metadataCache = new MetadataCache();
+        $metadata = $metadataCache->getEntityMetadata(User::class);
+        
+        $result = $this->hydrator->processValue($metadata, 'username', null);
+        
+        self::assertNull($result);
+    }
+
+    public function testProcessValueWithValidInput(): void
+    {
+        $metadataCache = new MetadataCache();
+        $metadata = $metadataCache->getEntityMetadata(User::class);
+        
+        $result = $this->hydrator->processValue($metadata, 'username', 'test_value');
+        
+        self::assertEquals('test_value', $result);
+    }
 }

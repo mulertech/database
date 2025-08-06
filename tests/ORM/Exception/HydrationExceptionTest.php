@@ -144,4 +144,38 @@ class HydrationExceptionTest extends TestCase
         self::assertStringContainsString('unit', $exception->getMessage());
         self::assertSame($previous, $exception->getPrevious());
     }
+
+    public function testFailedToHydrateEntity(): void
+    {
+        $exception = HydrationException::failedToHydrateEntity(User::class);
+        
+        self::assertInstanceOf(HydrationException::class, $exception);
+        self::assertStringContainsString(User::class, $exception->getMessage());
+        self::assertStringContainsString('Failed to hydrate entity', $exception->getMessage());
+        self::assertEquals(0, $exception->getCode());
+        self::assertNull($exception->getPrevious());
+    }
+
+    public function testFailedToHydrateEntityWithPrevious(): void
+    {
+        $previous = new Exception('Database connection error');
+        $exception = HydrationException::failedToHydrateEntity(User::class, $previous);
+        
+        self::assertInstanceOf(HydrationException::class, $exception);
+        self::assertStringContainsString(User::class, $exception->getMessage());
+        self::assertStringContainsString('Failed to hydrate entity', $exception->getMessage());
+        self::assertSame($previous, $exception->getPrevious());
+    }
+
+    public function testPropertyCannotBeNull(): void
+    {
+        $exception = HydrationException::propertyCannotBeNull('username', User::class);
+        
+        self::assertInstanceOf(HydrationException::class, $exception);
+        self::assertStringContainsString('username', $exception->getMessage());
+        self::assertStringContainsString(User::class, $exception->getMessage());
+        self::assertStringContainsString('cannot be null', $exception->getMessage());
+        self::assertEquals(0, $exception->getCode());
+        self::assertNull($exception->getPrevious());
+    }
 }

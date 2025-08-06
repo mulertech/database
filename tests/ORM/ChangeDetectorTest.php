@@ -202,4 +202,49 @@ class ChangeDetectorTest extends TestCase
         $ageChange = $changeSet->getFieldChange('age');
         self::assertNull($ageChange);
     }
+
+    public function testComputeChangeSetWithRemovedProperty(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        $originalData = ['username' => 'John', 'removedProperty' => 'value'];
+        
+        $changeSet = $this->changeDetector->computeChangeSet($user, $originalData);
+        
+        self::assertFalse($changeSet->isEmpty());
+        
+        $removedPropertyChange = $changeSet->getFieldChange('removedProperty');
+        self::assertInstanceOf(PropertyChange::class, $removedPropertyChange);
+        self::assertEquals('removedProperty', $removedPropertyChange->property);
+        self::assertEquals('value', $removedPropertyChange->oldValue);
+        self::assertNull($removedPropertyChange->newValue);
+    }
+
+    public function testComputeChangeSetWithSimilarObjects(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        // Test the default comparison case with similar objects that compare as equal
+        $originalData = $this->changeDetector->extractCurrentData($user);
+        
+        // No changes - both old and new are the same
+        $changeSet = $this->changeDetector->computeChangeSet($user, $originalData);
+        
+        self::assertTrue($changeSet->isEmpty());
+    }
+
+    public function testExtractCurrentDataHandlesUninitializedProperties(): void
+    {
+        $user = new User();
+        // Don't set any properties, so some remain uninitialized
+        
+        $data = $this->changeDetector->extractCurrentData($user);
+        
+        self::assertIsArray($data);
+        // All uninitialized properties should be null in the data
+        self::assertNull($data['username'] ?? null);
+        self::assertNull($data['age'] ?? null);
+    }
 }
