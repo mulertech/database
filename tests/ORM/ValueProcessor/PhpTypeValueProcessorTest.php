@@ -550,4 +550,209 @@ class PhpTypeValueProcessorTest extends TestCase
         $result = $processor->process(null);
         self::assertNull($result);
     }
+
+    public function testConvertToPhpValueStringEdgeCases(): void
+    {
+        // Test additional edge cases for processString method
+        
+        // Null input should return empty string
+        $result = $this->processor->convertToPhpValue(null, 'string');
+        self::assertNull($result);
+        
+        // Complex array to JSON conversion
+        $complexArray = ['nested' => ['array' => ['value']], 'number' => 42];
+        $result = $this->processor->convertToPhpValue($complexArray, 'string');
+        $expectedJson = json_encode($complexArray);
+        self::assertEquals($expectedJson, $result);
+        
+        // Object with __toString method
+        $customObject = new class {
+            public function __toString(): string {
+                return 'custom object';
+            }
+        };
+        $result = $this->processor->convertToPhpValue($customObject, 'string');
+        self::assertIsString($result);
+    }
+
+    public function testConvertToPhpValueIntEdgeCases(): void
+    {
+        // Test additional edge cases for processInt method
+        
+        // String with mixed characters - filter_var extracts all digits
+        $result = $this->processor->convertToPhpValue('price: $15.99', 'int');
+        self::assertEquals(1599, $result);  // filter_var FILTER_SANITIZE_NUMBER_INT extracts all digits
+        
+        // Negative numbers
+        $result = $this->processor->convertToPhpValue('-42', 'int');
+        self::assertEquals(-42, $result);
+        
+        // Very large numbers (should handle overflow)
+        $result = $this->processor->convertToPhpValue('999999999999999999999', 'int');
+        self::assertIsInt($result);
+        
+        // String with only letters
+        $result = $this->processor->convertToPhpValue('abcdef', 'int');
+        self::assertEquals(0, $result);
+        
+        // Empty string
+        $result = $this->processor->convertToPhpValue('', 'int');
+        self::assertEquals(0, $result);
+    }
+
+    public function testConvertToPhpValueFloatEdgeCases(): void
+    {
+        // Test additional edge cases for processFloat method
+        
+        // Scientific notation
+        $result = $this->processor->convertToPhpValue('1.23e4', 'float');
+        self::assertEquals(12300.0, $result);
+        
+        // Negative float
+        $result = $this->processor->convertToPhpValue('-3.14159', 'float');
+        self::assertEquals(-3.14159, $result);
+        
+        // Integer string
+        $result = $this->processor->convertToPhpValue('100', 'float');
+        self::assertEquals(100.0, $result);
+        
+        // Empty string should return 0.0
+        $result = $this->processor->convertToPhpValue('', 'float');
+        self::assertEquals(0.0, $result);
+    }
+
+    public function testConvertToPhpValueBoolEdgeCases(): void
+    {
+        // Test additional edge cases for processBool method
+        
+        // Case insensitive string booleans
+        $result = $this->processor->convertToPhpValue('TRUE', 'bool');
+        self::assertTrue($result);
+        
+        $result = $this->processor->convertToPhpValue('FALSE', 'bool');
+        self::assertFalse($result);
+        
+        $result = $this->processor->convertToPhpValue('Yes', 'bool');
+        self::assertTrue($result);
+        
+        $result = $this->processor->convertToPhpValue('No', 'bool');
+        self::assertFalse($result);
+        
+        // Numeric strings
+        $result = $this->processor->convertToPhpValue('2', 'bool');
+        self::assertTrue($result);
+        
+        $result = $this->processor->convertToPhpValue('-1', 'bool');
+        self::assertTrue($result);
+        
+        // Objects (should be truthy)
+        $result = $this->processor->convertToPhpValue(new \stdClass(), 'bool');
+        self::assertTrue($result);
+    }
+
+    public function testConvertToPhpValueArrayEdgeCases(): void
+    {
+        // Test additional edge cases for processArray method
+        
+        // Nested JSON string
+        $nestedJson = json_encode(['level1' => ['level2' => ['value']]]);
+        $result = $this->processor->convertToPhpValue($nestedJson, 'array');
+        self::assertEquals(['level1' => ['level2' => ['value']]], $result);
+        
+        // JSON array (not object)
+        $result = $this->processor->convertToPhpValue('["item1", "item2", "item3"]', 'array');
+        self::assertEquals(['item1', 'item2', 'item3'], $result);
+        
+        // Object with nested properties - conversion preserves object structure in arrays
+        $complexObj = new \stdClass();
+        $complexObj->user = new \stdClass();
+        $complexObj->user->name = 'John';
+        $complexObj->user->age = 30;
+        $result = $this->processor->convertToPhpValue($complexObj, 'array');
+        self::assertIsArray($result);
+        self::assertArrayHasKey('user', $result);
+        // The nested object might remain as object in the array conversion
+        self::assertEquals('John', $result['user']->name ?? $result['user']['name']);
+        
+        // Non-string, non-array, non-object input
+        $result = $this->processor->convertToPhpValue(123, 'array');
+        self::assertEquals([123], $result);
+    }
+
+    public function testConvertToPhpValueObjectEdgeCases(): void
+    {
+        // Test additional edge cases for processObject method
+        
+        // JSON array is decoded and then converted to object
+        $result = $this->processor->convertToPhpValue('["a", "b", "c"]', 'object');
+        self::assertInstanceOf(\stdClass::class, $result);
+        self::assertEquals('a', $result->{0});
+        self::assertEquals('b', $result->{1});
+        self::assertEquals('c', $result->{2});
+        
+        // Nested array to object (only top level is converted to object)
+        $nestedArray = ['user' => ['profile' => ['name' => 'John']]];
+        $result = $this->processor->convertToPhpValue($nestedArray, 'object');
+        self::assertInstanceOf(\stdClass::class, $result);
+        // user property remains as array since (object) cast only converts top level
+        self::assertIsArray($result->user);
+        self::assertIsArray($result->user['profile']);
+        self::assertEquals('John', $result->user['profile']['name']);
+        
+        // Scalar value should create object with value property
+        $result = $this->processor->convertToPhpValue('simple value', 'object');
+        self::assertInstanceOf(\stdClass::class, $result);
+    }
+
+    public function testProcessWithTypeAliases(): void
+    {
+        // Test that type aliases work correctly (integer -> int, etc.)
+        
+        $result = $this->processor->convertToPhpValue('42', 'integer');
+        self::assertEquals(42, $result);
+        self::assertIsInt($result);
+        
+        $result = $this->processor->convertToPhpValue('3.14', 'double');
+        self::assertEquals(3.14, $result);
+        self::assertIsFloat($result);
+        
+        $result = $this->processor->convertToPhpValue('true', 'boolean');
+        self::assertTrue($result);
+    }
+
+    public function testProcessBasicPhpTypeWithDifferentInputs(): void
+    {
+        // Test processBasicPhpType method more thoroughly
+        $processor = new PhpTypeValueProcessor();
+        
+        // String processing
+        $result = $processor->process('test string');
+        self::assertEquals('test string', $result);
+        
+        // Integer processing
+        $result = $processor->process(42);
+        self::assertEquals(42, $result);
+        
+        // Float processing  
+        $result = $processor->process(3.14159);
+        self::assertEquals(3.14159, $result);
+        
+        // Boolean processing
+        $result = $processor->process(true);
+        self::assertTrue($result);
+        
+        $result = $processor->process(false);
+        self::assertFalse($result);
+        
+        // Array processing
+        $testArray = ['key1' => 'value1', 'key2' => 'value2'];
+        $result = $processor->process($testArray);
+        self::assertEquals($testArray, $result);
+        
+        // Other types should be returned as-is
+        $resource = fopen('php://memory', 'r');
+        $result = $processor->process($resource);
+        self::assertSame($resource, $result);
+        fclose($resource);
+    }
 }

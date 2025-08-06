@@ -6,7 +6,6 @@ namespace MulerTech\Database\Tests\ORM\Engine\Relations;
 
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\ORM\Engine\Relations\EntityRelationLoader;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -169,5 +168,54 @@ class EntityRelationLoaderTest extends TestCase
         $result = $this->relationLoader->loadRelations($user, $entityData);
 
         self::assertIsArray($result);
+    }
+
+    public function testLoadRelationsWithBasicFunctionality(): void
+    {
+        $user = new User();
+        $user->setId(1);
+        $user->setUsername('TestUser');
+        
+        $entityData = ['id' => 1, 'username' => 'TestUser'];
+        
+        // Test basic functionality without complex mocking
+        $result = $this->relationLoader->loadRelations($user, $entityData);
+        
+        self::assertIsArray($result);
+        // With no relations configured in metadata, should return empty array
+        self::assertEmpty($result);
+    }
+
+    public function testLoadRelationsWithDifferentEntityDataStructures(): void
+    {
+        $entities = [
+            [new User(), ['id' => 1, 'username' => 'User1', 'email' => 'user1@test.com']],
+            [new Unit(), ['id' => 2, 'name' => 'Unit1', 'description' => 'Test Unit']]
+        ];
+
+        foreach ($entities as [$entity, $data]) {
+            $relations = $this->relationLoader->loadRelations($entity, $data);
+            self::assertIsArray($relations);
+            // Without complex metadata setup, should return empty arrays
+            self::assertEmpty($relations);
+        }
+    }
+
+    public function testLoadRelationsWithEmptyEntityData(): void
+    {
+        $user = new User();
+        $user->setId(1);
+        
+        // Test with various empty/null data scenarios
+        $testCases = [
+            [],
+            ['id' => null],
+            ['username' => ''],
+        ];
+        
+        foreach ($testCases as $entityData) {
+            $result = $this->relationLoader->loadRelations($user, $entityData);
+            self::assertIsArray($result);
+        }
     }
 }
