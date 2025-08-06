@@ -38,7 +38,17 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
      */
     public function canProcess(mixed $typeInfo): bool
     {
-        return is_string($typeInfo) && (class_exists($typeInfo) || interface_exists($typeInfo));
+        if (!is_string($typeInfo)) {
+            return false;
+        }
+
+        // Check if it's a supported PHP type
+        if (in_array($typeInfo, $this->getSupportedTypes(), true)) {
+            return true;
+        }
+
+        // Check if it's an existing class or interface
+        return class_exists($typeInfo) || interface_exists($typeInfo);
     }
 
     /**
