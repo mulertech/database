@@ -57,7 +57,7 @@ class MySQLBackupManager
             @unlink($pathBackup);
         }
 
-        $command = $pathMysqldump . 'mysqldump --opt ';
+        $command = $pathMysqldump . 'mysqldump --opt --skip-ssl --no-tablespaces --single-transaction ';
         $command .= $this->getHostCommand();
         $command .= $this->getUserCommand();
         $command .= $this->getPasswordCommand();
@@ -69,13 +69,10 @@ class MySQLBackupManager
         if ($result !== 0) {
             throw new RuntimeException('mysqldump failed with error code: ' . $result);
         }
-        echo 'mysqldump command executed: ' . $command . "\n";
 
         if (!file_exists($pathBackup)) {
-            echo '!file_exists($pathBackup)\n';
             throw new RuntimeException('Backup file was not created: ' . $pathBackup);
         }
-        echo 'Backup file created successfully\n';
 
         return true;
     }
@@ -93,7 +90,7 @@ class MySQLBackupManager
 
         $output = [];
         $this->checkPasswordQuotes();
-        $command = 'mysql ';
+        $command = 'mysql --skip-ssl ';
         $command .= $this->getHostCommand();
         $command .= $this->getUserCommand();
         $command .= $this->getPasswordCommand();
@@ -150,10 +147,10 @@ class MySQLBackupManager
         $passwordStr = is_string($password) ? $password : '';
 
         if (str_contains($passwordStr, "'")) {
-            return '"' . $passwordStr . '" ';
+            return '--password="' . $passwordStr . '" ';
         }
 
-        return "'" . $passwordStr . "' ";
+        return "--password='" . $passwordStr . "' ";
     }
 
     /**
