@@ -540,4 +540,52 @@ final class ResultSetCacheTest extends BaseCacheTest
         // Should return null when deserialization throws
         $this->assertNull($result);
     }
+
+    public function testValidateResultTypeFinalReturnNull(): void
+    {
+        // Test the final return null condition in validateResultType method
+        $cache = new ResultSetCache($this->mockCache);
+        
+        // Use reflection to access the private validateResultType method
+        $reflection = new \ReflectionClass($cache);
+        $validateMethod = $reflection->getMethod('validateResultType');
+        $validateMethod->setAccessible(true);
+        
+        // First test all supported types to ensure they work
+        $supportedTypes = [
+            'array' => ['test' => 'data'],
+            'bool_true' => true,
+            'bool_false' => false,
+            'float' => 3.14159,
+            'int' => 42,
+            'string' => 'test string',
+            'null' => null
+        ];
+        
+        foreach ($supportedTypes as $typeName => $value) {
+            $result = $validateMethod->invoke($cache, $value);
+            $this->assertEquals($value, $result, "Supported type {$typeName} should be returned as-is");
+        }
+        
+        // Test that objects return null (first condition)
+        $object = new \stdClass();
+        $result = $validateMethod->invoke($cache, $object);
+        $this->assertNull($result, 'Objects should return null');
+        
+        // Now try to trigger the final return null with resource types
+        $resource = fopen('php://memory', 'r');
+        if ($resource !== false) {
+            $result = $validateMethod->invoke($cache, $resource);
+            $this->assertNull($result, 'Resources should trigger final return null');
+            fclose($resource);
+        }
+        
+        // Test with closed resource
+        $closedResource = fopen('php://memory', 'r');
+        if ($closedResource !== false) {
+            fclose($closedResource);
+            $result = $validateMethod->invoke($cache, $closedResource);
+            $this->assertNull($result, 'Closed resources should trigger final return null');
+        }
+    }
 }

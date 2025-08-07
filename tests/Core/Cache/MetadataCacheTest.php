@@ -354,4 +354,27 @@ final class MetadataCacheTest extends BaseCacheTest
         $this->assertSame($metadata1, $metadata2);
         $this->assertTrue($cache->isWarmedUp($entityClass));
     }
+
+    public function testWarmUpEntitySkipsAlreadyWarmedUp(): void
+    {
+        $cache = new MetadataCache();
+        $entityClass = 'MulerTech\\Database\\Tests\\Files\\Entity\\User';
+        
+        // First, warm up the entity
+        $cache->warmUpEntities([$entityClass]);
+        $this->assertTrue($cache->isWarmedUp($entityClass));
+        
+        // Get initial stats
+        $initialStats = $cache->getStatistics();
+        
+        // Call warmUpEntities again with the same entity - should hit the isWarmedUp() condition and return early
+        $cache->warmUpEntities([$entityClass]);
+        
+        // Verify entity is still warmed up
+        $this->assertTrue($cache->isWarmedUp($entityClass));
+        
+        // Stats should not have changed much since the entity was already warmed up
+        $finalStats = $cache->getStatistics();
+        $this->assertEquals($initialStats['writes'], $finalStats['writes'], 'No additional writes should occur for already warmed up entity');
+    }
 }

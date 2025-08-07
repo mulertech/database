@@ -11,24 +11,14 @@ use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
  */
 class MockQueryBuilder extends AbstractQueryBuilder
 {
-    private int $id = 1;
     private string $queryType;
-    private array $mockProperties;
-    private string $table = 'test_table';
-    private array $columns = ['test_column'];
-    private array $conditions = [];
-    private array $joins = [];
+    public ?array $testArrayProperty = null;
 
-    public function __construct(string $queryType = 'SELECT', array $mockProperties = [])
+    public function __construct(string $queryType = 'SELECT', ?array $testArrayProperty = null)
     {
         parent::__construct();
         $this->queryType = $queryType;
-        $this->mockProperties = $mockProperties;
-        
-        // Set mock properties for structure extraction
-        foreach ($mockProperties as $property => $value) {
-            $this->{$property} = $value;
-        }
+        $this->testArrayProperty = $testArrayProperty;
     }
 
     public function getQueryType(): string
