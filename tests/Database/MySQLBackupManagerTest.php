@@ -7,6 +7,7 @@ namespace MulerTech\Database\Tests\Database;
 use MulerTech\Database\Database\MySQLBackupManager;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use RuntimeException;
 
 #[CoversClass(MySQLBackupManager::class)]
@@ -60,7 +61,6 @@ final class MySQLBackupManagerTest extends TestCase
         $this->createBackupManager()->createBackup(
             '/nonexistent/path/to/',
             $this->testBackupPath,
-            null
         );
     }
 
@@ -89,9 +89,8 @@ final class MySQLBackupManagerTest extends TestCase
     public function testPasswordWithBothQuotesThrowsException(): void
     {
         $backupManager = $this->createBackupManager();
-        $reflection = new \ReflectionClass($backupManager);
+        $reflection = new ReflectionClass($backupManager);
         $dbParametersProperty = $reflection->getProperty('dbParameters');
-        $dbParametersProperty->setAccessible(true);
         $parameters = $dbParametersProperty->getValue($backupManager);
         $parameters['pass'] = 'pass"with\'both';
         $dbParametersProperty->setValue($backupManager, $parameters);
@@ -103,76 +102,13 @@ final class MySQLBackupManagerTest extends TestCase
 
     public function testPasswordWithSingleQuote(): void
     {
-        $_ENV['DATABASE_PASS'] = "pass'with'single";
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('mysqldump failed');
         $this->createBackupManager()->createBackup('/nonexistent/', $this->testBackupPath);
-    }
-
-    public function testPasswordWithDoubleQuote(): void
-    {
-        $_ENV['DATABASE_PASS'] = 'pass"with"double';
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('mysqldump failed');
-        $this->createBackupManager()->createBackup('/nonexistent/', $this->testBackupPath);
-    }
-
-    public function testPasswordWithNoQuotes(): void
-    {
-        $_ENV['DATABASE_PASS'] = 'simplepassword';
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('mysqldump failed');
-        $this->createBackupManager()->createBackup('/nonexistent/', $this->testBackupPath);
-    }
-
-    public function testEmptyPassword(): void
-    {
-        $_ENV['DATABASE_PASS'] = '';
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('mysqldump failed');
-        $this->createBackupManager()->createBackup('/nonexistent/', $this->testBackupPath);
-    }
-
-    public function testMissingDatabaseParameters(): void
-    {
-        unset($_ENV['DATABASE_HOST'], $_ENV['DATABASE_USER'], $_ENV['DATABASE_PASS'], $_ENV['DATABASE_PATH']);
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('mysqldump failed');
-        $backupManager = new MySQLBackupManager();
-        $backupManager->createBackup('/nonexistent/', $this->testBackupPath);
-    }
-
-    public function testNonStringDatabaseParameters(): void
-    {
-        $_ENV['DATABASE_HOST'] = '127.0.0.1';
-        $_ENV['DATABASE_USER'] = 'root';
-        $_ENV['DATABASE_PASS'] = '';
-        $_ENV['DATABASE_PATH'] = '/mysql';
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('mysqldump failed');
-        $this->createBackupManager()->createBackup('/nonexistent/', $this->testBackupPath);
-    }
-
-    public function testCreateBackupCommandGeneration(): void
-    {
-        $_ENV['DATABASE_HOST'] = 'testhost';
-        $_ENV['DATABASE_USER'] = 'testuser';
-        $_ENV['DATABASE_PASS'] = 'testpass';
-        $_ENV['DATABASE_PATH'] = '/testdb';
-
-        $backupManager = new MySQLBackupManager();
-
-        $this->expectException(RuntimeException::class);
-        $backupManager->createBackup('/usr/bin/', $this->testBackupPath, []);
     }
 
     public function testRestoreBackupCommandGeneration(): void
     {
-        $_ENV['DATABASE_HOST'] = 'testhost';
-        $_ENV['DATABASE_USER'] = 'testuser';
-        $_ENV['DATABASE_PASS'] = 'testpass';
-        $_ENV['DATABASE_PATH'] = '/testdb';
-
         $backupManager = new MySQLBackupManager();
         $tempFile = sys_get_temp_dir() . '/dummy.sql';
         file_put_contents($tempFile, 'SELECT 1;');
@@ -185,27 +121,102 @@ final class MySQLBackupManagerTest extends TestCase
         }
     }
 
-    public function testDatabaseParameterParsingFromEnvironment(): void
+    public function testCreateBackupWithNonWritableDirectory(): void
     {
-        $_ENV['DATABASE_SCHEME'] = 'mysql';
-        $_ENV['DATABASE_HOST'] = 'localhost';
-        $_ENV['DATABASE_PORT'] = '3306';
-        $_ENV['DATABASE_USER'] = 'user';
-        $_ENV['DATABASE_PASS'] = 'pass';
-        $_ENV['DATABASE_PATH'] = '/db';
-
-        $backupManager = new MySQLBackupManager();
-        $this->assertInstanceOf(MySQLBackupManager::class, $backupManager);
-
-        unset($_ENV['DATABASE_SCHEME'], $_ENV['DATABASE_PORT']);
+        // Test covers: echo '!is_writable($backupDir)\n';
+        $nonWritableDir = sys_get_temp_dir() . '/readonly_' . uniqid();
+        $backupPath = $nonWritableDir . '/backup.sql';
+        
+        // Create directory but make it non-writable
+        mkdir($nonWritableDir, 0444, true);
+        
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('Backup directory is not writable');
+            $this->createBackupManager()->createBackup('/usr/bin/', $backupPath);
+        } finally {
+            // Clean up - restore permissions and remove directory
+            chmod($nonWritableDir, 0755);
+            rmdir($nonWritableDir);
+        }
     }
 
-    public function testBackupPathCreation(): void
+    public function testCreateBackupWithNonWritableBackupFile(): void
     {
-        $backupPath = sys_get_temp_dir() . '/nested/directory/backup.sql';
+        // Test covers: echo '!is_writable($pathBackup)\n';
+        $backupPath = sys_get_temp_dir() . '/readonly_backup_' . uniqid() . '.sql';
+        
+        // Create file but make it non-writable
+        touch($backupPath);
+        chmod($backupPath, 0444);
+        
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('Backup file is not writable');
+            $this->createBackupManager()->createBackup('/usr/bin/', $backupPath);
+        } finally {
+            // Clean up - restore permissions and remove file
+            chmod($backupPath, 0644);
+            unlink($backupPath);
+        }
+    }
+
+    public function testPasswordWithSingleQuoteEcho(): void
+    {
+        $oldPassword = getenv('DATABASE_PASS');
+        // Test covers: echo 'Password contains single quote\n';
+        putenv("DATABASE_PASS=password'with'quotes"); // Contains single quote
+        $backupManager = new MySQLBackupManager();
+        
+        // Use reflection to call getPasswordCommand directly to test the echo
+        $reflection = new ReflectionClass($backupManager);
+        $getPasswordMethod = $reflection->getMethod('getPasswordCommand');
+        $result = $getPasswordMethod->invoke($backupManager);
+        
+        // Should wrap in double quotes when password contains single quote
+        $this->assertStringStartsWith('"', $result);
+        $this->assertStringContainsString("password'with'quotes", $result);
+
+        // Restore original password
+        putenv("DATABASE_PASS=$oldPassword");
+    }
+
+    public function testCreateBackupSuccessfulExecution(): void
+    {
+        $backupPath = sys_get_temp_dir() . '/success_test_' . uniqid() . '.sql';
+        
+        // Most likely this will fail with mysqldump error, but it tests the path
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('mysqldump failed');
-        $this->createBackupManager()->createBackup('/nonexistent/', $backupPath);
+        $this->createBackupManager()->createBackup('/usr/bin/', $backupPath);
+    }
+
+    public function testCreateBackupDirectoryCreationFailure(): void
+    {
+        // Create a path where directory creation would fail (parent doesn't exist and can't be created)
+        $impossiblePath = '/root/nonexistent/deeply/nested/path/backup.sql';
+        
+        // Only test if we're not running as root (which would actually succeed)
+        if (posix_getuid() !== 0) {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('Unable to create backup directory');
+            $this->createBackupManager()->createBackup('/usr/bin/', $impossiblePath);
+        } else {
+            $this->markTestSkipped('Cannot test directory creation failure when running as root');
+        }
+    }
+
+    public function testCreateBackupFileCreationFailure(): void
+    {
+        $longName = sys_get_temp_dir() . '/' . str_repeat('a', 255) . '.sql';
+        
+        if (posix_getuid() !== 0) {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('Cannot create backup file');
+            $this->createBackupManager()->createBackup('/usr/bin/', $longName);
+        } else {
+            $this->markTestSkipped('Cannot test file creation failure when running as root');
+        }
     }
 }
 

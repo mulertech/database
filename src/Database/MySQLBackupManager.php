@@ -38,10 +38,8 @@ class MySQLBackupManager
 
         $backupDir = dirname($pathBackup);
 
-        if (!is_dir($backupDir)) {
-            if (!@mkdir($backupDir, 0o777, true) && !is_dir($backupDir)) {
-                throw new RuntimeException('Unable to create backup directory: ' . $backupDir);
-            }
+        if (!is_dir($backupDir) && !@mkdir($backupDir, 0o777, true) && !is_dir($backupDir)) {
+            throw new RuntimeException('Unable to create backup directory: ' . $backupDir);
         }
         if (!is_writable($backupDir)) {
             throw new RuntimeException('Backup directory is not writable: ' . $backupDir);
@@ -71,10 +69,13 @@ class MySQLBackupManager
         if ($result !== 0) {
             throw new RuntimeException('mysqldump failed with error code: ' . $result);
         }
+        echo 'mysqldump command executed: ' . $command . "\n";
 
         if (!file_exists($pathBackup)) {
+            echo '!file_exists($pathBackup)\n';
             throw new RuntimeException('Backup file was not created: ' . $pathBackup);
         }
+        echo 'Backup file created successfully\n';
 
         return true;
     }
