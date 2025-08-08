@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\ORM\State;
 
 use InvalidArgumentException;
+use MulerTech\Database\ORM\ChangeSetManager;
+use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\EntityScheduler;
@@ -190,4 +192,31 @@ class EntitySchedulerTest extends TestCase
             }
         }
     }
+
+    public function testGetScheduledDeletionsWithRemovedEntity(): void
+    {
+        $identityMap = new IdentityMap();
+        $stateValidator = new StateValidator();
+        
+        // Create scheduler WITHOUT ChangeSetManager to trigger the echo case
+        $scheduler = new EntityScheduler($identityMap, $stateValidator, null);
+        
+        $entity = new User();
+        $removedState = new EntityState(
+            User::class,
+            EntityLifecycleState::REMOVED,
+            [],
+            new \DateTimeImmutable()
+        );
+        
+        $identityMap->add($entity, null, $removedState);
+        
+        // This should trigger the echo for getScheduledDeletions when entity is in REMOVED state
+        $scheduled = $scheduler->getScheduledDeletions();
+        
+        $this->assertIsArray($scheduled);
+        $this->assertCount(1, $scheduled);
+        $this->assertContains($entity, $scheduled);
+    }
+
 }

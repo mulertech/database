@@ -291,4 +291,34 @@ class DependencyManagerTest extends TestCase
         
         $this->dependencyManager->orderByDependencies($entities);
     }
+
+    public function testVisitEntityAlreadyVisitedCase(): void
+    {
+        $user1 = new User();
+        $user2 = new User();
+        $unit = new Unit();
+        
+        // Create a dependency chain where entity can be visited multiple times
+        $this->dependencyManager->addInsertionDependency($user1, $unit);
+        $this->dependencyManager->addInsertionDependency($user2, $unit);
+        
+        $entities = [
+            spl_object_id($user1) => $user1,
+            spl_object_id($user2) => $user2,
+            spl_object_id($unit) => $unit,
+        ];
+        
+        // This should trigger the echo when visiting the unit the second time
+        $ordered = $this->dependencyManager->orderByDependencies($entities);
+        
+        // Verify proper ordering - unit should come before both users
+        $orderedIds = array_keys($ordered);
+        $unitPosition = array_search(spl_object_id($unit), $orderedIds, true);
+        $user1Position = array_search(spl_object_id($user1), $orderedIds, true);
+        $user2Position = array_search(spl_object_id($user2), $orderedIds, true);
+        
+        self::assertLessThan($user1Position, $unitPosition);
+        self::assertLessThan($user2Position, $unitPosition);
+        self::assertCount(3, $ordered);
+    }
 }

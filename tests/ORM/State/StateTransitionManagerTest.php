@@ -294,4 +294,5 @@ class StateTransitionManagerTest extends TestCase
         self::assertEquals(EntityLifecycleState::MANAGED, $metadata1->state);
         self::assertEquals(EntityLifecycleState::DETACHED, $metadata2->state);
     }
+
 }

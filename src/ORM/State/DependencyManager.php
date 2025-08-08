@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\State;
 
+use RuntimeException;
+
 /**
  * @package MulerTech\Database
  * @author Sébastien Muler
@@ -158,9 +160,7 @@ final class DependencyManager
     public function removeDependencies(object $entity): void
     {
         $oid = spl_object_id($entity);
-        unset($this->insertionDependencies[$oid]);
-        unset($this->updateDependencies[$oid]);
-        unset($this->deletionDependencies[$oid]);
+        unset($this->insertionDependencies[$oid], $this->updateDependencies[$oid], $this->deletionDependencies[$oid]);
     }
 
     /**
@@ -197,7 +197,7 @@ final class DependencyManager
     /**
      * @param array<int, object> $entities
      * @return array<int, object>
-     * @throws \RuntimeException
+     * @throws RuntimeException
      */
     public function orderByDependencies(array $entities): array
     {
@@ -224,7 +224,7 @@ final class DependencyManager
      * @param array<int, bool> $visited
      * @param array<int, bool> $visiting
      * @param array<int, object> $ordered
-     * @throws \RuntimeException
+     * @throws RuntimeException
      */
     private function visitEntity(
         int $oid,
@@ -238,7 +238,7 @@ final class DependencyManager
         }
 
         if (isset($visiting[$oid])) {
-            throw new \RuntimeException('Circular dependency detected');
+            throw new RuntimeException('Circular dependency detected');
         }
 
         if (isset($visited[$oid])) {
@@ -260,7 +260,7 @@ final class DependencyManager
      * @param array<int, bool> $visited
      * @param array<int, bool> $visiting
      * @param array<int, object> $ordered
-     * @throws \RuntimeException
+     * @throws RuntimeException
      */
     private function visitEntityDependencies(
         int $oid,

@@ -157,4 +157,5 @@ class StateResolverTest extends TestCase
         $this->assertSame(EntityLifecycleState::DETACHED, $detachedResult);
         $this->assertSame(EntityLifecycleState::NEW, $newResult);
     }
+
 }

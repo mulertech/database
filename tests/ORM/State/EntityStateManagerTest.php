@@ -263,5 +263,18 @@ class EntityStateManagerTest extends TestCase
         self::assertTrue($this->stateManager->isInState($user2, EntityLifecycleState::MANAGED));
         self::assertTrue($this->stateManager->isInState($unit, EntityLifecycleState::NEW));
     }
+
+    public function testMarkAsPersistedUnmanagedEntity(): void
+    {
+        $user = new User();
+        $user->setUsername('John');
+        
+        // Entity is not added to identity map, so metadata will be null
+        // This should trigger the echo statement and throw exception
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Entity is not managed');
+        
+        $this->stateManager->markAsPersisted($user, 123);
+    }
 }
 
