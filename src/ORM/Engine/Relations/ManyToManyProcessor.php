@@ -102,10 +102,11 @@ class ManyToManyProcessor
 
         if ($entities instanceof DatabaseCollection) {
             $this->processDatabaseCollection($entity, $entities, $manyToMany);
-        } elseif ($this->shouldProcessNewCollection($entities, $entity)) {
-            if ($entities instanceof Collection) {
-                $this->processNewCollection($entity, $entities, $manyToMany);
-            }
+            return;
+        }
+
+        if ($entities instanceof Collection && $this->shouldProcessNewCollection($entities, $entity)) {
+            $this->processNewCollection($entity, $entities, $manyToMany);
         }
     }
 

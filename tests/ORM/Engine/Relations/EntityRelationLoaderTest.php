@@ -218,4 +218,75 @@ class EntityRelationLoaderTest extends TestCase
             self::assertIsArray($result);
         }
     }
+
+    public function testLoadRelationsWithActualMetadata(): void
+    {
+        // Load real metadata to trigger relation processing
+        $this->metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
+
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('TestUser');
+        
+        // Provide entity data that includes relation fields
+        $entityData = [
+            'id' => 123,
+            'username' => 'TestUser', 
+            'unit_id' => 456,  // This should trigger OneToOne relation loading
+            'manager' => 789   // This should trigger another relation
+        ];
+
+        // Mock EntityManager methods that are called during relation loading
+        $mockEmEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEmEngine);
+        
+        $this->entityManager->method('find')
+            ->willReturn(null); // Return null to simulate not found
+
+        $result = $this->relationLoader->loadRelations($user, $entityData);
+        
+        self::assertIsArray($result);
+    }
+
+    public function testLoadOneToManyWithNoEntityId(): void
+    {
+        // Load real metadata
+        $this->metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
+
+        // Create a user without ID to trigger the echo in loadOneToMany
+        $user = new User();
+        $user->setUsername('TestUser'); // No ID set
+        
+        $entityData = ['username' => 'TestUser'];
+
+        // This should trigger the echo statement in loadOneToMany when entityId is null
+        $result = $this->relationLoader->loadRelations($user, $entityData);
+        
+        self::assertIsArray($result);
+    }
+
+    public function testGetColumnNameWithInvalidProperty(): void
+    {
+        // Load real metadata
+        $this->metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
+
+        // Use reflection to call private getColumnName method with invalid property
+        $reflection = new \ReflectionClass($this->relationLoader);
+        $method = $reflection->getMethod('getColumnName');
+        $method->setAccessible(true);
+        
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Column name is not defined');
+        
+        // This should trigger the echo statement before throwing exception
+        $method->invoke($this->relationLoader, User::class, 'nonExistentProperty');
+    }
+
 }

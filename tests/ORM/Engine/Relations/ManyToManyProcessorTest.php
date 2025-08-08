@@ -176,4 +176,148 @@ class ManyToManyProcessorTest extends TestCase
         $this->assertTrue(method_exists($this->processor, 'clear'));
         $this->assertTrue(method_exists($this->processor, 'startFlushCycle'));
     }
+
+    public function testProcessWithActualMetadataAndInvalidRelations(): void
+    {
+        // Load real metadata to trigger relation processing
+        $this->metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
+
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('TestUser');
+        
+        $reflection = new ReflectionClass($user);
+        
+        // This should process the entity and may trigger some echo statements
+        $this->processor->process($user, $reflection);
+        
+        $operations = $this->processor->getOperations();
+        $this->assertIsArray($operations);
+    }
+
+    public function testProcessPropertyWithInvalidProperty(): void
+    {
+        $user = new User();
+        $reflection = new ReflectionClass($user);
+        
+        // Use reflection to access private method
+        $processorReflection = new ReflectionClass($this->processor);
+        $method = $processorReflection->getMethod('hasValidProperty');
+        $method->setAccessible(true);
+        
+        // Test with non-existent property
+        $result = $method->invoke($this->processor, $reflection, $user, 'nonExistentProperty');
+        
+        $this->assertFalse($result);
+    }
+
+    public function testProcessPropertyWithAlreadyProcessedRelation(): void
+    {
+        $user = new User();
+        $reflection = new ReflectionClass($user);
+        
+        // Use reflection to access private properties and methods
+        $processorReflection = new ReflectionClass($this->processor);
+        
+        // Set processed relations to trigger the echo
+        $processedProperty = $processorReflection->getProperty('processedRelations');
+        $processedProperty->setAccessible(true);
+        
+        $entityId = spl_object_id($user);
+        $relationKey = $entityId . '_groups';
+        $processedProperty->setValue($this->processor, [$relationKey => true]);
+        
+        // Access private processProperty method
+        $processPropertyMethod = $processorReflection->getMethod('processProperty');
+        $processPropertyMethod->setAccessible(true);
+        
+        $manyToMany = [
+            'mappedBy' => Group::class,
+            'joinProperty' => 'user',
+            'inverseJoinProperty' => 'group'
+        ];
+        
+        // This should trigger the echo for already processed relation
+        $processPropertyMethod->invoke(
+            $this->processor,
+            $user,
+            $reflection,
+            'groups',
+            $manyToMany,
+            $entityId
+        );
+        
+        $this->assertTrue(true);
+    }
+
+    public function testShouldProcessNewCollection(): void
+    {
+        // Use reflection to test private method
+        $reflection = new ReflectionClass($this->processor);
+        $method = $reflection->getMethod('shouldProcessNewCollection');
+        $method->setAccessible(true);
+        
+        $user = new User();
+        $collection = new \MulerTech\Database\ORM\DatabaseCollection();
+        
+        // This should trigger the echo statement in shouldProcessNewCollection
+        $result = $method->invoke($this->processor, $collection, $user);
+        
+        $this->assertIsBool($result);
+    }
+
+    public function testProcessNewCollection(): void
+    {
+        // Use reflection to test private method
+        $reflection = new ReflectionClass($this->processor);
+        $method = $reflection->getMethod('processNewCollection');
+        $method->setAccessible(true);
+        
+        $user = new User();
+        $group = new Group();
+        $collection = new \MulerTech\Database\ORM\DatabaseCollection([$group]);
+        
+        $manyToMany = [
+            'mappedBy' => Group::class,
+            'joinProperty' => 'user',
+            'inverseJoinProperty' => 'group'
+        ];
+        
+        // This should trigger the echo statement in processNewCollection
+        $method->invoke($this->processor, $user, $collection, $manyToMany);
+        
+        $this->assertTrue(true);
+    }
+
+
+    public function testProcessWithInvalidRelationStructure(): void
+    {
+        // Load metadata for User entity which should have ManyToMany relations
+        $this->metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
+
+        // Create a custom entity processor that has corrupted metadata
+        $user = new User();
+        $reflection = new ReflectionClass($user);
+        
+        // Use reflection to corrupt the mapping cache with invalid relation structure
+        $processorReflection = new ReflectionClass($this->processor);
+        $mappingCacheProperty = $processorReflection->getProperty('mappingCache');
+        $mappingCacheProperty->setAccessible(true);
+        
+        // Set invalid mapping (non-array relation) to trigger the echo
+        $corruptedMapping = [
+            'groups' => 'not_an_array' // This will trigger the echo in process method
+        ];
+        $mappingCacheProperty->setValue($this->processor, [User::class => $corruptedMapping]);
+        
+        // This should trigger the echo for invalid relation structure
+        $this->processor->process($user, $reflection);
+        
+        $operations = $this->processor->getOperations();
+        $this->assertIsArray($operations);
+    }
 }

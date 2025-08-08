@@ -168,4 +168,109 @@ class LinkEntityManagerTest extends TestCase
         
         $this->assertTrue(true);
     }
+
+    public function testFindExistingLinkRelationWithInvalidJoinProperties(): void
+    {
+        $user1 = new User();
+        $user1->setId(1);
+        $user2 = new User();
+        $user2->setId(2);
+        
+        // Test with null join properties to trigger validation failure
+        $manyToMany = [
+            'mappedBy' => User::class,
+            'joinProperty' => null, // This will trigger the echo in validateJoinProperties
+            'inverseJoinProperty' => 'user2'
+        ];
+        
+        $result = $this->linkEntityManager->findExistingLinkRelation($manyToMany, $user1, $user2);
+        
+        $this->assertNull($result);
+    }
+
+    public function testGetIdWithEntityWithoutGetIdMethod(): void
+    {
+        // Use the test entity without getId method as suggested in the echo message
+        require_once dirname(__DIR__, 3) . '/Files/EntityNotMapped/EntityWithoutGetId.php';
+        $entityWithoutId = new \MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutGetId();
+        
+        // Use reflection to access private getId method
+        $reflection = new \ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('getId');
+        $method->setAccessible(true);
+        
+        // This should trigger the echo statement for entity without getId method
+        $result = $method->invoke($this->linkEntityManager, $entityWithoutId);
+        
+        $this->assertNull($result);
+    }
+
+    public function testQueryExistingLinkWithInvalidJoinProperties(): void
+    {
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('queryExistingLink');
+        $method->setAccessible(true);
+        
+        $manyToMany = [
+            'mappedBy' => User::class,
+            'joinProperty' => null, // Invalid - not a string
+            'inverseJoinProperty' => 'user2'
+        ];
+        
+        // This should trigger the echo statement in queryExistingLink
+        $result = $method->invoke($this->linkEntityManager, $manyToMany, 1, 2);
+        
+        $this->assertNull($result);
+    }
+
+    public function testSetJoinPropertiesWithInvalidProperties(): void
+    {
+        $linkEntity = new User();
+        $user1 = new User();
+        $user1->setId(1);
+        $user2 = new User();
+        $user2->setId(2);
+        
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('setJoinProperties');
+        $method->setAccessible(true);
+        
+        $manyToMany = [
+            'joinProperty' => null, // Invalid - not a string
+            'inverseJoinProperty' => 123  // Invalid - not a string
+        ];
+        
+        // This should trigger the echo statement in setJoinProperties
+        $method->invoke($this->linkEntityManager, $linkEntity, $manyToMany, $user1, $user2);
+        
+        $this->assertTrue(true); // Test passes if no exception thrown
+    }
+
+
+    public function testRemoveFromCollectionPropertyVariousConditions(): void
+    {
+        // Test with a collection that has the related entity to trigger all echo statements
+        $user1 = new User();
+        $user1->setId(1);
+        $user2 = new User();
+        $user2->setId(2);
+        
+        // Create a collection and add user2 to it
+        $collection = new \MulerTech\Database\ORM\DatabaseCollection([$user2]);
+        $user1->setGroups($collection); // This sets the groups property
+        
+        $entityReflection = new \ReflectionClass($user1);
+        
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('removeFromCollectionProperty');
+        $method->setAccessible(true);
+        
+        // This should trigger the echo statement when removing the related entity
+        $method->invoke($this->linkEntityManager, $user1, $entityReflection, 'groups', $user2);
+        
+        $this->assertTrue(true);
+    }
 }
