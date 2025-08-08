@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\ValueProcessor;
 
+use DateMalformedStringException;
 use JsonException;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionException;
@@ -30,7 +31,7 @@ class ValueProcessorManager
      * @param EntityHydratorInterface|null $hydrator
      */
     public function __construct(
-        private ?EntityHydratorInterface $hydrator = null
+        private readonly ?EntityHydratorInterface $hydrator = null
     ) {
     }
 
@@ -104,7 +105,7 @@ class ValueProcessorManager
      * @param mixed $value
      * @param string $phpType
      * @return mixed
-     * @throws JsonException
+     * @throws JsonException|DateMalformedStringException
      */
     public function convertToPhpValue(mixed $value, string $phpType): mixed
     {
@@ -143,8 +144,7 @@ class ValueProcessorManager
      */
     public function normalizeType(string $type): string
     {
-        $phpProcessor = new PhpTypeValueProcessor();
-        return $phpProcessor->normalizeType($type);
+        return new PhpTypeValueProcessor()->normalizeType($type);
     }
 
     /**
@@ -177,8 +177,7 @@ class ValueProcessorManager
      */
     public function getDefaultValue(string $type): mixed
     {
-        $phpProcessor = new PhpTypeValueProcessor();
-        return $phpProcessor->getDefaultValue($type);
+        return new PhpTypeValueProcessor()->getDefaultValue($type);
     }
 
     /**
@@ -210,30 +209,6 @@ class ValueProcessorManager
             'object' => is_array($from) || is_string($from),
             default => false,
         };
-    }
-
-    /**
-     * @param mixed $value
-     * @param string $type
-     * @param ColumnType|null $columnType
-     * @return mixed
-     * @throws JsonException
-     */
-    public function processComplexValue(mixed $value, string $type, ?ColumnType $columnType = null): mixed
-    {
-        if ($columnType !== null) {
-            return $this->convertToColumnValue($value, $type);
-        }
-
-        return $this->convertToPhpValue($value, $type);
-    }
-
-    /**
-     * @return bool
-     */
-    public function processorCaching(): bool
-    {
-        return $this->columnTypeProcessor !== null && $this->phpTypeProcessor !== null;
     }
 
     /**

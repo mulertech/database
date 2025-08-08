@@ -8,7 +8,12 @@ use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
 use MulerTech\Database\ORM\ValueProcessor\ColumnTypeValueProcessor;
 use MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
+use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 class ValueProcessorManagerTest extends TestCase
 {
@@ -305,5 +310,44 @@ class ValueProcessorManagerTest extends TestCase
         
         $result = $this->manager->canConvert('{"key":"value"}', 'object');
         self::assertTrue($result);
+    }
+
+    public function testProcessValueWithPropertyAndHydrator(): void
+    {
+        // Create a simple implementation of EntityHydratorInterface for testing
+        $hydrator = new class implements EntityHydratorInterface {
+            public function hydrate(array $data, string $entityName): object
+            {
+                return new $entityName();
+            }
+
+            public function getMetadataCache(): MetadataCache
+            {
+                $cache = new MetadataCache();
+                
+                // Create metadata with required parameters
+                $metadata = new EntityMetadata(
+                    className: User::class,
+                    tableName: 'users',
+                    columns: ['username' => 'username']
+                );
+                
+                $cache->set(User::class, $metadata);
+                return $cache;
+            }
+        };
+        
+        // Create ValueProcessorManager with hydrator
+        $manager = new ValueProcessorManager($hydrator);
+        
+        // Create a reflection property
+        $user = new User();
+        $reflection = new \ReflectionClass($user);
+        $property = $reflection->getProperty('username');
+        
+        // This should trigger the echo statement at line 85 and 226
+        $result = $manager->processValue('test', $property);
+        
+        self::assertEquals('test', $result);
     }
 }
