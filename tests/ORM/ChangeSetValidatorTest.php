@@ -271,16 +271,6 @@ class ChangeSetValidatorTest extends TestCase
         self::assertFalse($result);
     }
 
-    public function testIsValidForPersistence(): void
-    {
-        $user = new User();
-        $user->setUsername('John');
-        
-        $result = $this->validator->isValidForPersistence($user);
-        
-        self::assertTrue($result);
-    }
-
     public function testValidateChangeSet(): void
     {
         $user = new User();

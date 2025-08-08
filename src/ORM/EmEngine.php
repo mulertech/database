@@ -6,7 +6,6 @@ namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
 use Exception;
-use MulerTech\Collections\Collection;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
@@ -31,6 +30,8 @@ use ReflectionException;
  *
  * @package MulerTech\Database
  * @author Sébastien Muler
+ * @todo Use only MtEntity entity getters and setters instead of reflections.
+ * @todo You can retrieve the names of the setter and getter methods in EntityMetadata getGetter and getSetter.
  */
 class EmEngine
 {
@@ -165,11 +166,7 @@ class EmEngine
             $entityData = [];
             foreach ($fetch as $key => $value) {
                 $stringKey = (string)$key;
-                if (is_scalar($value) || $value === null) {
-                    $entityData[$stringKey] = $value;
-                } else {
-                    $entityData[$stringKey] = null;
-                }
+                $entityData[$stringKey] = is_scalar($value) ? $value : null;
             }
             return $this->createManagedEntity($entityData, $entityName, $loadRelations);
         }
@@ -205,11 +202,7 @@ class EmEngine
                 $validatedEntityData = [];
                 foreach ($entityData as $key => $value) {
                     $stringKey = (string)$key;
-                    if (is_scalar($value) || $value === null) {
-                        $validatedEntityData[$stringKey] = $value;
-                    } else {
-                        $validatedEntityData[$stringKey] = null;
-                    }
+                    $validatedEntityData[$stringKey] = is_scalar($value) ? $value : null;
                 }
                 $validatedFetchAll[] = $validatedEntityData;
             }
@@ -498,9 +491,6 @@ class EmEngine
         // Use hydrator directly to create and hydrate the entity
         $entity = $this->hydrator->hydrate($entityData, $entityName);
 
-        // CRITICAL: Ensure all collections are DatabaseCollection before adding to identity map
-        $this->ensureCollectionsAreDatabaseCollection($entity);
-
         // Add to identity map first
         if (isset($entityData['id'])) {
             $this->identityMap->add($entity);
@@ -522,65 +512,6 @@ class EmEngine
         }
 
         return $entity;
-    }
-
-    /**
-     * Ensure all collection properties are DatabaseCollection instances
-     *
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
-     */
-    private function ensureCollectionsAreDatabaseCollection(object $entity): void
-    {
-        $entityClass = $entity::class;
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
-
-        // Convert OneToMany collections
-        $oneToManyList = $entityMetadata->getRelationsByType('OneToMany');
-        foreach ($oneToManyList as $property => $oneToMany) {
-            $this->convertPropertyToDatabaseCollection($entity, $property);
-        }
-
-        // Convert ManyToMany collections
-        $manyToManyList = $entityMetadata->getRelationsByType('ManyToMany');
-        foreach ($manyToManyList as $property => $manyToMany) {
-            $this->convertPropertyToDatabaseCollection($entity, $property);
-        }
-    }
-
-    /**
-     * Convert a property to DatabaseCollection if it's a Collection
-     *
-     * @param object $entity
-     * @param string $property
-     * @return void
-     */
-    private function convertPropertyToDatabaseCollection(object $entity, string $property): void
-    {
-        try {
-            $reflection = new ReflectionClass($entity);
-            $reflectionProperty = $reflection->getProperty($property);
-
-            if (!$reflectionProperty->isInitialized($entity)) {
-                $reflectionProperty->setValue($entity, new DatabaseCollection([]));
-                return;
-            }
-
-            $currentValue = $reflectionProperty->getValue($entity);
-            if ($currentValue instanceof DatabaseCollection) {
-                return;
-            }
-            if ($currentValue instanceof Collection) {
-                $items = $currentValue->items();
-                $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
-                $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
-                return;
-            }
-            $reflectionProperty->setValue($entity, new DatabaseCollection([]));
-        } catch (ReflectionException) {
-            // Property doesn't exist, ignore
-        }
     }
 
     /**
@@ -887,6 +818,7 @@ class EmEngine
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     public function refresh(object $entity): void
     {

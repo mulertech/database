@@ -14,6 +14,8 @@ use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
+use MulerTech\Database\Query\Builder\SelectBuilder;
+use MulerTech\Database\Database\Interface\Statement;
 use MulerTech\EventManager\EventManager;
 use PHPUnit\Framework\TestCase;
 
@@ -30,6 +32,9 @@ class EmEngineTest extends TestCase
         $metadataCache = new MetadataCache();
         $metadataCache->loadEntitiesFromPath(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
+        );
+        $metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
         );
         
         $this->entityManager = new EntityManager(
@@ -698,5 +703,94 @@ class EmEngineTest extends TestCase
         $foundUser = $this->emEngine->find(User::class, $user->getId());
         self::assertInstanceOf(User::class, $foundUser);
         self::assertEquals('CollectionUser', $foundUser->getUsername());
+    }
+
+    public function testGetQueryBuilderObjectResultWithNonArrayFetch(): void
+    {
+        // Create a mock query builder that returns non-array data
+        $queryBuilder = $this->createMock(SelectBuilder::class);
+        $pdoStatement = $this->createMock(\PDOStatement::class);
+        $statement = new Statement($pdoStatement);
+        
+        $queryBuilder->method('getResult')->willReturn($statement);
+        $pdoStatement->method('execute')->willReturn(true);
+        $pdoStatement->method('fetch')->willReturn('not_an_array'); // This should trigger line 173
+        $pdoStatement->method('closeCursor')->willReturn(true);
+        
+        $result = $this->emEngine->getQueryBuilderObjectResult($queryBuilder, User::class);
+        
+        // Should return null when fetch is not an array
+        self::assertNull($result);
+    }
+
+    public function testExtractEntityIdWithGetIdentifierMethod(): void
+    {
+        // Create a test entity with getIdentifier method
+        $entity = new class {
+            public function getIdentifier(): int
+            {
+                return 123;
+            }
+        };
+        
+        // Use reflection to access the private method
+        $reflection = new \ReflectionClass($this->emEngine);
+        $method = $reflection->getMethod('extractEntityId');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->emEngine, $entity);
+        
+        self::assertEquals(123, $result);
+    }
+
+    public function testExtractEntityIdWithGetUuidMethod(): void
+    {
+        // Create a test entity with getUuid method
+        $entity = new class {
+            public function getUuid(): string
+            {
+                return 'uuid-123';
+            }
+        };
+        
+        // Use reflection to access the private method
+        $reflection = new \ReflectionClass($this->emEngine);
+        $method = $reflection->getMethod('extractEntityId');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->emEngine, $entity);
+        
+        self::assertEquals('uuid-123', $result);
+    }
+
+    public function testExtractEntityIdWithDirectPropertyAccess(): void
+    {
+        // Create a test entity with direct property access
+        $entity = new class {
+            public int $identifier = 456;
+        };
+        
+        // Use reflection to access the private method
+        $reflection = new \ReflectionClass($this->emEngine);
+        $method = $reflection->getMethod('extractEntityId');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->emEngine, $entity);
+        
+        self::assertEquals(456, $result);
+    }
+
+    public function testGetChangeSetWithNullMetadata(): void
+    {
+        // Create an entity that's not in the identity map (no metadata)
+        $user = new User();
+        $user->setUsername('NoMetadata');
+        
+        // Don't add to identity map, so getMetadata will return null
+        
+        $result = $this->emEngine->getChangeSet($user);
+        
+        // Should return null when entity has no metadata
+        self::assertNull($result);
     }
 }
