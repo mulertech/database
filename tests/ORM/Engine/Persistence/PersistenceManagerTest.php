@@ -255,4 +255,18 @@ class PersistenceManagerTest extends TestCase
 
         self::assertTrue(true);
     }
+
+    public function testClear(): void
+    {
+        $user = new User();
+        $user->setUsername('TestUser');
+
+        // Persist an entity first
+        $this->persistenceManager->persist($user);
+
+        // Test the clear method
+        $this->persistenceManager->clear();
+
+        self::assertTrue(true);
+    }
 }

@@ -8,7 +8,9 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutSetId;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class InsertionProcessorTest extends TestCase
 {
@@ -113,6 +115,30 @@ class InsertionProcessorTest extends TestCase
         
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('must have a getId method');
+        
+        $this->insertionProcessor->process($entity);
+    }
+
+    public function testProcessEntityWithoutSetIdMethod(): void
+    {
+        $entity = new EntityWithoutSetId();
+        $entity->setName('Test');
+
+        // Mock necessary methods to simulate successful insertion with generated ID
+        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEngine);
+        $this->entityManager->method('getPdm')
+            ->willReturn($mockPdm);
+        
+        // Return non-empty lastInsertId to trigger setId call
+        $mockPdm->method('lastInsertId')
+            ->willReturn('456');
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The entity ' . EntityWithoutSetId::class . ' must have a setId method');
         
         $this->insertionProcessor->process($entity);
     }

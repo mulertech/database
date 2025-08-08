@@ -306,4 +306,25 @@ class FlushOrchestratorTest extends TestCase
 
         $this->eventDispatcher->resetProcessedEvents();
     }
+
+    public function testFlushWithNullEventManager(): void
+    {
+        // Create a new orchestrator with null EventManager
+        $orchestratorWithNullEvents = new FlushOrchestrator(
+            $this->entityManager,
+            $this->stateManager,
+            $this->changeSetManager,
+            null, // null EventManager
+            $this->eventDispatcher,
+            $this->flushHandler,
+            $this->operationProcessor
+        );
+
+        $this->eventDispatcher->expects($this->once())
+            ->method('resetProcessedEvents');
+
+        // Test that flush completes without error even with null EventManager
+        $orchestratorWithNullEvents->performFlush();
+        $this->assertTrue(true);
+    }
 }

@@ -144,4 +144,21 @@ class UpdateEntityValidatorTest extends TestCase
         
         $this->assertFalse($result);
     }
+
+    public function testEntityExistsInDatabaseWithNullId(): void
+    {
+        // Create a mock entity that will return null for getId() during entityExistsInDatabase check
+        $mockEntity = $this->createMock(User::class);
+        $mockEntity->method('getId')
+            ->willReturn(null);
+        
+        // Use reflection to call the private method directly
+        $reflection = new \ReflectionClass($this->validator);
+        $method = $reflection->getMethod('entityExistsInDatabase');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->validator, $mockEntity);
+        
+        $this->assertFalse($result);
+    }
 }
