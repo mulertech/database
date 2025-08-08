@@ -522,4 +522,53 @@ class ValueProcessorManagerTest extends TestCase
         
         self::assertEquals('test', $result);
     }
+
+    public function testProcessValueWithNonBuiltinType(): void
+    {
+        // Create a hydrator that returns null for column type to force PHP type processing
+        $hydrator = new class implements EntityHydratorInterface {
+            public function hydrate(array $data, string $entityName): object
+            {
+                return new $entityName();
+            }
+
+            public function getMetadataCache(): MetadataCache
+            {
+                $cache = new MetadataCache();
+                
+                // Create metadata that will return null for column type
+                $metadata = new EntityMetadata(
+                    className: User::class,
+                    tableName: 'users',
+                    properties: [], // No properties
+                    columns: [] // No columns defined
+                );
+                
+                $cache->set(User::class, $metadata);
+                return $cache;
+            }
+        };
+        
+        // Create ValueProcessorManager with hydrator
+        $manager = new ValueProcessorManager($hydrator);
+        
+        // Create a mock property with a non-builtin type (like DateTime)
+        $property = $this->createMock(ReflectionProperty::class);
+        $declaringClass = $this->createMock(\ReflectionClass::class);
+        $reflectionType = $this->createMock(\ReflectionNamedType::class);
+        
+        $declaringClass->method('getName')->willReturn(User::class);
+        $property->method('getDeclaringClass')->willReturn($declaringClass);
+        $property->method('getName')->willReturn('testProperty');
+        $property->method('getType')->willReturn($reflectionType);
+        
+        // Set up the type to be non-builtin (like DateTime)
+        $reflectionType->method('isBuiltin')->willReturn(false);
+        $reflectionType->method('getName')->willReturn(\DateTime::class);
+        
+        // This should trigger the echo statement at line 241
+        $result = $manager->processValue(new \DateTime(), $property);
+        
+        self::assertInstanceOf(\DateTime::class, $result);
+    }
 }
