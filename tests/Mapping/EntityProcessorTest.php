@@ -175,4 +175,62 @@ class EntityProcessorTest extends TestCase
         
         $this->assertEquals('entity_with_default_table_name', $tables[EntityWithDefaultTableName::class]);
     }
+
+    public function testGetColumnNameReturnsCorrectColumnName(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForProcessor::class);
+        $this->processor->processEntityClass($reflection);
+        
+        $columnName = $this->processor->getColumnName(TestEntityForProcessor::class, 'name');
+        
+        $this->assertEquals('entity_name', $columnName);
+    }
+
+    public function testGetColumnNameReturnsNullForUnknownProperty(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForProcessor::class);
+        $this->processor->processEntityClass($reflection);
+        
+        $columnName = $this->processor->getColumnName(TestEntityForProcessor::class, 'unknownProperty');
+        
+        $this->assertNull($columnName);
+    }
+
+    public function testGetEntitiesReturnsListOfProcessedEntities(): void
+    {
+        $reflection1 = new ReflectionClass(TestEntityForProcessor::class);
+        $reflection2 = new ReflectionClass(AnotherTestEntity::class);
+        
+        $this->processor->processEntityClass($reflection1);
+        $this->processor->processEntityClass($reflection2);
+        
+        $entities = $this->processor->getEntities();
+        
+        $this->assertCount(2, $entities);
+        $this->assertContains(TestEntityForProcessor::class, $entities);
+        $this->assertContains(AnotherTestEntity::class, $entities);
+    }
+
+    public function testBuildEntityMetadataForClassThrowsExceptionForEntityWithoutMtEntity(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Entity ' . TestEntityWithoutMtEntity::class . ' does not have MtEntity attribute');
+        
+        $this->processor->buildEntityMetadataForClass(TestEntityWithoutMtEntity::class);
+    }
+
+    public function testProcessEntityClassReturnsFalseForEntityWithoutMtEntity(): void
+    {
+        $reflection = new ReflectionClass(TestEntityWithoutMtEntity::class);
+        $result = $this->processor->processEntityClass($reflection);
+        
+        $this->assertFalse($result);
+        
+        // Verify that no metadata was stored
+        $tables = $this->processor->getTables();
+        $columns = $this->processor->getColumnsMapping();
+        
+        $this->assertArrayNotHasKey(TestEntityWithoutMtEntity::class, $tables);
+        $this->assertArrayNotHasKey(TestEntityWithoutMtEntity::class, $columns);
+    }
 }
