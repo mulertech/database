@@ -755,4 +755,77 @@ class PhpTypeValueProcessorTest extends TestCase
         self::assertSame($resource, $result);
         fclose($resource);
     }
+
+    public function testProcessStringWithNullInputDirectly(): void
+    {
+        // Use reflection to directly call processString with null
+        $processor = new PhpTypeValueProcessor('string');
+        
+        $reflection = new \ReflectionClass($processor);
+        $method = $reflection->getMethod('processString');
+        $method->setAccessible(true);
+        
+        // This should trigger the processString null echo case
+        $result = $method->invoke($processor, null);
+        self::assertEquals('', $result);
+    }
+
+    public function testProcessObjectWithScalarInput(): void
+    {
+        $processor = new PhpTypeValueProcessor('object');
+        
+        // This should trigger the processObject scalar echo case
+        $result = $processor->process(42);
+        self::assertInstanceOf(\stdClass::class, $result);
+        self::assertEquals(42, $result->value);
+    }
+
+    public function testProcessCustomClassWithNullClassName(): void
+    {
+        // Use reflection to create a processor with null className but call processCustomClass
+        $processor = new PhpTypeValueProcessor();
+        
+        $reflection = new \ReflectionClass($processor);
+        $method = $reflection->getMethod('processCustomClass');
+        $method->setAccessible(true);
+        
+        // This should trigger the processCustomClass null className echo case
+        $result = $method->invoke($processor, 'some_value');
+        self::assertInstanceOf(\stdClass::class, $result);
+    }
+
+    public function testNormalizeTypeWithDateTime(): void
+    {
+        // This should trigger the normalizeType datetime case 
+        $result = $this->processor->normalizeType('datetime');
+        self::assertEquals(\DateTime::class, $result);
+    }
+
+    public function testProcessDateTimeWithNullInput(): void
+    {
+        $processor = new PhpTypeValueProcessor(\DateTime::class);
+        
+        // Use reflection to directly call processDateTime with null (which converts to 'now')
+        $reflection = new \ReflectionClass($processor);
+        $method = $reflection->getMethod('processDateTime');
+        $method->setAccessible(true);
+        
+        // This should trigger the processDateTime non-string case (null -> 'now')
+        $result = $method->invoke($processor, null);
+        self::assertInstanceOf(\DateTime::class, $result);
+    }
+
+    public function testProcessDateTimeImmutableWithNullInput(): void
+    {
+        $processor = new PhpTypeValueProcessor(\DateTimeImmutable::class);
+        
+        // Use reflection to directly call processDateTimeImmutable with null (which converts to 'now')
+        $reflection = new \ReflectionClass($processor);
+        $method = $reflection->getMethod('processDateTimeImmutable');
+        $method->setAccessible(true);
+        
+        // This should trigger the processDateTimeImmutable non-string case (null -> 'now')
+        $result = $method->invoke($processor, null);
+        self::assertInstanceOf(\DateTimeImmutable::class, $result);
+    }
 }

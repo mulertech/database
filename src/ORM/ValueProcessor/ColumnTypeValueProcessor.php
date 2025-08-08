@@ -55,7 +55,8 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             ColumnType::DECIMAL, ColumnType::FLOAT, ColumnType::DOUBLE => $this->convertToFloat($value),
             ColumnType::VARCHAR, ColumnType::CHAR, ColumnType::TEXT,
             ColumnType::TINYTEXT, ColumnType::MEDIUMTEXT, ColumnType::LONGTEXT,
-            ColumnType::ENUM, ColumnType::SET, ColumnType::TIME => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            ColumnType::ENUM, ColumnType::SET,
+            ColumnType::TIME => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->convertToDateString($value),
             ColumnType::JSON => is_array($value) ? $value : (function () use ($value) {
                 $jsonString = is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value));
@@ -66,7 +67,8 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
                 return [];
             })(),
             ColumnType::BINARY, ColumnType::VARBINARY, ColumnType::BLOB,
-            ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB, ColumnType::LONGBLOB => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            ColumnType::TINYBLOB, ColumnType::MEDIUMBLOB,
+            ColumnType::LONGBLOB => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             default => $value,
         };
     }
@@ -84,13 +86,15 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         }
 
         return match (strtolower($type)) {
-            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext',
+            'longtext' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year' => $this->convertToInt($value),
             'float', 'double', 'decimal' => $this->convertToFloat($value),
             'bool', 'boolean', 'tinyint' => $this->convertToBool($value),
             'date', 'datetime', 'timestamp', 'time' => $this->convertToDateString($value),
             'json' => $this->convertToJsonString($value),
-            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob',
+            'longblob' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             default => throw new InvalidArgumentException("Unsupported column type: $type"),
         };
     }
@@ -108,13 +112,16 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         }
 
         return match (strtolower($type)) {
-            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            'string', 'varchar', 'char', 'text', 'tinytext', 'mediumtext',
+            'longtext' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             'int', 'integer', 'smallint', 'mediumint', 'bigint', 'year' => $this->convertToInt($value),
             'float', 'double', 'decimal' => $this->convertToFloat($value),
             'bool', 'boolean', 'tinyint' => $this->convertToBool($value),
-            'date', 'datetime', 'timestamp', 'time' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            'date', 'datetime', 'timestamp',
+            'time' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             'json' => $this->convertToJsonString($value),
-            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob', 'longblob' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
+            'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob',
+            'longblob' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
             default => throw new InvalidArgumentException("Unsupported column type: $type"),
         };
     }
@@ -247,11 +254,7 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             return $value;
         }
 
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            throw new InvalidArgumentException('Invalid JSON data');
-        }
+        return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     /**

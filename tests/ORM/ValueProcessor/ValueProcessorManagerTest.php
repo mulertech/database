@@ -237,4 +237,73 @@ class ValueProcessorManagerTest extends TestCase
         
         self::assertSame($processor3, $processor4);
     }
+
+    public function testProcessValueWithProperty(): void
+    {
+        // This should trigger the processValue echo case with property
+        $user = new User();
+        $reflection = new \ReflectionClass($user);
+        $property = $reflection->getProperty('username');
+        
+        $result = $this->manager->processValue('test', $property);
+        
+        self::assertEquals('test', $result);
+    }
+
+    public function testValidateValueWithNull(): void
+    {
+        // This should trigger the validateValue null echo case
+        $result = $this->manager->validateValue(null, 'string');
+        
+        self::assertTrue($result);
+    }
+
+    public function testValidateValueWithArrayAndObjectTypes(): void
+    {
+        // This should trigger the validateValue array/object types echo case
+        $result = $this->manager->validateValue(['test'], 'array');
+        self::assertTrue($result);
+        
+        $result = $this->manager->validateValue(new \stdClass(), 'object');
+        self::assertTrue($result);
+    }
+
+    public function testCanConvertWithNull(): void
+    {
+        // This should trigger the first canConvert null echo case
+        $result = $this->manager->canConvert(null, 'string');
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanConvertWithSameType(): void
+    {
+        // This should trigger the canConvert same type echo case
+        $result = $this->manager->canConvert('test', 'string');
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanConvertWithStringArrayObjectConversions(): void
+    {
+        // This should trigger the canConvert string/array/object conversions echo case
+        
+        // String conversion (almost anything can be converted to string)
+        $result = $this->manager->canConvert(123, 'string');
+        self::assertTrue($result);
+        
+        // Array conversion
+        $result = $this->manager->canConvert('{"key":"value"}', 'array');
+        self::assertTrue($result);
+        
+        $result = $this->manager->canConvert(new \stdClass(), 'array');
+        self::assertTrue($result);
+        
+        // Object conversion
+        $result = $this->manager->canConvert(['key' => 'value'], 'object');
+        self::assertTrue($result);
+        
+        $result = $this->manager->canConvert('{"key":"value"}', 'object');
+        self::assertTrue($result);
+    }
 }

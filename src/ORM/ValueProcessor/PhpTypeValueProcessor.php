@@ -99,12 +99,10 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             return $value ? 1 : 0;
         }
 
-        if (is_array($value) || is_object($value)) {
-            if ($value instanceof DateTimeInterface) {
-                return $value->format('Y-m-d H:i:s');
-            }
-            return json_encode($value, JSON_THROW_ON_ERROR);
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
         }
+
         return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
@@ -248,11 +246,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             return $value ? 1 : 0;
         }
 
-        if (is_string($value)) {
-            return (int) filter_var($value, FILTER_SANITIZE_NUMBER_INT);
-        }
-
-        return 0;
+        return is_string($value) ? (int) filter_var($value, FILTER_SANITIZE_NUMBER_INT) : 0;
     }
 
     /**
@@ -269,11 +263,9 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             return (float) $value;
         }
 
-        if (is_string($value)) {
-            return (float) filter_var($value, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
-        }
-
-        return 0.0;
+        return is_string($value)
+            ? (float) filter_var($value, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION)
+            : 0.0;
     }
 
     /**
@@ -318,10 +310,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             }
             try {
                 $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-                if (is_array($decoded)) {
-                    return $decoded;
-                }
-                return [$decoded];
+                return is_array($decoded) ? $decoded : [$decoded];
             } catch (JsonException) {
                 throw new InvalidArgumentException('Invalid JSON string');
             }
