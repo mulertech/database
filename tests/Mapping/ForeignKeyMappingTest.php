@@ -179,6 +179,11 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testForeignKeyMappingWithNullReferencedTable(): void
     {
+        // First, we need to mock the entityProcessor to have the entity loaded
+        $this->entityProcessor->expects($this->once())
+            ->method('getEntities')
+            ->willReturn([TestEntityWithNullReferencedTable::class]);
+        
         $constraintName = $this->foreignKeyMapping->getConstraintName(TestEntityWithNullReferencedTable::class, 'someId');
         $referencedTable = $this->foreignKeyMapping->getReferencedTable(TestEntityWithNullReferencedTable::class, 'someId');
         $referencedColumn = $this->foreignKeyMapping->getReferencedColumn(TestEntityWithNullReferencedTable::class, 'someId');
