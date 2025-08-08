@@ -247,4 +247,74 @@ class ChangeDetectorTest extends TestCase
         self::assertNull($data['username'] ?? null);
         self::assertNull($data['age'] ?? null);
     }
+
+    public function testExtractCurrentDataWithTrulyUninitializedProperty(): void
+    {
+        // Create a simple test class with uninitialized properties (no default values)
+        $testEntity = new class {
+            private string $uninitializedString;
+            private int $uninitializedInt;
+            private ?string $initializedString = 'test';
+        };
+        
+        // This should trigger the echo statement at line 70
+        $data = $this->changeDetector->extractCurrentData($testEntity);
+        
+        self::assertIsArray($data);
+        // Uninitialized properties should be set to null
+        self::assertNull($data['uninitializedString']);
+        self::assertNull($data['uninitializedInt']);
+        // Initialized property should have its value
+        self::assertEquals('test', $data['initializedString']);
+    }
+
+    public function testValuesAreEqualWithObjectType(): void
+    {
+        $user1 = new User();
+        $user1->setUsername('John');
+        $user1->setAge(25);
+        
+        $user2 = new User();
+        $user2->setUsername('John');
+        $user2->setAge(30); // Different age to ensure a change
+        
+        $originalData = $this->changeDetector->extractCurrentData($user1);
+        
+        // Modify user2 to trigger the comparison with object types
+        $changeSet = $this->changeDetector->computeChangeSet($user2, $originalData);
+        
+        // This should have triggered the echo statement for object type comparison
+        self::assertFalse($changeSet->isEmpty());
+    }
+
+    public function testValuesAreEqualWithActualObjectType(): void
+    {
+        // Create a test entity with stdClass properties to force object type comparison
+        $entity1 = new class {
+            public \stdClass $objectProperty;
+            
+            public function __construct() {
+                $this->objectProperty = new \stdClass();
+                $this->objectProperty->data = 'test1';
+            }
+        };
+        
+        $entity2 = new class {
+            public \stdClass $objectProperty;
+            
+            public function __construct() {
+                $this->objectProperty = new \stdClass();
+                $this->objectProperty->data = 'test2';
+            }
+        };
+        
+        $originalData = $this->changeDetector->extractCurrentData($entity1);
+        
+        // This should trigger the valuesAreEqual method with actual 'object' types
+        // and should trigger both var_dump and echo statements
+        $changeSet = $this->changeDetector->computeChangeSet($entity2, $originalData);
+        
+        // The change set should reflect the difference in object properties
+        self::assertFalse($changeSet->isEmpty());
+    }
 }

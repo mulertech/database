@@ -351,4 +351,87 @@ class ChangeSetOperationHandlerTest extends TestCase
         $insertions = $this->scheduler->getScheduledInsertions();
         self::assertCount(2, $insertions);
     }
+
+    public function testHandleInsertionSchedulingSkipsInsertion(): void
+    {
+        $user = new User();
+        $user->setId(1);
+        $user->setUsername('John');
+        
+        // Create metadata with MANAGED state to trigger shouldSkipInsertion
+        $entityState = new EntityState(
+            className: User::class,
+            state: EntityLifecycleState::MANAGED,
+            originalData: ['username' => 'John'],
+            lastModified: new \DateTimeImmutable()
+        );
+        
+        // Add entity to identity map with metadata
+        $this->identityMap->add($user, 1, $entityState);
+        
+        // This should trigger the echo statement at line 65
+        $this->handler->handleInsertionScheduling(
+            $user,
+            $this->scheduler,
+            $this->stateManager,
+            $this->entityProcessor
+        );
+        
+        // Verify entity was not scheduled for insertion due to skip condition
+        self::assertFalse($this->scheduler->isScheduledForInsertion($user));
+    }
+
+    public function testHandleEntityLifecycleStateForInsertionWithNonNewState(): void
+    {
+        // Create an entity without an ID to avoid the shouldSkipInsertion condition
+        $user = new User();
+        $user->setUsername('TestUser');
+        // Don't set ID so entityId will be null
+        
+        // Create metadata with MANAGED state (not NEW) 
+        $entityState = new EntityState(
+            className: User::class,
+            state: EntityLifecycleState::MANAGED,
+            originalData: ['username' => 'TestUser'],
+            lastModified: new \DateTimeImmutable()
+        );
+        
+        // Add entity to identity map with MANAGED state
+        // Use null as ID since entity has no ID
+        $this->identityMap->add($user, null, $entityState);
+        
+        // This should trigger handleEntityLifecycleStateForInsertion
+        // with metadata that has state MANAGED (not NEW), triggering echo at line 159
+        $this->handler->handleInsertionScheduling(
+            $user,
+            $this->scheduler,
+            $this->stateManager,
+            $this->entityProcessor
+        );
+        
+        // Verify entity was scheduled for insertion
+        self::assertTrue($this->scheduler->isScheduledForInsertion($user));
+    }
+
+    public function testHandleInsertionSchedulingWithEntityIdAndNullMetadata(): void
+    {
+        $user = new User();
+        $user->setId(4);
+        $user->setUsername('TestUser');
+        
+        // Don't add to identity map, so metadata will be null
+        // but entity has ID, so shouldSkipInsertion should return true
+        
+        // This should trigger the echo statement at line 65
+        $this->handler->handleInsertionScheduling(
+            $user,
+            $this->scheduler,
+            $this->stateManager,
+            $this->entityProcessor
+        );
+        
+        // Since shouldSkipInsertion returns true for entities with ID,
+        // the entity should not be scheduled
+        self::assertFalse($this->scheduler->isScheduledForInsertion($user));
+    }
 }

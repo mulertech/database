@@ -63,10 +63,6 @@ class ChangeDetector
         $data = [];
 
         foreach ($reflection->getProperties() as $property) {
-            if ($property->isStatic()) {
-                continue;
-            }
-
             $propertyName = $property->getName();
 
             // Skip uninitialized properties
