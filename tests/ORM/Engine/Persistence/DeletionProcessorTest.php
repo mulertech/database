@@ -8,6 +8,7 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutGetId;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -72,5 +73,21 @@ class DeletionProcessorTest extends TestCase
         $this->deletionProcessor->execute($user);
         
         $this->assertTrue(true);
+    }
+
+    public function testProcessEntityWithoutGetIdMethod(): void
+    {
+        $entity = new EntityWithoutGetId();
+        $entity->setId(123);
+        $entity->setName('Test');
+        
+        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEngine);
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The entity ' . EntityWithoutGetId::class . ' must have a getId method');
+        
+        $this->deletionProcessor->process($entity);
     }
 }

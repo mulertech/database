@@ -75,7 +75,11 @@ class SchemaComparerTest extends TestCase
     public function testCompareFindsNewTables(): void
     {
         // Database has no tables
-        $schemaComparer = new SchemaComparer($this->informationSchema, $this->entityManager->getMetadataCache(), $this->databaseName);
+        $schemaComparer = new SchemaComparer(
+            $this->informationSchema,
+            $this->entityManager->getMetadataCache(),
+            $this->databaseName
+        );
         $diff = $schemaComparer->compare();
         $this->assertTrue($diff->hasDifferences());
         $this->assertEquals([
