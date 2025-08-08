@@ -118,13 +118,6 @@ final readonly class EntityMetadata
         return null;
     }
 
-    /**
-     * @return array<ReflectionMethod>
-     */
-    public function getGetters(): array
-    {
-        return $this->getters;
-    }
 
     /**
      * @param string $property
@@ -141,13 +134,6 @@ final readonly class EntityMetadata
         return null;
     }
 
-    /**
-     * @return array<ReflectionMethod>
-     */
-    public function getSetters(): array
-    {
-        return $this->setters;
-    }
 
     /**
      * @param string $property

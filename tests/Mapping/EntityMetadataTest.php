@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Mapping;
 
+use DateTime;
 use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use ReflectionMethod;
+use ReflectionProperty;
 
 #[CoversClass(EntityMetadata::class)]
 class EntityMetadataTest extends TestCase
@@ -246,5 +251,230 @@ class EntityMetadataTest extends TestCase
         $this->assertCount(1, $metadata->getRelationsByType('oneToMany'));
         $this->assertCount(1, $metadata->getRelationsByType('manyToOne'));
         $this->assertCount(1, $metadata->getRelationsByType('manyToMany'));
+    }
+
+    public function testGetRepositoryReturnsRepositoryClass(): void
+    {
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            repository: 'App\\Repository\\TestEntityRepository'
+        );
+
+        $this->assertEquals('App\\Repository\\TestEntityRepository', $metadata->getRepository());
+    }
+
+    public function testGetRepositoryReturnsNullWhenNotSet(): void
+    {
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities'
+        );
+
+        $this->assertNull($metadata->getRepository());
+    }
+
+    public function testGetPropertiesReturnsAllProperties(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties
+        );
+
+        $this->assertEquals($properties, $metadata->getProperties());
+        $this->assertCount(7, $metadata->getProperties());
+    }
+
+    public function testGetPropertyReturnsCorrectProperty(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties
+        );
+
+        $idProperty = $metadata->getProperty('id');
+        $this->assertInstanceOf(ReflectionProperty::class, $idProperty);
+        $this->assertEquals('id', $idProperty->getName());
+
+        $nameProperty = $metadata->getProperty('name');
+        $this->assertInstanceOf(ReflectionProperty::class, $nameProperty);
+        $this->assertEquals('name', $nameProperty->getName());
+    }
+
+    public function testGetPropertyReturnsNullForNonExistentProperty(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties
+        );
+
+        $this->assertNull($metadata->getProperty('nonExistent'));
+    }
+
+    public function testGetGetterReturnsCorrectGetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $getters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            getters: $getters
+        );
+
+        $this->assertEquals('getId', $metadata->getGetter('id'));
+        $this->assertEquals('getName', $metadata->getGetter('name'));
+        $this->assertEquals('isActive', $metadata->getGetter('active'));
+        $this->assertEquals('hasPermission', $metadata->getGetter('permission'));
+    }
+
+    public function testGetGetterReturnsNullForNonExistentGetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $getters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            getters: $getters
+        );
+
+        $this->assertNull($metadata->getGetter('nonExistent'));
+    }
+
+    public function testGetSetterReturnsCorrectSetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $setters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            setters: $setters
+        );
+
+        $this->assertEquals('setId', $metadata->getSetter('id'));
+        $this->assertEquals('setName', $metadata->getSetter('name'));
+        $this->assertEquals('setActive', $metadata->getSetter('active'));
+    }
+
+    public function testGetSetterReturnsNullForNonExistentSetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $setters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            setters: $setters
+        );
+
+        $this->assertNull($metadata->getSetter('nonExistent'));
+    }
+
+    public function testGetColumnTypeReturnsCorrectTypes(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties
+        );
+
+        $this->assertEquals(ColumnType::INT, $metadata->getColumnType('id'));
+        $this->assertEquals(ColumnType::VARCHAR, $metadata->getColumnType('name'));
+        $this->assertEquals(ColumnType::TINYINT, $metadata->getColumnType('active'));
+        $this->assertEquals(ColumnType::DATETIME, $metadata->getColumnType('createdAt'));
+        $this->assertEquals(ColumnType::JSON, $metadata->getColumnType('metadata'));
+        $this->assertEquals(ColumnType::FLOAT, $metadata->getColumnType('score'));
+    }
+
+    public function testGetColumnTypeReturnsNullForNonExistentProperty(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties
+        );
+
+        $this->assertNull($metadata->getColumnType('nonExistent'));
+    }
+
+    public function testGetColumnTypeReturnsNullForUnsupportedType(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties
+        );
+
+        // Test with a property that has no type or unsupported type
+        $this->assertNull($metadata->getColumnType('untypedProperty'));
+    }
+}
+
+class TestEntityForReflection
+{
+    public int $id;
+    public string $name;
+    public bool $active;
+    public DateTime $createdAt;
+    public array $metadata;
+    public float $score;
+    public $untypedProperty;
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->active;
+    }
+
+    public function hasPermission(): bool
+    {
+        return true;
+    }
+
+    public function setId(int $id): void
+    {
+        $this->id = $id;
+    }
+
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    public function setActive(bool $active): void
+    {
+        $this->active = $active;
     }
 }

@@ -1,4 +1,3 @@
-g status
 git branch -M main
 git push -u origin main
 gco "update cv.html"
@@ -998,3 +997,4 @@ cd \\wsl.localhost\Ubuntu\home\mulertech\projects\database && ./vendor/bin/mtdoc
 cd "\\wsl.localhost\Ubuntu\home\mulertech\projects\database" && ./vendor/bin/mtdocker test
 cd /mnt/c/wsl.localhost/Ubuntu/home/mulertech/projects/database && ./vendor/bin/mtdocker test
 cd "\\wsl.localhost\Ubuntu\home\mulertech\projects\database" && ./vendor/bin/mtdocker test
+claude
