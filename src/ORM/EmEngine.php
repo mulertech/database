@@ -20,7 +20,6 @@ use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Query\Builder\SelectBuilder;
 use PDO;
-use ReflectionClass;
 use ReflectionException;
 
 /**
@@ -30,8 +29,6 @@ use ReflectionException;
  *
  * @package MulerTech\Database
  * @author Sébastien Muler
- * @todo Use only MtEntity entity getters and setters instead of reflections.
- * @todo You can retrieve the names of the setter and getter methods in EntityMetadata getGetter and getSetter.
  */
 class EmEngine
 {
@@ -614,8 +611,6 @@ class EmEngine
             $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
             $propertiesColumns = $entityMetadata->getPropertiesColumns();
 
-            $reflection = new ReflectionClass($entity);
-
             foreach ($propertiesColumns as $property => $column) {
                 if (!isset($dbData[$column])) {
                     continue;
@@ -626,13 +621,11 @@ class EmEngine
                     continue;
                 }
 
-                if ($reflection->hasProperty($property)) {
-                    $reflectionProperty = $reflection->getProperty($property);
-
+                $setterMethod = $entityMetadata->getSetter($property);
+                if ($setterMethod !== null && method_exists($entity, $setterMethod)) {
                     // Process the value according to its type
-                    $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
                     $value = $this->hydrator->processValue($entityMetadata, $property, $dbData[$column]);
-                    $reflectionProperty->setValue($entity, $value);
+                    $entity->$setterMethod($value);
                 }
             }
 
@@ -718,7 +711,20 @@ class EmEngine
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        // Try common getter methods
+        $entityClass = $entity::class;
+        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+
+        foreach (['id', 'uuid', 'identifier'] as $property) {
+            $getterMethod = $entityMetadata->getGetter($property);
+            if ($getterMethod !== null && method_exists($entity, $getterMethod)) {
+                $id = $entity->$getterMethod();
+                if (is_int($id) || is_string($id)) {
+                    return $id;
+                }
+            }
+        }
+
+        // Fallback to common getter methods if metadata approach fails
         if (method_exists($entity, 'getId')) {
             $id = $entity->getId();
             if (is_int($id) || is_string($id)) {
@@ -737,19 +743,6 @@ class EmEngine
             $id = $entity->getUuid();
             if (is_int($id) || is_string($id)) {
                 return $id;
-            }
-        }
-
-        // Try direct property access
-        $reflection = new ReflectionClass($entity);
-
-        foreach (['id', 'uuid', 'identifier'] as $property) {
-            if ($reflection->hasProperty($property)) {
-                $prop = $reflection->getProperty($property);
-                $value = $prop->getValue($entity);
-                if (is_int($value) || is_string($value)) {
-                    return $value;
-                }
             }
         }
 

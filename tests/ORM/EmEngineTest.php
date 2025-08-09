@@ -14,6 +14,8 @@ use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithGetIdentifier;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithGetUuid;
 use MulerTech\Database\Query\Builder\SelectBuilder;
 use MulerTech\Database\Database\Interface\Statement;
 use MulerTech\EventManager\EventManager;
@@ -726,18 +728,12 @@ class EmEngineTest extends TestCase
     public function testExtractEntityIdWithGetIdentifierMethod(): void
     {
         // Create a test entity with getIdentifier method
-        $entity = new class {
-            public function getIdentifier(): int
-            {
-                return 123;
-            }
-        };
+        $entity = new EntityWithGetIdentifier();
         
         // Use reflection to access the private method
         $reflection = new \ReflectionClass($this->emEngine);
         $method = $reflection->getMethod('extractEntityId');
-        $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->emEngine, $entity);
         
         self::assertEquals(123, $result);
@@ -746,38 +742,15 @@ class EmEngineTest extends TestCase
     public function testExtractEntityIdWithGetUuidMethod(): void
     {
         // Create a test entity with getUuid method
-        $entity = new class {
-            public function getUuid(): string
-            {
-                return 'uuid-123';
-            }
-        };
+        $entity = new EntityWithGetUuid();
         
         // Use reflection to access the private method
         $reflection = new \ReflectionClass($this->emEngine);
         $method = $reflection->getMethod('extractEntityId');
-        $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->emEngine, $entity);
         
         self::assertEquals('uuid-123', $result);
-    }
-
-    public function testExtractEntityIdWithDirectPropertyAccess(): void
-    {
-        // Create a test entity with direct property access
-        $entity = new class {
-            public int $identifier = 456;
-        };
-        
-        // Use reflection to access the private method
-        $reflection = new \ReflectionClass($this->emEngine);
-        $method = $reflection->getMethod('extractEntityId');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($this->emEngine, $entity);
-        
-        self::assertEquals(456, $result);
     }
 
     public function testGetChangeSetWithNullMetadata(): void
