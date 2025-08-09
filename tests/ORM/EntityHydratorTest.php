@@ -2,10 +2,11 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use DateTime;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityHydrator;
+use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithNonNullableProperty;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
@@ -57,22 +58,19 @@ class EntityHydratorTest extends TestCase
     }
 
     /**
-     * Test hydration with null values
+     * Test hydration with null values for nullable properties
      * @throws ReflectionException
      */
     public function testHydrateWithNullValues(): void
     {
         $data = [
-            'id' => null,
-            'username' => null,
+            'size' => null, // This is nullable in the User entity
         ];
 
-        // The hydrator should handle null values gracefully, not throw TypeError
-        // since the properties are nullable in the entity
+        // The hydrator should handle null values gracefully for nullable properties
         $hydratedEntity = $this->hydrator->hydrate($data, User::class);
         
-        $this->assertNull($hydratedEntity->getId());
-        $this->assertNull($hydratedEntity->getUsername());
+        $this->assertNull($hydratedEntity->getSize());
     }
 
     public function testGetMetadataCache(): void
@@ -149,5 +147,37 @@ class EntityHydratorTest extends TestCase
         $result = $this->hydrator->processValue($metadata, 'username', 'test_value');
         
         self::assertEquals('test_value', $result);
+    }
+
+    /**
+     * Test hydration throws exception when trying to hydrate null into a non-nullable property
+     */
+    public function testHydrateThrowsExceptionForNonNullableProperty(): void
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Property requiredField of MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithNonNullableProperty cannot be null');
+
+        $data = [
+            'required_field' => null, // Trying to set null to a non-nullable property
+            'optional_field' => 'valid_value',
+        ];
+
+        $this->hydrator->hydrate($data, EntityWithNonNullableProperty::class);
+    }
+
+    /**
+     * Test hydration succeeds when nullable property is null but non-nullable property has value
+     */
+    public function testHydrateSucceedsWithValidNonNullableValue(): void
+    {
+        $data = [
+            'required_field' => 'required_value',
+            'optional_field' => null, // This should be fine since it's nullable
+        ];
+
+        $entity = $this->hydrator->hydrate($data, EntityWithNonNullableProperty::class);
+
+        self::assertEquals('required_value', $entity->getRequiredField());
+        self::assertNull($entity->getOptionalField());
     }
 }

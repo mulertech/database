@@ -8,6 +8,7 @@ use Error;
 use Exception;
 use JsonException;
 use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\ColumnMapping;
 use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\Exception\HydrationException;
@@ -22,6 +23,7 @@ use ReflectionException;
 class EntityHydrator implements EntityHydratorInterface
 {
     private ValueProcessorManager $valueProcessorManager;
+    private ColumnMapping $columnMapping;
 
     /**
      * @param MetadataCache $metadataCache
@@ -29,6 +31,7 @@ class EntityHydrator implements EntityHydratorInterface
     public function __construct(private readonly MetadataCache $metadataCache)
     {
         $this->valueProcessorManager = new ValueProcessorManager($this);
+        $this->columnMapping = new ColumnMapping();
     }
 
     /**
@@ -52,14 +55,19 @@ class EntityHydrator implements EntityHydratorInterface
 
         try {
             foreach ($metadata->getPropertiesColumns() as $property => $column) {
-                if (!isset($data[$column]) || $this->isRelationProperty($metadata, $property)) {
+                if ($this->isRelationProperty($metadata, $property)) {
+                    continue;
+                }
+
+                // Skip properties not in the data array entirely (they weren't provided)
+                if (!array_key_exists($column, $data)) {
                     continue;
                 }
 
                 $value = $data[$column];
                 $processedValue = $this->processValue($metadata, $property, $value);
 
-                // Validate nullable constraints
+                // Validate nullable constraints - let this exception bubble up directly
                 if ($processedValue === null && !$this->isPropertyNullable($metadata, $property)) {
                     throw HydrationException::propertyCannotBeNull($property, $entityName);
                 }
@@ -69,9 +77,10 @@ class EntityHydrator implements EntityHydratorInterface
                     $entity->$setter($processedValue);
                     continue;
                 }
-
-                $entity->$property = $processedValue;
             }
+        } catch (HydrationException $e) {
+            // Re-throw HydrationExceptions directly to preserve their specific message and type
+            throw $e;
         } catch (Exception $e) {
             throw HydrationException::failedToHydrateEntity($entityName, $e);
         }
@@ -99,8 +108,6 @@ class EntityHydrator implements EntityHydratorInterface
                     $data[$columnName] = $entity->$getter();
                     continue;
                 }
-
-                $data[$columnName] = $entity->$propertyName ?? null;
             } catch (Error|Exception) {
                 $data[$columnName] = null;
             }
@@ -152,15 +159,11 @@ class EntityHydrator implements EntityHydratorInterface
      * @param EntityMetadata $metadata
      * @param string $propertyName
      * @return bool
+     * @throws ReflectionException
      */
     private function isPropertyNullable(EntityMetadata $metadata, string $propertyName): bool
     {
-        // Defensive: check if property exists and has nullable info
-        $property = $metadata->getProperty($propertyName);
-        if ($property && $property->getType() !== null) {
-            return $property->getType()->allowsNull();
-        }
-        return true;
+        return $this->columnMapping->isNullable($metadata->className, $propertyName) ?? true;
     }
 
     /**
