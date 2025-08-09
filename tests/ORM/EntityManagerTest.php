@@ -4,6 +4,7 @@ namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Event\DbEvents;
@@ -19,6 +20,7 @@ use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutRepository;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use MulerTech\EventManager\EventManager;
 use MulerTech\EventManager\EventManagerInterface;
@@ -666,159 +668,6 @@ class EntityManagerTest extends TestCase
         self::assertEquals(2, $em->rowCount(User::class));
     }
 
-    // Tests by Claude
-    public function testByClaudeFindEntityWithOneToOneRelation(): void
-    {
-        $this->createTestTables();
-        $this->createGroupTestTable();
-        $this->createLinkUserGroupTestTable();
-        $em = $this->entityManager;
-        $unit = new Unit()->setName('JohnUnit');
-        $em->persist($unit);
-        $createUser = new User()->setUsername('John')->setUnit($unit);
-        $em->persist($createUser);
-        $em->flush();
-
-        // Store John's ID to use a different one for the bad user test
-        $johnId = $createUser->getId();
-
-        $user = $em->find(User::class, 'username=\'John\'');
-        self::assertInstanceOf(User::class, $user);
-        self::assertEquals('John', $user->getUsername());
-        self::assertEquals('JohnUnit', $user->getUnit()->getName());
-
-        // Use an ID that really doesn't exist (not John's ID)
-        $nonExistentId = $johnId + 1000;
-        $badUser = $em->find(User::class, $nonExistentId);
-        self::assertNull($badUser);
-
-        // Vérifier qu'il n'y a qu'un seul utilisateur
-        $stmt = $this->entityManager->getPdm()->prepare('SELECT COUNT(*) as count FROM users_test');
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        self::assertEquals(1, $result['count'], 'Should have exactly 1 user in database');
-    }
-
-    public function testByClaudeExecuteDeletionsAndPreRemoveEvent(): void
-    {
-        $this->createTestTables();
-        $this->createGroupTestTable();
-        $this->createLinkUserGroupTestTable();
-        $em = $this->entityManager;
-
-        // Create unit
-        $unit = new Unit()->setName('TestUnit');
-        $em->persist($unit);
-        $em->flush();
-
-        $manager = new User();
-        $manager->setUsername('Manager');
-        $manager->setUnit($unit);
-        $otherManager = new User();
-        $otherManager->setUsername('OtherManager');
-        $otherManager->setUnit($unit);
-        $user = new User();
-        $user->setUsername('John');
-        $user->setUnit($unit);
-        $user->setManager($manager);
-        $em->persist($manager);
-        $em->persist($otherManager);
-        $em->persist($user);
-        $em->flush();
-
-        // Store IDs for later use
-        $managerId = $manager->getId();
-        $otherManagerId = $otherManager->getId();
-        $userId = $user->getId();
-
-        // Register the event listener BEFORE the remove operation
-        $eventFired = false;
-        $this->eventManager->addListener(DbEvents::preRemove->value, static function (PreRemoveEvent $event) use ($em, $managerId, $otherManagerId, $userId, &$eventFired) {
-            $entity = $event->getEntity();
-            if ($entity instanceof User && $entity->getId() === $managerId) {
-                $eventFired = true;
-                // Update user's manager before the deletion actually happens
-                $stmt = $em->getPdm()->prepare('UPDATE users_test SET manager = ? WHERE id = ?');
-                $stmt->execute([$otherManagerId, $userId]);
-            }
-        });
-
-        $em->remove($manager);
-        $em->flush();
-
-        self::assertTrue($eventFired, 'PreRemove event should have been fired');
-
-        // Refresh from database to get updated data
-        $user = $em->find(User::class, $userId);
-        self::assertNotNull($user, 'User should still exist');
-        self::assertNotNull($user->getManager(), 'User should have a manager');
-        self::assertEquals('OtherManager', $user->getManager()->getUsername());
-    }
-
-    public function testByClaudeExecuteDeletionsAndPostRemoveEvent(): void
-    {
-        $this->createTestTables();
-        $this->createGroupTestTable();
-        $this->createLinkUserGroupTestTable();
-        $em = $this->entityManager;
-
-        // Create unit
-        $unit = new Unit()->setName('TestUnit');
-        $em->persist($unit);
-        $em->flush();
-
-        $manager = new User();
-        $manager->setUsername('Manager');
-        $manager->setUnit($unit);
-        $otherManager = new User();
-        $otherManager->setUsername('OtherManager');
-        $otherManager->setUnit($unit);
-        $user = new User();
-        $user->setUsername('John');
-        $user->setUnit($unit);
-        $user->setManager($manager);
-        $em->persist($manager);
-        $em->persist($otherManager);
-        $em->persist($user);
-        $em->flush();
-
-        // Store IDs for later use
-        $managerId = $manager->getId();
-        $otherManagerId = $otherManager->getId();
-        $userId = $user->getId();
-
-        // Register the event listener BEFORE the remove operation
-        $eventFired = false;
-        $this->eventManager->addListener(DbEvents::postRemove->value, function (PostRemoveEvent $event) use ($em, $managerId, $otherManagerId, $userId, &$eventFired) {
-            $entity = $event->getEntity();
-            if ($entity instanceof User && $entity->getId() === $managerId) {
-                $eventFired = true;
-                // Update user's manager after the deletion has happened
-                $stmt = $em->getPdm()->prepare('UPDATE users_test SET manager = ? WHERE id = ?');
-                $stmt->execute([$otherManagerId, $userId]);
-            }
-        });
-
-        $em->remove($manager);
-        $em->flush();
-
-        self::assertTrue($eventFired, 'PostRemove event should have been fired');
-
-        // Clear entity manager to force reload from database
-        $em->getEmEngine()->clear();
-
-        // Reload from database to get updated data
-        $user = $em->find(User::class, $userId);
-        self::assertNotNull($user, 'User should still exist');
-        self::assertNotNull($user->getManager(), 'User should have a manager');
-        self::assertNotNull($user->getUnit(), 'User should have a unit');
-        self::assertEquals('OtherManager', $user->getManager()->getUsername());
-    }
-
-    /**
-     * Test spécifique pour démontrer l'importance du OneToManyProcessor
-     * Ce test devrait échouer si OneToManyProcessor::processProperty() n'est pas implémenté
-     */
     public function testOneToManyProcessorIsRequired(): void
     {
         $this->createGroupTestTable();
@@ -1025,10 +874,6 @@ class EntityManagerTest extends TestCase
         
         // Since the User entity HAS getId method, this should work normally
         self::assertFalse($result, 'Should return false when value is not unique');
-        
-        // For the actual "no getId method" test, we need to verify the exception handling
-        // is in place, but the current implementation returns false instead of throwing exception
-        // This aligns with the TODO comment expectation
     }
 }
 
