@@ -167,6 +167,7 @@ class EntityManager implements EntityManagerInterface
         });
 
         if (empty($matchingResults)) {
+            // Todo: add test for this case
             return true;
         }
 
@@ -175,6 +176,7 @@ class EntityManager implements EntityManagerInterface
         }
 
         if (!method_exists(current($matchingResults), 'getId')) {
+            // Todo: add test for this case
             return false;
         }
 
