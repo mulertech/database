@@ -656,6 +656,88 @@ class EntityManagerTest extends TestCase
         self::assertTrue($em->isUnique(User::class, 'size', '165', 4));
     }
 
+
+    public function testIsUniqueThrowsExceptionForInvalidColumnMapping(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('does not have a valid table or column mapping');
+
+        // Create a standalone EntityManager without database connection for this test
+        $metadataCache = new MetadataCache();
+        // Load the specific entity that has invalid column mapping
+        $metadataCache->loadEntitiesFromPath(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
+        );
+
+        // Create a mock database interface that won't be used for this test
+        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $em = new EntityManager($mockPdm, $metadataCache);
+
+        $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
+    }
+
+    public function testIsUniqueReturnsTrueWhenMatchingResultsEmpty(): void
+    {
+        $this->createTestTables();
+        $em = $this->entityManager;
+
+        // Insert data with specific numeric values that will be filtered out
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare('INSERT INTO users_test (id, size) VALUES (:id, :size)');
+        $statement->execute(['id' => 1, 'size' => 100]);
+
+        // Search for a different numeric value that will cause the filtering logic to kick in
+        // The filtering logic removes numeric values that don't match
+        $result = $em->isUnique(User::class, 'size', 200);
+
+        self::assertTrue($result, 'Should return true when matching results is empty after filtering');
+    }
+
+    public function testIsUniqueReturnsFalseWhenMultipleMatchingResults(): void
+    {
+        $this->createTestTables();
+        $em = $this->entityManager;
+
+        // Insert multiple users with the same username
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 1, 'username' => 'duplicate']);
+        $statement->execute(['id' => 2, 'username' => 'duplicate']);
+
+        $result = $em->isUnique(User::class, 'username', 'duplicate');
+
+        self::assertFalse($result, 'Should return false when multiple matching results exist');
+    }
+
+    /**
+     * Test isUnique returns false when entity doesn't have getId method
+     */
+    public function testIsUniqueReturnsFalseWhenEntityHasNoGetIdMethod(): void
+    {
+        $this->createTestTables();
+        $em = $this->entityManager;
+
+        // Create entity_without_get_id table
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare(
+            'CREATE TABLE IF NOT EXISTS entity_without_get_id (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL)'
+        );
+        $statement->execute();
+
+        // We need to manually insert data for EntityWithoutGetId since it can't be managed normally
+        // But for this test, we'll use a User entity first to create the scenario
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare('INSERT INTO entity_without_get_id (id, name) VALUES (:id, :name)');
+        $statement->execute(['id' => 1, 'name' => 'test']);
+
+        $result = $em->isUnique(EntityWithoutGetId::class, 'name', 'test');
+        self::assertFalse($result, 'Should return false when value is not unique');
+
+        // Remove entity_without_get_id table after test
+        $statement = $pdo->prepare('DROP TABLE IF EXISTS entity_without_get_id');
+        $statement->execute();
+    }
+
     public function testRowsCount(): void
     {
         $this->createTestTables();
@@ -787,93 +869,6 @@ class EntityManagerTest extends TestCase
         $em = new EntityManager($mockPdm, $metadataCache);
         
         $em->getRepository(EntityWithoutGetId::class);
-    }
-
-    /**
-     * Test isUnique throws exception when column mapping is invalid
-     */
-    public function testIsUniqueThrowsExceptionForInvalidColumnMapping(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('does not have a valid table or column mapping');
-
-        // Create a standalone EntityManager without database connection for this test
-        $metadataCache = new MetadataCache();
-        // Load the specific entity that has invalid column mapping
-        $metadataCache->loadEntitiesFromPath(
-            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
-        );
-        
-        // Create a mock database interface that won't be used for this test
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $em = new EntityManager($mockPdm, $metadataCache);
-        
-        $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
-    }
-
-    /**
-     * Test isUnique returns true when matching results is empty after filtering
-     */
-    public function testIsUniqueReturnsTrueWhenMatchingResultsEmpty(): void
-    {
-        $this->createTestTables();
-        $em = $this->entityManager;
-        
-        // Insert data with specific numeric values that will be filtered out
-        $pdo = $this->entityManager->getPdm();
-        $statement = $pdo->prepare('INSERT INTO users_test (id, size) VALUES (:id, :size)');
-        $statement->execute(['id' => 1, 'size' => 100]);
-        
-        // Search for a different numeric value that will cause the filtering logic to kick in
-        // The filtering logic removes numeric values that don't match
-        $result = $em->isUnique(User::class, 'size', 200);
-        
-        self::assertTrue($result, 'Should return true when matching results is empty after filtering');
-    }
-
-    /**
-     * Test isUnique returns false when multiple matching results exist
-     */
-    public function testIsUniqueReturnsFalseWhenMultipleMatchingResults(): void
-    {
-        $this->createTestTables();
-        $em = $this->entityManager;
-        
-        // Insert multiple users with the same username
-        $pdo = $this->entityManager->getPdm();
-        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
-        $statement->execute(['id' => 1, 'username' => 'duplicate']);
-        $statement->execute(['id' => 2, 'username' => 'duplicate']);
-        
-        $result = $em->isUnique(User::class, 'username', 'duplicate');
-        
-        self::assertFalse($result, 'Should return false when multiple matching results exist');
-    }
-
-    /**
-     * Test isUnique returns false when entity doesn't have getId method
-     */
-    public function testIsUniqueReturnsFalseWhenEntityHasNoGetIdMethod(): void
-    {
-        $this->createTestTables();
-        $em = $this->entityManager;
-        
-        // We need to manually insert data for EntityWithoutGetId since it can't be managed normally
-        // But for this test, we'll use a User entity first to create the scenario
-        $pdo = $this->entityManager->getPdm();
-        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
-        $statement->execute(['id' => 1, 'username' => 'test']);
-        
-        // Now we'll test the scenario where an entity without getId method would be processed
-        // We can't directly use EntityWithoutGetId because it requires proper table setup,
-        // but we can test the logic by checking isUnique with the existing User data
-        // and confirming the behavior when getId is missing (which is handled in the method)
-        
-        // This test verifies the logic path where method_exists check fails
-        $result = $em->isUnique(User::class, 'username', 'test');
-        
-        // Since the User entity HAS getId method, this should work normally
-        self::assertFalse($result, 'Should return false when value is not unique');
     }
 }
 

@@ -166,17 +166,11 @@ class EntityManager implements EntityManagerInterface
             return !(is_numeric($value) && is_numeric($search) && $value != $search);
         });
 
-        if (empty($matchingResults)) {
-            echo 'Test do not pass here';
-            return true;
-        }
-
         if (count($matchingResults) > 1) {
             return false;
         }
 
         if (!method_exists(current($matchingResults), 'getId')) {
-            echo 'Test do not pass here';
             return false;
         }
 
