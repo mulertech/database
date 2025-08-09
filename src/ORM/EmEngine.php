@@ -724,28 +724,6 @@ class EmEngine
             }
         }
 
-        // Fallback to common getter methods if metadata approach fails
-        if (method_exists($entity, 'getId')) {
-            $id = $entity->getId();
-            if (is_int($id) || is_string($id)) {
-                return $id;
-            }
-        }
-
-        if (method_exists($entity, 'getIdentifier')) {
-            $id = $entity->getIdentifier();
-            if (is_int($id) || is_string($id)) {
-                return $id;
-            }
-        }
-
-        if (method_exists($entity, 'getUuid')) {
-            $id = $entity->getUuid();
-            if (is_int($id) || is_string($id)) {
-                return $id;
-            }
-        }
-
         return null;
     }
 
