@@ -343,4 +343,101 @@ class WhereClauseBuilderTest extends TestCase
         
         $this->assertEquals(4, $this->builder->count());
     }
+
+    public function testInWithEmptyArray(): void
+    {
+        $sql = $this->builder
+            ->equal('status', 'active')
+            ->in('role', [])
+            ->toSql();
+        
+        // IN with empty array should generate "1 = 0" (always false)
+        $this->assertStringContainsString('1 = 0', $sql);
+        $this->assertEquals(2, $this->builder->count());
+    }
+
+    public function testNotInWithEmptyArray(): void
+    {
+        $sql = $this->builder
+            ->equal('status', 'active')
+            ->notIn('role', [])
+            ->toSql();
+        
+        // NOT IN with empty array should generate "1 = 1" (always true)
+        $this->assertStringContainsString('1 = 1', $sql);
+        $this->assertEquals(2, $this->builder->count());
+    }
+
+    public function testMergeWithNestedGroups(): void
+    {
+        // Create first builder with a group
+        $builder1 = new WhereClauseBuilder(new QueryParameterBag());
+        $builder1->equal('status', 'active')
+                 ->group(function(WhereClauseBuilder $group) {
+                     $group->equal('role', 'admin')
+                           ->equal('verified', true, LinkOperator::OR);
+                 });
+
+        // Create second builder with another group
+        $builder2 = new WhereClauseBuilder(new QueryParameterBag());
+        $builder2->equal('age', 18)
+                 ->group(function(WhereClauseBuilder $group) {
+                     $group->equal('country', 'US')
+                           ->equal('country', 'CA', LinkOperator::OR);
+                 });
+
+        // Merge builders
+        $builder1->merge($builder2);
+        
+        $sql = $builder1->toSql();
+        
+        // Should contain conditions from both builders including their groups
+        $this->assertStringContainsString('status', $sql);
+        $this->assertStringContainsString('age', $sql);
+        $this->assertEquals(4, $builder1->count()); // 2 regular conditions + 2 group conditions
+    }
+
+    public function testInAndNotInEdgeCases(): void
+    {
+        // Test that IN with empty array behaves correctly in complex queries
+        $sql = $this->builder
+            ->equal('active', 1)
+            ->in('invalid_role', [])  // This should make the whole condition false
+            ->equal('verified', 1)
+            ->toSql();
+        
+        $this->assertStringContainsString('`active` = ', $sql);
+        $this->assertStringContainsString('1 = 0', $sql);
+        $this->assertStringContainsString('`verified` = ', $sql);
+    }
+
+    public function testComplexMergeScenario(): void
+    {
+        // Test merging builders with various condition types
+        $builder1 = new WhereClauseBuilder(new QueryParameterBag());
+        $builder1->equal('name', 'John')
+                 ->between('age', 18, 65);
+
+        $builder2 = new WhereClauseBuilder(new QueryParameterBag());
+        $builder2->like('email', '%@gmail.com')
+                 ->in('status', ['active', 'pending'])
+                 ->group(function(WhereClauseBuilder $group) {
+                     $group->isNotNull('phone')
+                           ->isNotNull('address', LinkOperator::OR);
+                 });
+
+        $originalCount1 = $builder1->count();
+        $originalCount2 = $builder2->count();
+        
+        $builder1->merge($builder2);
+        
+        // Total count should be sum of both builders
+        $this->assertEquals($originalCount1 + $originalCount2, $builder1->count());
+        
+        $sql = $builder1->toSql();
+        $this->assertStringContainsString('name', $sql);
+        $this->assertStringContainsString('BETWEEN', $sql);
+        $this->assertStringContainsString('LIKE', $sql);
+        $this->assertStringContainsString('IN', $sql);
+    }
 }
