@@ -117,4 +117,91 @@ class DeleteBuilderTest extends TestCase
             $this->assertSame($builder, $result);
         }
     }
+
+    public function testQueryModifiers(): void
+    {
+        $sql = $this->builder
+            ->from('users')
+            ->ignore()
+            ->toSql();
+        
+        $this->assertStringContainsString('DELETE IGNORE', $sql);
+    }
+
+    public function testQueryModifiersWithLowPriority(): void
+    {
+        $sql = $this->builder
+            ->from('users')
+            ->lowPriority()
+            ->toSql();
+        
+        $this->assertStringContainsString('DELETE LOW_PRIORITY', $sql);
+    }
+
+    public function testQueryModifiersIgnoreAndLowPriority(): void
+    {
+        $sql = $this->builder
+            ->from('users')
+            ->ignore()
+            ->lowPriority()
+            ->toSql();
+        
+        $this->assertStringContainsString('DELETE LOW_PRIORITY IGNORE', $sql);
+    }
+
+    public function testJoinClause(): void
+    {
+        $sql = $this->builder
+            ->from('users', 'u')
+            ->innerJoin('profiles', 'u.id', 'p.user_id', 'p')
+            ->toSql();
+        
+        $this->assertStringContainsString('INNER JOIN', $sql);
+        $this->assertStringContainsString('`profiles` AS `p`', $sql);
+        $this->assertStringContainsString('`u`.`id` = `p`.`user_id`', $sql);
+    }
+
+    public function testJoinClauseWithLeftJoin(): void
+    {
+        $sql = $this->builder
+            ->from('users', 'u')
+            ->leftJoin('profiles', 'u.id', 'p.user_id', 'p')
+            ->toSql();
+        
+        $this->assertStringContainsString('LEFT JOIN', $sql);
+        $this->assertStringContainsString('`profiles` AS `p`', $sql);
+    }
+
+    public function testOrderByClause(): void
+    {
+        $sql = $this->builder
+            ->from('users')
+            ->orderBy('name', 'ASC')
+            ->toSql();
+        
+        $this->assertStringContainsString('ORDER BY `name` ASC', $sql);
+    }
+
+    public function testOrderByClauseWithMultipleColumns(): void
+    {
+        $sql = $this->builder
+            ->from('users')
+            ->orderBy('name', 'ASC')
+            ->orderBy('created_at', 'DESC')
+            ->toSql();
+        
+        $this->assertStringContainsString('ORDER BY `name` ASC, `created_at` DESC', $sql);
+    }
+
+    public function testOrderByClauseWithLimit(): void
+    {
+        $sql = $this->builder
+            ->from('users')
+            ->orderBy('created_at', 'ASC')
+            ->limit(10)
+            ->toSql();
+        
+        $this->assertStringContainsString('ORDER BY `created_at` ASC', $sql);
+        $this->assertStringContainsString('LIMIT 10', $sql);
+    }
 }
