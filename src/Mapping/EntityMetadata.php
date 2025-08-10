@@ -199,19 +199,6 @@ final readonly class EntityMetadata
     }
 
     /**
-     * Get relation by type and property (backward compatibility method)
-     * @param string $type
-     * @param string $property
-     * @return mixed
-     * @deprecated Use specific methods like getOneToManyRelation() instead
-     */
-    public function getRelation(string $type, string $property): mixed
-    {
-        $relations = $this->getRelationsByType($type);
-        return $relations[$property] ?? null;
-    }
-
-    /**
      * @return array<ReflectionProperty>
      */
     public function getProperties(): array
@@ -311,8 +298,9 @@ final readonly class EntityMetadata
     {
         // First check if we have explicit MtColumn attribute
         $column = $this->getColumn($property);
-        if ($column?->columnType !== null) {
-            return $column->columnType;
+        $columnType = $column?->columnType;
+        if ($columnType !== null) {
+            return $columnType;
         }
 
         // Fallback to infer from PHP type

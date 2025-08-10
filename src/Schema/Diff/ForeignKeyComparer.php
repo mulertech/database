@@ -88,7 +88,6 @@ readonly class ForeignKeyComparer
                 || $foreignKeyInfo['referencedTable'] === null
                 || $foreignKeyInfo['referencedColumn'] === null
             ) {
-                // Todo: il serait bien de ne pas avoir de propriété nulle
                 throw new RuntimeException(
                     "Foreign key for $entityClass::$property is not fully defined in entity metadata"
                 );
@@ -208,13 +207,14 @@ readonly class ForeignKeyComparer
         $referencedTable = $foreignKey->referencedTable;
         $constraintName = $this->resolveConstraintName($foreignKey, $entityClass, $property, $referencedTable);
 
+        // Todo : I think we can return an array like this : ['constraintName' => $foreignKey] (or similar)
         return [
             'foreignKey' => $foreignKey,
             'constraintName' => $constraintName,
             'referencedTable' => $referencedTable,
             'referencedColumn' => $foreignKey->referencedColumn,
-            'deleteRule' => $this->extractFkRule($foreignKey, 'deleteRule'),
-            'updateRule' => $this->extractFkRule($foreignKey, 'updateRule'),
+            'deleteRule' => $foreignKey->deleteRule,
+            'updateRule' => $foreignKey->updateRule,
         ];
     }
 
@@ -227,34 +227,6 @@ readonly class ForeignKeyComparer
         return $foreignKey instanceof MtFk;
     }
 
-    /**
-     * @param MtFk $foreignKey
-     * @param string $key
-     * @return string|null
-     */
-    private function extractStringValue(MtFk $foreignKey, string $key): ?string
-    {
-        return match($key) {
-            'constraintName' => $foreignKey->constraintName,
-            'referencedTable' => $foreignKey->referencedTable,
-            'referencedColumn' => $foreignKey->referencedColumn,
-            default => null
-        };
-    }
-
-    /**
-     * @param MtFk $foreignKey
-     * @param string $key
-     * @return FkRule|null
-     */
-    private function extractFkRule(MtFk $foreignKey, string $key): ?FkRule
-    {
-        return match($key) {
-            'deleteRule' => $foreignKey->deleteRule,
-            'updateRule' => $foreignKey->updateRule,
-            default => null
-        };
-    }
 
     /**
      * Resolve constraint name with generation if needed
@@ -268,7 +240,7 @@ readonly class ForeignKeyComparer
      */
     private function resolveConstraintName(MtFk $foreignKey, string $entityClass, string $property, ?string $referencedTable): ?string
     {
-        $constraintName = $this->extractStringValue($foreignKey, 'constraintName');
+        $constraintName = $foreignKey->constraintName;
 
         return $constraintName ?? $this->generateConstraintName($entityClass, $property, $referencedTable);
     }

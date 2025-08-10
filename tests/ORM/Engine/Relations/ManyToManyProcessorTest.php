@@ -6,6 +6,7 @@ namespace MulerTech\Database\Tests\ORM\Engine\Relations;
 
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\Engine\Relations\ManyToManyProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -233,11 +234,11 @@ class ManyToManyProcessorTest extends TestCase
         $processPropertyMethod = $processorReflection->getMethod('processProperty');
         $processPropertyMethod->setAccessible(true);
         
-        $manyToMany = [
-            'mappedBy' => Group::class,
-            'joinProperty' => 'user',
-            'inverseJoinProperty' => 'group'
-        ];
+        $manyToMany = new MtManyToMany(
+            targetEntity: Group::class,
+            joinProperty: 'user',
+            inverseJoinProperty: 'group'
+        );
         
         // This should trigger the echo for already processed relation
         $processPropertyMethod->invoke(
@@ -279,11 +280,11 @@ class ManyToManyProcessorTest extends TestCase
         $group = new Group();
         $collection = new \MulerTech\Database\ORM\DatabaseCollection([$group]);
         
-        $manyToMany = [
-            'mappedBy' => Group::class,
-            'joinProperty' => 'user',
-            'inverseJoinProperty' => 'group'
-        ];
+        $manyToMany = new MtManyToMany(
+            targetEntity: Group::class,
+            joinProperty: 'user',
+            inverseJoinProperty: 'group'
+        );
         
         // This should trigger the echo statement in processNewCollection
         $method->invoke($this->processor, $user, $collection, $manyToMany);
@@ -292,32 +293,26 @@ class ManyToManyProcessorTest extends TestCase
     }
 
 
-    public function testProcessWithInvalidRelationStructure(): void
+    public function testProcessWithEmptyRelations(): void
     {
-        // Load metadata for User entity which should have ManyToMany relations
-        $this->metadataCache->loadEntitiesFromPath(
-            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-        );
-
-        // Create a custom entity processor that has corrupted metadata
+        // Test processing when entity has no ManyToMany relations
         $user = new User();
         $reflection = new ReflectionClass($user);
         
-        // Use reflection to corrupt the mapping cache with invalid relation structure
+        // Use reflection to set empty mapping cache
         $processorReflection = new ReflectionClass($this->processor);
         $mappingCacheProperty = $processorReflection->getProperty('mappingCache');
         $mappingCacheProperty->setAccessible(true);
         
-        // Set invalid mapping (non-array relation) to trigger the echo
-        $corruptedMapping = [
-            'groups' => 'not_an_array' // This will trigger the echo in process method
-        ];
-        $mappingCacheProperty->setValue($this->processor, [User::class => $corruptedMapping]);
+        // Set empty mapping
+        $emptyMapping = [];
+        $mappingCacheProperty->setValue($this->processor, [User::class => $emptyMapping]);
         
-        // This should trigger the echo for invalid relation structure
+        // Process should handle empty relations gracefully
         $this->processor->process($user, $reflection);
         
         $operations = $this->processor->getOperations();
         $this->assertIsArray($operations);
+        $this->assertEmpty($operations);
     }
 }

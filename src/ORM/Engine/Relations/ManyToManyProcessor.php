@@ -20,7 +20,7 @@ use ReflectionException;
 class ManyToManyProcessor
 {
     /**
-     * @var array<int, array{entity: object, related: object, manyToMany: array<string, mixed>, action?: string}>
+     * @var array<int, array{entity: object, related: object, manyToMany: MtManyToMany, action?: string}>
      */
     private array $operations = [];
 
@@ -30,7 +30,7 @@ class ManyToManyProcessor
     private array $processedRelations = [];
 
     /**
-     * @var array<class-string, array<string, mixed>|false> Cache for ManyToMany mappings
+     * @var array<class-string, array<string, MtManyToMany>|false> Cache for ManyToMany mappings
      */
     private array $mappingCache = [];
 
@@ -59,12 +59,7 @@ class ManyToManyProcessor
         $entityId = spl_object_id($entity);
 
         foreach ($manyToManyList as $property => $manyToMany) {
-            if (!($manyToMany instanceof MtManyToMany)) {
-                continue;
-            }
-            // Convert Mt object to array format for existing methods
-            $manyToManyArray = $this->convertManyToManyToArray($manyToMany);
-            $this->processProperty($entity, $entityReflection, $property, $manyToManyArray, $entityId);
+            $this->processProperty($entity, $entityReflection, $property, $manyToMany, $entityId);
         }
     }
 
@@ -74,7 +69,7 @@ class ManyToManyProcessor
      * @param object $entity
      * @param ReflectionClass<T> $entityReflection
      * @param string $property
-     * @param array<string, mixed> $manyToMany
+     * @param MtManyToMany $manyToMany
      * @param int $entityId
      * @throws ReflectionException
      */
@@ -82,7 +77,7 @@ class ManyToManyProcessor
         object $entity,
         ReflectionClass $entityReflection,
         string $property,
-        array $manyToMany,
+        MtManyToMany $manyToMany,
         int $entityId
     ): void {
         // Create a unique key for this entity+property combination
@@ -148,12 +143,12 @@ class ManyToManyProcessor
      * @template TValue of object
      * @param object $entity
      * @param DatabaseCollection<TKey, TValue> $collection
-     * @param array<string, mixed> $manyToMany
+     * @param MtManyToMany $manyToMany
      */
     private function processDatabaseCollection(
         object $entity,
         DatabaseCollection $collection,
-        array $manyToMany
+        MtManyToMany $manyToMany
     ): void {
         if (!$collection->hasChanges()) {
             return;
@@ -176,12 +171,12 @@ class ManyToManyProcessor
      * @template TValue of object
      * @param object $entity
      * @param Collection<TKey, TValue> $collection
-     * @param array<string, mixed> $manyToMany
+     * @param MtManyToMany $manyToMany
      */
     private function processNewCollection(
         object $entity,
         Collection $collection,
-        array $manyToMany
+        MtManyToMany $manyToMany
     ): void {
         foreach ($collection->items() as $relatedEntity) {
             $this->addOperation($entity, $relatedEntity, $manyToMany, 'insert');
@@ -192,13 +187,13 @@ class ManyToManyProcessor
      * Add operation to queue
      * @param object $entity
      * @param object $relatedEntity
-     * @param array<string, mixed> $manyToMany
+     * @param MtManyToMany $manyToMany
      * @param string $action
      */
     private function addOperation(
         object $entity,
         object $relatedEntity,
-        array $manyToMany,
+        MtManyToMany $manyToMany,
         string $action
     ): void {
         $this->operations[] = [
@@ -212,15 +207,15 @@ class ManyToManyProcessor
     /**
      * Get ManyToMany mapping for entity class
      * @param class-string $entityName
-     * @return array<string, mixed>|false
+     * @return array<string, MtManyToMany>|false
      * @throws ReflectionException
      */
     private function getManyToManyMapping(string $entityName): array|false
     {
         if (!isset($this->mappingCache[$entityName])) {
             $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
-            $mapping = $metadata->getRelationsByType('ManyToMany');
-            $this->mappingCache[$entityName] = $mapping;
+            $mapping = $metadata->getManyToManyRelations();
+            $this->mappingCache[$entityName] = $mapping ?: false;
         }
 
         return $this->mappingCache[$entityName];
@@ -228,7 +223,7 @@ class ManyToManyProcessor
 
     /**
      * Get all queued operations
-     * @return array<int, array{entity: object, related: object, manyToMany: array<string, mixed>, action?: string}>
+     * @return array<int, array{entity: object, related: object, manyToMany: MtManyToMany, action?: string}>
      */
     public function getOperations(): array
     {
@@ -254,18 +249,4 @@ class ManyToManyProcessor
         $this->mappingCache = [];
     }
 
-    /**
-     * Convert MtManyToMany object to array format expected by existing relation processing methods
-     * @param MtManyToMany $relation
-     * @return array<string, mixed>
-     */
-    private function convertManyToManyToArray(MtManyToMany $relation): array
-    {
-        return [
-            'targetEntity' => $relation->targetEntity,
-            'mappedBy' => $relation->mappedBy,
-            'joinProperty' => $relation->joinProperty,
-            'inverseJoinProperty' => $relation->inverseJoinProperty,
-        ];
-    }
 }
