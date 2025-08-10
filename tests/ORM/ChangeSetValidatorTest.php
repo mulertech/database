@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\ORM\ChangeSet;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\ChangeSetValidator;
 use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
@@ -23,7 +24,7 @@ class ChangeSetValidatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->identityMap = new IdentityMap();
+        $this->identityMap = new IdentityMap(new MetadataCache());
         $this->validator = new ChangeSetValidator($this->identityMap);
         $this->scheduler = new EntityScheduler();
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\ORM\Processor;
 
 use MulerTech\Database\ORM\ChangeDetector;
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -24,7 +25,7 @@ class EntityProcessorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->identityMap = new IdentityMap();
+        $this->identityMap = new IdentityMap(new MetadataCache());
         $this->changeDetector = new ChangeDetector();
         $this->processor = new EntityProcessor($this->changeDetector, $this->identityMap);
     }

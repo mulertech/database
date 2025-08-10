@@ -323,7 +323,7 @@ class EmEngine
     private function initializeComponents(): void
     {
         // Initialize core components that are directly used by EmEngine
-        $this->identityMap = new IdentityMap();
+        $this->identityMap = new IdentityMap($this->metadataCache);
         $this->entityRegistry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
 

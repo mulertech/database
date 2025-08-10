@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetOperationHandler;
 use MulerTech\Database\ORM\ChangeSetValidator;
@@ -33,7 +34,7 @@ class ChangeSetOperationHandlerTest extends TestCase
     {
         parent::setUp();
         
-        $this->identityMap = new IdentityMap();
+        $this->identityMap = new IdentityMap(new MetadataCache());
         $this->registry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
         $this->validator = new ChangeSetValidator($this->identityMap);

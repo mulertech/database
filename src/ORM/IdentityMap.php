@@ -7,9 +7,9 @@ namespace MulerTech\Database\ORM;
 use DateTimeImmutable;
 use Error;
 use InvalidArgumentException;
+use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
-use ReflectionClass;
-use ReflectionException;
 use WeakMap;
 use WeakReference;
 
@@ -35,7 +35,7 @@ final class IdentityMap
      */
     private WeakMap $entityIds;
 
-    public function __construct()
+    public function __construct(private readonly MetadataCache $metadataCache)
     {
         $this->metadata = new WeakMap();
         $this->entityIds = new WeakMap();
@@ -297,19 +297,39 @@ final class IdentityMap
             }
         }
 
-        foreach (['id', 'uuid', 'identifier'] as $property) {
-            if (property_exists($entity, $property)) {
-                try {
-                    $reflection = new ReflectionClass($entity);
-                    $prop = $reflection->getProperty($property);
-                    $value = $prop->getValue($entity);
-                    if (is_int($value) || is_string($value)) {
-                        return $value;
+        $entityClass = $entity::class;
+        try {
+            $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+            
+            // Check common ID properties using metadata
+            foreach (['id', 'uuid', 'identifier'] as $property) {
+                $getter = $metadata->getGetter($property);
+                if ($getter !== null && method_exists($entity, $getter)) {
+                    try {
+                        $value = $entity->$getter();
+                        if (is_int($value) || is_string($value)) {
+                            return $value;
+                        }
+                    } catch (Error) {
+                        // Continue to next property
                     }
-                } catch (ReflectionException) {
-                    // Continue to next property
+                }
+
+                // Fallback to property access if getter not found
+                $reflectionProperty = $metadata->getProperty($property);
+                if ($reflectionProperty !== null) {
+                    try {
+                        $value = $reflectionProperty->getValue($entity);
+                        if (is_int($value) || is_string($value)) {
+                            return $value;
+                        }
+                    } catch (Error) {
+                        // Continue to next property
+                    }
                 }
             }
+        } catch (Error) {
+            // Metadata not available, return null
         }
 
         return null;
@@ -321,31 +341,35 @@ final class IdentityMap
      */
     private function extractEntityData(object $entity): array
     {
-        $reflection = new ReflectionClass($entity);
+        $entityClass = $entity::class;
         $data = [];
 
-        foreach ($reflection->getProperties() as $property) {
-            if ($property->isStatic()) {
-                continue;
-            }
+        try {
+            $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+            
+            foreach ($metadata->getProperties() as $property) {
+                $propertyName = $property->getName();
+                
+                // Try to use getter method first
+                $getter = $metadata->getGetter($propertyName);
+                if ($getter !== null && method_exists($entity, $getter)) {
+                    try {
+                        $data[$propertyName] = $entity->$getter();
+                        continue;
+                    } catch (Error) {
+                        // Getter failed, try direct property access
+                    }
+                }
 
-            $propertyName = $property->getName();
-            $getterMethod = 'get' . ucfirst($propertyName);
-
-            if (method_exists($entity, $getterMethod)) {
+                // Fallback to direct property access
                 try {
-                    $data[$propertyName] = $entity->$getterMethod();
-                    continue;
+                    $data[$propertyName] = $property->getValue($entity);
                 } catch (Error) {
-                    // Getter failed, try direct property access
+                    $data[$propertyName] = null;
                 }
             }
-
-            try {
-                $data[$propertyName] = $property->getValue($entity);
-            } catch (Error) {
-                $data[$propertyName] = null;
-            }
+        } catch (Error) {
+            // Metadata not available, return empty array
         }
 
         return $data;

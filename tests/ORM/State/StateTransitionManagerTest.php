@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\State;
 
+use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
@@ -20,7 +21,7 @@ class StateTransitionManagerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->identityMap = new IdentityMap();
+        $this->identityMap = new IdentityMap(new MetadataCache());
         $this->transitionManager = new StateTransitionManager($this->identityMap);
     }
 

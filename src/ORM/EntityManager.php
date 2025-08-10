@@ -170,11 +170,16 @@ class EntityManager implements EntityManagerInterface
             return false;
         }
 
-        if (!method_exists(current($matchingResults), 'getId')) {
+        if (empty($matchingResults)) {
+            return true;
+        }
+
+        $firstResult = current($matchingResults);
+        if (!method_exists($firstResult, 'getId')) {
             return false;
         }
 
-        return !($id === null) && current($matchingResults)->getId() == $id;
+        return !($id === null) && $firstResult->getId() == $id;
     }
 
     /**

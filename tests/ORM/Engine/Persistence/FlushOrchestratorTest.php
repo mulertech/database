@@ -57,7 +57,7 @@ class FlushOrchestratorTest extends TestCase
             ->willReturn([]);
 
         // Create real instances of final classes with their dependencies
-        $identityMap = new IdentityMap();
+        $identityMap = new IdentityMap(new MetadataCache());
         $entityRegistry = new EntityRegistry();
         $changeDetector = new ChangeDetector();
         $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector);
