@@ -200,4 +200,167 @@ class UpdateBuilderTest extends TestCase
         
         $this->assertInstanceOf(UpdateBuilder::class, $this->builder);
     }
+
+    public function testQueryModifiers(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('name', 'John')
+            ->ignore()
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE IGNORE', $sql);
+    }
+
+    public function testQueryModifiersWithLowPriority(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('name', 'John')
+            ->lowPriority()
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE LOW_PRIORITY', $sql);
+    }
+
+    public function testQueryModifiersIgnoreAndLowPriority(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('name', 'John')
+            ->ignore()
+            ->lowPriority()
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE LOW_PRIORITY IGNORE', $sql);
+    }
+
+    public function testJoinClause(): void
+    {
+        $sql = $this->builder
+            ->table('users', 'u')
+            ->innerJoin('profiles', 'u.id', 'p.user_id', 'p')
+            ->set('u.name', 'Updated Name')
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE `users` AS `u`', $sql);
+        $this->assertStringContainsString('INNER JOIN', $sql);
+        $this->assertStringContainsString('`profiles` AS `p`', $sql);
+        $this->assertStringContainsString('`u`.`id` = `p`.`user_id`', $sql);
+    }
+
+    public function testJoinClauseWithLeftJoin(): void
+    {
+        $sql = $this->builder
+            ->table('users', 'u')
+            ->leftJoin('profiles', 'u.id', 'p.user_id', 'p')
+            ->set('u.status', 'active')
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE `users` AS `u`', $sql);
+        $this->assertStringContainsString('LEFT JOIN', $sql);
+        $this->assertStringContainsString('`profiles` AS `p`', $sql);
+    }
+
+    public function testEmptySetValuesException(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No SET values specified for UPDATE');
+        
+        $this->builder
+            ->table('users')
+            ->toSql();
+    }
+
+    public function testOrderByClause(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('name', 'Updated Name')
+            ->orderBy('created_at', 'ASC')
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE `users`', $sql);
+        $this->assertStringContainsString('SET `name` = ', $sql);
+        $this->assertStringContainsString('ORDER BY `created_at` ASC', $sql);
+    }
+
+    public function testOrderByClauseWithMultipleColumns(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('status', 'updated')
+            ->orderBy('priority', 'DESC')
+            ->orderBy('created_at', 'ASC')
+            ->toSql();
+        
+        $this->assertStringContainsString('ORDER BY `priority` DESC, `created_at` ASC', $sql);
+    }
+
+    public function testLimitClause(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('status', 'inactive')
+            ->orderBy('last_login', 'ASC')
+            ->limit(100)
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE `users`', $sql);
+        $this->assertStringContainsString('SET `status` = ', $sql);
+        $this->assertStringContainsString('ORDER BY `last_login` ASC', $sql);
+        $this->assertStringContainsString('LIMIT 100', $sql);
+    }
+
+    public function testLimitClauseWithOrderBy(): void
+    {
+        $sql = $this->builder
+            ->table('users')
+            ->set('processed', 1)
+            ->orderBy('created_at', 'ASC')
+            ->limit(50)
+            ->toSql();
+        
+        $this->assertStringContainsString('ORDER BY', $sql);
+        $this->assertStringContainsString('LIMIT 50', $sql);
+    }
+
+    public function testEmptyTablesException(): void
+    {
+        // We need to access the buildTablesClause method indirectly
+        // by calling toSql() without setting a table first
+        $this->builder->set('name', 'test');
+        
+        // Use reflection to access the private method
+        $reflection = new \ReflectionClass($this->builder);
+        $method = $reflection->getMethod('buildTablesClause');
+        $method->setAccessible(true);
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No table specified for UPDATE');
+        
+        $method->invoke($this->builder);
+    }
+
+    public function testComplexUpdateWithAllFeatures(): void
+    {
+        $sql = $this->builder
+            ->table('users', 'u')
+            ->innerJoin('profiles', 'u.id', 'p.user_id', 'p')
+            ->set('u.name', 'Updated Name')
+            ->set('u.updated_at', new Raw('NOW()'))
+            ->increment('u.login_count')
+            ->where('u.status', 'active')
+            ->orderBy('u.last_login', 'ASC')
+            ->limit(10)
+            ->ignore()
+            ->toSql();
+        
+        $this->assertStringContainsString('UPDATE IGNORE `users` AS `u`', $sql);
+        $this->assertStringContainsString('INNER JOIN', $sql);
+        $this->assertStringContainsString('SET', $sql);
+        $this->assertStringContainsString('WHERE', $sql);
+        $this->assertStringContainsString('ORDER BY', $sql);
+        $this->assertStringContainsString('LIMIT 10', $sql);
+    }
 }

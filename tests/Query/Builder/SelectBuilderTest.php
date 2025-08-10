@@ -287,4 +287,133 @@ class SelectBuilderTest extends TestCase
         $this->assertIsString($sql);
         $this->assertNotEmpty($sql);
     }
+
+    public function testGroupByClauseSQL(): void
+    {
+        $sql = $this->builder
+            ->select('department', 'COUNT(*) as count')
+            ->from('employees')
+            ->groupBy('department')
+            ->toSql();
+        
+        $this->assertStringContainsString('SELECT `department`, COUNT(*) AS `count`', $sql);
+        $this->assertStringContainsString('FROM `employees`', $sql);
+        $this->assertStringContainsString('GROUP BY `department`', $sql);
+    }
+
+    public function testGroupByMultipleColumns(): void
+    {
+        $sql = $this->builder
+            ->select('department', 'status', 'COUNT(*) as count')
+            ->from('employees')
+            ->groupBy('department', 'status')
+            ->toSql();
+        
+        $this->assertStringContainsString('GROUP BY `department`, `status`', $sql);
+    }
+
+    public function testHavingClauseSQL(): void
+    {
+        $sql = $this->builder
+            ->select('department', 'COUNT(*) as count')
+            ->from('employees')
+            ->groupBy('department')
+            ->having('COUNT(*)', 5, ComparisonOperator::GREATER_THAN)
+            ->toSql();
+        
+        $this->assertStringContainsString('GROUP BY `department`', $sql);
+        $this->assertStringContainsString('HAVING', $sql);
+        $this->assertStringContainsString('COUNT(*)', $sql);
+    }
+
+    public function testHavingWithMultipleConditions(): void
+    {
+        $sql = $this->builder
+            ->select('department', 'COUNT(*) as count', 'AVG(salary) as avg_salary')
+            ->from('employees')
+            ->groupBy('department')
+            ->having('COUNT(*)', 5, ComparisonOperator::GREATER_THAN)
+            ->having('AVG(salary)', 50000, ComparisonOperator::GREATER_THAN)
+            ->toSql();
+        
+        $this->assertStringContainsString('HAVING', $sql);
+    }
+
+    public function testInvalidFromClauseException(): void
+    {
+        // This is a more complex test since we need to create an invalid FROM structure
+        // We'll manipulate the internal state to create an invalid condition
+        $reflection = new \ReflectionClass($this->builder);
+        $fromProperty = $reflection->getProperty('from');
+        $fromProperty->setAccessible(true);
+        
+        // Create an invalid FROM entry (missing both table and subquery)
+        $fromProperty->setValue($this->builder, [
+            ['alias' => 'invalid']  // Missing 'table' or 'subquery' key
+        ]);
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid FROM clause: missing table or subquery.');
+        
+        $this->builder->generateFromParts();
+    }
+
+    public function testSubqueryInFromClause(): void
+    {
+        $subquery = new SelectBuilder();
+        $subquery->select('id', 'name')->from('active_users')->where('status', 'active');
+        
+        $sql = $this->builder
+            ->select('*')
+            ->from($subquery, 'au')
+            ->toSql();
+        
+        $this->assertStringContainsString('SELECT * FROM (', $sql);
+        $this->assertStringContainsString('SELECT `id`, `name` FROM `active_users`', $sql);
+        $this->assertStringContainsString(') AS `au`', $sql);
+    }
+
+    public function testSubqueryInFromClauseWithoutAlias(): void
+    {
+        $subquery = new SelectBuilder();
+        $subquery->select('COUNT(*)')->from('orders');
+        
+        $sql = $this->builder
+            ->select('*')
+            ->from($subquery)
+            ->toSql();
+        
+        $this->assertStringContainsString('SELECT * FROM (', $sql);
+        $this->assertStringContainsString('SELECT COUNT(*) FROM `orders`', $sql);
+        $this->assertStringContainsString(')', $sql);
+        $this->assertStringNotContainsString(' AS ', $sql);
+    }
+
+    public function testComplexQueryWithAllClauses(): void
+    {
+        $subquery = new SelectBuilder();
+        $subquery->select('user_id', 'COUNT(*) as order_count')
+                 ->from('orders')
+                 ->groupBy('user_id');
+        
+        $sql = $this->builder
+            ->select('u.name', 'oc.order_count')
+            ->from('users', 'u')
+            ->from($subquery, 'oc')
+            ->groupBy('u.id', 'u.name')
+            ->having('oc.order_count', 3, ComparisonOperator::GREATER_THAN)
+            ->orderBy('oc.order_count', 'DESC')
+            ->limit(10)
+            ->offset(5)
+            ->distinct()
+            ->toSql();
+        
+        $this->assertStringStartsWith('SELECT DISTINCT', $sql);
+        $this->assertStringContainsString('FROM `users` AS `u`', $sql);
+        $this->assertStringContainsString('GROUP BY', $sql);
+        $this->assertStringContainsString('HAVING', $sql);
+        $this->assertStringContainsString('ORDER BY', $sql);
+        $this->assertStringContainsString('LIMIT 10', $sql);
+        $this->assertStringContainsString('OFFSET 5', $sql);
+    }
 }

@@ -212,4 +212,189 @@ class InsertBuilderTest extends TestCase
         $parameterBag = $this->builder->getParameterBag();
         $this->assertCount(2, $parameterBag->toArray());
     }
+
+    public function testInsertFromSelect(): void
+    {
+        $selectBuilder = new SelectBuilder();
+        $selectBuilder->select('name', 'email')->from('temp_users');
+        
+        $sql = $this->builder
+            ->into('users')
+            ->fromSelect($selectBuilder, ['name', 'email'])
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('(`name`, `email`)', $sql);
+        $this->assertStringContainsString('SELECT', $sql);
+    }
+
+    public function testEmptyValuesException(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No values specified for INSERT');
+        
+        $this->builder
+            ->into('users')
+            ->toSql();
+    }
+
+    public function testReplaceKeyword(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->replace()
+            ->toSql();
+        
+        $this->assertStringStartsWith('REPLACE INTO', $sql);
+        $this->assertEquals('REPLACE', $this->builder->getQueryType());
+    }
+
+    public function testQueryModifiers(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->ignore()
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT IGNORE INTO', $sql);
+    }
+
+    public function testQueryModifiersWithLowPriority(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->lowPriority()
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT LOW_PRIORITY INTO', $sql);
+    }
+
+    public function testInsertFromSelectWithSelectBuilder(): void
+    {
+        $selectBuilder = new SelectBuilder();
+        $selectBuilder->select('name', 'email')->from('temp_users');
+        
+        $sql = $this->builder
+            ->into('users')
+            ->fromSelect($selectBuilder)
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('SELECT `name`, `email` FROM `temp_users`', $sql);
+    }
+
+    public function testInsertFromSelectWithOnDuplicateKeyUpdate(): void
+    {
+        $selectBuilder = new SelectBuilder();
+        $selectBuilder->select('name', 'email')->from('temp_users');
+        
+        $sql = $this->builder
+            ->into('users')
+            ->fromSelect($selectBuilder, ['name', 'email'])
+            ->onDuplicateKeyUpdate(['updated_at' => new Raw('NOW()')])
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $sql);
+        $this->assertStringContainsString('`updated_at` = ', $sql);
+    }
+
+    public function testOnDuplicateKeyUpdateSQL(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->set('email', 'john@example.com')
+            ->onDuplicateKeyUpdate(['name' => 'Updated John', 'updated_at' => new Raw('NOW()')])
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $sql);
+        $this->assertStringContainsString('`name` = ', $sql);
+        $this->assertStringContainsString('`updated_at` = ', $sql);
+    }
+
+    public function testOnDuplicateKeyUpdateWithValuesFunction(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->set('count', 1)
+            ->onDuplicateKeyUpdate(['count' => 'VALUES'])
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $sql);
+        $this->assertStringContainsString('`count` = VALUES(`count`)', $sql);
+    }
+
+    public function testOnDuplicateKeyUpdateWithRawValues(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->onDuplicateKeyUpdate([
+                'name' => new Raw('CONCAT(name, " - Updated")'),
+                'updated_at' => new Raw('NOW()')
+            ])
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $sql);
+        $this->assertStringContainsString('`name` = CONCAT(name, " - Updated")', $sql);
+        $this->assertStringContainsString('`updated_at` = NOW()', $sql);
+    }
+
+    public function testBatchInsertSQL(): void
+    {
+        $batchData = [
+            ['name' => 'John', 'email' => 'john@example.com'],
+            ['name' => 'Jane', 'email' => 'jane@example.com']
+        ];
+        
+        $sql = $this->builder
+            ->into('users')
+            ->batchValues($batchData)
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('(`name`, `email`) VALUES', $sql);
+        $this->assertStringContainsString('), (', $sql); // Multiple value groups
+    }
+
+    public function testBatchInsertWithOnDuplicateKeyUpdate(): void
+    {
+        $batchData = [
+            ['name' => 'John', 'email' => 'john@example.com'],
+            ['name' => 'Jane', 'email' => 'jane@example.com']
+        ];
+        
+        $sql = $this->builder
+            ->into('users')
+            ->batchValues($batchData)
+            ->onDuplicateKeyUpdate(['updated_at' => new Raw('NOW()')])
+            ->toSql();
+        
+        $this->assertStringContainsString('INSERT INTO `users`', $sql);
+        $this->assertStringContainsString('VALUES', $sql);
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $sql);
+        $this->assertStringContainsString('`updated_at` = ', $sql);
+    }
+
+    public function testReplaceDisablesOnDuplicateKeyUpdate(): void
+    {
+        $sql = $this->builder
+            ->into('users')
+            ->set('name', 'John')
+            ->replace()
+            ->onDuplicateKeyUpdate(['updated_at' => new Raw('NOW()')])
+            ->toSql();
+        
+        // REPLACE should disable ON DUPLICATE KEY UPDATE
+        $this->assertStringStartsWith('REPLACE INTO', $sql);
+        $this->assertStringNotContainsString('ON DUPLICATE KEY UPDATE', $sql);
+    }
 }
