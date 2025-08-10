@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 
@@ -149,10 +150,11 @@ class EntityManager implements EntityManagerInterface
             throw new InvalidArgumentException("Entity '$entity' does not have a valid table or column mapping.");
         }
 
+        $binaryClause = $matchCase ? 'BINARY' : '';
         $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('*')
             ->from($tableName)
-            ->whereRaw('BINARY `' . $column . '` = :param0', [':param0' => $search]);
+            ->whereRaw($binaryClause . ' `' . $column . '` = :param0', [':param0' => $search]);
 
         $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
 
@@ -160,26 +162,16 @@ class EntityManager implements EntityManagerInterface
             return true;
         }
 
-        $getter = $metadata->getGetter($property) ?? 'get' . ucfirst($property);
-        $matchingResults = array_filter($results, static function ($item) use ($getter, $search) {
-            $value = $item->$getter();
-            return !(is_numeric($value) && is_numeric($search) && $value != $search);
-        });
-
-        if (count($matchingResults) > 1) {
+        if (count($results) > 1) {
             return false;
         }
 
-        if (empty($matchingResults)) {
-            return true;
-        }
-
-        $firstResult = current($matchingResults);
+        $firstResult = current($results);
         if (!method_exists($firstResult, 'getId')) {
             return false;
         }
 
-        return !($id === null) && $firstResult->getId() == $id;
+        return $id !== null && $firstResult->getId() == $id;
     }
 
     /**

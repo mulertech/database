@@ -676,21 +676,20 @@ class EntityManagerTest extends TestCase
         $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
     }
 
-    public function testIsUniqueReturnsTrueWhenMatchingResultsEmpty(): void
+    public function testIsUniqueReturnsTrueWhenNoMatchingResults(): void
     {
         $this->createTestTables();
         $em = $this->entityManager;
 
-        // Insert data with specific numeric values that will be filtered out
+        // Insert data with a specific value
         $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('INSERT INTO users_test (id, size) VALUES (:id, :size)');
         $statement->execute(['id' => 1, 'size' => 100]);
 
-        // Search for a different numeric value that will cause the filtering logic to kick in
-        // The filtering logic removes numeric values that don't match
+        // Search for a different value that doesn't exist in the database
         $result = $em->isUnique(User::class, 'size', 200);
 
-        self::assertTrue($result, 'Should return true when matching results is empty after filtering');
+        self::assertTrue($result, 'Should return true when no matching results exist in database');
     }
 
     public function testIsUniqueReturnsFalseWhenMultipleMatchingResults(): void
