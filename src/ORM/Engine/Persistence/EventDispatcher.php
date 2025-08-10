@@ -84,7 +84,7 @@ class EventDispatcher
             $this->eventManager !== null,
             'EventManager must not be null when dispatching global events'
         );
-        
+
         match ($eventName) {
             'prePersist' => $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager)),
             'postPersist' => $this->eventManager->dispatch(new PostPersistEvent($entity, $this->entityManager)),
@@ -106,7 +106,7 @@ class EventDispatcher
             $this->eventManager !== null,
             'EventManager must not be null when dispatching events'
         );
-        
+
         $changeSet = $this->changeSetManager->getChangeSet($entity);
         $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
     }
@@ -121,7 +121,7 @@ class EventDispatcher
             $this->eventManager !== null,
             'EventManager must not be null when dispatching events'
         );
-        
+
         $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
         $this->processPostEventOperations();
     }
@@ -136,7 +136,7 @@ class EventDispatcher
             $this->eventManager !== null,
             'EventManager must not be null when dispatching events'
         );
-        
+
         $this->eventManager->dispatch(new PreRemoveEvent($entity, $this->entityManager));
         $this->processPostEventOperations();
     }
@@ -151,7 +151,7 @@ class EventDispatcher
             $this->eventManager !== null,
             'EventManager must not be null when dispatching events'
         );
-        
+
         $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
         $this->processPostEventOperations();
     }

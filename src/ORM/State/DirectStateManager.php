@@ -265,11 +265,11 @@ final readonly class DirectStateManager implements StateManagerInterface
     public function getEntityState(object $entity): EntityLifecycleState
     {
         $state = $this->identityMap->getEntityState($entity);
-        
+
         if ($state === null) {
             return EntityLifecycleState::DETACHED;
         }
-        
+
         return $state;
     }
 
