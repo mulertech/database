@@ -7,6 +7,8 @@ use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithNonNullableProperty;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingSetter;
+use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingGetter;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
@@ -179,5 +181,38 @@ class EntityHydratorTest extends TestCase
 
         self::assertEquals('required_value', $entity->getRequiredField());
         self::assertNull($entity->getOptionalField());
+    }
+
+    /**
+     * Test hydration throws exception when setter method is missing
+     * This addresses the TODO at line 77 in EntityHydrator
+     */
+    public function testHydrateThrowsExceptionForMissingSetter(): void
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('No setter defined for property \'name\' in entity \'MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingSetter\'');
+
+        $data = [
+            'id' => 1,
+            'name' => 'test name',
+        ];
+
+        $this->hydrator->hydrate($data, EntityWithMissingSetter::class);
+    }
+
+    /**
+     * Test extract throws exception when getter method is missing
+     * This addresses the TODO at line 106 in EntityHydrator
+     */
+    public function testExtractThrowsExceptionForMissingGetter(): void
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('No getter defined for property \'description\' in entity \'MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingGetter\'');
+
+        $entity = new EntityWithMissingGetter();
+        $entity->setId(1);
+        $entity->setDescription('test description');
+
+        $this->hydrator->extract($entity);
     }
 }

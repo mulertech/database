@@ -47,42 +47,39 @@ class EntityHydrator implements EntityHydratorInterface
      * @param class-string $entityName
      * @return object
      * @throws ReflectionException
+     * @throws JsonException
      */
     public function hydrate(array $data, string $entityName): object
     {
         $entity = new $entityName();
         $metadata = $this->metadataCache->getEntityMetadata($entityName);
 
-        try {
-            foreach ($metadata->getPropertiesColumns() as $property => $column) {
-                if ($this->isRelationProperty($metadata, $property)) {
-                    continue;
-                }
-
-                // Skip properties not in the data array entirely (they weren't provided)
-                if (!array_key_exists($column, $data)) {
-                    continue;
-                }
-
-                $value = $data[$column];
-                $processedValue = $this->processValue($metadata, $property, $value);
-
-                // Validate nullable constraints - let this exception bubble up directly
-                if ($processedValue === null && !$this->isPropertyNullable($metadata, $property)) {
-                    throw HydrationException::propertyCannotBeNull($property, $entityName);
-                }
-
-                $setter = $metadata->getSetter($property);
-                if ($setter !== null) {
-                    $entity->$setter($processedValue);
-                    continue;
-                }
+        foreach ($metadata->getPropertiesColumns() as $property => $column) {
+            if ($this->isRelationProperty($metadata, $property)) {
+                continue;
             }
-        } catch (HydrationException $e) {
-            // Re-throw HydrationExceptions directly to preserve their specific message and type
-            throw $e;
-        } catch (Exception $e) {
-            throw HydrationException::failedToHydrateEntity($entityName, $e);
+
+            // Skip properties not in the data array entirely (they weren't provided)
+            if (!array_key_exists($column, $data)) {
+                continue;
+            }
+
+            $value = $data[$column];
+            $processedValue = $this->processValue($metadata, $property, $value);
+
+            // Validate nullable constraints - let this exception bubble up directly
+            if ($processedValue === null && !$this->isPropertyNullable($metadata, $property)) {
+                throw HydrationException::propertyCannotBeNull($property, $entityName);
+            }
+
+            $setter = $metadata->getSetter($property);
+            if ($setter === null) {
+                throw new HydrationException(
+                    "No setter defined for property '$property' in entity '$entityName'."
+                );
+            }
+
+            $entity->$setter($processedValue);
         }
 
         return $entity;
@@ -102,15 +99,13 @@ class EntityHydrator implements EntityHydratorInterface
         $data = [];
 
         foreach ($metadata->getPropertiesColumns() as $propertyName => $columnName) {
-            try {
-                $getter = $metadata->getGetter($propertyName);
-                if ($getter !== null) {
-                    $data[$columnName] = $entity->$getter();
-                    continue;
-                }
-            } catch (Error|Exception) {
-                $data[$columnName] = null;
+            $getter = $metadata->getGetter($propertyName);
+            if ($getter === null) {
+                throw new HydrationException(
+                    "No getter defined for property '$propertyName' in entity '$entityClass'."
+                );
             }
+            $data[$columnName] = $entity->$getter();
         }
 
         return $data;
