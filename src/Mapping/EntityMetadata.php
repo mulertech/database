@@ -5,6 +5,13 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping;
 
 use DateTime;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -19,24 +26,32 @@ final readonly class EntityMetadata
     /**
      * @param class-string $className
      * @param string $tableName
+     * @param MtEntity|null $entity
      * @param array<ReflectionProperty> $properties
      * @param array<ReflectionMethod> $getters
      * @param array<ReflectionMethod> $setters
-     * @param array<string, string> $columns
-     * @param array<string, mixed> $foreignKeys
-     * @param array<string, array<string, mixed>> $relationships
+     * @param array<string, MtColumn> $columns
+     * @param array<string, MtFk> $foreignKeys
+     * @param array<string, MtOneToMany> $oneToManyRelations
+     * @param array<string, MtManyToOne> $manyToOneRelations
+     * @param array<string, MtOneToOne> $oneToOneRelations
+     * @param array<string, MtManyToMany> $manyToManyRelations
      * @param class-string|null $repository
      * @param int|null $autoIncrement
      */
     public function __construct(
         public string $className,
         public string $tableName,
+        public ?MtEntity $entity = null,
         public array $properties = [],
         public array $getters = [],
         public array $setters = [],
         public array $columns = [],
         public array $foreignKeys = [],
-        public array $relationships = [],
+        public array $oneToManyRelations = [],
+        public array $manyToOneRelations = [],
+        public array $oneToOneRelations = [],
+        public array $manyToManyRelations = [],
         public ?string $repository = null,
         public ?int $autoIncrement = null
     ) {
@@ -48,7 +63,11 @@ final readonly class EntityMetadata
      */
     public function getColumnName(string $property): ?string
     {
-        return $this->columns[$property] ?? null;
+        $column = $this->columns[$property] ?? null;
+        if ($column === null) {
+            return null;
+        }
+        return $column->columnName ?? $property;
     }
 
     /**
@@ -56,7 +75,11 @@ final readonly class EntityMetadata
      */
     public function getPropertiesColumns(): array
     {
-        return $this->columns;
+        $result = [];
+        foreach ($this->columns as $property => $column) {
+            $result[$property] = $column->columnName ?? $property;
+        }
+        return $result;
     }
 
     /**
@@ -70,30 +93,122 @@ final readonly class EntityMetadata
 
     /**
      * @param string $property
-     * @return mixed
+     * @return MtFk|null
      */
-    public function getForeignKey(string $property): mixed
+    public function getForeignKey(string $property): ?MtFk
     {
         return $this->foreignKeys[$property] ?? null;
     }
 
     /**
-     * @param string $type
      * @param string $property
-     * @return mixed
+     * @return MtOneToMany|null
      */
-    public function getRelation(string $type, string $property): mixed
+    public function getOneToManyRelation(string $property): ?MtOneToMany
     {
-        return $this->relationships[$type][$property] ?? null;
+        return $this->oneToManyRelations[$property] ?? null;
     }
 
     /**
+     * @param string $property
+     * @return MtManyToOne|null
+     */
+    public function getManyToOneRelation(string $property): ?MtManyToOne
+    {
+        return $this->manyToOneRelations[$property] ?? null;
+    }
+
+    /**
+     * @param string $property
+     * @return MtOneToOne|null
+     */
+    public function getOneToOneRelation(string $property): ?MtOneToOne
+    {
+        return $this->oneToOneRelations[$property] ?? null;
+    }
+
+    /**
+     * @param string $property
+     * @return MtManyToMany|null
+     */
+    public function getManyToManyRelation(string $property): ?MtManyToMany
+    {
+        return $this->manyToManyRelations[$property] ?? null;
+    }
+
+    /**
+     * @return array<string, MtOneToMany>
+     */
+    public function getOneToManyRelations(): array
+    {
+        return $this->oneToManyRelations;
+    }
+
+    /**
+     * @return array<string, MtManyToOne>
+     */
+    public function getManyToOneRelations(): array
+    {
+        return $this->manyToOneRelations;
+    }
+
+    /**
+     * @return array<string, MtOneToOne>
+     */
+    public function getOneToOneRelations(): array
+    {
+        return $this->oneToOneRelations;
+    }
+
+    /**
+     * @return array<string, MtManyToMany>
+     */
+    public function getManyToManyRelations(): array
+    {
+        return $this->manyToManyRelations;
+    }
+
+    /**
+     * Check if a property has any type of relation
+     * @param string $property
+     * @return bool
+     */
+    public function hasRelation(string $property): bool
+    {
+        return isset($this->oneToManyRelations[$property]) ||
+               isset($this->manyToOneRelations[$property]) ||
+               isset($this->oneToOneRelations[$property]) ||
+               isset($this->manyToManyRelations[$property]);
+    }
+
+    /**
+     * Get relations by type (backward compatibility method)
      * @param string $type
      * @return array<string, mixed>
+     * @deprecated Use specific methods like getOneToManyRelations() instead
      */
     public function getRelationsByType(string $type): array
     {
-        return $this->relationships[$type] ?? [];
+        return match($type) {
+            'OneToMany' => $this->oneToManyRelations,
+            'ManyToOne' => $this->manyToOneRelations,
+            'OneToOne' => $this->oneToOneRelations,
+            'ManyToMany' => $this->manyToManyRelations,
+            default => []
+        };
+    }
+
+    /**
+     * Get relation by type and property (backward compatibility method)
+     * @param string $type
+     * @param string $property
+     * @return mixed
+     * @deprecated Use specific methods like getOneToManyRelation() instead
+     */
+    public function getRelation(string $type, string $property): mixed
+    {
+        $relations = $this->getRelationsByType($type);
+        return $relations[$property] ?? null;
     }
 
     /**
@@ -155,7 +270,35 @@ final readonly class EntityMetadata
      */
     public function getRepository(): ?string
     {
-        return $this->repository;
+        return $this->entity->repository ?? $this->repository;
+    }
+
+    /**
+     * Get MtEntity attribute if available
+     * @return MtEntity|null
+     */
+    public function getEntity(): ?MtEntity
+    {
+        return $this->entity;
+    }
+
+    /**
+     * Get column definition for a property
+     * @param string $property
+     * @return MtColumn|null
+     */
+    public function getColumn(string $property): ?MtColumn
+    {
+        return $this->columns[$property] ?? null;
+    }
+
+    /**
+     * Get all columns
+     * @return array<string, MtColumn>
+     */
+    public function getColumns(): array
+    {
+        return $this->columns;
     }
 
     /**
@@ -166,7 +309,13 @@ final readonly class EntityMetadata
      */
     public function getColumnType(string $property): ?ColumnType
     {
-        // Defensive: check if property exists and has a type
+        // First check if we have explicit MtColumn attribute
+        $column = $this->getColumn($property);
+        if ($column?->columnType !== null) {
+            return $column->columnType;
+        }
+
+        // Fallback to infer from PHP type
         $prop = $this->getProperty($property);
         if ($prop !== null && $prop->getType() !== null) {
             $reflectionType = $prop->getType();

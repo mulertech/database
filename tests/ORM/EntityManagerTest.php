@@ -4,7 +4,6 @@ namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
-use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Event\DbEvents;
@@ -29,12 +28,16 @@ use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithInvalidColumnMappin
 use InvalidArgumentException;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use Exception;
 
 class EntityManagerTest extends TestCase
 {
     private EventManagerInterface $eventManager;
     private EntityManager $entityManager;
 
+    /**
+     * @throws Exception
+     */
     protected function setUp(): void
     {
         parent::setUp();

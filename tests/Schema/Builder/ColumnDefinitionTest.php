@@ -639,4 +639,30 @@ class ColumnDefinitionTest extends TestCase
 
         $this->assertEquals('`user_score` DECIMAL(10,2) UNSIGNED NOT NULL DEFAULT \'0.00\'', $sql);
     }
+
+    /**
+     * Test toSql method throws LogicException when column type is not set
+     */
+    public function testToSqlThrowsExceptionWhenColumnTypeNotSet(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Column type must be set before generating SQL');
+        
+        // Create a column definition but don't set any type
+        $column = new ColumnDefinition('test_column');
+        
+        // Manually set the column type to null to trigger the exception
+        $reflection = new \ReflectionClass($column);
+        $mtColumnProperty = $reflection->getProperty('mtColumn');
+        $mtColumnProperty->setAccessible(true);
+        $mtColumn = $mtColumnProperty->getValue($column);
+        
+        $mtColumnReflection = new \ReflectionClass($mtColumn);
+        $columnTypeProperty = $mtColumnReflection->getProperty('columnType');
+        $columnTypeProperty->setAccessible(true);
+        $columnTypeProperty->setValue($mtColumn, null);
+        
+        // This should throw LogicException
+        $column->toSql();
+    }
 }

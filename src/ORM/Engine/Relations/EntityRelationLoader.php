@@ -6,6 +6,10 @@ namespace MulerTech\Database\ORM\Engine\Relations;
 
 use Exception;
 use MulerTech\Collections\Collection;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -47,11 +51,12 @@ readonly class EntityRelationLoader
 
         if (!empty($entityOneToOne = $metadata->getRelationsByType('OneToOne'))) {
             foreach ($entityOneToOne as $property => $oneToOne) {
-                if (!is_array($oneToOne)) {
+                if (!($oneToOne instanceof MtOneToOne)) {
                     continue;
                 }
-                /** @var array<string, mixed> $oneToOne */
-                $result = $this->loadSingleRelation($entity, $oneToOne, $property, $entityData);
+                // Convert Mt object to array format for existing methods
+                $oneToOneArray = $this->convertOneToOneToArray($oneToOne);
+                $result = $this->loadSingleRelation($entity, $oneToOneArray, $property, $entityData);
                 if ($result !== null) {
                     $entitiesToLoad[] = $result;
                 }
@@ -60,11 +65,12 @@ readonly class EntityRelationLoader
 
         if (!empty($entityOneToMany = $metadata->getRelationsByType('OneToMany'))) {
             foreach ($entityOneToMany as $property => $oneToMany) {
-                if (!is_array($oneToMany)) {
+                if (!($oneToMany instanceof MtOneToMany)) {
                     continue;
                 }
-                /** @var array<string, mixed> $oneToMany */
-                $result = $this->loadOneToMany($entity, $oneToMany, $property);
+                // Convert Mt object to array format for existing methods
+                $oneToManyArray = $this->convertOneToManyToArray($oneToMany);
+                $result = $this->loadOneToMany($entity, $oneToManyArray, $property);
                 if (count($result) > 0) {
                     $entitiesToLoad[] = $result;
                 }
@@ -73,11 +79,12 @@ readonly class EntityRelationLoader
 
         if (!empty($entityManyToOne = $metadata->getRelationsByType('ManyToOne'))) {
             foreach ($entityManyToOne as $property => $manyToOne) {
-                if (!is_array($manyToOne)) {
+                if (!($manyToOne instanceof MtManyToOne)) {
                     continue;
                 }
-                /** @var array<string, mixed> $manyToOne */
-                $result = $this->loadSingleRelation($entity, $manyToOne, $property, $entityData);
+                // Convert Mt object to array format for existing methods
+                $manyToOneArray = $this->convertManyToOneToArray($manyToOne);
+                $result = $this->loadSingleRelation($entity, $manyToOneArray, $property, $entityData);
                 if ($result !== null) {
                     $entitiesToLoad[] = $result;
                 }
@@ -86,11 +93,12 @@ readonly class EntityRelationLoader
 
         if (!empty($entityManyToMany = $metadata->getRelationsByType('ManyToMany'))) {
             foreach ($entityManyToMany as $property => $manyToMany) {
-                if (!is_array($manyToMany)) {
+                if (!($manyToMany instanceof MtManyToMany)) {
                     continue;
                 }
-                /** @var array<string, mixed> $manyToMany */
-                $result = $this->loadManyToMany($entity, $manyToMany, $property);
+                // Convert Mt object to array format for existing methods
+                $manyToManyArray = $this->convertManyToManyToArray($manyToMany);
+                $result = $this->loadManyToMany($entity, $manyToManyArray, $property);
                 if (count($result) > 0) {
                     $entitiesToLoad[] = $result;
                 }
@@ -314,5 +322,57 @@ readonly class EntityRelationLoader
         }
 
         return $columnName;
+    }
+
+    /**
+     * Convert MtOneToOne object to array format expected by existing relation loading methods
+     * @param MtOneToOne $relation
+     * @return array<string, mixed>
+     */
+    private function convertOneToOneToArray(MtOneToOne $relation): array
+    {
+        return [
+            'targetEntity' => $relation->targetEntity,
+        ];
+    }
+
+    /**
+     * Convert MtOneToMany object to array format expected by existing relation loading methods
+     * @param MtOneToMany $relation
+     * @return array<string, mixed>
+     */
+    private function convertOneToManyToArray(MtOneToMany $relation): array
+    {
+        return [
+            'targetEntity' => $relation->targetEntity,
+            'inverseJoinProperty' => $relation->inverseJoinProperty,
+        ];
+    }
+
+    /**
+     * Convert MtManyToOne object to array format expected by existing relation loading methods
+     * @param MtManyToOne $relation
+     * @return array<string, mixed>
+     */
+    private function convertManyToOneToArray(MtManyToOne $relation): array
+    {
+        return [
+            'targetEntity' => $relation->targetEntity,
+        ];
+    }
+
+    /**
+     * Convert MtManyToMany object to array format expected by existing relation loading methods
+     * @param MtManyToMany $relation
+     * @return array<string, mixed>
+     */
+    private function convertManyToManyToArray(MtManyToMany $relation): array
+    {
+        return [
+            'targetEntity' => $relation->targetEntity,
+            'mappedBy' => $relation->mappedBy,
+            'joinProperty' => $relation->joinProperty,
+            'inverseJoinProperty' => $relation->inverseJoinProperty,
+        ];
     }
 }

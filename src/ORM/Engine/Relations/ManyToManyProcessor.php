@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Collections\Collection;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -58,11 +59,12 @@ class ManyToManyProcessor
         $entityId = spl_object_id($entity);
 
         foreach ($manyToManyList as $property => $manyToMany) {
-            if (!is_array($manyToMany)) {
+            if (!($manyToMany instanceof MtManyToMany)) {
                 continue;
             }
-            /** @var array<string, mixed> $manyToMany */
-            $this->processProperty($entity, $entityReflection, $property, $manyToMany, $entityId);
+            // Convert Mt object to array format for existing methods
+            $manyToManyArray = $this->convertManyToManyToArray($manyToMany);
+            $this->processProperty($entity, $entityReflection, $property, $manyToManyArray, $entityId);
         }
     }
 
@@ -250,5 +252,20 @@ class ManyToManyProcessor
     {
         $this->processedRelations = [];
         $this->mappingCache = [];
+    }
+
+    /**
+     * Convert MtManyToMany object to array format expected by existing relation processing methods
+     * @param MtManyToMany $relation
+     * @return array<string, mixed>
+     */
+    private function convertManyToManyToArray(MtManyToMany $relation): array
+    {
+        return [
+            'targetEntity' => $relation->targetEntity,
+            'mappedBy' => $relation->mappedBy,
+            'joinProperty' => $relation->joinProperty,
+            'inverseJoinProperty' => $relation->inverseJoinProperty,
+        ];
     }
 }

@@ -6,6 +6,7 @@ namespace MulerTech\Database\Schema\Diff;
 
 use Exception;
 use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 use RuntimeException;
@@ -87,6 +88,7 @@ readonly class ForeignKeyComparer
                 || $foreignKeyInfo['referencedTable'] === null
                 || $foreignKeyInfo['referencedColumn'] === null
             ) {
+                // Todo: il serait bien de ne pas avoir de propriété nulle
                 throw new RuntimeException(
                     "Foreign key for $entityClass::$property is not fully defined in entity metadata"
                 );
@@ -200,16 +202,17 @@ readonly class ForeignKeyComparer
             return null;
         }
 
-        /** @var array<string, mixed> $foreignKey */
+        // At this point, we know $foreignKey is an MtFk object
+        assert($foreignKey instanceof MtFk);
 
-        $referencedTable = $this->extractStringValue($foreignKey, 'referencedTable');
+        $referencedTable = $foreignKey->referencedTable;
         $constraintName = $this->resolveConstraintName($foreignKey, $entityClass, $property, $referencedTable);
 
         return [
             'foreignKey' => $foreignKey,
             'constraintName' => $constraintName,
             'referencedTable' => $referencedTable,
-            'referencedColumn' => $this->extractStringValue($foreignKey, 'referencedColumn'),
+            'referencedColumn' => $foreignKey->referencedColumn,
             'deleteRule' => $this->extractFkRule($foreignKey, 'deleteRule'),
             'updateRule' => $this->extractFkRule($foreignKey, 'updateRule'),
         ];
@@ -221,42 +224,49 @@ readonly class ForeignKeyComparer
      */
     private function isValidForeignKey(mixed $foreignKey): bool
     {
-        return is_array($foreignKey);
+        return $foreignKey instanceof MtFk;
     }
 
     /**
-     * @param array<string, mixed> $foreignKey
+     * @param MtFk $foreignKey
      * @param string $key
      * @return string|null
      */
-    private function extractStringValue(array $foreignKey, string $key): ?string
+    private function extractStringValue(MtFk $foreignKey, string $key): ?string
     {
-        $value = $foreignKey[$key] ?? null;
-        return is_string($value) ? $value : null;
+        return match($key) {
+            'constraintName' => $foreignKey->constraintName,
+            'referencedTable' => $foreignKey->referencedTable,
+            'referencedColumn' => $foreignKey->referencedColumn,
+            default => null
+        };
     }
 
     /**
-     * @param array<string, mixed> $foreignKey
+     * @param MtFk $foreignKey
      * @param string $key
      * @return FkRule|null
      */
-    private function extractFkRule(array $foreignKey, string $key): ?FkRule
+    private function extractFkRule(MtFk $foreignKey, string $key): ?FkRule
     {
-        $value = $foreignKey[$key] ?? null;
-        return $value instanceof FkRule ? $value : null;
+        return match($key) {
+            'deleteRule' => $foreignKey->deleteRule,
+            'updateRule' => $foreignKey->updateRule,
+            default => null
+        };
     }
 
     /**
      * Resolve constraint name with generation if needed
      *
-     * @param array<string, mixed> $foreignKey
+     * @param MtFk $foreignKey
      * @param class-string $entityClass
      * @param string $property
      * @param string|null $referencedTable
      * @return string|null
      * @throws ReflectionException
      */
-    private function resolveConstraintName(array $foreignKey, string $entityClass, string $property, ?string $referencedTable): ?string
+    private function resolveConstraintName(MtFk $foreignKey, string $entityClass, string $property, ?string $referencedTable): ?string
     {
         $constraintName = $this->extractStringValue($foreignKey, 'constraintName');
 
