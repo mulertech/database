@@ -78,7 +78,6 @@ class MigrationManager
 
         // Create table if it doesn't exist
         if (!$tableExists) {
-            // todo : add test for this case
             $this->createMigrationHistoryTable($tableName);
         }
     }
@@ -124,8 +123,11 @@ class MigrationManager
         if (is_iterable($results)) {
             $versions = [];
             foreach ($results as $row) {
-                if (isset($row->version) && is_string($row->version)) {
-                    $versions[] = $row->version;
+                if (method_exists($row, 'getVersion')) {
+                    $version = $row->getVersion();
+                    if (is_string($version) && $version !== '') {
+                        $versions[] = $version;
+                    }
                 }
             }
             $this->executedMigrations = $versions;
@@ -147,7 +149,6 @@ class MigrationManager
 
         // Check for duplicate version
         if (isset($this->migrations[$version])) {
-            // todo : add test for this case
             throw new RuntimeException(
                 "Migration with version $version is already registered. Each migration must have a unique version."
             );
@@ -167,7 +168,6 @@ class MigrationManager
     public function registerMigrations(string $directory): self
     {
         if (!is_dir($directory)) {
-            // todo : add test for this case
             throw new RuntimeException("Migration directory does not exist: $directory");
         }
 
@@ -255,7 +255,6 @@ class MigrationManager
     public function executeMigration(Migration $migration): void
     {
         if ($this->isMigrationExecuted($migration)) {
-            // todo : add test for this case
             throw new RuntimeException("Migration {$migration->getVersion()} has already been executed.");
         }
 
@@ -280,12 +279,10 @@ class MigrationManager
             // Update executed migrations cache
             $this->executedMigrations[] = $migration->getVersion();
         } catch (Exception $e) {
-            // Rollback transaction if it's possible
             if ($this->entityManager->getPdm()->inTransaction()) {
                 $this->entityManager->getPdm()->rollBack();
             }
 
-            // Re-throw exception
             throw new RuntimeException("Migration {$migration->getVersion()} failed: " . $e->getMessage(), 0, $e);
         }
     }
@@ -318,17 +315,12 @@ class MigrationManager
      */
     public function rollback(): bool
     {
-        // todo : add test for this case
-        if (empty($this->executedMigrations)) {
-            return false;
-        }
-
         $lastVersion = end($this->executedMigrations);
 
         // Find the migration
-        $migration = $this->migrations[$lastVersion] ?? null;
-        if ($migration === null) {
-            throw new RuntimeException("Migration $lastVersion is recorded as executed but cannot be found.");
+        $migration = $lastVersion !== false ? $this->migrations[$lastVersion] ?? null : null;
+        if ($lastVersion === false || $migration === null) {
+            return false;
         }
 
         try {
@@ -349,10 +341,10 @@ class MigrationManager
 
             return true;
         } catch (Exception $e) {
-            // Rollback transaction
-            $this->entityManager->getPdm()->rollBack();
+            if ($this->entityManager->getPdm()->inTransaction()) {
+                $this->entityManager->getPdm()->rollBack();
+            }
 
-            // Re-throw exception
             throw new RuntimeException("Migration rollback $lastVersion failed: " . $e->getMessage(), 0, $e);
         }
     }
@@ -365,7 +357,6 @@ class MigrationManager
      */
     protected function removeMigrationRecord(string $version): void
     {
-        // todo : add test for this case
         $deleteBuilder = new QueryBuilder($this->entityManager->getEmEngine())->delete('migration_history');
         $deleteBuilder->where('version', $version);
 

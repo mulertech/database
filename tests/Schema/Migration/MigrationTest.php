@@ -52,11 +52,17 @@ class MigrationTest extends TestCase
             $this->entityManager->getMetadataCache(),
             $this->databaseName
         );
+        // Clean up migration history before creating MigrationManager
+        $this->entityManager->getPdm()->exec('DELETE FROM migration_history WHERE 1=1');
+        
         $this->migrationManager = new MigrationManager($this->entityManager);
     }
 
     protected function tearDown(): void
     {
+        // Clean up migration history first
+        $this->entityManager->getPdm()->exec('DELETE FROM migration_history');
+        
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS link_user_group_test');
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS users_test');
         $this->entityManager->getPdm()->exec('DROP TABLE IF EXISTS units_test');
@@ -159,7 +165,8 @@ class MigrationTest extends TestCase
      */
     public function testGenerateMigrationReturnsNullWhenNoChanges(): void
     {
-        $filename = new MigrationGenerator(
+        // First, generate and execute a migration that should create all the necessary tables
+        $generator = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
                 $this->entityManager->getMetadataCache(),
@@ -167,15 +174,20 @@ class MigrationTest extends TestCase
             ),
             $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
-        )->generateMigration('202505011025');
-
+        );
+        
+        $filename = $generator->generateMigration('202505011025');
         $content = file_get_contents($filename);
 
         $this->assertStringContainsString('class Migration202505011025', $content);
         $this->migrationManager->registerMigrations($this->migrationsDirectory);
-        $this->migrationManager->migrate();
+        
+        $executedCount = $this->migrationManager->migrate();
+        $this->assertEquals(1, $executedCount, 'Should execute exactly one migration');
 
-        $this->assertNull(new MigrationGenerator(
+        // Now the database should be in sync with the metadata
+        // Create a fresh generator to ensure no caching issues
+        $freshGenerator = new MigrationGenerator(
             new SchemaComparer(
                 new InformationSchema($this->entityManager->getEmEngine()),
                 $this->entityManager->getMetadataCache(),
@@ -183,7 +195,12 @@ class MigrationTest extends TestCase
             ),
             $this->entityManager->getMetadataCache(),
             $this->migrationsDirectory,
-        )->generateMigration('202505011506'));
+        );
+        
+        // Second migration generation should return null since there are no more changes
+        $result = $freshGenerator->generateMigration('202505011506');
+        
+        $this->assertNull($result, 'Second migration should return null when no changes are needed');
     }
 
     /**

@@ -39,6 +39,9 @@ class SchemaComparerTest extends TestCase
 
     private function createSameTables(): void
     {
+        // Clean migration history to ensure migrations can run
+        $this->entityManager->getPdm()->exec('DELETE FROM migration_history WHERE 1=1');
+        
         // Replace by a migration script
         $migrationManager = new MigrationManager($this->entityManager);
         $migrationManager->registerMigrations(
@@ -49,6 +52,9 @@ class SchemaComparerTest extends TestCase
 
     protected function tearDown(): void
     {
+        // Clean up migration history first
+        $this->entityManager->getPdm()->exec('DELETE FROM migration_history WHERE 1=1');
+        
         $tables = [
             'link_user_group_test',
             'users_test',
