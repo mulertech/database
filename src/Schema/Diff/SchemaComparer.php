@@ -186,10 +186,9 @@ class SchemaComparer
             if (!$this->getTableInfo($tableName)) {
                 // Validate that the table has columns before adding it
                 $columns = $this->metadataCache->getPropertiesColumns($entityClass);
-                if (empty($columns)) {
-                    throw new RuntimeException("Table '$tableName' has no columns defined.");
+                if (!empty($columns)) {
+                    $diff->addTableToCreate($tableName, $entityClass);
                 }
-                $diff->addTableToCreate($tableName, $entityClass);
             }
         }
 

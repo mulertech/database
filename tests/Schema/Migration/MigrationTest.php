@@ -469,4 +469,5 @@ class MigrationTest extends TestCase
         $this->assertStringContainsString('->string(255)', $fileContent);
         $this->assertStringContainsString('->default("John")', $fileContent);
     }
+
 }
