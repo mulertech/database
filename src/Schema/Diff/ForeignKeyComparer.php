@@ -84,15 +84,6 @@ readonly class ForeignKeyComparer
 
             $constraintName = $foreignKeyInfo['constraintName'];
 
-            if ($constraintName === null
-                || $foreignKeyInfo['referencedTable'] === null
-                || $foreignKeyInfo['referencedColumn'] === null
-            ) {
-                throw new RuntimeException(
-                    "Foreign key for $entityClass::$property is not fully defined in entity metadata"
-                );
-            }
-
             $entityForeignKeys[$constraintName] = [
                 'COLUMN_NAME' => $columnName,
                 'REFERENCED_TABLE_NAME' => $foreignKeyInfo['referencedTable'],
@@ -183,10 +174,9 @@ readonly class ForeignKeyComparer
      * @param class-string $entityClass
      * @param string $property
      * @return array{
-     *     foreignKey: mixed,
-     *     constraintName: string|null,
-     *     referencedTable: string|null,
-     *     referencedColumn: string|null,
+     *     constraintName: string,
+     *     referencedTable: string,
+     *     referencedColumn: string,
      *     deleteRule: FkRule|null,
      *     updateRule: FkRule|null
      * }|null
@@ -197,36 +187,29 @@ readonly class ForeignKeyComparer
         $metadata = $this->metadataCache->getEntityMetadata($entityClass);
         $foreignKey = $metadata->getForeignKey($property);
 
-        if (!$this->isValidForeignKey($foreignKey)) {
+        if (!$foreignKey instanceof MtFk) {
             return null;
         }
 
-        // At this point, we know $foreignKey is an MtFk object
-        assert($foreignKey instanceof MtFk);
-
         $referencedTable = $foreignKey->referencedTable;
+        $referencedColumn = $foreignKey->referencedColumn;
+
+        if ($referencedTable === null || $referencedColumn === null) {
+            throw new RuntimeException(
+                "Foreign key for $entityClass::$property is not fully defined in entity metadata"
+            );
+        }
+
         $constraintName = $this->resolveConstraintName($foreignKey, $entityClass, $property, $referencedTable);
 
-        // Todo : I think we can return an array like this : ['constraintName' => $foreignKey] (or similar)
         return [
-            'foreignKey' => $foreignKey,
             'constraintName' => $constraintName,
             'referencedTable' => $referencedTable,
-            'referencedColumn' => $foreignKey->referencedColumn,
+            'referencedColumn' => $referencedColumn,
             'deleteRule' => $foreignKey->deleteRule,
             'updateRule' => $foreignKey->updateRule,
         ];
     }
-
-    /**
-     * @param mixed $foreignKey
-     * @return bool
-     */
-    private function isValidForeignKey(mixed $foreignKey): bool
-    {
-        return $foreignKey instanceof MtFk;
-    }
-
 
     /**
      * Resolve constraint name with generation if needed
@@ -234,11 +217,11 @@ readonly class ForeignKeyComparer
      * @param MtFk $foreignKey
      * @param class-string $entityClass
      * @param string $property
-     * @param string|null $referencedTable
-     * @return string|null
+     * @param string $referencedTable
+     * @return string
      * @throws ReflectionException
      */
-    private function resolveConstraintName(MtFk $foreignKey, string $entityClass, string $property, ?string $referencedTable): ?string
+    private function resolveConstraintName(MtFk $foreignKey, string $entityClass, string $property, string $referencedTable): string
     {
         $constraintName = $foreignKey->constraintName;
 
@@ -250,17 +233,13 @@ readonly class ForeignKeyComparer
      *
      * @param class-string $entityClass
      * @param string $property
-     * @param string|null $referencedTable
-     * @return string|null
+     * @param string $referencedTable
+     * @return string
      * @throws ReflectionException
      * @throws Exception
      */
-    private function generateConstraintName(string $entityClass, string $property, ?string $referencedTable): ?string
+    private function generateConstraintName(string $entityClass, string $property, string $referencedTable): string
     {
-        if (empty($referencedTable)) {
-            return null;
-        }
-
         $tableName = $this->metadataCache->getTableName($entityClass);
         $metadata = $this->metadataCache->getEntityMetadata($entityClass);
         $columnName = $metadata->getColumnName($property);
