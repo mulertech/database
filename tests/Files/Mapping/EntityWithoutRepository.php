@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Files\EntityNotMapped;
+namespace MulerTech\Database\Tests\Files\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
@@ -8,7 +8,7 @@ use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * Test entity without repository specified for testing EntityManager::getRepository error case
- * @package MulerTech\Database\Tests\Files\EntityNotMapped
+ * @package MulerTech\Database
  */
 #[MtEntity(tableName: "entity_without_repository")]
 class EntityWithoutRepository

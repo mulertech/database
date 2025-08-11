@@ -1,6 +1,6 @@
 <?php
 
-namespace MulerTech\Database\Tests\Files\EntityNotMapped;
+namespace MulerTech\Database\Tests\Files\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
@@ -9,7 +9,7 @@ use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * Test entity with getUuid method
- * @package MulerTech\Database\Tests\Files\EntityNotMapped
+ * @package MulerTech\Database
  */
 #[MtEntity(tableName: "test_entity_uuid")]
 class EntityWithGetUuid

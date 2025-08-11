@@ -1,12 +1,12 @@
 <?php
 
-namespace MulerTech\Database\Tests\Files\EntityNotMapped;
+namespace MulerTech\Database\Tests\Files\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 
 /**
  * Test entity with no column mappings for testing EntityManager::isUnique error case
- * @package MulerTech\Database\Tests\Files\EntityNotMapped
+ * @package MulerTech\Database
  */
 #[MtEntity(tableName: "entity_with_invalid_mapping")]
 class EntityWithInvalidColumnMapping

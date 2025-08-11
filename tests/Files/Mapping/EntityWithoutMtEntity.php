@@ -8,10 +8,9 @@ namespace MulerTech\Database\Tests\Files\Mapping;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class TestEntityWithoutRelations
+class EntityWithoutMtEntity
 {
     public int $id;
     public string $name;
-    public string $email;
 }
 

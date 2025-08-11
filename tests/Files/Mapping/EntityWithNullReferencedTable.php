@@ -14,7 +14,7 @@ use MulerTech\Database\Mapping\Types\ColumnType;
  * @author Sébastien Muler
  */
 #[MtEntity(tableName: 'test_null_fk')]
-class TestEntityWithNullReferencedTable
+class EntityWithNullReferencedTable
 {
     #[MtFk]
     #[MtColumn(columnType: ColumnType::INT)]

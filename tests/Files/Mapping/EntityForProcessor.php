@@ -17,7 +17,7 @@ use MulerTech\Database\Mapping\Types\ColumnType;
     repository: 'TestRepository',
     autoIncrement: 1000
 )]
-class TestEntityForProcessor
+class EntityForProcessor
 {
     #[MtColumn(columnType: ColumnType::INT)]
     public int $id;

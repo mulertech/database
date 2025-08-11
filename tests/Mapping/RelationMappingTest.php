@@ -11,8 +11,8 @@ use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\RelationMapping;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use MulerTech\Database\Tests\Files\Mapping\TestEntityWithRelations;
-use MulerTech\Database\Tests\Files\Mapping\TestEntityWithoutRelations;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithRelations;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutRelations;
 
 #[CoversClass(RelationMapping::class)]
 class RelationMappingTest extends TestCase
@@ -26,7 +26,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetOneToOneReturnsCorrectRelations(): void
     {
-        $relations = $this->relationMapping->getOneToOne(TestEntityWithRelations::class);
+        $relations = $this->relationMapping->getOneToOne(EntityWithRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertArrayHasKey('profile', $relations);
@@ -36,7 +36,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetOneToOneReturnsEmptyArrayForEntityWithoutRelations(): void
     {
-        $relations = $this->relationMapping->getOneToOne(TestEntityWithoutRelations::class);
+        $relations = $this->relationMapping->getOneToOne(EntityWithoutRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertEmpty($relations);
@@ -44,7 +44,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetManyToOneReturnsCorrectRelations(): void
     {
-        $relations = $this->relationMapping->getManyToOne(TestEntityWithRelations::class);
+        $relations = $this->relationMapping->getManyToOne(EntityWithRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertArrayHasKey('category', $relations);
@@ -57,7 +57,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetManyToOneReturnsEmptyArrayForEntityWithoutRelations(): void
     {
-        $relations = $this->relationMapping->getManyToOne(TestEntityWithoutRelations::class);
+        $relations = $this->relationMapping->getManyToOne(EntityWithoutRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertEmpty($relations);
@@ -65,7 +65,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetOneToManyReturnsCorrectRelations(): void
     {
-        $relations = $this->relationMapping->getOneToMany(TestEntityWithRelations::class);
+        $relations = $this->relationMapping->getOneToMany(EntityWithRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertArrayHasKey('posts', $relations);
@@ -78,7 +78,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetOneToManyReturnsEmptyArrayForEntityWithoutRelations(): void
     {
-        $relations = $this->relationMapping->getOneToMany(TestEntityWithoutRelations::class);
+        $relations = $this->relationMapping->getOneToMany(EntityWithoutRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertEmpty($relations);
@@ -86,7 +86,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetManyToManyReturnsCorrectRelations(): void
     {
-        $relations = $this->relationMapping->getManyToMany(TestEntityWithRelations::class);
+        $relations = $this->relationMapping->getManyToMany(EntityWithRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertArrayHasKey('roles', $relations);
@@ -99,7 +99,7 @@ class RelationMappingTest extends TestCase
 
     public function testGetManyToManyReturnsEmptyArrayForEntityWithoutRelations(): void
     {
-        $relations = $this->relationMapping->getManyToMany(TestEntityWithoutRelations::class);
+        $relations = $this->relationMapping->getManyToMany(EntityWithoutRelations::class);
         
         $this->assertIsArray($relations);
         $this->assertEmpty($relations);
@@ -138,10 +138,10 @@ class RelationMappingTest extends TestCase
 
     public function testAllRelationTypesOnSingleEntity(): void
     {
-        $oneToOne = $this->relationMapping->getOneToOne(TestEntityWithRelations::class);
-        $manyToOne = $this->relationMapping->getManyToOne(TestEntityWithRelations::class);
-        $oneToMany = $this->relationMapping->getOneToMany(TestEntityWithRelations::class);
-        $manyToMany = $this->relationMapping->getManyToMany(TestEntityWithRelations::class);
+        $oneToOne = $this->relationMapping->getOneToOne(EntityWithRelations::class);
+        $manyToOne = $this->relationMapping->getManyToOne(EntityWithRelations::class);
+        $oneToMany = $this->relationMapping->getOneToMany(EntityWithRelations::class);
+        $manyToMany = $this->relationMapping->getManyToMany(EntityWithRelations::class);
         
         $this->assertCount(1, $oneToOne);
         $this->assertCount(2, $manyToOne);

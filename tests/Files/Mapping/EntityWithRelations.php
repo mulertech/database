@@ -13,7 +13,7 @@ use MulerTech\Database\Mapping\Attributes\MtManyToMany;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class TestEntityWithRelations
+class EntityWithRelations
 {
     public int $id;
     public string $name;

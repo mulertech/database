@@ -15,7 +15,7 @@ use MulerTech\Database\Mapping\Types\FkRule;
  * @author Sébastien Muler
  */
 #[MtEntity(tableName: 'posts')]
-class TestEntityWithForeignKeys
+class EntityWithForeignKeys
 {
     #[MtColumn(columnType: ColumnType::INT)]
     public int $id;

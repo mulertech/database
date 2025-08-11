@@ -4,6 +4,7 @@ namespace MulerTech\Database\Tests\ORM;
 
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Event\DbEvents;
@@ -19,12 +20,11 @@ use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutRepository;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithInvalidColumnMapping;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutGetId;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use MulerTech\EventManager\EventManager;
 use MulerTech\EventManager\EventManagerInterface;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutGetId;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithInvalidColumnMapping;
 use InvalidArgumentException;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -673,7 +673,7 @@ class EntityManagerTest extends TestCase
         );
 
         // Create a mock database interface that won't be used for this test
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
         $em = new EntityManager($mockPdm, $metadataCache);
 
         $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
@@ -863,11 +863,11 @@ class EntityManagerTest extends TestCase
         $metadataCache = new MetadataCache();
         // Load the specific entity that has no repository
         $metadataCache->loadEntitiesFromPath(
-            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Mapping'
         );
         
         // Create a mock database interface that won't be used for this test
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
         $em = new EntityManager($mockPdm, $metadataCache);
         
         $em->getRepository(EntityWithoutGetId::class);

@@ -12,7 +12,7 @@ use MulerTech\Database\Mapping\Types\ColumnKey;
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-class TestEntityWithColumns
+class EntityWithColumns
 {
     #[MtColumn(
         columnType: ColumnType::INT,

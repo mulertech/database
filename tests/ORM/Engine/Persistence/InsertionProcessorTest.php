@@ -8,7 +8,7 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutSetId;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutSetId;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

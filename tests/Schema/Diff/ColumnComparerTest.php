@@ -6,9 +6,8 @@ namespace MulerTech\Database\Tests\Schema\Diff;
 
 use MulerTech\Database\Schema\Diff\ColumnComparer;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
-use MulerTech\Database\Tests\Files\Mapping\TestEntityWithColumns;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithColumns;
 use PHPUnit\Framework\TestCase;
-use ReflectionException;
 use RuntimeException;
 
 /**
@@ -40,7 +39,7 @@ class ColumnComparerTest extends TestCase
 
         $this->comparer->compareColumns(
             'test_table',
-            TestEntityWithColumns::class,
+            EntityWithColumns::class,
             $entityProperties,
             $databaseColumns,
             $this->diff
@@ -66,7 +65,7 @@ class ColumnComparerTest extends TestCase
 
         $this->comparer->compareColumns(
             'test_table',
-            TestEntityWithColumns::class,
+            EntityWithColumns::class,
             $entityProperties,
             $databaseColumns,
             $this->diff
@@ -103,7 +102,7 @@ class ColumnComparerTest extends TestCase
 
         $this->comparer->compareColumns(
             'test_table',
-            TestEntityWithColumns::class,
+            EntityWithColumns::class,
             $entityProperties,
             $databaseColumns,
             $this->diff
@@ -117,14 +116,14 @@ class ColumnComparerTest extends TestCase
     public function testThrowsExceptionWhenColumnTypeIsNullForNewColumn(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Column type for ' . TestEntityWithColumns::class . '::noColumnAttribute is not defined in entity metadata');
+        $this->expectExceptionMessage('Column type for ' . EntityWithColumns::class . '::noColumnAttribute is not defined in entity metadata');
 
         $entityProperties = ['noColumnAttribute' => 'no_column_attribute'];
         $databaseColumns = [];
 
         $this->comparer->compareColumns(
             'test_table',
-            TestEntityWithColumns::class,
+            EntityWithColumns::class,
             $entityProperties,
             $databaseColumns,
             $this->diff
@@ -134,7 +133,7 @@ class ColumnComparerTest extends TestCase
     public function testThrowsExceptionWhenColumnTypeIsNullForModification(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Column type for ' . TestEntityWithColumns::class . '::noColumnAttribute is not defined in entity metadata');
+        $this->expectExceptionMessage('Column type for ' . EntityWithColumns::class . '::noColumnAttribute is not defined in entity metadata');
 
         $entityProperties = ['noColumnAttribute' => 'no_column_attribute'];
         $databaseColumns = ['no_column_attribute' => [
@@ -149,7 +148,7 @@ class ColumnComparerTest extends TestCase
 
         $this->comparer->compareColumns(
             'test_table',
-            TestEntityWithColumns::class,
+            EntityWithColumns::class,
             $entityProperties,
             $databaseColumns,
             $this->diff

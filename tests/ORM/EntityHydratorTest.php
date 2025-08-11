@@ -6,9 +6,9 @@ use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\Tests\Files\Entity\User;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithNonNullableProperty;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingSetter;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingGetter;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithNonNullableProperty;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithMissingSetter;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithMissingGetter;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
@@ -157,7 +157,9 @@ class EntityHydratorTest extends TestCase
     public function testHydrateThrowsExceptionForNonNullableProperty(): void
     {
         $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('Property requiredField of MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithNonNullableProperty cannot be null');
+        $this->expectExceptionMessage(
+            'Property requiredField of MulerTech\Database\Tests\Files\Mapping\EntityWithNonNullableProperty cannot be null'
+        );
 
         $data = [
             'required_field' => null, // Trying to set null to a non-nullable property
@@ -190,7 +192,9 @@ class EntityHydratorTest extends TestCase
     public function testHydrateThrowsExceptionForMissingSetter(): void
     {
         $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('No setter defined for property \'name\' in entity \'MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingSetter\'');
+        $this->expectExceptionMessage(
+            'No setter defined for property \'name\' in entity \'MulerTech\Database\Tests\Files\Mapping\EntityWithMissingSetter\''
+        );
 
         $data = [
             'id' => 1,
@@ -207,7 +211,9 @@ class EntityHydratorTest extends TestCase
     public function testExtractThrowsExceptionForMissingGetter(): void
     {
         $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('No getter defined for property \'description\' in entity \'MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithMissingGetter\'');
+        $this->expectExceptionMessage(
+            'No getter defined for property \'description\' in entity \'MulerTech\Database\Tests\Files\Mapping\EntityWithMissingGetter\''
+        );
 
         $entity = new EntityWithMissingGetter();
         $entity->setId(1);

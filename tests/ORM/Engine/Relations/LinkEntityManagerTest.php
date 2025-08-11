@@ -10,7 +10,7 @@ use MulerTech\Database\ORM\Engine\Relations\LinkEntityManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
-use MulerTech\Database\Tests\Files\EntityNotMapped\EntityWithoutGetId;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutGetId;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionException;

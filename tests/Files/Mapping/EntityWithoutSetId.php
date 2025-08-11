@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace MulerTech\Database\Tests\Files\EntityNotMapped;
+namespace MulerTech\Database\Tests\Files\Mapping;
 
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
- * Test entity without getId method - used for testing DeletionProcessor exception handling
+ * Test entity without setId method - used for testing InsertionProcessor exception handling
  * Note: This is in EntityNotMapped namespace to avoid being processed by schema comparers
  * @package MulerTech\Database
  * @author Sébastien Muler
  */
-#[MtEntity(tableName: 'entity_without_get_id')]
-class EntityWithoutGetId
+#[MtEntity(tableName: 'entity_without_set_id')]
+class EntityWithoutSetId
 {
     #[MtColumn(columnType: ColumnType::INT)]
     private ?int $id = null;
@@ -23,11 +23,12 @@ class EntityWithoutGetId
     #[MtColumn(columnType: ColumnType::VARCHAR, length: 255)]
     private ?string $name = null;
 
-    public function setId(int $id): self
+    public function getId(): ?int
     {
-        $this->id = $id;
-        return $this;
+        return $this->id;
     }
+
+    // Intentionally missing setId() method
 
     public function getName(): ?string
     {
