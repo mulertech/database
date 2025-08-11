@@ -11,6 +11,10 @@ use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseManager;
+use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
 use RuntimeException;
 use PHPUnit\Framework\TestCase;
@@ -25,6 +29,7 @@ class MigrationManagerTest extends TestCase
     private MetadataCache $metadataCache;
     private PhpDatabaseInterface $mockPdm;
     private string $tempMigrationsDir;
+    private EntityManager $realEntityManager;
 
     protected function setUp(): void
     {
@@ -44,6 +49,16 @@ class MigrationManagerTest extends TestCase
         // Create temporary directory for migrations
         $this->tempMigrationsDir = sys_get_temp_dir() . '/migrations_test_' . uniqid();
         mkdir($this->tempMigrationsDir);
+
+        // Create real EntityManager for integration tests
+        $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
+        $realMetadataCache = new MetadataCache(null, $entitiesPath);
+        $realMetadataCache->getEntityMetadata(MigrationHistory::class);
+        
+        $this->realEntityManager = new EntityManager(
+            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
+            $realMetadataCache,
+        );
     }
 
     protected function tearDown(): void
@@ -166,7 +181,9 @@ class TestMigration202401011200 extends MulerTech\Database\Schema\Migration\Migr
         file_put_contents($filePath, $migrationContent);
         
         $this->assertTrue(file_exists($filePath));
-        $this->assertStringContainsString('TestMigration202401011200', file_get_contents($filePath));
+        $fileContent = file_get_contents($filePath);
+        $this->assertNotFalse($fileContent);
+        $this->assertStringContainsString('TestMigration202401011200', $fileContent);
     }
 
     /**
@@ -194,5 +211,170 @@ class TestMigration202401011200 extends MulerTech\Database\Schema\Migration\Migr
     {
         $this->expectException(RuntimeException::class);
         throw new RuntimeException('Test exception');
+    }
+
+    /**
+     * Test duplicate migration version registration (integration test)
+     */
+    public function testRegisterDuplicateMigrationVersionIntegration(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        
+        $migration1 = new Migration202501010001($this->realEntityManager);
+        
+        // Create a second migration with manually set version to simulate duplicate
+        $migration2 = new Migration202501010004($this->realEntityManager);
+        
+        // Use reflection to override the version to create a duplicate
+        $reflection = new \ReflectionClass($migration2);
+        $versionProperty = $reflection->getProperty('version');
+        $versionProperty->setAccessible(true);
+        $versionProperty->setValue($migration2, '20250101-0001'); // Same as migration1
+        
+        $manager->registerMigration($migration1);
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Migration with version 20250101-0001 is already registered');
+        
+        $manager->registerMigration($migration2);
+    }
+
+    /**
+     * Test registering migrations from non-existent directory (integration test)
+     */
+    public function testRegisterMigrationsFromNonExistentDirectoryIntegration(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Migration directory does not exist');
+        
+        $manager->registerMigrations('/non/existent/directory');
+    }
+
+    /**
+     * Test executing already executed migration (integration test)
+     */
+    public function testExecuteAlreadyExecutedMigrationIntegration(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        
+        $migration = new Migration202501010002($this->realEntityManager);
+        $manager->registerMigration($migration);
+        
+        // Execute the migration first
+        $manager->executeMigration($migration);
+        
+        // Try to execute it again
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Migration 20250101-0002 has already been executed');
+        
+        $manager->executeMigration($migration);
+    }
+
+    /**
+     * Test rollback functionality when no migrations executed (integration test)
+     */
+    public function testRollbackWhenNoMigrationsExecutedIntegration(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        
+        $result = $manager->rollback();
+        
+        $this->assertFalse($result);
+    }
+
+    /**
+     * Test rollback success (integration test)
+     */
+    public function testRollbackSuccessIntegration(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        
+        $migration = new Migration202501010003($this->realEntityManager);
+        $manager->registerMigration($migration);
+        
+        // Execute the migration first
+        $manager->executeMigration($migration);
+        
+        // Verify it was executed
+        $this->assertTrue($manager->isMigrationExecuted($migration));
+        
+        // Rollback
+        $result = $manager->rollback();
+        
+        $this->assertTrue($result);
+        $this->assertFalse($manager->isMigrationExecuted($migration));
+    }
+
+    /**
+     * Test creating migration history table exists (integration test)
+     */
+    public function testCreateMigrationHistoryTableExistsIntegration(): void
+    {
+        // Just creating a MigrationManager should create the table
+        $manager = new MigrationManager($this->realEntityManager);
+        
+        // Check that migration_history table exists by directly querying the database
+        $sql = "SELECT COUNT(*) FROM migration_history";
+        $statement = $this->realEntityManager->getPdm()->prepare($sql);
+        $statement->execute();
+        
+        // If we get here without exception, the table exists
+        $result = $statement->fetchColumn();
+        $this->assertIsNumeric($result);
+    }
+}
+
+// Test migration classes for integration tests
+class Migration202501010001 extends Migration
+{
+    public function up(): void
+    {
+        // Simple test migration
+    }
+
+    public function down(): void
+    {
+        // Simple rollback
+    }
+}
+
+class Migration202501010004 extends Migration
+{
+    public function up(): void
+    {
+        // Migration that will be modified for duplicate test
+    }
+
+    public function down(): void
+    {
+        // Rollback for duplicate test migration
+    }
+}
+
+class Migration202501010002 extends Migration
+{
+    public function up(): void
+    {
+        // Another test migration
+    }
+
+    public function down(): void
+    {
+        // Another rollback
+    }
+}
+
+class Migration202501010003 extends Migration
+{
+    public function up(): void
+    {
+        // Test migration for rollback
+    }
+
+    public function down(): void
+    {
+        // Test rollback
     }
 }

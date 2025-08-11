@@ -253,9 +253,6 @@ readonly class MigrationCodeGenerator
         $this->processNestedItems(
             $diff->getColumnsToModify(),
             function ($tableName, $columnName, $differences) {
-                if (!is_array($differences)) {
-                    return null;
-                }
                 /** @phpstan-var array{
                  *     COLUMN_TYPE?: array{from: string, to: string},
                  *     IS_NULLABLE?: array{from: 'NO'|'YES', to: 'NO'|'YES'},

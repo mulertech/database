@@ -36,7 +36,7 @@ class MigrationManager
     /**
      * @param EntityManagerInterface $entityManager
      * @param class-string $migrationHistory
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -78,6 +78,7 @@ class MigrationManager
 
         // Create table if it doesn't exist
         if (!$tableExists) {
+            // todo : add test for this case
             $this->createMigrationHistoryTable($tableName);
         }
     }
@@ -105,36 +106,33 @@ class MigrationManager
      * Load executed migrations from database
      *
      * @return void
+     * @throws ReflectionException
      */
     private function loadExecutedMigrations(): void
     {
-        try {
-            $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
-                ->select('version')
-                ->from('migration_history')
-                ->orderBy('version');
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
+            ->select('version')
+            ->from('migration_history')
+            ->orderBy('version');
 
-            $results = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
-                $queryBuilder,
-                $this->migrationHistory,
-            );
+        $results = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
+            $queryBuilder,
+            $this->migrationHistory,
+        );
 
-            // Extract versions (string) from objects
-            if (is_iterable($results)) {
-                $versions = [];
-                foreach ($results as $row) {
-                    if (isset($row->version) && is_string($row->version)) {
-                        $versions[] = $row->version;
-                    }
+        // Extract versions (string) from objects
+        if (is_iterable($results)) {
+            $versions = [];
+            foreach ($results as $row) {
+                if (isset($row->version) && is_string($row->version)) {
+                    $versions[] = $row->version;
                 }
-                $this->executedMigrations = $versions;
-            } else {
-                $this->executedMigrations = [];
             }
-        } catch (Exception) {
-            // Table might not exist yet
-            $this->executedMigrations = [];
+            $this->executedMigrations = $versions;
+            return;
         }
+
+        $this->executedMigrations = [];
     }
 
     /**
@@ -149,6 +147,7 @@ class MigrationManager
 
         // Check for duplicate version
         if (isset($this->migrations[$version])) {
+            // todo : add test for this case
             throw new RuntimeException(
                 "Migration with version $version is already registered. Each migration must have a unique version."
             );
@@ -168,6 +167,7 @@ class MigrationManager
     public function registerMigrations(string $directory): self
     {
         if (!is_dir($directory)) {
+            // todo : add test for this case
             throw new RuntimeException("Migration directory does not exist: $directory");
         }
 
@@ -255,6 +255,7 @@ class MigrationManager
     public function executeMigration(Migration $migration): void
     {
         if ($this->isMigrationExecuted($migration)) {
+            // todo : add test for this case
             throw new RuntimeException("Migration {$migration->getVersion()} has already been executed.");
         }
 
@@ -295,16 +296,11 @@ class MigrationManager
      * @param Migration $migration
      * @param float $executionTime
      * @return void
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
         $tableName = $this->entityManager->getMetadataCache()->getTableName($this->migrationHistory);
-
-        if ($tableName === null) { // @phpstan-ignore-line
-            // If migration history is not in the main mapping, use default table name
-            $tableName = 'migration_history';
-        }
 
         $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->insert($tableName)
@@ -322,6 +318,7 @@ class MigrationManager
      */
     public function rollback(): bool
     {
+        // todo : add test for this case
         if (empty($this->executedMigrations)) {
             return false;
         }
@@ -368,6 +365,7 @@ class MigrationManager
      */
     protected function removeMigrationRecord(string $version): void
     {
+        // todo : add test for this case
         $deleteBuilder = new QueryBuilder($this->entityManager->getEmEngine())->delete('migration_history');
         $deleteBuilder->where('version', $version);
 
