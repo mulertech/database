@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Query\Builder\Traits;
 
-use MulerTech\Database\Query\Builder\Traits\OrderLimitTrait;
-use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
-use MulerTech\Database\Core\Traits\SqlFormatterTrait;
+use MulerTech\Database\Tests\Files\Query\Builder\TestableQueryBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -14,16 +12,16 @@ use PHPUnit\Framework\TestCase;
  */
 class OrderLimitTraitTest extends TestCase
 {
-    private TestableOrderLimitBuilder $builder;
+    private TestableQueryBuilder $builder;
 
     protected function setUp(): void
     {
-        $this->builder = new TestableOrderLimitBuilder();
+        $this->builder = new TestableQueryBuilder();
     }
 
     public function testOrderByAsc(): void
     {
-        $result = $this->builder->orderBy('name', 'ASC');
+        $result = $this->builder->orderBy('name');
         
         $this->assertSame($this->builder, $result); // Test fluent interface
     }
@@ -184,35 +182,5 @@ class OrderLimitTraitTest extends TestCase
         $this->assertStringContainsString('id', $orderByClause);
         
         $this->assertStringContainsString('LIMIT 100', $limitClause);
-    }
-}
-
-/**
- * Testable implementation of a query builder using OrderLimitTrait
- */
-class TestableOrderLimitBuilder extends AbstractQueryBuilder
-{
-    use OrderLimitTrait;
-    use SqlFormatterTrait;
-
-    public function getQueryType(): string
-    {
-        return 'TEST';
-    }
-
-    protected function buildSql(): string
-    {
-        return 'SELECT * FROM test';
-    }
-
-    // Expose protected methods for testing
-    public function testBuildOrderByClause(): string
-    {
-        return $this->buildOrderByClause();
-    }
-
-    public function testBuildLimitClause(): string
-    {
-        return $this->buildLimitClause();
     }
 }

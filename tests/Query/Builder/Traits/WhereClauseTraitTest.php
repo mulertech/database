@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\Query\Builder\Traits;
 
 use InvalidArgumentException;
-use MulerTech\Database\Query\Builder\Traits\WhereClauseTrait;
-use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
 use MulerTech\Database\Query\Builder\SelectBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;
-use MulerTech\Database\Core\Parameters\QueryParameterBag;
+use MulerTech\Database\Tests\Files\Query\Builder\TestableQueryBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -20,11 +18,11 @@ use PHPUnit\Framework\TestCase;
  */
 class WhereClauseTraitTest extends TestCase
 {
-    private TestableWhereClauseBuilder $builder;
+    private TestableQueryBuilder $builder;
 
     protected function setUp(): void
     {
-        $this->builder = new TestableWhereClauseBuilder();
+        $this->builder = new TestableQueryBuilder();
     }
 
     public function testWhere(): void
@@ -420,7 +418,7 @@ class WhereClauseTraitTest extends TestCase
             ->whereNotNull('email', LinkOperator::AND)
             ->whereRaw('YEAR(created_at) = :year', ['year' => 2023], LinkOperator::AND);
         
-        $this->assertInstanceOf(TestableWhereClauseBuilder::class, $this->builder);
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 
     public function testAllComparisonOperators(): void
@@ -435,7 +433,7 @@ class WhereClauseTraitTest extends TestCase
             ->whereNotGreaterThan('col7', 'val7')
             ->whereNotLessThan('col8', 'val8');
         
-        $this->assertInstanceOf(TestableWhereClauseBuilder::class, $this->builder);
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 
     public function testAllSpecialOperators(): void
@@ -454,7 +452,7 @@ class WhereClauseTraitTest extends TestCase
             ->whereExists($subquery)
             ->whereRaw('custom_condition = 1');
         
-        $this->assertInstanceOf(TestableWhereClauseBuilder::class, $this->builder);
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 
     public function testMixedLinkOperators(): void
@@ -465,30 +463,6 @@ class WhereClauseTraitTest extends TestCase
             ->whereEqual('status', 'active', LinkOperator::AND)
             ->whereNotEqual('type', 'guest', LinkOperator::OR);
         
-        $this->assertInstanceOf(TestableWhereClauseBuilder::class, $this->builder);
-    }
-}
-
-/**
- * Testable implementation of a query builder using WhereClauseTrait
- */
-class TestableWhereClauseBuilder extends AbstractQueryBuilder
-{
-    use WhereClauseTrait;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->whereBuilder = new WhereClauseBuilder($this->parameterBag);
-    }
-
-    public function getQueryType(): string
-    {
-        return 'TEST';
-    }
-
-    protected function buildSql(): string
-    {
-        return 'SELECT * FROM test';
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 }

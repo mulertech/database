@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Mapping;
 
-use DateTime;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtFk;
@@ -15,10 +14,10 @@ use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
+use MulerTech\Database\Tests\Files\Mapping\TestEntityForReflection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
-use ReflectionProperty;
 
 #[CoversClass(EntityMetadata::class)]
 class EntityMetadataTest extends TestCase
@@ -535,51 +534,5 @@ class EntityMetadataTest extends TestCase
         $this->assertEquals('getName', $mapping['name']);
         $this->assertEquals('isActive', $mapping['active']);
         $this->assertArrayNotHasKey('untypedProperty', $mapping); // No getter for this property
-    }
-}
-
-class TestEntityForReflection
-{
-    public int $id;
-    public string $name;
-    public bool $active;
-    public DateTime $createdAt;
-    public array $metadata;
-    public float $score;
-    public $untypedProperty;
-
-    public function getId(): int
-    {
-        return $this->id;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    public function isActive(): bool
-    {
-        return $this->active;
-    }
-
-    public function hasPermission(): bool
-    {
-        return true;
-    }
-
-    public function setId(int $id): void
-    {
-        $this->id = $id;
-    }
-
-    public function setName(string $name): void
-    {
-        $this->name = $name;
-    }
-
-    public function setActive(bool $active): void
-    {
-        $this->active = $active;
     }
 }

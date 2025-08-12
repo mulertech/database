@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Query\Builder\Traits;
 
-use MulerTech\Database\Query\Builder\Traits\JoinClauseTrait;
-use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
-use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Types\JoinType;
-use MulerTech\Database\Core\Parameters\QueryParameterBag;
-use MulerTech\Database\ORM\EmEngine;
+use MulerTech\Database\Tests\Files\Query\Builder\TestableQueryBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -17,11 +13,11 @@ use PHPUnit\Framework\TestCase;
  */
 class JoinClauseTraitTest extends TestCase
 {
-    private TestableJoinClauseBuilder $builder;
+    private TestableQueryBuilder $builder;
 
     protected function setUp(): void
     {
-        $this->builder = new TestableJoinClauseBuilder();
+        $this->builder = new TestableQueryBuilder();
     }
 
     public function testJoin(): void
@@ -176,30 +172,6 @@ class JoinClauseTraitTest extends TestCase
             ->join(JoinType::LEFT_OUTER, 't6', 'base.id', 't6.base_id')
             ->join(JoinType::RIGHT_OUTER, 't7', 'base.id', 't7.base_id');
         
-        $this->assertInstanceOf(TestableJoinClauseBuilder::class, $this->builder);
-    }
-}
-
-/**
- * Testable implementation of a query builder using JoinClauseTrait
- */
-class TestableJoinClauseBuilder extends AbstractQueryBuilder
-{
-    use JoinClauseTrait;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->joinBuilder = new JoinClauseBuilder($this->parameterBag);
-    }
-
-    public function getQueryType(): string
-    {
-        return 'TEST';
-    }
-
-    protected function buildSql(): string
-    {
-        return 'SELECT * FROM test';
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 }

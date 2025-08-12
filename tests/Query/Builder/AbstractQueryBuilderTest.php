@@ -11,6 +11,7 @@ use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\Interface\Statement;
+use MulerTech\Database\Tests\Files\Query\Builder\TestableQueryBuilder;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use stdClass;
@@ -21,16 +22,16 @@ use PDO;
  */
 class AbstractQueryBuilderTest extends TestCase
 {
-    private TestableAbstractQueryBuilder $builder;
+    private TestableQueryBuilder $builder;
 
     protected function setUp(): void
     {
-        $this->builder = new TestableAbstractQueryBuilder();
+        $this->builder = new TestableQueryBuilder();
     }
 
     public function testConstructor(): void
     {
-        $builder = new TestableAbstractQueryBuilder();
+        $builder = new TestableQueryBuilder();
         $this->assertInstanceOf(AbstractQueryBuilder::class, $builder);
         $this->assertInstanceOf(QueryParameterBag::class, $builder->getParameterBag());
     }
@@ -38,7 +39,7 @@ class AbstractQueryBuilderTest extends TestCase
     public function testConstructorWithEmEngine(): void
     {
         $emEngine = $this->createMock(EmEngine::class);
-        $builder = new TestableAbstractQueryBuilder($emEngine);
+        $builder = new TestableQueryBuilder($emEngine);
         $this->assertInstanceOf(AbstractQueryBuilder::class, $builder);
     }
 
@@ -76,7 +77,7 @@ class AbstractQueryBuilderTest extends TestCase
                 ->method('getEntityManager')
                 ->willReturn($entityManager);
         
-        $builder = new TestableAbstractQueryBuilder($emEngine);
+        $builder = new TestableQueryBuilder($emEngine);
         $builder->setSql('SELECT * FROM test');
         
         $result = $builder->getResult();
@@ -89,7 +90,7 @@ class AbstractQueryBuilderTest extends TestCase
         $stmt->expects($this->once())->method('execute');
         $stmt->expects($this->once())->method('rowCount')->willReturn(5);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -113,7 +114,7 @@ class AbstractQueryBuilderTest extends TestCase
              ->with(PDO::FETCH_OBJ)
              ->willReturn($fetchResults);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -134,7 +135,7 @@ class AbstractQueryBuilderTest extends TestCase
              ->with(PDO::FETCH_CLASS, $customClass)
              ->willReturn($fetchResults);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -155,7 +156,7 @@ class AbstractQueryBuilderTest extends TestCase
              ->with(PDO::FETCH_OBJ)
              ->willReturn($obj);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -174,7 +175,7 @@ class AbstractQueryBuilderTest extends TestCase
         $stmt->expects($this->once())->method('setFetchMode')->with(PDO::FETCH_CLASS, $customClass);
         $stmt->expects($this->once())->method('fetch')->willReturn($obj);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -192,7 +193,7 @@ class AbstractQueryBuilderTest extends TestCase
              ->with(PDO::FETCH_OBJ)
              ->willReturn(false);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -209,7 +210,7 @@ class AbstractQueryBuilderTest extends TestCase
         $stmt->expects($this->once())->method('execute');
         $stmt->expects($this->once())->method('fetchColumn')->willReturn($scalarValue);
         
-        $builder = $this->getMockBuilder(TestableAbstractQueryBuilder::class)
+        $builder = $this->getMockBuilder(TestableQueryBuilder::class)
                        ->onlyMethods(['getResult'])
                        ->getMock();
         $builder->expects($this->once())->method('getResult')->willReturn($stmt);
@@ -333,49 +334,5 @@ class AbstractQueryBuilderTest extends TestCase
         
         $this->assertStringContainsString('`name` =', $result);
         $this->assertStringContainsString('`updated_at` = NOW()', $result);
-    }
-}
-
-/**
- * Testable implementation of AbstractQueryBuilder for testing purposes
- */
-class TestableAbstractQueryBuilder extends AbstractQueryBuilder
-{
-    private string $sql = '';
-
-    public function getQueryType(): string
-    {
-        return 'TEST';
-    }
-
-    protected function buildSql(): string
-    {
-        return $this->sql;
-    }
-
-    public function setSql(string $sql): void
-    {
-        $this->sql = $sql;
-    }
-
-    // Expose protected methods for testing
-    public function testBindParameter(mixed $value, ?int $type = PDO::PARAM_STR): string
-    {
-        return $this->bindParameter($value, $type);
-    }
-
-    public function testValidateTableName(string $table): void
-    {
-        $this->validateTableName($table);
-    }
-
-    public function testValidateColumnName(string $column): void
-    {
-        $this->validateColumnName($column);
-    }
-
-    public function testBuildSetClause(array $data): string
-    {
-        return $this->buildSetClause($data);
     }
 }

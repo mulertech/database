@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Query\Builder\Traits;
 
-use MulerTech\Database\Query\Builder\Traits\QueryOptionsTrait;
-use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
-use MulerTech\Database\Core\Traits\SqlFormatterTrait;
+use MulerTech\Database\Tests\Files\Query\Builder\TestableQueryBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -14,11 +12,11 @@ use PHPUnit\Framework\TestCase;
  */
 class QueryOptionsTraitTest extends TestCase
 {
-    private TestableQueryOptionsBuilder $builder;
+    private TestableQueryBuilder $builder;
 
     protected function setUp(): void
     {
-        $this->builder = new TestableQueryOptionsBuilder();
+        $this->builder = new TestableQueryBuilder();
     }
 
     public function testIgnore(): void
@@ -55,7 +53,7 @@ class QueryOptionsTraitTest extends TestCase
         $this->builder->withoutIgnore();
         $this->builder->ignore();
         
-        $this->assertInstanceOf(TestableQueryOptionsBuilder::class, $this->builder);
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 
     public function testLowPriorityToggle(): void
@@ -64,7 +62,7 @@ class QueryOptionsTraitTest extends TestCase
         $this->builder->withoutLowPriority();
         $this->builder->lowPriority();
         
-        $this->assertInstanceOf(TestableQueryOptionsBuilder::class, $this->builder);
+        $this->assertInstanceOf(TestableQueryBuilder::class, $this->builder);
     }
 
     public function testChaining(): void
@@ -180,30 +178,5 @@ class QueryOptionsTraitTest extends TestCase
         $modifiers = $this->builder->testBuildQueryModifiers();
         
         $this->assertEmpty($modifiers);
-    }
-}
-
-/**
- * Testable implementation of a query builder using QueryOptionsTrait
- */
-class TestableQueryOptionsBuilder extends AbstractQueryBuilder
-{
-    use QueryOptionsTrait;
-    use SqlFormatterTrait;
-
-    public function getQueryType(): string
-    {
-        return 'TEST';
-    }
-
-    protected function buildSql(): string
-    {
-        return 'SELECT * FROM test';
-    }
-
-    // Expose protected methods for testing
-    public function testBuildQueryModifiers(): array
-    {
-        return $this->buildQueryModifiers();
     }
 }
