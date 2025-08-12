@@ -49,11 +49,8 @@ readonly class EntityRelationLoader
         $entitiesToLoad = [];
         $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
 
-        if (!empty($entityOneToOne = $metadata->getRelationsByType('OneToOne'))) {
+        if (!empty($entityOneToOne = $metadata->getOneToOneRelations())) {
             foreach ($entityOneToOne as $property => $oneToOne) {
-                if (!($oneToOne instanceof MtOneToOne)) {
-                    continue;
-                }
                 // Convert Mt object to array format for existing methods
                 $oneToOneArray = $this->convertOneToOneToArray($oneToOne);
                 $result = $this->loadSingleRelation($entity, $oneToOneArray, $property, $entityData);
@@ -63,11 +60,8 @@ readonly class EntityRelationLoader
             }
         }
 
-        if (!empty($entityOneToMany = $metadata->getRelationsByType('OneToMany'))) {
+        if (!empty($entityOneToMany = $metadata->getOneToManyRelations())) {
             foreach ($entityOneToMany as $property => $oneToMany) {
-                if (!($oneToMany instanceof MtOneToMany)) {
-                    continue;
-                }
                 // Convert Mt object to array format for existing methods
                 $oneToManyArray = $this->convertOneToManyToArray($oneToMany);
                 $result = $this->loadOneToMany($entity, $oneToManyArray, $property);
@@ -77,11 +71,8 @@ readonly class EntityRelationLoader
             }
         }
 
-        if (!empty($entityManyToOne = $metadata->getRelationsByType('ManyToOne'))) {
+        if (!empty($entityManyToOne = $metadata->getManyToOneRelations())) {
             foreach ($entityManyToOne as $property => $manyToOne) {
-                if (!($manyToOne instanceof MtManyToOne)) {
-                    continue;
-                }
                 // Convert Mt object to array format for existing methods
                 $manyToOneArray = $this->convertManyToOneToArray($manyToOne);
                 $result = $this->loadSingleRelation($entity, $manyToOneArray, $property, $entityData);
@@ -91,11 +82,8 @@ readonly class EntityRelationLoader
             }
         }
 
-        if (!empty($entityManyToMany = $metadata->getRelationsByType('ManyToMany'))) {
+        if (!empty($entityManyToMany = $metadata->getManyToManyRelations())) {
             foreach ($entityManyToMany as $property => $manyToMany) {
-                if (!($manyToMany instanceof MtManyToMany)) {
-                    continue;
-                }
                 // Convert Mt object to array format for existing methods
                 $manyToManyArray = $this->convertManyToManyToArray($manyToMany);
                 $result = $this->loadManyToMany($entity, $manyToManyArray, $property);
