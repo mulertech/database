@@ -194,13 +194,15 @@ class LinkEntityManagerTest extends TestCase
         $collection = new DatabaseCollection([$user2]);
         $user1->setGroups($collection); // This sets the groups property
         
-        $entityReflection = new ReflectionClass($user1);
-        
         // Use reflection to access private method
         $reflection = new ReflectionClass($this->linkEntityManager);
         $method = $reflection->getMethod('removeFromCollectionProperty');
 
-        // This should trigger the echo statement when removing the related entity
-        $method->invoke($this->linkEntityManager, $user1, $entityReflection, 'groups', $user2);
+        // This should trigger the logic when removing the related entity
+        // Using the new signature: removeFromCollectionProperty(object $entity, string $property, object $relatedEntity)
+        $method->invoke($this->linkEntityManager, $user1, 'groups', $user2);
+
+        // Verify that the entity was removed from the collection
+        $this->assertCount(0, $user1->getGroups());
     }
 }

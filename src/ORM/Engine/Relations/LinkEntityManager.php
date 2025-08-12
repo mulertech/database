@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Relations;
 
+use Error;
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 
@@ -190,7 +191,6 @@ class LinkEntityManager
         object $relatedEntity,
         MtManyToMany $manyToMany
     ): void {
-        $entityReflection = new ReflectionClass($entity);
         $entityName = $entity::class;
         $manyToManyList = $this->getManyToManyMapping($entityName);
 
@@ -198,48 +198,59 @@ class LinkEntityManager
             return;
         }
 
+        $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
+
         foreach ($manyToManyList as $property => $mapping) {
-            if ($mapping === $manyToMany && $entityReflection->hasProperty($property)) {
-                $this->removeFromCollectionProperty($entity, $entityReflection, $property, $relatedEntity);
+            if ($mapping === $manyToMany && $this->hasProperty($metadata, $property)) {
+                $this->removeFromCollectionProperty($entity, $property, $relatedEntity);
                 break;
             }
         }
     }
 
     /**
-     * Remove from specific collection property
-     * @template T of object
+     * Remove from specific collection property using try/catch approach instead of reflection
      * @param object $entity
-     * @param ReflectionClass<T> $entityReflection
      * @param string $property
      * @param object $relatedEntity
-     * @throws ReflectionException
      */
     private function removeFromCollectionProperty(
         object $entity,
-        ReflectionClass $entityReflection,
         string $property,
         object $relatedEntity
     ): void {
-        $reflectionProperty = $entityReflection->getProperty($property);
+        try {
+            $collection = $this->getPropertyValue($entity, $property);
 
-        if (!$reflectionProperty->isInitialized($entity)) {
-            return;
-        }
-
-        $collection = $this->getPropertyValue($entity, $property);
-
-        if (!$collection instanceof Collection) {
-            return;
-        }
-
-        $items = $collection->items();
-        foreach ($items as $key => $item) {
-            if ($item === $relatedEntity) {
-                $collection->remove($key);
-                break;
+            if (!$collection instanceof Collection) {
+                return;
             }
+
+            $items = $collection->items();
+            foreach ($items as $key => $item) {
+                if ($item === $relatedEntity) {
+                    $collection->remove($key);
+                    break;
+                }
+            }
+        } catch (Error $e) {
+            // Handle uninitialized property errors in PHP 7.4+
+            if (str_contains($e->getMessage(), 'uninitialized')) {
+                return;
+            }
+            throw $e;
         }
+    }
+
+    /**
+     * Check if entity has a property using metadata
+     * @param EntityMetadata $metadata
+     * @param string $property
+     * @return bool
+     */
+    private function hasProperty(EntityMetadata $metadata, string $property): bool
+    {
+        return $metadata->getGetter($property) !== null;
     }
 
     /**
@@ -363,8 +374,8 @@ class LinkEntityManager
     {
         if (!isset($this->mappingCache[$entityName])) {
             $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
-            $mapping = $metadata->getRelationsByType('ManyToMany');
-            $this->mappingCache[$entityName] = $mapping;
+            $mapping = $metadata->getManyToManyRelations();
+            $this->mappingCache[$entityName] = $mapping ?: false;
         }
 
         return $this->mappingCache[$entityName];
@@ -375,6 +386,7 @@ class LinkEntityManager
      * @param object $entity
      * @param string $property
      * @return mixed
+     * @throws ReflectionException
      */
     private function getPropertyValue(object $entity, string $property): mixed
     {
