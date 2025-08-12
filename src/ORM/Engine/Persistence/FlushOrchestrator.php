@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use MulerTech\Database\Event\PostFlushEvent;
+use MulerTech\Database\Event\PreFlushEvent;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
@@ -35,6 +36,7 @@ readonly class FlushOrchestrator
      */
     public function performFlush(): void
     {
+        $this->handlePreFlushEvents();
         $this->eventDispatcher->resetProcessedEvents();
 
         $maxIterations = 5;
@@ -64,6 +66,19 @@ readonly class FlushOrchestrator
                !empty($this->changeSetManager->getScheduledUpdates()) ||
                !empty($this->changeSetManager->getScheduledDeletions()) ||
                !empty($this->stateManager->getScheduledDeletions());
+    }
+
+    /**
+     * @return void
+     */
+    private function handlePreFlushEvents(): void
+    {
+        if ($this->eventManager === null) {
+            return;
+        }
+
+        // Dispatch the pre-flush event
+        $this->eventManager->dispatch(new PreFlushEvent($this->entityManager));
     }
 
     /**
