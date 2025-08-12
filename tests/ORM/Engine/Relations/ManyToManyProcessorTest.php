@@ -203,7 +203,7 @@ class ManyToManyProcessorTest extends TestCase
         $method->setAccessible(true);
         
         // Test with non-existent property
-        $result = $method->invoke($this->processor, $reflection, $user, 'nonExistentProperty');
+        $result = $method->invoke($this->processor, $user, 'nonExistentProperty');
         
         $this->assertFalse($result);
     }
@@ -238,7 +238,6 @@ class ManyToManyProcessorTest extends TestCase
         $processPropertyMethod->invoke(
             $this->processor,
             $user,
-            $reflection,
             'groups',
             $manyToMany,
             $entityId

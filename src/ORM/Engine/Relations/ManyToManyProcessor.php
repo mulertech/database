@@ -42,12 +42,10 @@ class ManyToManyProcessor
 
     /**
      * Process ManyToMany relations for an entity
-     * @template T of object
      * @param object $entity
-     * @param ReflectionClass<T> $entityReflection
      * @throws ReflectionException
      */
-    public function process(object $entity, ReflectionClass $entityReflection): void
+    public function process(object $entity): void
     {
         $entityName = $entity::class;
         $manyToManyList = $this->getManyToManyMapping($entityName);
@@ -59,15 +57,13 @@ class ManyToManyProcessor
         $entityId = spl_object_id($entity);
 
         foreach ($manyToManyList as $property => $manyToMany) {
-            $this->processProperty($entity, $entityReflection, $property, $manyToMany, $entityId);
+            $this->processProperty($entity, $property, $manyToMany, $entityId);
         }
     }
 
     /**
      * Process a specific ManyToMany property
-     * @template T of object
      * @param object $entity
-     * @param ReflectionClass<T> $entityReflection
      * @param string $property
      * @param MtManyToMany $manyToMany
      * @param int $entityId
@@ -75,7 +71,6 @@ class ManyToManyProcessor
      */
     private function processProperty(
         object $entity,
-        ReflectionClass $entityReflection,
         string $property,
         MtManyToMany $manyToMany,
         int $entityId
@@ -91,7 +86,7 @@ class ManyToManyProcessor
         // Mark this relation as processed
         $this->processedRelations[$relationKey] = true;
 
-        if (!$this->hasValidProperty($entityReflection, $entity, $property)) {
+        if (!$this->hasValidProperty($entity, $property)) {
             return;
         }
 
@@ -109,19 +104,21 @@ class ManyToManyProcessor
 
     /**
      * Check if property is valid and initialized
-     * @template T of object
-     * @param ReflectionClass<T> $entityReflection
      * @param object $entity
      * @param string $property
      * @return bool
+     * @throws ReflectionException
      */
-    private function hasValidProperty(ReflectionClass $entityReflection, object $entity, string $property): bool
+    private function hasValidProperty(object $entity, string $property): bool
     {
-        if (!$entityReflection->hasProperty($property)) {
+        $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entity::class);
+        $reflectionProperty = $metadata->getProperty($property);
+
+        if ($reflectionProperty === null) {
             return false;
         }
 
-        return $entityReflection->getProperty($property)->isInitialized($entity);
+        return $reflectionProperty->isInitialized($entity);
     }
 
     /**

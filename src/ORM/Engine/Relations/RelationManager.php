@@ -6,7 +6,6 @@ namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use ReflectionClass;
 use ReflectionException;
 
 /**
@@ -148,8 +147,7 @@ class RelationManager
         }
 
         $this->processedEntities[] = $entityId;
-        $entityReflection = new ReflectionClass($entity);
 
-        $this->manyToManyProcessor->process($entity, $entityReflection);
+        $this->manyToManyProcessor->process($entity);
     }
 }
