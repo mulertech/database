@@ -52,7 +52,7 @@ class EntityRepository
      */
     protected function getTableName(): string
     {
-        return $this->entityManager->getMetadataCache()->getEntityMetadata($this->entityName)->tableName;
+        return $this->entityManager->getMetadataRegistry()->getEntityMetadata($this->entityName)->tableName;
     }
 
     /**

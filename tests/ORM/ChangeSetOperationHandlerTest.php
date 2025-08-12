@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetOperationHandler;
 use MulerTech\Database\ORM\ChangeSetValidator;
@@ -34,9 +34,10 @@ class ChangeSetOperationHandlerTest extends TestCase
     {
         parent::setUp();
         
-        $this->identityMap = new IdentityMap(new MetadataCache());
+        $metadataRegistry = new MetadataRegistry();
+        $this->identityMap = new IdentityMap($metadataRegistry);
         $this->registry = new EntityRegistry();
-        $this->changeDetector = new ChangeDetector();
+        $this->changeDetector = new ChangeDetector($metadataRegistry);
         $this->validator = new ChangeSetValidator($this->identityMap);
         
         $this->handler = new ChangeSetOperationHandler(
@@ -48,7 +49,7 @@ class ChangeSetOperationHandlerTest extends TestCase
         
         $this->scheduler = new EntityScheduler();
         $this->stateManager = new EntityStateManager($this->identityMap);
-        $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap);
+        $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap, $metadataRegistry);
     }
 
     public function testHandleInsertionScheduling(): void

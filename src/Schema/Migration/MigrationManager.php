@@ -56,10 +56,10 @@ class MigrationManager
     {
         // Create the migration history table if it doesn't exist
         // Using low-level approach to avoid circular dependencies
-        $metadataCache = $this->entityManager->getMetadataCache();
+        $metadataRegistry = $this->entityManager->getMetadataRegistry();
         $emEngine = $this->entityManager->getEmEngine();
 
-        $tableName = $metadataCache->getTableName($this->migrationHistory);
+        $tableName = $metadataRegistry->getEntityMetadata($this->migrationHistory)->tableName;
 
         // Check if table exists in the database
         $informationSchema = new InformationSchema($emEngine);
@@ -297,7 +297,7 @@ class MigrationManager
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $tableName = $this->entityManager->getMetadataCache()->getTableName($this->migrationHistory);
+        $tableName = $this->entityManager->getMetadataRegistry()->getEntityMetadata($this->migrationHistory)->tableName;
 
         $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->insert($tableName)

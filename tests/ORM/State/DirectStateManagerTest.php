@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\State;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityRegistry;
@@ -29,13 +29,14 @@ class DirectStateManagerTest extends TestCase
     {
         parent::setUp();
         
-        $this->identityMap = new IdentityMap(new MetadataCache());
+        $metadataRegistry = new MetadataRegistry();
+        $this->identityMap = new IdentityMap($metadataRegistry);
         $this->transitionManager = new StateTransitionManager($this->identityMap);
         $this->stateValidator = new StateValidator();
         
         $registry = new EntityRegistry();
-        $changeDetector = new ChangeDetector($this->identityMap);
-        $this->changeSetManager = new ChangeSetManager($this->identityMap, $registry, $changeDetector);
+        $changeDetector = new ChangeDetector($metadataRegistry);
+        $this->changeSetManager = new ChangeSetManager($this->identityMap, $registry, $changeDetector, $metadataRegistry);
         
         $this->stateManager = new DirectStateManager(
             $this->identityMap,

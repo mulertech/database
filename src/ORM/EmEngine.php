@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
@@ -74,11 +74,11 @@ class EmEngine
 
     /**
      * @param EntityManagerInterface $entityManager
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly MetadataCache $metadataCache
+        private readonly MetadataRegistry $metadataRegistry
     ) {
         $this->initializeComponents();
     }
@@ -323,19 +323,20 @@ class EmEngine
     private function initializeComponents(): void
     {
         // Initialize core components that are directly used by EmEngine
-        $this->identityMap = new IdentityMap($this->metadataCache);
+        $this->identityMap = new IdentityMap($this->metadataRegistry);
         $this->entityRegistry = new EntityRegistry();
-        $this->changeDetector = new ChangeDetector();
+        $this->changeDetector = new ChangeDetector($this->metadataRegistry);
 
         // ChangeSetManager needs core components
         $this->changeSetManager = new ChangeSetManager(
             $this->identityMap,
             $this->entityRegistry,
-            $this->changeDetector
+            $this->changeDetector,
+            $this->metadataRegistry
         );
 
-        // EntityHydrator uses MetadataCache
-        $this->hydrator = new EntityHydrator($this->metadataCache);
+        // EntityHydrator uses MetadataRegistry
+        $this->hydrator = new EntityHydrator($this->metadataRegistry);
     }
 
     /**
@@ -438,7 +439,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getMetadataCache());
+            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
         return $instance;
@@ -454,7 +455,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getMetadataCache());
+            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
         return $instance;
@@ -470,7 +471,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getMetadataCache());
+            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
         return $instance;
@@ -552,7 +553,7 @@ class EmEngine
      */
     private function getTableName(string $entityName): string
     {
-        return $this->metadataCache->getEntityMetadata($entityName)->tableName;
+        return $this->metadataRegistry->getEntityMetadata($entityName)->tableName;
     }
 
     /**
@@ -608,7 +609,7 @@ class EmEngine
     {
         try {
             $entityClass = $entity::class;
-            $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+            $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
             $propertiesColumns = $entityMetadata->getPropertiesColumns();
 
             foreach ($propertiesColumns as $property => $column) {
@@ -656,7 +657,7 @@ class EmEngine
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
 
         // Check all relation types
         foreach (['OneToOne', 'ManyToOne', 'OneToMany', 'ManyToMany'] as $relationType) {
@@ -712,7 +713,7 @@ class EmEngine
     private function extractEntityId(object $entity): int|string|null
     {
         $entityClass = $entity::class;
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
 
         foreach (['id', 'uuid', 'identifier'] as $property) {
             $getterMethod = $entityMetadata->getGetter($property);

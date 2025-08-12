@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Diff;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Schema\Information\InformationSchema;
 use ReflectionException;
 use RuntimeException;
@@ -41,16 +41,16 @@ class SchemaComparer
 
     /**
      * @param InformationSchema $informationSchema
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @param string $databaseName
      */
     public function __construct(
         private readonly InformationSchema $informationSchema,
-        private readonly MetadataCache $metadataCache,
+        private readonly MetadataRegistry $metadataRegistry,
         private readonly string $databaseName
     ) {
         $this->columnComparer = new ColumnComparer();
-        $this->foreignKeyComparer = new ForeignKeyComparer($metadataCache);
+        $this->foreignKeyComparer = new ForeignKeyComparer($metadataRegistry);
     }
 
     /**
@@ -62,7 +62,7 @@ class SchemaComparer
     private function getCachedPropertiesColumns(string $entityClass): array
     {
         if (!isset($this->propertiesColumnsCache[$entityClass])) {
-            $this->propertiesColumnsCache[$entityClass] = $this->metadataCache->getPropertiesColumns($entityClass);
+            $this->propertiesColumnsCache[$entityClass] = $this->metadataRegistry->getEntityMetadata($entityClass)->getPropertiesColumns();
         }
         return $this->propertiesColumnsCache[$entityClass];
     }
@@ -87,7 +87,7 @@ class SchemaComparer
     private function getCachedTableName(string $entityClass): string
     {
         if (!isset($this->tableNameCache[$entityClass])) {
-            $this->tableNameCache[$entityClass] = $this->metadataCache->getTableName($entityClass);
+            $this->tableNameCache[$entityClass] = $this->metadataRegistry->getEntityMetadata($entityClass)->tableName;
         }
         return $this->tableNameCache[$entityClass];
     }
@@ -174,7 +174,7 @@ class SchemaComparer
 
         // Get all entity tables
         $entityTables = [];
-        foreach ($this->metadataCache->getLoadedEntities() as $entityClass) {
+        foreach ($this->metadataRegistry->getLoadedEntities() as $entityClass) {
             $tableName = $this->getCachedTableName($entityClass);
             if ($tableName && !$this->shouldIgnoreTable($tableName)) {
                 $entityTables[$tableName] = $entityClass;
@@ -185,7 +185,7 @@ class SchemaComparer
         foreach ($entityTables as $tableName => $entityClass) {
             if (!$this->getTableInfo($tableName)) {
                 // Validate that the table has columns before adding it
-                $columns = $this->metadataCache->getPropertiesColumns($entityClass);
+                $columns = $this->metadataRegistry->getEntityMetadata($entityClass)->getPropertiesColumns();
                 if (!empty($columns)) {
                     $diff->addTableToCreate($tableName, $entityClass);
                 }

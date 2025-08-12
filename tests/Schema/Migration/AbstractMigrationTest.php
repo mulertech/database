@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Schema\Migration;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -22,12 +22,12 @@ class AbstractMigrationTest extends TestCase
     protected function setUp(): void
     {
         $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
-        $metadataCache = new MetadataCache(null, $entitiesPath);
-        $metadataCache->getEntityMetadata(MigrationHistory::class);
+        $metadataRegistry = new MetadataRegistry($entitiesPath);
+        $metadataRegistry->getEntityMetadata(MigrationHistory::class);
         
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $metadataCache,
+            $metadataRegistry,
         );
     }
 

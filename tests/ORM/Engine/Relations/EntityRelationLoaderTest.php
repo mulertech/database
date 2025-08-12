@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Relations;
 
-use MulerTech\Database\Core\Cache\CacheConfig;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Relations\EntityRelationLoader;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -20,24 +19,19 @@ class EntityRelationLoaderTest extends TestCase
 {
     private EntityRelationLoader $relationLoader;
     private EntityManagerInterface $entityManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Create a real MetadataCache instance since it's final and cannot be mocked
-        $cacheConfig = new CacheConfig(
-            maxSize: 100,
-            ttl: 3600,
-            evictionPolicy: 'lru'
-        );
-        $this->metadataCache = new MetadataCache($cacheConfig);
+        // Create a real MetadataRegistry instance since it's final and cannot be mocked
+        $this->metadataRegistry = new MetadataRegistry();
 
         // Create mocked EntityManager
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->entityManager->method('getMetadataCache')
-            ->willReturn($this->metadataCache);
+        $this->entityManager->method('getMetadataRegistry')
+            ->willReturn($this->metadataRegistry);
 
         $this->relationLoader = new EntityRelationLoader($this->entityManager);
     }
@@ -222,7 +216,7 @@ class EntityRelationLoaderTest extends TestCase
     public function testLoadRelationsWithActualMetadata(): void
     {
         // Load real metadata to trigger relation processing
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -254,7 +248,7 @@ class EntityRelationLoaderTest extends TestCase
     public function testLoadOneToManyWithNoEntityId(): void
     {
         // Load real metadata
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -273,7 +267,7 @@ class EntityRelationLoaderTest extends TestCase
     public function testGetColumnNameWithInvalidProperty(): void
     {
         // Load real metadata
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 

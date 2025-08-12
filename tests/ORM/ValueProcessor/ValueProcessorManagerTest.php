@@ -9,8 +9,9 @@ use MulerTech\Database\ORM\ValueProcessor\ColumnTypeValueProcessor;
 use MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
@@ -321,19 +322,19 @@ class ValueProcessorManagerTest extends TestCase
                 return new $entityName();
             }
 
-            public function getMetadataCache(): MetadataCache
+            public function getMetadataRegistry(): MetadataRegistry
             {
-                $cache = new MetadataCache();
+                $registry = new MetadataRegistry();
                 
                 // Create metadata with required parameters
                 $metadata = new EntityMetadata(
                     className: User::class,
                     tableName: 'users',
-                    columns: ['username' => 'username']
+                    columns: ['username' => new MtColumn(columnName: 'username', columnType: ColumnType::VARCHAR)]
                 );
                 
-                $cache->set(User::class, $metadata);
-                return $cache;
+                $registry->registerMetadata(User::class, $metadata);
+                return $registry;
             }
         };
         
@@ -363,9 +364,9 @@ class ValueProcessorManagerTest extends TestCase
                 return new $entityName();
             }
 
-            public function getMetadataCache(): MetadataCache
+            public function getMetadataRegistry(): MetadataRegistry
             {
-                $cache = new MetadataCache();
+                $registry = new MetadataRegistry();
                 
                 // Create metadata with minimal properties to try to get getColumnType to return null
                 $metadata = new EntityMetadata(
@@ -375,8 +376,8 @@ class ValueProcessorManagerTest extends TestCase
                     columns: [] // No columns defined
                 );
                 
-                $cache->set(User::class, $metadata);
-                return $cache;
+                $registry->registerMetadata(User::class, $metadata);
+                return $registry;
             }
         };
         
@@ -416,9 +417,9 @@ class ValueProcessorManagerTest extends TestCase
                 return new \stdClass();
             }
 
-            public function getMetadataCache(): MetadataCache
+            public function getMetadataRegistry(): MetadataRegistry
             {
-                return new MetadataCache();
+                return new MetadataRegistry();
             }
         };
         
@@ -441,9 +442,9 @@ class ValueProcessorManagerTest extends TestCase
                 return new $entityName();
             }
 
-            public function getMetadataCache(): MetadataCache
+            public function getMetadataRegistry(): MetadataRegistry
             {
-                $cache = new MetadataCache();
+                $registry = new MetadataRegistry();
                 
                 // Create metadata that returns null for column type
                 $metadata = new EntityMetadata(
@@ -452,8 +453,8 @@ class ValueProcessorManagerTest extends TestCase
                     columns: [] // Empty columns so getColumnType returns null
                 );
                 
-                $cache->set(User::class, $metadata);
-                return $cache;
+                $registry->registerMetadata(User::class, $metadata);
+                return $registry;
             }
         };
         
@@ -474,10 +475,11 @@ class ValueProcessorManagerTest extends TestCase
         $reflectionType->method('getName')->willReturn(\DateTime::class); // Use DateTime as a non-builtin class
         
         // This should trigger the echo statement at line 239
-        $result = $manager->processValue('test', $property);
+        // Use a valid date string instead of 'test'
+        $result = $manager->processValue('2023-01-01 12:00:00', $property);
         
-        // The test should fall through to basic processing since DateTime exists but isn't processed as PHP type
-        self::assertEquals('test', $result);
+        // The test should process the DateTime value
+        self::assertInstanceOf(\DateTime::class, $result);
     }
 
     public function testProcessValueWithPropertyAndHydratorNoTypeInfo(): void
@@ -489,9 +491,9 @@ class ValueProcessorManagerTest extends TestCase
                 return new $entityName();
             }
 
-            public function getMetadataCache(): MetadataCache
+            public function getMetadataRegistry(): MetadataRegistry
             {
-                $cache = new MetadataCache();
+                $registry = new MetadataRegistry();
                 
                 // Create metadata that returns null for column type
                 $metadata = new EntityMetadata(
@@ -500,8 +502,8 @@ class ValueProcessorManagerTest extends TestCase
                     columns: [] // Empty columns so getColumnType returns null
                 );
                 
-                $cache->set(User::class, $metadata);
-                return $cache;
+                $registry->registerMetadata(User::class, $metadata);
+                return $registry;
             }
         };
         
@@ -532,9 +534,9 @@ class ValueProcessorManagerTest extends TestCase
                 return new $entityName();
             }
 
-            public function getMetadataCache(): MetadataCache
+            public function getMetadataRegistry(): MetadataRegistry
             {
-                $cache = new MetadataCache();
+                $registry = new MetadataRegistry();
                 
                 // Create metadata that will return null for column type
                 $metadata = new EntityMetadata(
@@ -544,8 +546,8 @@ class ValueProcessorManagerTest extends TestCase
                     columns: [] // No columns defined
                 );
                 
-                $cache->set(User::class, $metadata);
-                return $cache;
+                $registry->registerMetadata(User::class, $metadata);
+                return $registry;
             }
         };
         

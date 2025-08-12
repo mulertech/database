@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
@@ -57,10 +57,11 @@ class FlushOrchestratorTest extends TestCase
             ->willReturn([]);
 
         // Create real instances of final classes with their dependencies
-        $identityMap = new IdentityMap(new MetadataCache());
+        $metadataRegistry = new MetadataRegistry();
+        $identityMap = new IdentityMap($metadataRegistry);
         $entityRegistry = new EntityRegistry();
-        $changeDetector = new ChangeDetector();
-        $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector);
+        $changeDetector = new ChangeDetector($metadataRegistry);
+        $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector, $metadataRegistry);
 
         // EventDispatcher is not final, so we can mock it
         $this->eventDispatcher = $this->createMock(EventDispatcher::class);
@@ -76,12 +77,11 @@ class FlushOrchestratorTest extends TestCase
         );
 
         // Create the three processors needed by EntityOperationProcessor
-        $metadataCache = new MetadataCache(); // Create real instance instead of mock
-        $insertionProcessor = new InsertionProcessor($this->entityManager, $metadataCache);
-        $updateProcessor = new UpdateProcessor($this->entityManager, $metadataCache);
-        $deletionProcessor = new DeletionProcessor($this->entityManager, $metadataCache);
+        $insertionProcessor = new InsertionProcessor($this->entityManager, $metadataRegistry);
+        $updateProcessor = new UpdateProcessor($this->entityManager, $metadataRegistry);
+        $deletionProcessor = new DeletionProcessor($this->entityManager, $metadataRegistry);
 
-        // EntityOperationProcessor might be final too, create real instance with all 8 parameters
+        // EntityOperationProcessor might be final too, create real instance with all 9 parameters
         $this->operationProcessor = new EntityOperationProcessor(
             $this->stateManager,
             $this->changeSetManager,
@@ -90,7 +90,8 @@ class FlushOrchestratorTest extends TestCase
             $this->eventDispatcher,
             $insertionProcessor,
             $updateProcessor,
-            $deletionProcessor
+            $deletionProcessor,
+            $metadataRegistry
         );
 
         $this->orchestrator = new FlushOrchestrator(

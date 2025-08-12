@@ -95,7 +95,7 @@ class ManyToManyProcessor
             return;
         }
 
-        $entities = $entityReflection->getProperty($property)->getValue($entity);
+        $entities = $this->getPropertyValue($entity, $property);
 
         if ($entities instanceof DatabaseCollection) {
             $this->processDatabaseCollection($entity, $entities, $manyToMany);
@@ -213,7 +213,7 @@ class ManyToManyProcessor
     private function getManyToManyMapping(string $entityName): array|false
     {
         if (!isset($this->mappingCache[$entityName])) {
-            $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+            $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
             $mapping = $metadata->getManyToManyRelations();
             $this->mappingCache[$entityName] = $mapping ?: false;
         }
@@ -238,6 +238,20 @@ class ManyToManyProcessor
         $this->operations = [];
         $this->processedRelations = [];
         $this->mappingCache = [];
+    }
+
+    /**
+     * Get property value using getter
+     * @param object $entity
+     * @param string $property
+     * @return mixed
+     */
+    private function getPropertyValue(object $entity, string $property): mixed
+    {
+        $metadataRegistry = $this->entityManager->getMetadataRegistry();
+        $metadata = $metadataRegistry->getEntityMetadata($entity::class);
+        $getter = $metadata->getRequiredGetter($property);
+        return $entity->$getter();
     }
 
     /**

@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\State;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\ORM\EntityState;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\EntityStateManager;
@@ -21,7 +20,7 @@ class EntityStateManagerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->identityMap = new IdentityMap(new MetadataCache());
+        $this->identityMap = new IdentityMap(new MetadataRegistry());
         $this->stateManager = new EntityStateManager($this->identityMap);
     }
 

@@ -60,6 +60,15 @@ class EntityProcessor
     }
 
     /**
+     * Get all loaded entity class names
+     * @return array<class-string>
+     */
+    public function getLoadedEntityClasses(): array
+    {
+        return array_keys($this->tables);
+    }
+
+    /**
      * Process a single entity class and store its metadata
      * @param ReflectionClass<object> $reflection
      * @return bool True if the entity was processed, false if ignored

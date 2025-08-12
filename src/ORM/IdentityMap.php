@@ -6,7 +6,7 @@ namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use ReflectionException;
 use WeakMap;
@@ -34,7 +34,7 @@ final class IdentityMap
      */
     private WeakMap $entityIds;
 
-    public function __construct(private readonly MetadataCache $metadataCache)
+    public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
         $this->metadata = new WeakMap();
         $this->entityIds = new WeakMap();
@@ -301,7 +301,7 @@ final class IdentityMap
             }
         }
 
-        $metadata = $this->metadataCache->getEntityMetadata($entity::class);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
 
         // Check common ID properties using metadata
         foreach (['id', 'uuid', 'identifier'] as $property) {
@@ -327,7 +327,7 @@ final class IdentityMap
         $entityClass = $entity::class;
         $data = [];
 
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
 
         foreach ($metadata->getProperties() as $property) {
             $propertyName = $property->getName();

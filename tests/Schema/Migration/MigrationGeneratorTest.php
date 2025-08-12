@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\Schema\Migration;
 
 use MulerTech\Database\Schema\Migration\MigrationGenerator;
-use MulerTech\Database\Schema\Migration\MigrationCodeGenerator;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
-use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use RuntimeException;
-use ReflectionException;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -21,7 +18,7 @@ class MigrationGeneratorTest extends TestCase
 {
     private string $tempMigrationsDir;
     private SchemaComparer $mockSchemaComparer;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
     private MigrationGenerator $generator;
 
     protected function setUp(): void
@@ -32,13 +29,12 @@ class MigrationGeneratorTest extends TestCase
 
         $this->mockSchemaComparer = $this->createMock(SchemaComparer::class);
         
-        // Create a real MetadataCache instance since it's final and cannot be mocked
-        $cacheConfig = new CacheConfig(maxSize: 100, ttl: 0, evictionPolicy: 'lru');
-        $this->metadataCache = new MetadataCache($cacheConfig);
+        // Create a real MetadataRegistry instance since it's final and cannot be mocked
+        $this->metadataRegistry = new MetadataRegistry();
 
         $this->generator = new MigrationGenerator(
             $this->mockSchemaComparer,
-            $this->metadataCache,
+            $this->metadataRegistry,
             $this->tempMigrationsDir
         );
     }
@@ -59,7 +55,7 @@ class MigrationGeneratorTest extends TestCase
     {
         $generator = new MigrationGenerator(
             $this->mockSchemaComparer,
-            $this->metadataCache,
+            $this->metadataRegistry,
             $this->tempMigrationsDir
         );
 
@@ -73,7 +69,7 @@ class MigrationGeneratorTest extends TestCase
 
         new MigrationGenerator(
             $this->mockSchemaComparer,
-            $this->metadataCache,
+            $this->metadataRegistry,
             '/non/existent/directory'
         );
     }

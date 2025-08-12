@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateEntityValidator;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateQueryBuilder;
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -16,7 +16,7 @@ class UpdateQueryBuilderTest extends TestCase
 {
     private UpdateQueryBuilder $queryBuilder;
     private EntityManagerInterface $entityManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
     private UpdateEntityValidator $validator;
 
     protected function setUp(): void
@@ -24,12 +24,12 @@ class UpdateQueryBuilderTest extends TestCase
         parent::setUp();
         
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->metadataCache = new MetadataCache();
+        $this->metadataRegistry = new MetadataRegistry();
         $this->validator = $this->createMock(UpdateEntityValidator::class);
         
         $this->queryBuilder = new UpdateQueryBuilder(
             $this->entityManager,
-            $this->metadataCache,
+            $this->metadataRegistry,
             $this->validator
         );
     }
@@ -154,7 +154,7 @@ class UpdateQueryBuilderTest extends TestCase
     public function testHasValidUpdatesWithDirectPropertyMapping(): void
     {
         // Load metadata to ensure proper property mapping
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -174,7 +174,7 @@ class UpdateQueryBuilderTest extends TestCase
     public function testHasValidUpdatesWithRelationPropertyAdvanced(): void
     {
         // Load metadata to ensure proper relation mapping
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -196,7 +196,7 @@ class UpdateQueryBuilderTest extends TestCase
     public function testBuildQueryWithRelationUpdates(): void
     {
         // Load metadata to ensure proper relation mapping
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -228,7 +228,7 @@ class UpdateQueryBuilderTest extends TestCase
     public function testHasValidUpdatesTriggersEchoStatements(): void
     {
         // Load metadata to ensure proper mapping
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -258,7 +258,7 @@ class UpdateQueryBuilderTest extends TestCase
     public function testAddRelationPropertyUpdatesTriggersEchoStatements(): void
     {
         // Load metadata for proper relation handling
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 
@@ -288,7 +288,7 @@ class UpdateQueryBuilderTest extends TestCase
     public function testGetForeignKeyColumnTriggersEchoStatements(): void
     {
         // Load metadata for proper relation handling
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 

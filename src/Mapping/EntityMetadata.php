@@ -16,6 +16,7 @@ use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
+use RuntimeException;
 
 /**
  * @package MulerTech\Database
@@ -236,6 +237,22 @@ final readonly class EntityMetadata
         return null;
     }
 
+    /**
+     * Get getter method name, throwing exception if not found
+     * @param string $property
+     * @return string
+     * @throws RuntimeException
+     */
+    public function getRequiredGetter(string $property): string
+    {
+        $getter = $this->getGetter($property);
+        if ($getter === null) {
+            throw new RuntimeException(
+                sprintf('No getter found for property "%s" in entity "%s"', $property, $this->className)
+            );
+        }
+        return $getter;
+    }
 
     /**
      * @param string $property
@@ -250,6 +267,49 @@ final readonly class EntityMetadata
             }
         }
         return null;
+    }
+
+    /**
+     * Get setter method name, throwing exception if not found
+     * @param string $property
+     * @return string
+     * @throws RuntimeException
+     */
+    public function getRequiredSetter(string $property): string
+    {
+        $setter = $this->getSetter($property);
+        if ($setter === null) {
+            throw new RuntimeException(
+                sprintf('No setter found for property "%s" in entity "%s"', $property, $this->className)
+            );
+        }
+        return $setter;
+    }
+
+    /**
+     * Check if both getter and setter exist for a property
+     * @param string $property
+     * @return bool
+     */
+    public function hasGetterAndSetter(string $property): bool
+    {
+        return $this->getGetter($property) !== null && $this->getSetter($property) !== null;
+    }
+
+    /**
+     * Get all properties that have both getter and setter
+     * @return array<string>
+     */
+    public function getPropertiesWithGettersAndSetters(): array
+    {
+        $properties = [];
+        foreach ($this->properties as $property) {
+            $propertyName = $property->getName();
+            if ($this->hasGetterAndSetter($propertyName)) {
+                $properties[] = $propertyName;
+            }
+        }
+        return $properties;
     }
 
     /**

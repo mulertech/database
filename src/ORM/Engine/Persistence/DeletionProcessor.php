@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\DeleteBuilder;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -22,11 +22,11 @@ readonly class DeletionProcessor
 {
     /**
      * @param EntityManagerInterface $entityManager
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MetadataCache $metadataCache
+        private MetadataRegistry $metadataRegistry
     ) {
     }
 
@@ -83,7 +83,7 @@ readonly class DeletionProcessor
      */
     private function getTableName(string $entityName): string
     {
-        return $this->metadataCache->getTableName($entityName);
+        return $this->metadataRegistry->getEntityMetadata($entityName)->tableName;
     }
 
     /**

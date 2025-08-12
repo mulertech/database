@@ -8,8 +8,7 @@ use Exception;
 use MulerTech\Database\Schema\Migration\MigrationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\EmEngine;
-use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
@@ -43,14 +42,13 @@ class MigrationManagerTest extends TestCase
         $mockEntityManager = $this->createMock(EntityManagerInterface::class);
         $mockEmEngine = $this->createMock(EmEngine::class);
         
-        // Create a real MetadataCache instance since it's final and cannot be mocked
-        $cacheConfig = new CacheConfig(maxSize: 100, ttl: 0, evictionPolicy: 'lru');
-        $metadataCache = new MetadataCache($cacheConfig);
+        // Create a real MetadataRegistry instance since it's final and cannot be mocked
+        $metadataRegistry = new MetadataRegistry();
         
         $mockPdm = $this->createMock(PhpDatabaseInterface::class);
 
         $mockEntityManager->method('getEmEngine')->willReturn($mockEmEngine);
-        $mockEntityManager->method('getMetadataCache')->willReturn($metadataCache);
+        $mockEntityManager->method('getMetadataRegistry')->willReturn($metadataRegistry);
         $mockEntityManager->method('getPdm')->willReturn($mockPdm);
 
         // Create temporary directory for migrations
@@ -59,12 +57,12 @@ class MigrationManagerTest extends TestCase
 
         // Create real EntityManager for integration tests
         $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
-        $realMetadataCache = new MetadataCache(null, $entitiesPath);
-        $realMetadataCache->getEntityMetadata(MigrationHistory::class);
+        $realMetadataRegistry = new MetadataRegistry($entitiesPath);
+        $realMetadataRegistry->getEntityMetadata(MigrationHistory::class);
         
         $this->realEntityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $realMetadataCache,
+            $realMetadataRegistry,
         );
     }
 

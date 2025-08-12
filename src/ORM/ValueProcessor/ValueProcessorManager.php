@@ -229,7 +229,7 @@ class ValueProcessorManager
         }
 
         /** @var class-string $entityClass */
-        $metadata = $this->hydrator->getMetadataCache()->getEntityMetadata($entityClass);
+        $metadata = $this->hydrator->getMetadataRegistry()->getEntityMetadata($entityClass);
         $columnType = $metadata->getColumnType($property->getName());
         if ($columnType !== null) {
             return new ColumnTypeValueProcessor($columnType);

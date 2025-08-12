@@ -7,9 +7,9 @@ namespace MulerTech\Database\ORM;
 use Error;
 use Exception;
 use JsonException;
-use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Mapping\ColumnMapping;
 use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
@@ -26,20 +26,20 @@ class EntityHydrator implements EntityHydratorInterface
     private ColumnMapping $columnMapping;
 
     /**
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      */
-    public function __construct(private readonly MetadataCache $metadataCache)
+    public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
         $this->valueProcessorManager = new ValueProcessorManager($this);
         $this->columnMapping = new ColumnMapping();
     }
 
     /**
-     * @return MetadataCache
+     * @return MetadataRegistry
      */
-    public function getMetadataCache(): MetadataCache
+    public function getMetadataRegistry(): MetadataRegistry
     {
-        return $this->metadataCache;
+        return $this->metadataRegistry;
     }
 
     /**
@@ -52,7 +52,7 @@ class EntityHydrator implements EntityHydratorInterface
     public function hydrate(array $data, string $entityName): object
     {
         $entity = new $entityName();
-        $metadata = $this->metadataCache->getEntityMetadata($entityName);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityName);
 
         foreach ($metadata->getPropertiesColumns() as $property => $column) {
             if ($this->isRelationProperty($metadata, $property)) {
@@ -95,7 +95,7 @@ class EntityHydrator implements EntityHydratorInterface
     public function extract(object $entity): array
     {
         $entityClass = $entity::class;
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
         $data = [];
 
         foreach ($metadata->getPropertiesColumns() as $propertyName => $columnName) {
@@ -119,7 +119,7 @@ class EntityHydrator implements EntityHydratorInterface
     private function getCachedColumnType(EntityMetadata $metadata, string $propertyName): ?ColumnType
     {
         $cacheKey = 'column_type:' . $metadata->className . ':' . $propertyName;
-        $cached = $this->metadataCache->getPropertyMetadata($metadata->className, $cacheKey);
+        $cached = $this->metadataRegistry->getPropertyMetadata($metadata->className, $cacheKey);
         if ($cached instanceof ColumnType) {
             return $cached;
         }
@@ -127,7 +127,7 @@ class EntityHydrator implements EntityHydratorInterface
         $columnType = $metadata->getColumnType($propertyName);
 
         if ($columnType !== null) {
-            $this->metadataCache->setPropertyMetadata($metadata->className, $cacheKey, $columnType);
+            // Note: MetadataRegistry ne supporte plus setPropertyMetadata - le cache est maintenant immutable
         }
 
         return $columnType;

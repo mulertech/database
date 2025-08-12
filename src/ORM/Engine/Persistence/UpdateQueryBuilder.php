@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\PropertyChange;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -24,7 +24,7 @@ readonly class UpdateQueryBuilder
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MetadataCache $metadataCache,
+        private MetadataRegistry $metadataRegistry,
         private UpdateEntityValidator $validator
     ) {
         $this->valueProcessor = new UpdateValueProcessor();
@@ -40,7 +40,7 @@ readonly class UpdateQueryBuilder
      */
     public function buildQuery(object $entity, array $changes): UpdateBuilder
     {
-        $tableName = $this->metadataCache->getTableName($entity::class);
+        $tableName = $this->metadataRegistry->getEntityMetadata($entity::class)->tableName;
         $updateBuilder = new QueryBuilder($this->entityManager->getEmEngine())->update($tableName);
 
         $this->addDirectPropertyUpdates($updateBuilder, $entity, $changes);
@@ -167,7 +167,7 @@ readonly class UpdateQueryBuilder
     private function getForeignKeyColumn(string $entityClass, string $property): ?string
     {
         try {
-            $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+            $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
 
             // Try direct column mapping first
             $directColumn = $metadata->getColumnName($property);
@@ -176,7 +176,7 @@ readonly class UpdateQueryBuilder
             }
 
             // Check properties columns mapping
-            $allPropertiesColumns = $this->metadataCache->getPropertiesColumns($entityClass);
+            $allPropertiesColumns = $this->metadataRegistry->getEntityMetadata($entityClass)->getPropertiesColumns();
             if (isset($allPropertiesColumns[$property])) {
                 return $allPropertiesColumns[$property];
             }
@@ -210,7 +210,7 @@ readonly class UpdateQueryBuilder
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
     {
-        $propertiesColumns = $this->metadataCache->getPropertiesColumns($entityName);
+        $propertiesColumns = $this->metadataRegistry->getEntityMetadata($entityName)->getPropertiesColumns();
 
         if (!$keepId && isset($propertiesColumns['id'])) {
             unset($propertiesColumns['id']);

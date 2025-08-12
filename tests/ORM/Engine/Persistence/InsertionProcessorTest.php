@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -16,18 +16,18 @@ class InsertionProcessorTest extends TestCase
 {
     private InsertionProcessor $insertionProcessor;
     private EntityManagerInterface $entityManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
         
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->metadataCache = new MetadataCache();
+        $this->metadataRegistry = new MetadataRegistry();
         
         $this->insertionProcessor = new InsertionProcessor(
             $this->entityManager,
-            $this->metadataCache
+            $this->metadataRegistry
         );
     }
 

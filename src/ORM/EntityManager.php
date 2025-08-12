@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use InvalidArgumentException;
-use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\EventManager\EventManager;
@@ -31,16 +31,16 @@ class EntityManager implements EntityManagerInterface
 
     /**
      * @param PhpDatabaseInterface $pdm
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @param EventManager|null $eventManager
      */
     public function __construct(
         private readonly PhpDatabaseInterface $pdm,
-        private readonly MetadataCache $metadataCache,
+        private readonly MetadataRegistry $metadataRegistry,
         private readonly ?EventManager $eventManager = null
     ) {
-        $this->emEngine = new EmEngine($this, $metadataCache);
-        $this->hydrator = new EntityHydrator($metadataCache);
+        $this->emEngine = new EmEngine($this, $metadataRegistry);
+        $this->hydrator = new EntityHydrator($metadataRegistry);
     }
 
     /**
@@ -60,11 +60,11 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @return MetadataCache
+     * @return MetadataRegistry
      */
-    public function getMetadataCache(): MetadataCache
+    public function getMetadataRegistry(): MetadataRegistry
     {
-        return $this->metadataCache;
+        return $this->metadataRegistry;
     }
 
 
@@ -75,7 +75,7 @@ class EntityManager implements EntityManagerInterface
      */
     public function getRepository(string $entity): EntityRepository
     {
-        $metadata = $this->metadataCache->getEntityMetadata($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity);
         $repository = $metadata->getRepository();
         if ($repository === null) {
             throw new InvalidArgumentException("No repository found for entity '$entity'. Ensure MtEntity attribute specifies a repository.");
@@ -142,7 +142,7 @@ class EntityManager implements EntityManagerInterface
         int|string|null $id = null,
         bool $matchCase = false
     ): bool {
-        $metadata = $this->metadataCache->getEntityMetadata($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity);
         $column = $metadata->getColumnName($property);
         $tableName = $metadata->tableName;
 

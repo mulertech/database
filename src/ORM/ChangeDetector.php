@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Comparator\ValueComparator;
 use MulerTech\Database\ORM\Processor\ValueProcessor;
 use MulerTech\Database\ORM\Validator\ArrayValidator;
@@ -19,6 +20,12 @@ class ChangeDetector
     private ValueProcessor $valueProcessor;
     private ValueComparator $valueComparator;
     private ArrayValidator $arrayValidator;
+    private MetadataRegistry $metadataRegistry;
+
+    public function __construct(?MetadataRegistry $metadataRegistry = null)
+    {
+        $this->metadataRegistry = $metadataRegistry ?? new MetadataRegistry();
+    }
 
     /**
      * @return ValueProcessor
@@ -59,20 +66,25 @@ class ChangeDetector
      */
     public function extractCurrentData(object $entity): array
     {
-        $reflection = new ReflectionClass($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
         $data = [];
 
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($metadata->getProperties() as $property) {
             $propertyName = $property->getName();
+            $getter = $metadata->getGetter($propertyName);
 
-            // Skip uninitialized properties
-            if (!$property->isInitialized($entity)) {
+            if ($getter !== null) {
+                try {
+                    $value = $entity->$getter();
+                    $data[$propertyName] = $this->getValueProcessor()->processValue($value);
+                } catch (\Throwable) {
+                    // If getter throws an exception, set to null
+                    $data[$propertyName] = null;
+                }
+            } else {
+                // No getter available, set to null
                 $data[$propertyName] = null;
-                continue;
             }
-
-            $value = $property->getValue($entity);
-            $data[$propertyName] = $this->getValueProcessor()->processValue($value);
         }
 
         return $data;

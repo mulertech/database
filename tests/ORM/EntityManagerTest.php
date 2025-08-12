@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
@@ -42,14 +42,12 @@ class EntityManagerTest extends TestCase
     {
         parent::setUp();
         $this->eventManager = new EventManager();
-        $metadataCache = new MetadataCache();
-        // Load entities from the test directory
-        $metadataCache->loadEntitiesFromPath(
+        $metadataRegistry = new MetadataRegistry(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $metadataCache,
+            $metadataRegistry,
             $this->eventManager
         );
     }
@@ -666,15 +664,15 @@ class EntityManagerTest extends TestCase
         $this->expectExceptionMessage('does not have a valid table or column mapping');
 
         // Create a standalone EntityManager without database connection for this test
-        $metadataCache = new MetadataCache();
+        $metadataRegistry = new MetadataRegistry();
         // Load the specific entity that has invalid column mapping
-        $metadataCache->loadEntitiesFromPath(
+        $metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
         );
 
         // Create a mock database interface that won't be used for this test
         $mockPdm = $this->createMock(PhpDatabaseInterface::class);
-        $em = new EntityManager($mockPdm, $metadataCache);
+        $em = new EntityManager($mockPdm, $metadataRegistry);
 
         $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
     }
@@ -860,15 +858,15 @@ class EntityManagerTest extends TestCase
         $this->expectExceptionMessage('No repository found for entity');
 
         // Create a standalone EntityManager without database connection for this test
-        $metadataCache = new MetadataCache();
+        $metadataRegistry = new MetadataRegistry();
         // Load the specific entity that has no repository
-        $metadataCache->loadEntitiesFromPath(
+        $metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Mapping'
         );
         
         // Create a mock database interface that won't be used for this test
         $mockPdm = $this->createMock(PhpDatabaseInterface::class);
-        $em = new EntityManager($mockPdm, $metadataCache);
+        $em = new EntityManager($mockPdm, $metadataRegistry);
         
         $em->getRepository(EntityWithoutGetId::class);
     }

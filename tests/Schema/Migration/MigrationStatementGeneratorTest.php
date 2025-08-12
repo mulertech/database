@@ -7,11 +7,8 @@ namespace MulerTech\Database\Tests\Schema\Migration;
 use MulerTech\Database\Schema\Migration\MigrationStatementGenerator;
 use MulerTech\Database\Schema\Migration\SqlTypeConverter;
 use MulerTech\Database\Mapping\Types\FkRule;
-use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\Core\Cache\CacheConfig;
-use MulerTech\Database\Mapping\ColumnMapping;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use RuntimeException;
-use ReflectionException;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -20,16 +17,15 @@ use PHPUnit\Framework\TestCase;
 class MigrationStatementGeneratorTest extends TestCase
 {
     private MigrationStatementGenerator $generator;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
     private SqlTypeConverter $mockTypeConverter;
 
     protected function setUp(): void
     {
         $this->generator = new MigrationStatementGenerator();
         
-        // Create a real MetadataCache instance since it's final and cannot be mocked
-        $cacheConfig = new CacheConfig(maxSize: 100, ttl: 0, evictionPolicy: 'lru');
-        $this->metadataCache = new MetadataCache($cacheConfig);
+        // Create a real MetadataRegistry instance since it's final and cannot be mocked
+        $this->metadataRegistry = new MetadataRegistry();
         
         $this->mockTypeConverter = $this->createMock(SqlTypeConverter::class);
     }
@@ -48,7 +44,7 @@ class MigrationStatementGeneratorTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Could not find entity class for table \'users\'');
 
-        $this->generator->generateCreateTableStatement('users', $this->metadataCache);
+        $this->generator->generateCreateTableStatement('users', $this->metadataRegistry);
     }
 
     public function testGenerateCreateTableStatementEntityNotFound(): void
@@ -57,7 +53,7 @@ class MigrationStatementGeneratorTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Could not find entity class for table 'posts'");
 
-        $this->generator->generateCreateTableStatement('posts', $this->metadataCache);
+        $this->generator->generateCreateTableStatement('posts', $this->metadataRegistry);
     }
 
     public function testGenerateAlterTableStatement(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\ORM\Engine\Relations;
 
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\Engine\Relations\LinkEntityManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -26,6 +27,11 @@ class LinkEntityManagerTest extends TestCase
         
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $stateManager = $this->createMock(StateManagerInterface::class);
+        
+        // Create a real MetadataRegistry since it's final and cannot be mocked
+        $metadataRegistry = new MetadataRegistry();
+        $entityManager->method('getMetadataRegistry')
+            ->willReturn($metadataRegistry);
         
         $this->linkEntityManager = new LinkEntityManager(
             $entityManager,

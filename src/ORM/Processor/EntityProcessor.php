@@ -7,10 +7,11 @@ namespace MulerTech\Database\ORM\Processor;
 use DateTimeImmutable;
 use Error;
 use InvalidArgumentException;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\EntityState;
 use MulerTech\Database\ORM\IdentityMap;
-use ReflectionClass;
+use ReflectionException;
 
 /**
  * @package MulerTech\Database
@@ -20,26 +21,26 @@ readonly class EntityProcessor
 {
     public function __construct(
         private ChangeDetector $changeDetector,
-        private IdentityMap $identityMap
+        private IdentityMap $identityMap,
+        private MetadataRegistry $metadataRegistry
     ) {
     }
 
     /**
      * @param object $entity
      * @return int|string|null
+     * @throws ReflectionException
      */
     public function extractEntityId(object $entity): int|string|null
     {
-        $reflection = new ReflectionClass($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
 
         foreach (['id', 'identifier', 'uuid'] as $property) {
-            if ($reflection->hasProperty($property)) {
-                $reflectionProperty = $reflection->getProperty($property);
-                if ($reflectionProperty->isInitialized($entity)) {
-                    $value = $reflectionProperty->getValue($entity);
-                    if ((is_int($value) || is_string($value))) {
-                        return $value;
-                    }
+            $getter = $metadata->getGetter($property);
+            if ($getter !== null) {
+                $value = $entity->$getter();
+                if ((is_int($value) || is_string($value))) {
+                    return $value;
                 }
             }
         }
@@ -52,6 +53,7 @@ readonly class EntityProcessor
      * @param object $source Source entity from which to copy data
      * @param object $target Target entity to which data will be copied
      * @return void
+     * @throws ReflectionException
      */
     public function copyEntityData(object $source, object $target): void
     {
@@ -67,19 +69,26 @@ readonly class EntityProcessor
      * @param object $source
      * @param object $target
      * @return void
+     * @throws ReflectionException
      */
     private function copyProperties(object $source, object $target): void
     {
-        $reflection = new ReflectionClass($source);
+        $metadata = $this->metadataRegistry->getEntityMetadata($source::class);
 
-        foreach ($reflection->getProperties() as $property) {
-            if ($this->shouldSkipProperty($property->getName())) {
+        // Only process properties that have both getter and setter
+        $propertiesWithAccessors = $metadata->getPropertiesWithGettersAndSetters();
+
+        foreach ($propertiesWithAccessors as $propertyName) {
+            if ($this->shouldSkipProperty($propertyName)) {
                 continue;
             }
 
             try {
-                $value = $property->getValue($source);
-                $property->setValue($target, $value);
+                $getter = $metadata->getRequiredGetter($propertyName);
+                $setter = $metadata->getRequiredSetter($propertyName);
+
+                $value = $source->$getter();
+                $target->$setter($value);
             } catch (Error) {
                 // Handle readonly properties or other restrictions
                 continue;

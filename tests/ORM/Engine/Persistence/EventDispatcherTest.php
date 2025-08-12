@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\Engine\Persistence\EventDispatcher;
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -25,10 +25,11 @@ class EventDispatcherTest extends TestCase
         
         $this->eventManager = $this->createMock(EventManager::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $identityMap = new \MulerTech\Database\ORM\IdentityMap(new MetadataCache());
+        $metadataRegistry = new MetadataRegistry();
+        $identityMap = new \MulerTech\Database\ORM\IdentityMap($metadataRegistry);
         $entityRegistry = new \MulerTech\Database\ORM\EntityRegistry();
-        $changeDetector = new \MulerTech\Database\ORM\ChangeDetector();
-        $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector);
+        $changeDetector = new \MulerTech\Database\ORM\ChangeDetector($metadataRegistry);
+        $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector, $metadataRegistry);
         
         $this->eventDispatcher = new EventDispatcher(
             $this->eventManager,

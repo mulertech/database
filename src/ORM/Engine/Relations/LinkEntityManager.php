@@ -227,7 +227,7 @@ class LinkEntityManager
             return;
         }
 
-        $collection = $reflectionProperty->getValue($entity);
+        $collection = $this->getPropertyValue($entity, $property);
 
         if (!$collection instanceof Collection) {
             return;
@@ -293,7 +293,7 @@ class LinkEntityManager
             return null;
         }
 
-        $linkMetadata = $this->entityManager->getMetadataCache()->getEntityMetadata($linkEntityClass);
+        $linkMetadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($linkEntityClass);
         $joinColumn = $linkMetadata->getColumnName($joinProperty);
         $inverseJoinColumn = $linkMetadata->getColumnName($inverseJoinProperty);
 
@@ -362,12 +362,26 @@ class LinkEntityManager
     private function getManyToManyMapping(string $entityName): array|false
     {
         if (!isset($this->mappingCache[$entityName])) {
-            $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+            $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
             $mapping = $metadata->getRelationsByType('ManyToMany');
             $this->mappingCache[$entityName] = $mapping;
         }
 
         return $this->mappingCache[$entityName];
+    }
+
+    /**
+     * Get property value using getter
+     * @param object $entity
+     * @param string $property
+     * @return mixed
+     */
+    private function getPropertyValue(object $entity, string $property): mixed
+    {
+        $metadataRegistry = $this->entityManager->getMetadataRegistry();
+        $metadata = $metadataRegistry->getEntityMetadata($entity::class);
+        $getter = $metadata->getRequiredGetter($property);
+        return $entity->$getter();
     }
 
     /**

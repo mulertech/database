@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Schema\Diff;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Schema\Diff\ForeignKeyComparer;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
 use PHPUnit\Framework\TestCase;
@@ -19,13 +19,13 @@ use MulerTech\Database\Tests\Files\Mapping\EntityWithNullReferencedColumn;
 class ForeignKeyComparerTest extends TestCase
 {
     private ForeignKeyComparer $comparer;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
-        // Create a real MetadataCache instance for testing
-        $this->metadataCache = new MetadataCache();
-        $this->comparer = new ForeignKeyComparer($this->metadataCache);
+        // Create a real MetadataRegistry instance for testing
+        $this->metadataRegistry = new MetadataRegistry();
+        $this->comparer = new ForeignKeyComparer($this->metadataRegistry);
         $this->diff = new SchemaDifference();
     }
 

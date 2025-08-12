@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Relations;
 
-use MulerTech\Database\Core\Cache\CacheConfig;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\Engine\Relations\ManyToManyProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -20,7 +19,7 @@ class ManyToManyProcessorTest extends TestCase
     private ManyToManyProcessor $processor;
     private EntityManagerInterface $entityManager;
     private StateManagerInterface $stateManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
@@ -29,15 +28,10 @@ class ManyToManyProcessorTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->stateManager = $this->createMock(StateManagerInterface::class);
         
-        $cacheConfig = new CacheConfig(
-            maxSize: 100,
-            ttl: 3600,
-            evictionPolicy: 'lru'
-        );
-        $this->metadataCache = new MetadataCache($cacheConfig);
+        $this->metadataRegistry = new MetadataRegistry();
         
-        $this->entityManager->method('getMetadataCache')
-            ->willReturn($this->metadataCache);
+        $this->entityManager->method('getMetadataRegistry')
+            ->willReturn($this->metadataRegistry);
         
         $this->processor = new ManyToManyProcessor(
             $this->entityManager,
@@ -181,7 +175,7 @@ class ManyToManyProcessorTest extends TestCase
     public function testProcessWithActualMetadataAndInvalidRelations(): void
     {
         // Load real metadata to trigger relation processing
-        $this->metadataCache->loadEntitiesFromPath(
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
 

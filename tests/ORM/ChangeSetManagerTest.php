@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\ORM;
 
 use DateTimeImmutable;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\ChangeSetManager;
@@ -29,14 +29,16 @@ class ChangeSetManagerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->identityMap = new IdentityMap(new MetadataCache());
+        $metadataRegistry = new MetadataRegistry();
+        $this->identityMap = new IdentityMap($metadataRegistry);
         $this->registry = new EntityRegistry();
         $this->changeDetector = new ChangeDetector();
         
         $this->changeSetManager = new ChangeSetManager(
             $this->identityMap,
             $this->registry,
-            $this->changeDetector
+            $this->changeDetector,
+            $metadataRegistry
         );
     }
 

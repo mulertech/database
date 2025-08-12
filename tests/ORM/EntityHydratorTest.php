@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityHydrator;
 use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -21,7 +21,7 @@ class EntityHydratorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->hydrator = new EntityHydrator(new MetadataCache());
+        $this->hydrator = new EntityHydrator(new MetadataRegistry());
     }
 
     /**
@@ -75,12 +75,12 @@ class EntityHydratorTest extends TestCase
         $this->assertNull($hydratedEntity->getSize());
     }
 
-    public function testGetMetadataCache(): void
+    public function testGetMetadataRegistry(): void
     {
-        $metadataCache = new MetadataCache();
-        $hydrator = new EntityHydrator($metadataCache);
+        $metadataRegistry = new MetadataRegistry();
+        $hydrator = new EntityHydrator($metadataRegistry);
         
-        self::assertSame($metadataCache, $hydrator->getMetadataCache());
+        self::assertSame($metadataRegistry, $hydrator->getMetadataRegistry());
     }
 
     public function testExtract(): void
@@ -133,8 +133,8 @@ class EntityHydratorTest extends TestCase
 
     public function testProcessValueWithNullInput(): void
     {
-        $metadataCache = new MetadataCache();
-        $metadata = $metadataCache->getEntityMetadata(User::class);
+        $metadataRegistry = new MetadataRegistry();
+        $metadata = $metadataRegistry->getEntityMetadata(User::class);
         
         $result = $this->hydrator->processValue($metadata, 'username', null);
         
@@ -143,8 +143,8 @@ class EntityHydratorTest extends TestCase
 
     public function testProcessValueWithValidInput(): void
     {
-        $metadataCache = new MetadataCache();
-        $metadata = $metadataCache->getEntityMetadata(User::class);
+        $metadataRegistry = new MetadataRegistry();
+        $metadata = $metadataRegistry->getEntityMetadata(User::class);
         
         $result = $this->hydrator->processValue($metadata, 'username', 'test_value');
         

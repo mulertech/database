@@ -47,7 +47,7 @@ readonly class EntityRelationLoader
         /** @var class-string $entityName */
         $entityName = get_class($entity);
         $entitiesToLoad = [];
-        $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+        $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
 
         if (!empty($entityOneToOne = $metadata->getRelationsByType('OneToOne'))) {
             foreach ($entityOneToOne as $property => $oneToOne) {
@@ -301,7 +301,7 @@ readonly class EntityRelationLoader
      */
     private function getTableName(string $entityName): string
     {
-        return $this->entityManager->getMetadataCache()->getTableName($entityName);
+        return $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName)->tableName;
     }
 
     /**
@@ -310,7 +310,7 @@ readonly class EntityRelationLoader
      */
     private function getColumnName(string $entityName, string $property): string
     {
-        $metadata = $this->entityManager->getMetadataCache()->getEntityMetadata($entityName);
+        $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
         if (null === $columnName = $metadata->getColumnName($property)) {
             throw new RuntimeException(
                 sprintf(

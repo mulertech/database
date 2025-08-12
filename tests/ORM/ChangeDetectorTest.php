@@ -7,6 +7,7 @@ namespace MulerTech\Database\Tests\ORM;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\PropertyChange;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use PHPUnit\Framework\TestCase;
@@ -251,10 +252,22 @@ class ChangeDetectorTest extends TestCase
     public function testExtractCurrentDataWithTrulyUninitializedProperty(): void
     {
         // Create a simple test class with uninitialized properties (no default values)
-        $testEntity = new class {
+        $testEntity = new #[MtEntity(tableName: 'test_table')] class {
             private string $uninitializedString;
             private int $uninitializedInt;
             private ?string $initializedString = 'test';
+            
+            public function getUninitializedString(): ?string {
+                return isset($this->uninitializedString) ? $this->uninitializedString : null;
+            }
+            
+            public function getUninitializedInt(): ?int {
+                return isset($this->uninitializedInt) ? $this->uninitializedInt : null;
+            }
+            
+            public function getInitializedString(): ?string {
+                return $this->initializedString;
+            }
         };
         
         // This should trigger the echo statement at line 70
@@ -290,21 +303,29 @@ class ChangeDetectorTest extends TestCase
     public function testValuesAreEqualWithActualObjectType(): void
     {
         // Create a test entity with stdClass properties to force object type comparison
-        $entity1 = new class {
+        $entity1 = new #[MtEntity(tableName: 'test_entity1')] class {
             public \stdClass $objectProperty;
             
             public function __construct() {
                 $this->objectProperty = new \stdClass();
                 $this->objectProperty->data = 'test1';
             }
+            
+            public function getObjectProperty(): \stdClass {
+                return $this->objectProperty;
+            }
         };
         
-        $entity2 = new class {
+        $entity2 = new #[MtEntity(tableName: 'test_entity2')] class {
             public \stdClass $objectProperty;
             
             public function __construct() {
                 $this->objectProperty = new \stdClass();
                 $this->objectProperty->data = 'test2';
+            }
+            
+            public function getObjectProperty(): \stdClass {
+                return $this->objectProperty;
             }
         };
         

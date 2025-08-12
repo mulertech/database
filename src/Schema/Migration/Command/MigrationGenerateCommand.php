@@ -63,7 +63,7 @@ class MigrationGenerateCommand extends AbstractCommand
                 throw new RuntimeException('Database name must be a string');
             }
 
-            $schemaComparer = new SchemaComparer($informationSchema, $this->entityManager->getMetadataCache(), $databaseName);
+            $schemaComparer = new SchemaComparer($informationSchema, $this->entityManager->getMetadataRegistry(), $databaseName);
             $migrationGenerator = $this->createMigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
             // Generating the migration
@@ -91,6 +91,6 @@ class MigrationGenerateCommand extends AbstractCommand
      */
     protected function createMigrationGenerator(SchemaComparer $schemaComparer, string $migrationsDirectory): MigrationGenerator
     {
-        return new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataCache(), $migrationsDirectory);
+        return new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataRegistry(), $migrationsDirectory);
     }
 }

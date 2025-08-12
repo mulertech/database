@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 
@@ -27,9 +27,9 @@ interface EntityManagerInterface
     public function getPdm(): PhpDatabaseInterface;
 
     /**
-     * @return MetadataCache
+     * @return MetadataRegistry
      */
-    public function getMetadataCache(): MetadataCache;
+    public function getMetadataRegistry(): MetadataRegistry;
 
 
     /**

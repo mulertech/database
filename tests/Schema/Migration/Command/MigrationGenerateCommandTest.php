@@ -2,7 +2,7 @@
 
 namespace MulerTech\Database\Tests\Schema\Migration\Command;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -28,12 +28,12 @@ class MigrationGenerateCommandTest extends TestCase
     protected function setUp(): void
     {
         $this->terminal = $this->createMock(Terminal::class);
-        // Create MetadataCache with automatic entity loading from test directory
+        // Create MetadataRegistry with automatic entity loading from test directory
         $entitiesPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
-        $metadataCache = new MetadataCache(null, $entitiesPath);
+        $metadataRegistry = new MetadataRegistry($entitiesPath);
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $metadataCache
+            $metadataRegistry
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
         
@@ -96,7 +96,7 @@ class MigrationGenerateCommandTest extends TestCase
 
         // Créer un mock pour MigrationGenerator qui utilise notre SchemaComparer mocké
         $migrationGenerator = $this->getMockBuilder(MigrationGenerator::class)
-            ->setConstructorArgs([$schemaComparer, $this->entityManager->getMetadataCache(), $this->migrationsDirectory])
+            ->setConstructorArgs([$schemaComparer, $this->entityManager->getMetadataRegistry(), $this->migrationsDirectory])
             ->getMock();
         $migrationGenerator->method('generateMigration')->willReturn(null);
 

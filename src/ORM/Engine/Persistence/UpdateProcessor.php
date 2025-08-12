@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\PropertyChange;
 use ReflectionException;
@@ -22,12 +22,12 @@ readonly class UpdateProcessor
 
     public function __construct(
         EntityManagerInterface $entityManager,
-        MetadataCache $metadataCache
+        MetadataRegistry $metadataRegistry
     ) {
-        $this->validator = new UpdateEntityValidator($entityManager, $metadataCache);
+        $this->validator = new UpdateEntityValidator($entityManager, $metadataRegistry);
         $this->queryBuilder = new UpdateQueryBuilder(
             $entityManager,
-            $metadataCache,
+            $metadataRegistry,
             $this->validator
         );
     }

@@ -5,14 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\Schema\Migration;
 
 use MulerTech\Database\Schema\Migration\MigrationCodeGenerator;
-use MulerTech\Database\Schema\Migration\SqlTypeConverter;
-use MulerTech\Database\Schema\Migration\MigrationStatementGenerator;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
-use MulerTech\Database\Core\Cache\MetadataCache;
-use MulerTech\Database\Core\Cache\CacheConfig;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\FkRule;
 use PHPUnit\Framework\TestCase;
-use ReflectionException;
 
 /**
  * Test cases for MigrationCodeGenerator class
@@ -20,19 +16,18 @@ use ReflectionException;
 class MigrationCodeGeneratorTest extends TestCase
 {
     private MigrationCodeGenerator $generator;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
-        // Create a real MetadataCache instance since it's final and cannot be mocked
-        $cacheConfig = new CacheConfig(maxSize: 100, ttl: 0, evictionPolicy: 'lru');
-        $this->metadataCache = new MetadataCache($cacheConfig);
-        $this->generator = new MigrationCodeGenerator($this->metadataCache);
+        // Create a real MetadataRegistry instance since it's final and cannot be mocked
+        $this->metadataRegistry = new MetadataRegistry();
+        $this->generator = new MigrationCodeGenerator($this->metadataRegistry);
     }
 
     public function testConstructor(): void
     {
-        $generator = new MigrationCodeGenerator($this->metadataCache);
+        $generator = new MigrationCodeGenerator($this->metadataRegistry);
         $this->assertInstanceOf(MigrationCodeGenerator::class, $generator);
     }
 

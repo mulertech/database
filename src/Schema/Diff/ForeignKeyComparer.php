@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Diff;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
@@ -20,7 +20,7 @@ use RuntimeException;
 readonly class ForeignKeyComparer
 {
     public function __construct(
-        private MetadataCache $metadataCache
+        private MetadataRegistry $metadataRegistry
     ) {
     }
 
@@ -184,7 +184,7 @@ readonly class ForeignKeyComparer
      */
     private function getForeignKeyInfo(string $entityClass, string $property): ?array
     {
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
         $foreignKey = $metadata->getForeignKey($property);
 
         if (!$foreignKey instanceof MtFk) {
@@ -240,8 +240,8 @@ readonly class ForeignKeyComparer
      */
     private function generateConstraintName(string $entityClass, string $property, string $referencedTable): string
     {
-        $tableName = $this->metadataCache->getTableName($entityClass);
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $tableName = $this->metadataRegistry->getEntityMetadata($entityClass)->tableName;
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
         $columnName = $metadata->getColumnName($property);
 
         return sprintf(

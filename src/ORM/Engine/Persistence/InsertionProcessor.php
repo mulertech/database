@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\InsertBuilder;
 use MulerTech\Database\Query\Builder\QueryBuilder;
@@ -22,11 +22,11 @@ readonly class InsertionProcessor
 {
     /**
      * @param EntityManagerInterface $entityManager
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MetadataCache $metadataCache
+        private MetadataRegistry $metadataRegistry
     ) {
     }
 
@@ -128,12 +128,12 @@ readonly class InsertionProcessor
      * @param object $entity
      * @param string $property
      * @return mixed
-     * @throws ReflectionException
      */
     private function getPropertyValue(object $entity, string $property): mixed
     {
-        $reflection = new ReflectionClass($entity);
-        return $reflection->getProperty($property)->getValue($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
+        $getter = $metadata->getRequiredGetter($property);
+        return $entity->$getter();
     }
 
     /**
@@ -143,7 +143,7 @@ readonly class InsertionProcessor
      */
     private function getTableName(string $entityName): string
     {
-        return $this->metadataCache->getTableName($entityName);
+        return $this->metadataRegistry->getTableName($entityName);
     }
 
     /**
@@ -154,7 +154,7 @@ readonly class InsertionProcessor
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
     {
-        $propertiesColumns = $this->metadataCache->getPropertiesColumns($entityName);
+        $propertiesColumns = $this->metadataRegistry->getPropertiesColumns($entityName);
 
         if (!$keepId && isset($propertiesColumns['id'])) {
             unset($propertiesColumns['id']);

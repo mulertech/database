@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\Engine\Persistence\FlushHandler;
@@ -30,10 +30,11 @@ class FlushHandlerTest extends TestCase
         $this->stateManager = $this->createMock(StateManagerInterface::class);
         $this->relationManager = $this->createMock(RelationManager::class);
         
-        $identityMap = new IdentityMap(new MetadataCache());
+        $metadataRegistry = new MetadataRegistry();
+        $identityMap = new IdentityMap($metadataRegistry);
         $entityRegistry = new EntityRegistry();
-        $changeDetector = new ChangeDetector();
-        $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector);
+        $changeDetector = new ChangeDetector($metadataRegistry);
+        $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector, $metadataRegistry);
         
         $this->flushHandler = new FlushHandler(
             $this->stateManager,
