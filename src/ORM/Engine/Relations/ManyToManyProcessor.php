@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Relations;
 
+use Error;
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use ReflectionClass;
 use ReflectionException;
 
 /**
@@ -92,6 +92,10 @@ class ManyToManyProcessor
 
         $entities = $this->getPropertyValue($entity, $property);
 
+        if ($entities === null) {
+            return;
+        }
+
         if ($entities instanceof DatabaseCollection) {
             $this->processDatabaseCollection($entity, $entities, $manyToMany);
             return;
@@ -103,7 +107,7 @@ class ManyToManyProcessor
     }
 
     /**
-     * Check if property is valid and initialized
+     * Check if property has a valid ManyToMany relation and can be accessed
      * @param object $entity
      * @param string $property
      * @return bool
@@ -112,13 +116,7 @@ class ManyToManyProcessor
     private function hasValidProperty(object $entity, string $property): bool
     {
         $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entity::class);
-        $reflectionProperty = $metadata->getProperty($property);
-
-        if ($reflectionProperty === null) {
-            return false;
-        }
-
-        return $reflectionProperty->isInitialized($entity);
+        return $metadata->getGetter($property) !== null;
     }
 
     /**
@@ -238,17 +236,26 @@ class ManyToManyProcessor
     }
 
     /**
-     * Get property value using getter
+     * Get property value using getter with error handling for uninitialized properties
      * @param object $entity
      * @param string $property
      * @return mixed
+     * @throws ReflectionException
      */
     private function getPropertyValue(object $entity, string $property): mixed
     {
-        $metadataRegistry = $this->entityManager->getMetadataRegistry();
-        $metadata = $metadataRegistry->getEntityMetadata($entity::class);
-        $getter = $metadata->getRequiredGetter($property);
-        return $entity->$getter();
+        try {
+            $metadataRegistry = $this->entityManager->getMetadataRegistry();
+            $metadata = $metadataRegistry->getEntityMetadata($entity::class);
+            $getter = $metadata->getRequiredGetter($property);
+            return $entity->$getter();
+        } catch (Error $e) {
+            // Handle uninitialized property errors in PHP 7.4+
+            if (str_contains($e->getMessage(), 'uninitialized')) {
+                return null;
+            }
+            throw $e;
+        }
     }
 
     /**

@@ -84,7 +84,7 @@ readonly class InsertionProcessor
         $insertBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->insert($this->getTableName($entity::class));
 
-        $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
+        $propertiesColumns = $this->getPropertiesColumns($entity::class);
 
         foreach ($propertiesColumns as $property => $column) {
             if (!isset($changes[$property][1])) {
@@ -127,6 +127,7 @@ readonly class InsertionProcessor
      * @param object $entity
      * @param string $property
      * @return mixed
+     * @throws ReflectionException
      */
     private function getPropertyValue(object $entity, string $property): mixed
     {
@@ -147,19 +148,12 @@ readonly class InsertionProcessor
 
     /**
      * @param class-string $entityName
-     * @param bool $keepId
      * @return array<string, string>
      * @throws ReflectionException|Exception
      */
-    private function getPropertiesColumns(string $entityName, bool $keepId = true): array
+    private function getPropertiesColumns(string $entityName): array
     {
-        $propertiesColumns = $this->metadataRegistry->getPropertiesColumns($entityName);
-
-        if (!$keepId && isset($propertiesColumns['id'])) {
-            unset($propertiesColumns['id']);
-        }
-
-        return $propertiesColumns;
+        return $this->metadataRegistry->getPropertiesColumns($entityName);
     }
 
     /**
@@ -187,7 +181,7 @@ readonly class InsertionProcessor
     private function extractEntityData(object $entity): array
     {
         $changes = [];
-        $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
+        $propertiesColumns = $this->getPropertiesColumns($entity::class);
 
         foreach ($propertiesColumns as $property => $column) {
             $value = $this->getPropertyValue($entity, $property);

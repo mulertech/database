@@ -200,20 +200,6 @@ final readonly class EntityMetadata
 
     /**
      * @param string $property
-     * @return ReflectionProperty|null
-     */
-    public function getProperty(string $property): ?ReflectionProperty
-    {
-        foreach ($this->properties as $prop) {
-            if ($prop->getName() === $property) {
-                return $prop;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * @param string $property
      * @return string|null
      */
     public function getGetter(string $property): ?string

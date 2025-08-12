@@ -67,7 +67,6 @@ readonly class UpdateProcessor
 
             $pdoStatement->execute();
             $pdoStatement->closeCursor();
-
         } catch (Exception $e) {
             throw new RuntimeException(
                 sprintf('Failed to update entity %s: %s', $entity::class, $e->getMessage()),
