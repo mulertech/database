@@ -6,10 +6,8 @@ namespace MulerTech\Database\ORM\ValueProcessor;
 
 use DateMalformedStringException;
 use JsonException;
+use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use ReflectionException;
-use ReflectionNamedType;
-use ReflectionProperty;
 
 /**
  * @package MulerTech\Database
@@ -26,14 +24,6 @@ class ValueProcessorManager
      * @var PhpTypeValueProcessor|null
      */
     private ?PhpTypeValueProcessor $phpTypeProcessor = null;
-
-    /**
-     * @param EntityHydratorInterface|null $hydrator
-     */
-    public function __construct(
-        private readonly ?EntityHydratorInterface $hydrator = null
-    ) {
-    }
 
     /**
      * @return ColumnTypeValueProcessor
@@ -59,34 +49,34 @@ class ValueProcessorManager
 
     /**
      * @param mixed $value
-     * @param ReflectionProperty|null $property
      * @param ColumnType|null $columnType
+     * @param EntityMetadata $metadata
+     * @param string $propertyName
      * @return mixed
      * @throws JsonException
-     * @throws ReflectionException
      */
     public function processValue(
         mixed $value,
-        ?ReflectionProperty $property = null,
-        ?ColumnType $columnType = null
+        ?ColumnType $columnType,
+        EntityMetadata $metadata,
+        string $propertyName
     ): mixed {
         if ($value === null) {
             return null;
         }
 
+        // Use ColumnType directly if provided
         if ($columnType !== null) {
-            $processor = new ColumnTypeValueProcessor($columnType);
-            return $processor->process($value);
+            return new ColumnTypeValueProcessor($columnType)->process($value);
         }
 
-        if ($property !== null) {
-            $processor = $this->createProcessorFromProperty($property);
-            if ($processor !== null) {
-                return $processor->process($value);
-            }
+        // Fallback: try to get ColumnType from metadata
+        $metadataColumnType = $metadata->getColumnType($propertyName);
+        if ($metadataColumnType !== null) {
+            return new ColumnTypeValueProcessor($metadataColumnType)->process($value);
         }
 
-        // Process based on value type
+        // Final fallback: basic type processing
         return $this->processBasicType($value);
     }
 
@@ -209,45 +199,6 @@ class ValueProcessorManager
             'object' => is_array($from) || is_string($from),
             default => false,
         };
-    }
-
-    /**
-     * @param ReflectionProperty $property
-     * @return ValueProcessorInterface|null
-     * @throws ReflectionException
-     */
-    private function createProcessorFromProperty(ReflectionProperty $property): ?ValueProcessorInterface
-    {
-        if ($this->hydrator === null) {
-            return null;
-        }
-
-        // Try EntityMetadata approach
-        $entityClass = $property->getDeclaringClass()->getName();
-        if (!class_exists($entityClass)) {
-            return null;
-        }
-
-        /** @var class-string $entityClass */
-        $metadata = $this->hydrator->getMetadataRegistry()->getEntityMetadata($entityClass);
-        $columnType = $metadata->getColumnType($property->getName());
-        if ($columnType !== null) {
-            return new ColumnTypeValueProcessor($columnType);
-        }
-
-        // Try PHP type
-        $type = $property->getType();
-        if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-            $typeName = $type->getName();
-            if (class_exists($typeName)) {
-                return new PhpTypeValueProcessor(
-                    $typeName,
-                    $this->hydrator->hydrate(...)
-                );
-            }
-        }
-
-        return null;
     }
 
     /**

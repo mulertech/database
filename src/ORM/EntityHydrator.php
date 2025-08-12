@@ -30,7 +30,7 @@ class EntityHydrator implements EntityHydratorInterface
      */
     public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
-        $this->valueProcessorManager = new ValueProcessorManager($this);
+        $this->valueProcessorManager = new ValueProcessorManager();
         $this->columnMapping = new ColumnMapping();
     }
 
@@ -167,8 +167,9 @@ class EntityHydrator implements EntityHydratorInterface
 
         return $this->valueProcessorManager->processValue(
             $value,
-            null,
-            $columnType
+            $columnType,
+            $metadata,
+            $propertyName
         );
     }
 }
