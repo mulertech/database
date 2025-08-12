@@ -228,4 +228,19 @@ final class MemoryCacheTest extends BaseCacheTest
         // Only key2 should be affected now
         $this->assertNull($this->cache->get('key2'));
     }
+
+    public function testFindFifoKeyWithEmptyCache(): void
+    {
+        $cache = new MemoryCache(new CacheConfig(maxSize: 1, evictionPolicy: 'fifo'));
+        
+        // Test FIFO eviction when cache is empty (edge case)
+        $cache->set('key1', 'value1');
+        
+        // The cache is now at capacity. Adding another key should trigger FIFO eviction
+        $cache->set('key2', 'value2');
+        
+        // key1 should be evicted (FIFO), key2 should remain
+        $this->assertFalse($cache->has('key1'));
+        $this->assertTrue($cache->has('key2'));
+    }
 }

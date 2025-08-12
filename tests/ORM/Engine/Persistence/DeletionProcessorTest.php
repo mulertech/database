@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
+use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutGetId;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -15,18 +17,18 @@ class DeletionProcessorTest extends TestCase
 {
     private DeletionProcessor $deletionProcessor;
     private EntityManagerInterface $entityManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
         
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->metadataCache = new MetadataCache();
+        $this->metadataRegistry = new MetadataRegistry();
         
         $this->deletionProcessor = new DeletionProcessor(
             $this->entityManager,
-            $this->metadataCache
+            $this->metadataRegistry
         );
     }
 
@@ -38,7 +40,7 @@ class DeletionProcessorTest extends TestCase
         
         // Mock necessary methods for the deletion process
         $this->entityManager->method('getEmEngine')
-            ->willReturn($this->createMock(\MulerTech\Database\ORM\EmEngine::class));
+            ->willReturn($this->createMock(EmEngine::class));
         
         $this->deletionProcessor->process($user);
         
@@ -51,7 +53,7 @@ class DeletionProcessorTest extends TestCase
         $user->setUsername('John');
         
         $this->entityManager->method('getEmEngine')
-            ->willReturn($this->createMock(\MulerTech\Database\ORM\EmEngine::class));
+            ->willReturn($this->createMock(EmEngine::class));
         
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Cannot delete entity');
@@ -65,12 +67,28 @@ class DeletionProcessorTest extends TestCase
         $user->setId(123);
         $user->setUsername('John');
         
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEngine = $this->createMock(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
         $this->deletionProcessor->execute($user);
         
         $this->assertTrue(true);
+    }
+
+    public function testProcessEntityWithoutGetIdMethod(): void
+    {
+        $entity = new EntityWithoutGetId();
+        $entity->setId(123);
+        $entity->setName('Test');
+        
+        $mockEngine = $this->createMock(EmEngine::class);
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEngine);
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The entity ' . EntityWithoutGetId::class . ' must have a getId method');
+        
+        $this->deletionProcessor->process($entity);
     }
 }

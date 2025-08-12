@@ -4,28 +4,30 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutSetId;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class InsertionProcessorTest extends TestCase
 {
     private InsertionProcessor $insertionProcessor;
     private EntityManagerInterface $entityManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
         
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->metadataCache = new MetadataCache();
+        $this->metadataRegistry = new MetadataRegistry();
         
         $this->insertionProcessor = new InsertionProcessor(
             $this->entityManager,
-            $this->metadataCache
+            $this->metadataRegistry
         );
     }
 
@@ -113,6 +115,30 @@ class InsertionProcessorTest extends TestCase
         
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('must have a getId method');
+        
+        $this->insertionProcessor->process($entity);
+    }
+
+    public function testProcessEntityWithoutSetIdMethod(): void
+    {
+        $entity = new EntityWithoutSetId();
+        $entity->setName('Test');
+
+        // Mock necessary methods to simulate successful insertion with generated ID
+        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        
+        $this->entityManager->method('getEmEngine')
+            ->willReturn($mockEngine);
+        $this->entityManager->method('getPdm')
+            ->willReturn($mockPdm);
+        
+        // Return non-empty lastInsertId to trigger setId call
+        $mockPdm->method('lastInsertId')
+            ->willReturn('456');
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The entity ' . EntityWithoutSetId::class . ' must have a setId method');
         
         $this->insertionProcessor->process($entity);
     }

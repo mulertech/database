@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateEntityValidator;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -15,18 +15,18 @@ class UpdateEntityValidatorTest extends TestCase
 {
     private UpdateEntityValidator $validator;
     private EntityManagerInterface $entityManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
         
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->metadataCache = new MetadataCache();
+        $this->metadataRegistry = new MetadataRegistry();
         
         $this->validator = new UpdateEntityValidator(
             $this->entityManager,
-            $this->metadataCache
+            $this->metadataRegistry
         );
     }
 
@@ -141,6 +141,23 @@ class UpdateEntityValidatorTest extends TestCase
             ->willReturn(0); // Entity doesn't exist
         
         $result = $this->validator->validateForUpdate($user);
+        
+        $this->assertFalse($result);
+    }
+
+    public function testEntityExistsInDatabaseWithNullId(): void
+    {
+        // Create a mock entity that will return null for getId() during entityExistsInDatabase check
+        $mockEntity = $this->createMock(User::class);
+        $mockEntity->method('getId')
+            ->willReturn(null);
+        
+        // Use reflection to call the private method directly
+        $reflection = new \ReflectionClass($this->validator);
+        $method = $reflection->getMethod('entityExistsInDatabase');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->validator, $mockEntity);
         
         $this->assertFalse($result);
     }

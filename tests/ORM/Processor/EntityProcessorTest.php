@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Tests\ORM\Processor;
 
 use MulerTech\Database\ORM\ChangeDetector;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\Tests\Files\Entity\User;
@@ -20,13 +21,15 @@ class EntityProcessorTest extends TestCase
     private EntityProcessor $processor;
     private IdentityMap $identityMap;
     private ChangeDetector $changeDetector;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->identityMap = new IdentityMap();
-        $this->changeDetector = new ChangeDetector();
-        $this->processor = new EntityProcessor($this->changeDetector, $this->identityMap);
+        $this->metadataRegistry = new MetadataRegistry();
+        $this->identityMap = new IdentityMap($this->metadataRegistry);
+        $this->changeDetector = new ChangeDetector($this->metadataRegistry);
+        $this->processor = new EntityProcessor($this->changeDetector, $this->identityMap, $this->metadataRegistry);
     }
 
     public function testExtractEntityId(): void

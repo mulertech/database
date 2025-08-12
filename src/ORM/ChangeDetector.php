@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Comparator\ValueComparator;
 use MulerTech\Database\ORM\Processor\ValueProcessor;
 use MulerTech\Database\ORM\Validator\ArrayValidator;
-use ReflectionClass;
+use ReflectionException;
 
 /**
  * Detects changes in entities for ORM tracking
@@ -19,6 +20,12 @@ class ChangeDetector
     private ValueProcessor $valueProcessor;
     private ValueComparator $valueComparator;
     private ArrayValidator $arrayValidator;
+    private MetadataRegistry $metadataRegistry;
+
+    public function __construct(?MetadataRegistry $metadataRegistry = null)
+    {
+        $this->metadataRegistry = $metadataRegistry ?? new MetadataRegistry();
+    }
 
     /**
      * @return ValueProcessor
@@ -56,26 +63,17 @@ class ChangeDetector
     /**
      * @param object $entity
      * @return array<string, mixed>
+     * @throws ReflectionException
      */
     public function extractCurrentData(object $entity): array
     {
-        $reflection = new ReflectionClass($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
         $data = [];
+        $propertyGetterMapping = $metadata->getPropertyGetterMapping();
 
-        foreach ($reflection->getProperties() as $property) {
-            if ($property->isStatic()) {
-                continue;
-            }
-
-            $propertyName = $property->getName();
-
-            // Skip uninitialized properties
-            if (!$property->isInitialized($entity)) {
-                $data[$propertyName] = null;
-                continue;
-            }
-
-            $value = $property->getValue($entity);
+        // First, process all properties with getters
+        foreach ($propertyGetterMapping as $propertyName => $getter) {
+            $value = $entity->$getter();
             $data[$propertyName] = $this->getValueProcessor()->processValue($value);
         }
 
@@ -86,6 +84,7 @@ class ChangeDetector
      * @param object $entity
      * @param array<string, mixed> $originalData
      * @return ChangeSet
+     * @throws ReflectionException
      */
     public function computeChangeSet(object $entity, array $originalData): ChangeSet
     {

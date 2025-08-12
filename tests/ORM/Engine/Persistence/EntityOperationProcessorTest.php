@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
@@ -39,10 +40,11 @@ class EntityOperationProcessorTest extends TestCase
         $this->updateProcessor = $this->createMock(UpdateProcessor::class);
         $this->deletionProcessor = $this->createMock(DeletionProcessor::class);
         
-        $this->identityMap = new IdentityMap();
+        $metadataRegistry = new MetadataRegistry();
+        $this->identityMap = new IdentityMap($metadataRegistry);
         $entityRegistry = new EntityRegistry();
-        $this->changeDetector = new ChangeDetector();
-        $this->changeSetManager = new ChangeSetManager($this->identityMap, $entityRegistry, $this->changeDetector);
+        $this->changeDetector = new ChangeDetector($metadataRegistry);
+        $this->changeSetManager = new ChangeSetManager($this->identityMap, $entityRegistry, $this->changeDetector, $metadataRegistry);
         
         $this->operationProcessor = new EntityOperationProcessor(
             $this->stateManager,
@@ -52,7 +54,8 @@ class EntityOperationProcessorTest extends TestCase
             $this->eventDispatcher,
             $this->insertionProcessor,
             $this->updateProcessor,
-            $this->deletionProcessor
+            $this->deletionProcessor,
+            $metadataRegistry
         );
     }
 

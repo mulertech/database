@@ -126,7 +126,7 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     public function onDuplicateKeyUpdate(array $updates): self
     {
-        $this->onDuplicateUpdate = $this->processUpdateValues($updates);
+        $this->onDuplicateUpdate = $updates;
         $this->isDirty = true;
         return $this;
     }
@@ -203,18 +203,6 @@ class InsertBuilder extends AbstractQueryBuilder
     private function extractAllColumns(array $batchData): array
     {
         return array_unique(array_merge(...array_map('array_keys', $batchData)));
-    }
-
-    /**
-     * Process update values for ON DUPLICATE KEY UPDATE
-     * @param array<string, mixed> $updates
-     * @return array<string, mixed>
-     */
-    private function processUpdateValues(array $updates): array
-    {
-        return array_map(static function ($value) {
-            return $value instanceof Raw ? $value->getValue() : $value;
-        }, $updates);
     }
 
     /**
@@ -339,6 +327,4 @@ class InsertBuilder extends AbstractQueryBuilder
 
         return "$escapedColumn = " . $this->parameterBag->add($value);
     }
-
-    // ...existing code for utility methods...
 }

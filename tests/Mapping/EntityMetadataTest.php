@@ -4,9 +4,21 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Mapping;
 
+use DateTime;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
+use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtManyToOne;
+use MulerTech\Database\Mapping\Attributes\MtOneToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\FkRule;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use ReflectionProperty;
 
 #[CoversClass(EntityMetadata::class)]
 class EntityMetadataTest extends TestCase
@@ -27,31 +39,42 @@ class EntityMetadataTest extends TestCase
         $this->assertEquals('test_entities', $this->metadata->tableName);
         $this->assertEquals([], $this->metadata->columns);
         $this->assertEquals([], $this->metadata->foreignKeys);
-        $this->assertEquals([], $this->metadata->relationships);
+        $this->assertEquals([], $this->metadata->oneToManyRelations);
+        $this->assertEquals([], $this->metadata->manyToOneRelations);
+        $this->assertEquals([], $this->metadata->oneToOneRelations);
+        $this->assertEquals([], $this->metadata->manyToManyRelations);
+        $this->assertNull($this->metadata->entity);
     }
 
     public function testSetAndGetProperties(): void
     {
+        $idColumn = new MtColumn(columnName: 'id', columnType: ColumnType::INT);
+        $nameColumn = new MtColumn(columnName: 'user_name', columnType: ColumnType::VARCHAR);
+        
         $metadata = new EntityMetadata(
             className: 'App\\Entity\\User',
             tableName: 'users',
-            columns:   ['id' => 'id', 'name' => 'user_name']
+            columns:   ['id' => $idColumn, 'name' => $nameColumn]
         );
 
         $this->assertEquals('App\\Entity\\User', $metadata->className);
         $this->assertEquals('users', $metadata->tableName);
-        $this->assertEquals(['id' => 'id', 'name' => 'user_name'], $metadata->columns);
+        $this->assertEquals(['id' => 'id', 'name' => 'user_name'], $metadata->getPropertiesColumns());
     }
 
     public function testGetColumnNameReturnsCorrectColumn(): void
     {
+        $idColumn = new MtColumn(columnName: 'user_id', columnType: ColumnType::INT);
+        $nameColumn = new MtColumn(columnName: 'full_name', columnType: ColumnType::VARCHAR);
+        $emailColumn = new MtColumn(columnName: 'email_address', columnType: ColumnType::VARCHAR);
+        
         $metadata = new EntityMetadata(
             className: 'TestEntity',
             tableName: 'test_entities',
             columns:   [
-                           'id' => 'user_id',
-                           'name' => 'full_name',
-                           'email' => 'email_address'
+                           'id' => $idColumn,
+                           'name' => $nameColumn,
+                           'email' => $emailColumn
                        ]
         );
 
@@ -60,37 +83,54 @@ class EntityMetadataTest extends TestCase
         $this->assertEquals('email_address', $metadata->getColumnName('email'));
     }
 
-    public function testGetColumnNameReturnsNullForNonExistentProperty(): void
+    public function testGetColumnNameReturnsNullForNonExistentColumn(): void
     {
+        $idColumn = new MtColumn(columnName: 'user_id', columnType: ColumnType::INT);
         $metadata = new EntityMetadata(
             className: 'TestEntity',
             tableName: 'test_entities',
-            columns:   ['id' => 'user_id']
+            columns:   ['id' => $idColumn]
         );
 
+        // Should return null when column doesn't exist (no mapping defined)
         $this->assertNull($metadata->getColumnName('nonExistent'));
     }
 
     public function testGetPropertiesColumnsReturnsAllColumns(): void
     {
-        $columns = ['id' => 'user_id', 'name' => 'full_name', 'email' => 'email_address'];
+        $idColumn = new MtColumn(columnName: 'user_id', columnType: ColumnType::INT);
+        $nameColumn = new MtColumn(columnName: 'full_name', columnType: ColumnType::VARCHAR);
+        $emailColumn = new MtColumn(columnName: 'email_address', columnType: ColumnType::VARCHAR);
+        
+        $columns = ['id' => $idColumn, 'name' => $nameColumn, 'email' => $emailColumn];
+        $expected = ['id' => 'user_id', 'name' => 'full_name', 'email' => 'email_address'];
+        
         $metadata = new EntityMetadata(
             className: 'TestEntity',
             tableName: 'test_entities',
             columns:   $columns
         );
 
-        $this->assertEquals($columns, $metadata->getPropertiesColumns());
+        $this->assertEquals($expected, $metadata->getPropertiesColumns());
     }
 
     public function testHasForeignKeyReturnsTrueWhenForeignKeyExists(): void
     {
+        $userFk = new MtFk(
+            referencedTable: 'users',
+            referencedColumn: 'id'
+        );
+        $categoryFk = new MtFk(
+            referencedTable: 'categories',
+            referencedColumn: 'id'
+        );
+        
         $metadata = new EntityMetadata(
             className:   'TestEntity',
             tableName:   'test_entities',
             foreignKeys: [
-                             'userId' => ['table' => 'users', 'column' => 'id'],
-                             'categoryId' => ['table' => 'categories', 'column' => 'id']
+                             'userId' => $userFk,
+                             'categoryId' => $categoryFk
                          ]
         );
 
@@ -100,138 +140,204 @@ class EntityMetadataTest extends TestCase
 
     public function testHasForeignKeyReturnsFalseWhenForeignKeyDoesNotExist(): void
     {
+        $userFk = new MtFk(
+            referencedTable: 'users',
+            referencedColumn: 'id'
+        );
+        
         $metadata = new EntityMetadata(
             className:   'TestEntity',
             tableName:   'test_entities',
-            foreignKeys: ['userId' => ['table' => 'users', 'column' => 'id']]
+            foreignKeys: ['userId' => $userFk]
         );
 
         $this->assertFalse($metadata->hasForeignKey('nonExistent'));
     }
 
-    public function testGetForeignKeyReturnsCorrectForeignKey(): void
-    {
-        $foreignKey = ['table' => 'users', 'column' => 'id', 'onDelete' => 'CASCADE'];
-        $metadata = new EntityMetadata(
-            className:   'TestEntity',
-            tableName:   'test_entities',
-            foreignKeys: ['userId' => $foreignKey]
-        );
-
-        $this->assertEquals($foreignKey, $metadata->getForeignKey('userId'));
-    }
-
     public function testGetForeignKeyReturnsNullForNonExistentProperty(): void
     {
+        $userFk = new MtFk(
+            referencedTable: 'users',
+            referencedColumn: 'id'
+        );
+        
         $metadata = new EntityMetadata(
             className:   'TestEntity',
             tableName:   'test_entities',
-            foreignKeys: ['userId' => ['table' => 'users', 'column' => 'id']]
+            foreignKeys: ['userId' => $userFk]
         );
 
         $this->assertNull($metadata->getForeignKey('nonExistent'));
     }
 
-    public function testGetRelationReturnsCorrectRelation(): void
+    public function testGetRelationsReturnsCorrectRelations(): void
     {
-        $oneToManyRelation = ['targetEntity' => 'App\\Entity\\Post', 'mappedBy' => 'author'];
-        $manyToOneRelation = ['targetEntity' => 'App\\Entity\\Category'];
+        $oneToManyRelation = new MtOneToMany(
+            targetEntity: 'App\\Entity\\Post',
+            inverseJoinProperty: 'author'
+        );
+        $manyToOneRelation = new MtManyToOne(
+            targetEntity: 'App\\Entity\\Category'
+        );
+        $oneToOneRelation = new MtOneToOne(
+            targetEntity: 'App\\Entity\\Profile'
+        );
+        $manyToManyRelation = new MtManyToMany(
+            targetEntity: 'App\\Entity\\Role',
+            joinProperty: 'userId',
+            inverseJoinProperty: 'roleId'
+        );
+        
         $metadata = new EntityMetadata(
-            className:   'TestEntity',
-            tableName:   'test_entities',
-            relationships: [
-                             'oneToMany' => ['posts' => $oneToManyRelation],
-                             'manyToOne' => ['category' => $manyToOneRelation]
-                         ]
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            oneToManyRelations: ['posts' => $oneToManyRelation],
+            manyToOneRelations: ['category' => $manyToOneRelation],
+            oneToOneRelations: ['profile' => $oneToOneRelation],
+            manyToManyRelations: ['roles' => $manyToManyRelation]
         );
 
-        $this->assertEquals($oneToManyRelation, $metadata->getRelation('oneToMany', 'posts'));
-        $this->assertEquals($manyToOneRelation, $metadata->getRelation('manyToOne', 'category'));
+        $this->assertEquals($oneToManyRelation, $metadata->getOneToManyRelation('posts'));
+        $this->assertEquals($manyToOneRelation, $metadata->getManyToOneRelation('category'));
+        $this->assertEquals($oneToOneRelation, $metadata->getOneToOneRelation('profile'));
+        $this->assertEquals($manyToManyRelation, $metadata->getManyToManyRelation('roles'));
+        
+        $this->assertTrue($metadata->hasRelation('posts'));
+        $this->assertTrue($metadata->hasRelation('category'));
+        $this->assertTrue($metadata->hasRelation('profile'));
+        $this->assertTrue($metadata->hasRelation('roles'));
+        $this->assertFalse($metadata->hasRelation('nonExistent'));
     }
 
     public function testGetRelationReturnsNullForNonExistentRelation(): void
     {
+        $oneToManyRelation = new MtOneToMany(
+            targetEntity: 'App\\Entity\\Post'
+        );
+        
         $metadata = new EntityMetadata(
-            className:   'TestEntity',
-            tableName:   'test_entities',
-            relationships: ['oneToMany' => ['posts' => ['targetEntity' => 'App\\Entity\\Post']]]
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            oneToManyRelations: ['posts' => $oneToManyRelation]
         );
 
-        $this->assertNull($metadata->getRelation('oneToMany', 'nonExistent'));
-        $this->assertNull($metadata->getRelation('manyToOne', 'posts'));
+        $this->assertNull($metadata->getOneToManyRelation('nonExistent'));
+        $this->assertNull($metadata->getManyToOneRelation('posts'));
+        $this->assertNull($metadata->getOneToOneRelation('posts'));
+        $this->assertNull($metadata->getManyToManyRelation('posts'));
     }
 
     public function testGetRelationsByTypeReturnsCorrectRelations(): void
     {
+        $postsRelation = new MtOneToMany(
+            targetEntity: 'App\\Entity\\Post',
+            inverseJoinProperty: 'author'
+        );
+        $commentsRelation = new MtOneToMany(
+            targetEntity: 'App\\Entity\\Comment',
+            inverseJoinProperty: 'user'
+        );
+        $categoryRelation = new MtManyToOne(
+            targetEntity: 'App\\Entity\\Category'
+        );
+        
         $oneToManyRelations = [
-            'posts' => ['targetEntity' => 'App\\Entity\\Post', 'mappedBy' => 'author'],
-            'comments' => ['targetEntity' => 'App\\Entity\\Comment', 'mappedBy' => 'user']
+            'posts' => $postsRelation,
+            'comments' => $commentsRelation
         ];
-
         $manyToOneRelations = [
-            'category' => ['targetEntity' => 'App\\Entity\\Category']
+            'category' => $categoryRelation
         ];
+        
         $metadata = new EntityMetadata(
-            className:   'TestEntity',
-            tableName:   'test_entities',
-            relationships: ['oneToMany' => $oneToManyRelations, 'manyToOne' => $manyToOneRelations]
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            oneToManyRelations: $oneToManyRelations,
+            manyToOneRelations: $manyToOneRelations
         );
 
-        $this->assertEquals($oneToManyRelations, $metadata->getRelationsByType('oneToMany'));
-        $this->assertEquals($manyToOneRelations, $metadata->getRelationsByType('manyToOne'));
+        $this->assertEquals($oneToManyRelations, $metadata->getOneToManyRelations());
+        $this->assertEquals($manyToOneRelations, $metadata->getManyToOneRelations());
+        $this->assertEquals([], $metadata->getOneToOneRelations());
+        $this->assertEquals([], $metadata->getManyToManyRelations());
     }
 
     public function testGetRelationsByTypeReturnsEmptyArrayForNonExistentType(): void
     {
+        $postsRelation = new MtOneToMany(
+            targetEntity: 'App\\Entity\\Post'
+        );
+        
         $metadata = new EntityMetadata(
-            className:   'TestEntity',
-            tableName:   'test_entities',
-            relationships: ['oneToMany' => ['posts' => ['targetEntity' => 'App\\Entity\\Post']]]
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            oneToManyRelations: ['posts' => $postsRelation]
         );
 
-        $this->assertEquals([], $metadata->getRelationsByType('manyToMany'));
+        $this->assertEquals([], $metadata->getManyToManyRelations());
+        $this->assertEquals([], $metadata->getManyToOneRelations());
+        $this->assertEquals([], $metadata->getOneToOneRelations());
+        $this->assertCount(1, $metadata->getOneToManyRelations());
     }
 
     public function testComplexMetadataStructure(): void
     {
+        // Create columns
+        $idColumn = new MtColumn(columnName: 'user_id', columnType: ColumnType::INT);
+        $nameColumn = new MtColumn(columnName: 'full_name', columnType: ColumnType::VARCHAR);
+        $emailColumn = new MtColumn(columnName: 'email_address', columnType: ColumnType::VARCHAR);
+        $categoryIdColumn = new MtColumn(columnName: 'category_id', columnType: ColumnType::INT);
+        
+        // Create foreign keys
+        $categoryFk = new MtFk(
+            referencedTable: 'categories',
+            referencedColumn: 'id',
+            deleteRule: FkRule::SET_NULL,
+            updateRule: FkRule::CASCADE
+        );
+        
+        // Create relations
+        $postsRelation = new MtOneToMany(
+            targetEntity: 'App\\Entity\\Post',
+            inverseJoinProperty: 'author'
+        );
+        $categoryRelation = new MtManyToOne(
+            targetEntity: 'App\\Entity\\Category'
+        );
+        $rolesRelation = new MtManyToMany(
+            targetEntity: 'App\\Entity\\Role',
+            joinProperty: 'userId',
+            inverseJoinProperty: 'roleId'
+        );
+        
+        // Create entity attribute
+        $entityAttr = new MtEntity(
+            repository: 'App\\Repository\\UserRepository',
+            tableName: 'users'
+        );
+        
         $metadata = new EntityMetadata(
-            className:   'App\\Entity\\User',
-            tableName:   'users',
-            columns:     [
-                             'id' => 'user_id',
-                             'name' => 'full_name',
-                             'email' => 'email_address',
-                             'categoryId' => 'category_id'
-                         ],
+            className: 'App\\Entity\\User',
+            tableName: 'users',
+            entity: $entityAttr,
+            columns: [
+                'id' => $idColumn,
+                'name' => $nameColumn,
+                'email' => $emailColumn,
+                'categoryId' => $categoryIdColumn
+            ],
             foreignKeys: [
-                             'categoryId' => [
-                                 'table' => 'categories',
-                                 'column' => 'id',
-                                 'onDelete' => 'SET NULL',
-                                 'onUpdate' => 'CASCADE'
-                             ]
-                         ],
-            relationships: [
-                             'oneToMany' => [
-                                 'posts' => [
-                                     'targetEntity' => 'App\\Entity\\Post',
-                                     'mappedBy' => 'author',
-                                     'cascade' => ['persist', 'remove']
-                                 ]
-                             ],
-                             'manyToOne' => [
-                                 'category' => [
-                                     'targetEntity' => 'App\\Entity\\Category',
-                                     'inversedBy' => 'users'
-                                 ]
-                             ],
-                             'manyToMany' => [
-                                 'roles' => [
-                                     'targetEntity' => 'App\\Entity\\Role',
-                                     'joinTable' => 'user_roles'
-                                 ]
-                             ]
-                         ]
+                'categoryId' => $categoryFk
+            ],
+            oneToManyRelations: [
+                'posts' => $postsRelation
+            ],
+            manyToOneRelations: [
+                'category' => $categoryRelation
+            ],
+            manyToManyRelations: [
+                'roles' => $rolesRelation
+            ]
         );
 
         // Test all aspects
@@ -240,11 +346,240 @@ class EntityMetadataTest extends TestCase
         $this->assertEquals('category_id', $metadata->getColumnName('categoryId'));
         $this->assertTrue($metadata->hasForeignKey('categoryId'));
         $this->assertNotNull($metadata->getForeignKey('categoryId'));
-        $this->assertNotNull($metadata->getRelation('oneToMany', 'posts'));
-        $this->assertNotNull($metadata->getRelation('manyToOne', 'category'));
-        $this->assertNotNull($metadata->getRelation('manyToMany', 'roles'));
-        $this->assertCount(1, $metadata->getRelationsByType('oneToMany'));
-        $this->assertCount(1, $metadata->getRelationsByType('manyToOne'));
-        $this->assertCount(1, $metadata->getRelationsByType('manyToMany'));
+        $this->assertNotNull($metadata->getOneToManyRelation('posts'));
+        $this->assertNotNull($metadata->getManyToOneRelation('category'));
+        $this->assertNotNull($metadata->getManyToManyRelation('roles'));
+        $this->assertCount(1, $metadata->getOneToManyRelations());
+        $this->assertCount(1, $metadata->getManyToOneRelations());
+        $this->assertCount(1, $metadata->getManyToManyRelations());
+        $this->assertEquals('App\\Repository\\UserRepository', $metadata->getRepository());
+        $this->assertNotNull($metadata->getEntity());
+    }
+
+    public function testGetRepositoryReturnsRepositoryClass(): void
+    {
+        // Test with repository in constructor parameter
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            repository: 'App\\Repository\\TestEntityRepository'
+        );
+        $this->assertEquals('App\\Repository\\TestEntityRepository', $metadata->getRepository());
+        
+        // Test with repository in MtEntity (should take precedence)
+        $entityWithRepo = new MtEntity(
+            repository: 'App\\Repository\\EntityRepository'
+        );
+        $metadata2 = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            entity: $entityWithRepo,
+            repository: 'App\\Repository\\TestEntityRepository'
+        );
+        $this->assertEquals('App\\Repository\\EntityRepository', $metadata2->getRepository());
+    }
+
+    public function testGetRepositoryReturnsNullWhenNotSet(): void
+    {
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities'
+        );
+
+        $this->assertNull($metadata->getRepository());
+    }
+
+    public function testGetColumnAndColumnsMethods(): void
+    {
+        $idColumn = new MtColumn(columnName: 'id', columnType: ColumnType::INT);
+        $nameColumn = new MtColumn(columnName: 'name', columnType: ColumnType::VARCHAR);
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            columns: ['id' => $idColumn, 'name' => $nameColumn]
+        );
+
+        $this->assertEquals($idColumn, $metadata->getColumn('id'));
+        $this->assertEquals($nameColumn, $metadata->getColumn('name'));
+        $this->assertNull($metadata->getColumn('nonExistent'));
+        
+        $expectedColumns = ['id' => $idColumn, 'name' => $nameColumn];
+        $this->assertEquals($expectedColumns, $metadata->getColumns());
+    }
+
+    public function testGetGetterReturnsCorrectGetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $getters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            getters: $getters
+        );
+
+        $this->assertEquals('getId', $metadata->getGetter('id'));
+        $this->assertEquals('getName', $metadata->getGetter('name'));
+        $this->assertEquals('isActive', $metadata->getGetter('active'));
+        $this->assertEquals('hasPermission', $metadata->getGetter('permission'));
+    }
+
+    public function testGetGetterReturnsNullForNonExistentGetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $getters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            getters: $getters
+        );
+
+        $this->assertNull($metadata->getGetter('nonExistent'));
+    }
+
+    public function testGetSetterReturnsCorrectSetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $setters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            setters: $setters
+        );
+
+        $this->assertEquals('setId', $metadata->getSetter('id'));
+        $this->assertEquals('setName', $metadata->getSetter('name'));
+        $this->assertEquals('setActive', $metadata->getSetter('active'));
+    }
+
+    public function testGetSetterReturnsNullForNonExistentSetter(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $setters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            setters: $setters
+        );
+
+        $this->assertNull($metadata->getSetter('nonExistent'));
+    }
+
+    public function testGetColumnTypeReturnsCorrectTypes(): void
+    {
+        $idColumn = new MtColumn(columnType: ColumnType::BIGINT);
+        $nameColumn = new MtColumn(columnType: ColumnType::TEXT);
+        $activeColumn = new MtColumn(columnType: ColumnType::TINYINT);
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            columns: [
+                'id' => $idColumn,
+                'name' => $nameColumn,
+                'active' => $activeColumn
+            ]
+        );
+
+        // Should return MtColumn types when available
+        $this->assertEquals(ColumnType::BIGINT, $metadata->getColumnType('id'));
+        $this->assertEquals(ColumnType::TEXT, $metadata->getColumnType('name'));
+        $this->assertEquals(ColumnType::TINYINT, $metadata->getColumnType('active'));
+        
+        // Should return null when no MtColumn is defined
+        $this->assertNull($metadata->getColumnType('undefinedProperty'));
+    }
+
+    public function testGetColumnTypeReturnsNullForNonExistentProperty(): void
+    {
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities'
+        );
+
+        $this->assertNull($metadata->getColumnType('nonExistent'));
+    }
+
+    public function testGetColumnTypeReturnsNullWhenNoMtColumnDefined(): void
+    {
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities'
+        );
+
+        // Should return null when no MtColumn is defined for the property
+        $this->assertNull($metadata->getColumnType('someProperty'));
+    }
+
+    public function testGetPropertyGetterMapping(): void
+    {
+        $reflection = new ReflectionClass(TestEntityForReflection::class);
+        $properties = $reflection->getProperties();
+        $getters = $reflection->getMethods();
+        
+        $metadata = new EntityMetadata(
+            className: 'TestEntity',
+            tableName: 'test_entities',
+            properties: $properties,
+            getters: $getters
+        );
+
+        $mapping = $metadata->getPropertyGetterMapping();
+        
+        $this->assertIsArray($mapping);
+        $this->assertEquals('getId', $mapping['id']);
+        $this->assertEquals('getName', $mapping['name']);
+        $this->assertEquals('isActive', $mapping['active']);
+        $this->assertArrayNotHasKey('untypedProperty', $mapping); // No getter for this property
+    }
+}
+
+class TestEntityForReflection
+{
+    public int $id;
+    public string $name;
+    public bool $active;
+    public DateTime $createdAt;
+    public array $metadata;
+    public float $score;
+    public $untypedProperty;
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->active;
+    }
+
+    public function hasPermission(): bool
+    {
+        return true;
+    }
+
+    public function setId(int $id): void
+    {
+        $this->id = $id;
+    }
+
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    public function setActive(bool $active): void
+    {
+        $this->active = $active;
     }
 }

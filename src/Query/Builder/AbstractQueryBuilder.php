@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Query\Builder;
 
-use MulerTech\Database\Core\Cache\QueryStructureCache;
 use MulerTech\Database\Core\Parameters\QueryParameterBag;
 use MulerTech\Database\Core\Traits\ParameterHandlerTrait;
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
@@ -33,16 +32,6 @@ abstract class AbstractQueryBuilder
     protected QueryParameterBag $parameterBag;
 
     /**
-     * @var QueryStructureCache|null
-     */
-    protected static ?QueryStructureCache $structureCache = null;
-
-    /**
-     * @var array<string, mixed>
-     */
-    protected array $queryParts = [];
-
-    /**
      * @var bool
      */
     protected bool $isDirty = true;
@@ -58,10 +47,6 @@ abstract class AbstractQueryBuilder
     public function __construct(protected ?EmEngine $emEngine = null)
     {
         $this->parameterBag = new QueryParameterBag();
-
-        if (self::$structureCache === null) {
-            self::$structureCache = new QueryStructureCache();
-        }
     }
 
     /**
@@ -175,36 +160,6 @@ abstract class AbstractQueryBuilder
     }
 
     /**
-     * @param string $key
-     * @param mixed $value
-     * @return self
-     */
-    protected function setQueryPart(string $key, mixed $value): self
-    {
-        $this->queryParts[$key] = $value;
-        $this->isDirty = true;
-        return $this;
-    }
-
-    /**
-     * @param string $key
-     * @return mixed
-     */
-    protected function getQueryPart(string $key): mixed
-    {
-        return $this->queryParts[$key] ?? null;
-    }
-
-    /**
-     * @param string $key
-     * @return bool
-     */
-    protected function hasQueryPart(string $key): bool
-    {
-        return isset($this->queryParts[$key]);
-    }
-
-    /**
      * @return QueryParameterBag
      */
     public function getParameterBag(): QueryParameterBag
@@ -297,7 +252,7 @@ abstract class AbstractQueryBuilder
         foreach ($data as $column => $value) {
             $this->validateColumnName($column);
             $placeholder = $this->bindParameter($value);
-            $setParts[] = "`{$column}` = {$placeholder}";
+            $setParts[] = "`$column` = $placeholder";
         }
         return implode(', ', $setParts);
     }

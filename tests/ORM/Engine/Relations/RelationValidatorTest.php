@@ -309,4 +309,36 @@ class RelationValidatorTest extends TestCase
             'string_key' => 'third'
         ], $result);
     }
+
+    public function testSetterAcceptsNullWithMethodHavingNoParameters(): void
+    {
+        // Create a test entity with a setter method that has no parameters
+        $entity = new class {
+            public function setNoParams(): void
+            {
+                // Method with no parameters to trigger first echo
+            }
+        };
+        
+        // This should trigger the echo for empty parameters
+        $result = $this->validator->setterAcceptsNull($entity, 'setNoParams');
+        
+        $this->assertFalse($result);
+    }
+
+    public function testSetterAcceptsNullWithMethodHavingUntypedParameter(): void
+    {
+        // Create a test entity with a setter method that has no type hint
+        $entity = new class {
+            public function setUntypedParam($value): void
+            {
+                // Method with untyped parameter to trigger second echo
+            }
+        };
+        
+        // This should trigger the echo for no type hint (assumes it accepts null)
+        $result = $this->validator->setterAcceptsNull($entity, 'setUntypedParam');
+        
+        $this->assertTrue($result);
+    }
 }

@@ -48,16 +48,11 @@ class EntityRepository
 
     /**
      * @return string
+     * @throws ReflectionException
      */
     protected function getTableName(): string
     {
-        try {
-            return $this->entityManager->getMetadataCache()->getEntityMetadata($this->entityName)->tableName;
-        } catch (ReflectionException) {
-            // Fallback to class name transformation if metadata not found
-            $parts = explode('\\', $this->entityName);
-            return strtolower(end($parts)) . 's_test';
-        }
+        return $this->entityManager->getMetadataRegistry()->getEntityMetadata($this->entityName)->tableName;
     }
 
     /**
@@ -75,6 +70,7 @@ class EntityRepository
      * @param int|null $limit
      * @param int|null $offset
      * @return array<object>
+     * @throws ReflectionException
      */
     public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
     {
@@ -117,26 +113,12 @@ class EntityRepository
         $hydrator = $this->entityManager->getHydrator();
 
         foreach ($results as $row) {
-            try {
-                // Convert stdClass to array if needed
-                $data = $row instanceof stdClass ? (array) $row : $row;
-                /** @var array<string, bool|float|int|string|null> $data */
+            // Convert stdClass to array if needed
+            $data = $row instanceof stdClass ? (array) $row : $row;
+            /** @var array<string, bool|float|int|string|null> $data */
 
-                $entity = $hydrator->hydrate($data, $this->entityName);
-                $entities[] = $entity;
-            } catch (ReflectionException) {
-                // Create entity manually if hydration fails
-                $entity = new ($this->entityName)();
-                $data = $row instanceof stdClass ? (array) $row : $row;
-                /** @var array<string, mixed> $data */
-
-                foreach ($data as $property => $value) {
-                    if (property_exists($entity, $property)) {
-                        $entity->{$property} = $value;
-                    }
-                }
-                $entities[] = $entity;
-            }
+            $entity = $hydrator->hydrate($data, $this->entityName);
+            $entities[] = $entity;
         }
 
         return $entities;

@@ -64,7 +64,8 @@ class PersistenceManager
             $this->eventDispatcher,
             $insertionProcessor,
             $updateProcessor,
-            $deletionProcessor
+            $deletionProcessor,
+            $entityManager->getMetadataRegistry()
         );
 
         $this->flushOrchestrator = new FlushOrchestrator(

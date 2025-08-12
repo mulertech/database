@@ -2,10 +2,13 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use DateTime;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityHydrator;
+use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithNonNullableProperty;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithMissingSetter;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithMissingGetter;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 
@@ -18,7 +21,7 @@ class EntityHydratorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->hydrator = new EntityHydrator(new MetadataCache());
+        $this->hydrator = new EntityHydrator(new MetadataRegistry());
     }
 
     /**
@@ -57,21 +60,165 @@ class EntityHydratorTest extends TestCase
     }
 
     /**
-     * Test hydration with null values
+     * Test hydration with null values for nullable properties
      * @throws ReflectionException
      */
     public function testHydrateWithNullValues(): void
     {
         $data = [
-            'id' => null,
-            'username' => null,
+            'size' => null, // This is nullable in the User entity
         ];
 
-        // The hydrator should handle null values gracefully, not throw TypeError
-        // since the properties are nullable in the entity
+        // The hydrator should handle null values gracefully for nullable properties
         $hydratedEntity = $this->hydrator->hydrate($data, User::class);
         
-        $this->assertNull($hydratedEntity->getId());
-        $this->assertNull($hydratedEntity->getUsername());
+        $this->assertNull($hydratedEntity->getSize());
+    }
+
+    public function testGetMetadataRegistry(): void
+    {
+        $metadataRegistry = new MetadataRegistry();
+        $hydrator = new EntityHydrator($metadataRegistry);
+        
+        self::assertSame($metadataRegistry, $hydrator->getMetadataRegistry());
+    }
+
+    public function testExtract(): void
+    {
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('testuser');
+        $user->setSize(180);
+        $user->setAccountBalance(250.75);
+        
+        $extractedData = $this->hydrator->extract($user);
+        
+        self::assertIsArray($extractedData);
+        self::assertEquals(123, $extractedData['id']);
+        self::assertEquals('testuser', $extractedData['username']);
+        self::assertEquals(180, $extractedData['size']);
+        self::assertEquals(250.75, $extractedData['account_balance']);
+    }
+
+    public function testExtractWithNullValues(): void
+    {
+        $user = new User();
+        // Don't set any values, so they remain null
+        
+        $extractedData = $this->hydrator->extract($user);
+        
+        self::assertIsArray($extractedData);
+        self::assertNull($extractedData['id']);
+        self::assertNull($extractedData['username']);
+        self::assertNull($extractedData['size']);
+        self::assertNull($extractedData['account_balance']);
+    }
+
+    public function testHydrateWithRelationProperty(): void
+    {
+        // Test with relation properties that should be skipped
+        $data = [
+            'id' => 42,
+            'username' => 'testuser',
+            'unit_id' => 1, // This is a relation property
+        ];
+
+        $hydratedEntity = $this->hydrator->hydrate($data, User::class);
+
+        self::assertEquals(42, $hydratedEntity->getId());
+        self::assertEquals('testuser', $hydratedEntity->getUsername());
+        // unit should remain null since it's a relation property
+        self::assertNull($hydratedEntity->getUnit());
+    }
+
+    public function testProcessValueWithNullInput(): void
+    {
+        $metadataRegistry = new MetadataRegistry();
+        $metadata = $metadataRegistry->getEntityMetadata(User::class);
+        
+        $result = $this->hydrator->processValue($metadata, 'username', null);
+        
+        self::assertNull($result);
+    }
+
+    public function testProcessValueWithValidInput(): void
+    {
+        $metadataRegistry = new MetadataRegistry();
+        $metadata = $metadataRegistry->getEntityMetadata(User::class);
+        
+        $result = $this->hydrator->processValue($metadata, 'username', 'test_value');
+        
+        self::assertEquals('test_value', $result);
+    }
+
+    /**
+     * Test hydration throws exception when trying to hydrate null into a non-nullable property
+     */
+    public function testHydrateThrowsExceptionForNonNullableProperty(): void
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage(
+            'Property requiredField of MulerTech\Database\Tests\Files\Mapping\EntityWithNonNullableProperty cannot be null'
+        );
+
+        $data = [
+            'required_field' => null, // Trying to set null to a non-nullable property
+            'optional_field' => 'valid_value',
+        ];
+
+        $this->hydrator->hydrate($data, EntityWithNonNullableProperty::class);
+    }
+
+    /**
+     * Test hydration succeeds when nullable property is null but non-nullable property has value
+     */
+    public function testHydrateSucceedsWithValidNonNullableValue(): void
+    {
+        $data = [
+            'required_field' => 'required_value',
+            'optional_field' => null, // This should be fine since it's nullable
+        ];
+
+        $entity = $this->hydrator->hydrate($data, EntityWithNonNullableProperty::class);
+
+        self::assertEquals('required_value', $entity->getRequiredField());
+        self::assertNull($entity->getOptionalField());
+    }
+
+    /**
+     * Test hydration throws exception when setter method is missing
+     * This addresses the TODO at line 77 in EntityHydrator
+     */
+    public function testHydrateThrowsExceptionForMissingSetter(): void
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage(
+            'No setter defined for property \'name\' in entity \'MulerTech\Database\Tests\Files\Mapping\EntityWithMissingSetter\''
+        );
+
+        $data = [
+            'id' => 1,
+            'name' => 'test name',
+        ];
+
+        $this->hydrator->hydrate($data, EntityWithMissingSetter::class);
+    }
+
+    /**
+     * Test extract throws exception when getter method is missing
+     * This addresses the TODO at line 106 in EntityHydrator
+     */
+    public function testExtractThrowsExceptionForMissingGetter(): void
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage(
+            'No getter defined for property \'description\' in entity \'MulerTech\Database\Tests\Files\Mapping\EntityWithMissingGetter\''
+        );
+
+        $entity = new EntityWithMissingGetter();
+        $entity->setId(1);
+        $entity->setDescription('test description');
+
+        $this->hydrator->extract($entity);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use InvalidArgumentException;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
@@ -37,11 +38,13 @@ final class ChangeSetManager
      * @param IdentityMap $identityMap
      * @param EntityRegistry $registry
      * @param ChangeDetector $changeDetector
+     * @param MetadataRegistry $metadataRegistry
      */
     public function __construct(
         private readonly IdentityMap $identityMap,
         private readonly EntityRegistry $registry,
-        private readonly ChangeDetector $changeDetector
+        private readonly ChangeDetector $changeDetector,
+        private readonly MetadataRegistry $metadataRegistry
     ) {
         $this->changeSets = new SplObjectStorage();
     }
@@ -74,7 +77,7 @@ final class ChangeSetManager
     private function getEntityProcessor(): EntityProcessor
     {
         if (!isset($this->entityProcessor)) {
-            $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap);
+            $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap, $this->metadataRegistry);
         }
         return $this->entityProcessor;
     }

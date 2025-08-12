@@ -73,15 +73,17 @@ class EventDispatcher
     }
 
     /**
+     * Dispatch global event - only called when eventManager is not null
      * @param object $entity
      * @param string $eventName
      * @return void
      */
     private function dispatchGlobalEvent(object $entity, string $eventName): void
     {
-        if ($this->eventManager === null) {
-            return;
-        }
+        assert(
+            $this->eventManager !== null,
+            'EventManager must not be null when dispatching global events'
+        );
 
         match ($eventName) {
             'prePersist' => $this->eventManager->dispatch(new PrePersistEvent($entity, $this->entityManager)),
@@ -100,9 +102,11 @@ class EventDispatcher
      */
     private function dispatchPreUpdateEvent(object $entity): void
     {
-        if ($this->eventManager === null) {
-            return;
-        }
+        assert(
+            $this->eventManager !== null,
+            'EventManager must not be null when dispatching events'
+        );
+
         $changeSet = $this->changeSetManager->getChangeSet($entity);
         $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
     }
@@ -113,9 +117,11 @@ class EventDispatcher
      */
     private function dispatchPostUpdateEvent(object $entity): void
     {
-        if ($this->eventManager === null) {
-            return;
-        }
+        assert(
+            $this->eventManager !== null,
+            'EventManager must not be null when dispatching events'
+        );
+
         $this->eventManager->dispatch(new PostUpdateEvent($entity, $this->entityManager));
         $this->processPostEventOperations();
     }
@@ -126,9 +132,11 @@ class EventDispatcher
      */
     private function dispatchPreRemoveEvent(object $entity): void
     {
-        if ($this->eventManager === null) {
-            return;
-        }
+        assert(
+            $this->eventManager !== null,
+            'EventManager must not be null when dispatching events'
+        );
+
         $this->eventManager->dispatch(new PreRemoveEvent($entity, $this->entityManager));
         $this->processPostEventOperations();
     }
@@ -139,9 +147,11 @@ class EventDispatcher
      */
     private function dispatchPostRemoveEvent(object $entity): void
     {
-        if ($this->eventManager === null) {
-            return;
-        }
+        assert(
+            $this->eventManager !== null,
+            'EventManager must not be null when dispatching events'
+        );
+
         $this->eventManager->dispatch(new PostRemoveEvent($entity, $this->entityManager));
         $this->processPostEventOperations();
     }

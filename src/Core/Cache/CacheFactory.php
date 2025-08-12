@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Cache;
 
+use MulerTech\Database\Mapping\MetadataRegistry;
 use RuntimeException;
 
 /**
@@ -14,7 +15,7 @@ use RuntimeException;
 class CacheFactory
 {
     /**
-     * @var array<string, CacheInterface|QueryStructureCache>
+     * @var array<string, CacheInterface|QueryStructureCache|MetadataRegistry>
      */
     private static array $instances = [];
 
@@ -43,23 +44,21 @@ class CacheFactory
     }
 
     /**
-     * @param string $name
-     * @param CacheConfig|null $config
-     * @param string|null $entitiesPath Automatic loading of entities from this path
-     * @return MetadataCache
+     * Create a metadata registry
+     * @param string $name Registry instance name
+     * @param string|null $entitiesPath Path to load entities from
+     * @return MetadataRegistry
      */
-    public static function createMetadataCache(
+    public static function createMetadataRegistry(
         string $name,
-        ?CacheConfig $config = null,
         ?string $entitiesPath = null
-    ): MetadataCache {
+    ): MetadataRegistry {
         if (!isset(self::$instances[$name])) {
-            $config ??= self::getDefaultConfig();
-            self::$instances[$name] = new MetadataCache($config, $entitiesPath);
+            self::$instances[$name] = new MetadataRegistry($entitiesPath);
         }
 
-        if (!self::$instances[$name] instanceof MetadataCache) {
-            throw new RuntimeException("Cache instance is not of type MetadataCache");
+        if (!self::$instances[$name] instanceof MetadataRegistry) {
+            throw new RuntimeException("Registry instance is not of type MetadataRegistry");
         }
 
         return self::$instances[$name];
@@ -109,9 +108,9 @@ class CacheFactory
 
     /**
      * @param string $name
-     * @return CacheInterface|QueryStructureCache|null
+     * @return CacheInterface|QueryStructureCache|MetadataRegistry|null
      */
-    public static function get(string $name): CacheInterface|QueryStructureCache|null
+    public static function get(string $name): CacheInterface|QueryStructureCache|MetadataRegistry|null
     {
         return self::$instances[$name] ?? null;
     }

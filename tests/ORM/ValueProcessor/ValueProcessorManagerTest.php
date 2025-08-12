@@ -8,7 +8,13 @@ use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
 use MulerTech\Database\ORM\ValueProcessor\ColumnTypeValueProcessor;
 use MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
+use MulerTech\Database\Mapping\MetadataRegistry;
+use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Types\ColumnType;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 class ValueProcessorManagerTest extends TestCase
 {
@@ -36,54 +42,62 @@ class ValueProcessorManagerTest extends TestCase
 
     public function testProcessValueWithString(): void
     {
-        $result = $this->manager->processValue('test string');
-        
+        // Create mock metadata and use basic type processing
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue('test string', null, $metadata, 'testProperty');
+
         self::assertEquals('test string', $result);
     }
 
     public function testProcessValueWithInteger(): void
     {
-        $result = $this->manager->processValue(42);
-        
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue(42, null, $metadata, 'testProperty');
+
         self::assertEquals(42, $result);
     }
 
     public function testProcessValueWithFloat(): void
     {
-        $result = $this->manager->processValue(3.14);
-        
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue(3.14, null, $metadata, 'testProperty');
+
         self::assertEquals(3.14, $result);
     }
 
     public function testProcessValueWithBoolean(): void
     {
-        $result = $this->manager->processValue(true);
-        
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue(true, null, $metadata, 'testProperty');
+
         self::assertTrue($result);
     }
 
     public function testProcessValueWithNull(): void
     {
-        $result = $this->manager->processValue(null);
-        
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue(null, null, $metadata, 'testProperty');
+
         self::assertNull($result);
     }
 
     public function testProcessValueWithArray(): void
     {
+        $metadata = $this->createMockMetadata();
         $array = ['a', 'b', 'c'];
-        $result = $this->manager->processValue($array);
-        
+        $result = $this->manager->processValue($array, null, $metadata, 'testProperty');
+
         self::assertEquals($array, $result);
     }
 
     public function testProcessValueWithObject(): void
     {
+        $metadata = $this->createMockMetadata();
         $user = new User();
         $user->setUsername('John');
         
-        $result = $this->manager->processValue($user);
-        
+        $result = $this->manager->processValue($user, null, $metadata, 'testProperty');
+
         self::assertIsArray($result);
         self::assertArrayHasKey('__entity__', $result);
         self::assertEquals(User::class, $result['__entity__']);
@@ -206,6 +220,7 @@ class ValueProcessorManagerTest extends TestCase
 
     public function testProcessComplexValue(): void
     {
+        $metadata = $this->createMockMetadata();
         $user = new User();
         $user->setUsername('John');
         
@@ -215,8 +230,8 @@ class ValueProcessorManagerTest extends TestCase
             'count' => 42
         ];
         
-        $result = $this->manager->processValue($complexValue);
-        
+        $result = $this->manager->processValue($complexValue, null, $metadata, 'testProperty');
+
         self::assertIsArray($result);
         self::assertArrayHasKey('user', $result);
         self::assertArrayHasKey('metadata', $result);
@@ -237,4 +252,165 @@ class ValueProcessorManagerTest extends TestCase
         
         self::assertSame($processor3, $processor4);
     }
+
+    public function testProcessValueWithProperty(): void
+    {
+        // Test with ColumnType directly
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue('test', ColumnType::VARCHAR, $metadata, 'testProperty');
+
+        self::assertEquals('test', $result);
+    }
+
+    public function testValidateValueWithNull(): void
+    {
+        // This should trigger the validateValue null echo case
+        $result = $this->manager->validateValue(null, 'string');
+        
+        self::assertTrue($result);
+    }
+
+    public function testValidateValueWithArrayAndObjectTypes(): void
+    {
+        // This should trigger the validateValue array/object types echo case
+        $result = $this->manager->validateValue(['test'], 'array');
+        self::assertTrue($result);
+        
+        $result = $this->manager->validateValue(new \stdClass(), 'object');
+        self::assertTrue($result);
+    }
+
+    public function testCanConvertWithNull(): void
+    {
+        // This should trigger the first canConvert null echo case
+        $result = $this->manager->canConvert(null, 'string');
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanConvertWithSameType(): void
+    {
+        // This should trigger the canConvert same type echo case
+        $result = $this->manager->canConvert('test', 'string');
+        
+        self::assertTrue($result);
+    }
+
+    public function testCanConvertWithStringArrayObjectConversions(): void
+    {
+        // This should trigger the canConvert string/array/object conversions echo case
+        
+        // String conversion (almost anything can be converted to string)
+        $result = $this->manager->canConvert(123, 'string');
+        self::assertTrue($result);
+        
+        // Array conversion
+        $result = $this->manager->canConvert('{"key":"value"}', 'array');
+        self::assertTrue($result);
+        
+        $result = $this->manager->canConvert(new \stdClass(), 'array');
+        self::assertTrue($result);
+        
+        // Object conversion
+        $result = $this->manager->canConvert(['key' => 'value'], 'object');
+        self::assertTrue($result);
+        
+        $result = $this->manager->canConvert('{"key":"value"}', 'object');
+        self::assertTrue($result);
+    }
+
+    public function testProcessValueWithPropertyAndHydrator(): void
+    {
+        // Create metadata with ColumnType
+        $metadata = new EntityMetadata(
+            className: User::class,
+            tableName: 'users',
+            columns: ['username' => new MtColumn(columnName: 'username', columnType: ColumnType::VARCHAR)]
+        );
+
+        $result = $this->manager->processValue('test', null, $metadata, 'username');
+
+        self::assertEquals('test', $result);
+    }
+
+    public function testProcessValueWithPropertyAndHydratorNullColumnType(): void
+    {
+        // Create metadata with no columns (getColumnType returns null)
+        $metadata = new EntityMetadata(
+            className: User::class,
+            tableName: 'users',
+            columns: [] // No columns defined
+        );
+
+        $result = $this->manager->processValue('test', null, $metadata, 'nonExistentProperty');
+
+        self::assertEquals('test', $result);
+    }
+
+    public function testProcessValueWithNonExistentClass(): void
+    {
+        // Test basic type processing fallback
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue('test', null, $metadata, 'someProperty');
+
+        self::assertEquals('test', $result);
+    }
+
+    public function testProcessValueWithPropertyAndHydratorPhpTypeRoute(): void
+    {
+        // Test with DateTime object (should trigger basic type processing)
+        $metadata = new EntityMetadata(
+            className: User::class,
+            tableName: 'users',
+            columns: [] // No columns so getColumnType returns null
+        );
+
+        $dateTime = new \DateTime('2023-01-01 12:00:00');
+        $result = $this->manager->processValue($dateTime, null, $metadata, 'username');
+
+        // Should process the object and add __entity__ key
+        self::assertIsArray($result);
+        self::assertArrayHasKey('__entity__', $result);
+        self::assertEquals(\DateTime::class, $result['__entity__']);
+    }
+
+    public function testProcessValueWithPropertyAndHydratorNoTypeInfo(): void
+    {
+        // Test basic type processing when no ColumnType is available
+        $metadata = new EntityMetadata(
+            className: User::class,
+            tableName: 'users',
+            columns: [] // No columns so getColumnType returns null
+        );
+
+        $result = $this->manager->processValue('test', null, $metadata, 'username');
+
+        self::assertEquals('test', $result);
+    }
+
+    public function testProcessValueWithNonBuiltinType(): void
+    {
+        // Test with ColumnType for DateTime processing
+        $metadata = $this->createMockMetadata();
+        $result = $this->manager->processValue('2023-01-01 12:00:00', ColumnType::DATETIME, $metadata, 'testProperty');
+
+        // ColumnTypeValueProcessor converts DATETIME to date string format, not DateTime object
+        self::assertIsString($result);
+        self::assertMatchesRegularExpression('/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/', $result);
+    }
+
+    /**
+     * Create a mock EntityMetadata for simple tests
+     *
+     * @return EntityMetadata
+     */
+    private function createMockMetadata(): EntityMetadata
+    {
+        return new EntityMetadata(
+            className: User::class,
+            tableName: 'users',
+            columns: []
+        );
+    }
 }
+

@@ -17,25 +17,21 @@ use MulerTech\Database\ORM\IdentityMap;
  */
 final readonly class DirectStateManager implements StateManagerInterface
 {
-    private EntityScheduler $entityScheduler;
     private DependencyManager $dependencyManager;
-    private StateResolver $stateResolver;
 
     /**
      * @param IdentityMap $identityMap
      * @param StateTransitionManager $transitionManager
      * @param StateValidator $stateValidator
-     * @param ChangeSetManager|null $changeSetManager
+     * @param ChangeSetManager $changeSetManager
      */
     public function __construct(
         private IdentityMap $identityMap,
         private StateTransitionManager $transitionManager,
         private StateValidator $stateValidator,
-        private ?ChangeSetManager $changeSetManager = null
+        private ChangeSetManager $changeSetManager
     ) {
-        $this->entityScheduler = new EntityScheduler($identityMap, $stateValidator, $changeSetManager);
         $this->dependencyManager = new DependencyManager();
-        $this->stateResolver = new StateResolver($identityMap, $changeSetManager);
     }
 
     /**
@@ -66,8 +62,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function scheduleForInsertion(object $entity): void
     {
-        $currentState = $this->getEntityState($entity);
-        $this->entityScheduler->scheduleForInsertion($entity, $currentState);
+        $this->changeSetManager->scheduleInsert($entity);
     }
 
     /**
@@ -76,8 +71,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function scheduleForUpdate(object $entity): void
     {
-        $currentState = $this->getEntityState($entity);
-        $this->entityScheduler->scheduleForUpdate($entity, $currentState);
+        $this->changeSetManager->scheduleUpdate($entity);
     }
 
     /**
@@ -87,7 +81,7 @@ final readonly class DirectStateManager implements StateManagerInterface
     public function scheduleForDeletion(object $entity): void
     {
         $currentState = $this->getEntityState($entity);
-        $this->entityScheduler->scheduleForDeletion($entity, $currentState);
+        $this->changeSetManager->scheduleDelete($entity);
 
         // Only transition to REMOVED state if not already in that state
         if ($currentState !== EntityLifecycleState::REMOVED) {
@@ -114,7 +108,7 @@ final readonly class DirectStateManager implements StateManagerInterface
 
         // Remove entity from identity map instead of transitioning to DETACHED state
         $this->identityMap->remove($entity);
-        $this->changeSetManager?->detach($entity);
+        $this->changeSetManager->detach($entity);
         $this->dependencyManager->removeDependencies($entity);
     }
 
@@ -133,7 +127,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function getScheduledInsertions(): array
     {
-        $insertions = $this->entityScheduler->getScheduledInsertions();
+        $insertions = $this->changeSetManager->getScheduledInsertions();
         return $this->dependencyManager->orderByDependencies($insertions);
     }
 
@@ -142,7 +136,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function getScheduledUpdates(): array
     {
-        return $this->entityScheduler->getScheduledUpdates();
+        return $this->changeSetManager->getScheduledUpdates();
     }
 
     /**
@@ -150,7 +144,7 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function getScheduledDeletions(): array
     {
-        return $this->entityScheduler->getScheduledDeletions();
+        return $this->changeSetManager->getScheduledDeletions();
     }
 
     /**
@@ -175,8 +169,8 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function isScheduledForInsertion(object $entity): bool
     {
-        $currentState = $this->getEntityState($entity);
-        return $this->entityScheduler->isScheduledForInsertion($entity, $currentState);
+        $scheduled = $this->changeSetManager->getScheduledInsertions();
+        return in_array($entity, $scheduled, true);
     }
 
     /**
@@ -185,7 +179,8 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function isScheduledForUpdate(object $entity): bool
     {
-        return $this->entityScheduler->isScheduledForUpdate($entity);
+        $scheduled = $this->changeSetManager->getScheduledUpdates();
+        return in_array($entity, $scheduled, true);
     }
 
     /**
@@ -194,8 +189,8 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function isScheduledForDeletion(object $entity): bool
     {
-        $currentState = $this->getEntityState($entity);
-        return $this->entityScheduler->isScheduledForDeletion($entity, $currentState);
+        $scheduled = $this->changeSetManager->getScheduledDeletions();
+        return in_array($entity, $scheduled, true);
     }
 
     /**
@@ -260,7 +255,7 @@ final readonly class DirectStateManager implements StateManagerInterface
     public function clear(): void
     {
         $this->dependencyManager->clear();
-        $this->changeSetManager?->clear();
+        $this->changeSetManager->clear();
     }
 
     /**
@@ -269,7 +264,13 @@ final readonly class DirectStateManager implements StateManagerInterface
      */
     public function getEntityState(object $entity): EntityLifecycleState
     {
-        return $this->stateResolver->resolveEntityLifecycleState($entity);
+        $state = $this->identityMap->getEntityState($entity);
+
+        if ($state === null) {
+            return EntityLifecycleState::DETACHED;
+        }
+
+        return $state;
     }
 
     /**

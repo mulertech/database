@@ -6,8 +6,7 @@ namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
 use Exception;
-use MulerTech\Collections\Collection;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
@@ -21,7 +20,6 @@ use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Query\Builder\SelectBuilder;
 use PDO;
-use ReflectionClass;
 use ReflectionException;
 
 /**
@@ -76,11 +74,11 @@ class EmEngine
 
     /**
      * @param EntityManagerInterface $entityManager
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly MetadataCache $metadataCache
+        private readonly MetadataRegistry $metadataRegistry
     ) {
         $this->initializeComponents();
     }
@@ -165,11 +163,7 @@ class EmEngine
             $entityData = [];
             foreach ($fetch as $key => $value) {
                 $stringKey = (string)$key;
-                if (is_scalar($value) || $value === null) {
-                    $entityData[$stringKey] = $value;
-                } else {
-                    $entityData[$stringKey] = null;
-                }
+                $entityData[$stringKey] = is_scalar($value) ? $value : null;
             }
             return $this->createManagedEntity($entityData, $entityName, $loadRelations);
         }
@@ -205,11 +199,7 @@ class EmEngine
                 $validatedEntityData = [];
                 foreach ($entityData as $key => $value) {
                     $stringKey = (string)$key;
-                    if (is_scalar($value) || $value === null) {
-                        $validatedEntityData[$stringKey] = $value;
-                    } else {
-                        $validatedEntityData[$stringKey] = null;
-                    }
+                    $validatedEntityData[$stringKey] = is_scalar($value) ? $value : null;
                 }
                 $validatedFetchAll[] = $validatedEntityData;
             }
@@ -333,19 +323,20 @@ class EmEngine
     private function initializeComponents(): void
     {
         // Initialize core components that are directly used by EmEngine
-        $this->identityMap = new IdentityMap();
+        $this->identityMap = new IdentityMap($this->metadataRegistry);
         $this->entityRegistry = new EntityRegistry();
-        $this->changeDetector = new ChangeDetector();
+        $this->changeDetector = new ChangeDetector($this->metadataRegistry);
 
         // ChangeSetManager needs core components
         $this->changeSetManager = new ChangeSetManager(
             $this->identityMap,
             $this->entityRegistry,
-            $this->changeDetector
+            $this->changeDetector,
+            $this->metadataRegistry
         );
 
-        // EntityHydrator uses MetadataCache
-        $this->hydrator = new EntityHydrator($this->metadataCache);
+        // EntityHydrator uses MetadataRegistry
+        $this->hydrator = new EntityHydrator($this->metadataRegistry);
     }
 
     /**
@@ -448,7 +439,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getMetadataCache());
+            $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
         return $instance;
@@ -464,7 +455,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getMetadataCache());
+            $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
         return $instance;
@@ -480,7 +471,7 @@ class EmEngine
         static $instance = null;
 
         if ($instance === null) {
-            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getMetadataCache());
+            $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
         return $instance;
@@ -497,9 +488,6 @@ class EmEngine
     {
         // Use hydrator directly to create and hydrate the entity
         $entity = $this->hydrator->hydrate($entityData, $entityName);
-
-        // CRITICAL: Ensure all collections are DatabaseCollection before adding to identity map
-        $this->ensureCollectionsAreDatabaseCollection($entity);
 
         // Add to identity map first
         if (isset($entityData['id'])) {
@@ -522,65 +510,6 @@ class EmEngine
         }
 
         return $entity;
-    }
-
-    /**
-     * Ensure all collection properties are DatabaseCollection instances
-     *
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
-     */
-    private function ensureCollectionsAreDatabaseCollection(object $entity): void
-    {
-        $entityClass = $entity::class;
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
-
-        // Convert OneToMany collections
-        $oneToManyList = $entityMetadata->getRelationsByType('OneToMany');
-        foreach ($oneToManyList as $property => $oneToMany) {
-            $this->convertPropertyToDatabaseCollection($entity, $property);
-        }
-
-        // Convert ManyToMany collections
-        $manyToManyList = $entityMetadata->getRelationsByType('ManyToMany');
-        foreach ($manyToManyList as $property => $manyToMany) {
-            $this->convertPropertyToDatabaseCollection($entity, $property);
-        }
-    }
-
-    /**
-     * Convert a property to DatabaseCollection if it's a Collection
-     *
-     * @param object $entity
-     * @param string $property
-     * @return void
-     */
-    private function convertPropertyToDatabaseCollection(object $entity, string $property): void
-    {
-        try {
-            $reflection = new ReflectionClass($entity);
-            $reflectionProperty = $reflection->getProperty($property);
-
-            if (!$reflectionProperty->isInitialized($entity)) {
-                $reflectionProperty->setValue($entity, new DatabaseCollection([]));
-                return;
-            }
-
-            $currentValue = $reflectionProperty->getValue($entity);
-            if ($currentValue instanceof DatabaseCollection) {
-                return;
-            }
-            if ($currentValue instanceof Collection) {
-                $items = $currentValue->items();
-                $objectItems = array_filter($items, static fn ($item): bool => is_object($item));
-                $reflectionProperty->setValue($entity, new DatabaseCollection($objectItems));
-                return;
-            }
-            $reflectionProperty->setValue($entity, new DatabaseCollection([]));
-        } catch (ReflectionException) {
-            // Property doesn't exist, ignore
-        }
     }
 
     /**
@@ -624,7 +553,7 @@ class EmEngine
      */
     private function getTableName(string $entityName): string
     {
-        return $this->metadataCache->getEntityMetadata($entityName)->tableName;
+        return $this->metadataRegistry->getEntityMetadata($entityName)->tableName;
     }
 
     /**
@@ -680,10 +609,8 @@ class EmEngine
     {
         try {
             $entityClass = $entity::class;
-            $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+            $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
             $propertiesColumns = $entityMetadata->getPropertiesColumns();
-
-            $reflection = new ReflectionClass($entity);
 
             foreach ($propertiesColumns as $property => $column) {
                 if (!isset($dbData[$column])) {
@@ -695,13 +622,11 @@ class EmEngine
                     continue;
                 }
 
-                if ($reflection->hasProperty($property)) {
-                    $reflectionProperty = $reflection->getProperty($property);
-
+                $setterMethod = $entityMetadata->getSetter($property);
+                if ($setterMethod !== null && method_exists($entity, $setterMethod)) {
                     // Process the value according to its type
-                    $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
                     $value = $this->hydrator->processValue($entityMetadata, $property, $dbData[$column]);
-                    $reflectionProperty->setValue($entity, $value);
+                    $entity->$setterMethod($value);
                 }
             }
 
@@ -732,7 +657,7 @@ class EmEngine
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
-        $entityMetadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
 
         // Check all relation types
         foreach (['OneToOne', 'ManyToOne', 'OneToMany', 'ManyToMany'] as $relationType) {
@@ -787,37 +712,15 @@ class EmEngine
      */
     private function extractEntityId(object $entity): int|string|null
     {
-        // Try common getter methods
-        if (method_exists($entity, 'getId')) {
-            $id = $entity->getId();
-            if (is_int($id) || is_string($id)) {
-                return $id;
-            }
-        }
-
-        if (method_exists($entity, 'getIdentifier')) {
-            $id = $entity->getIdentifier();
-            if (is_int($id) || is_string($id)) {
-                return $id;
-            }
-        }
-
-        if (method_exists($entity, 'getUuid')) {
-            $id = $entity->getUuid();
-            if (is_int($id) || is_string($id)) {
-                return $id;
-            }
-        }
-
-        // Try direct property access
-        $reflection = new ReflectionClass($entity);
+        $entityClass = $entity::class;
+        $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
 
         foreach (['id', 'uuid', 'identifier'] as $property) {
-            if ($reflection->hasProperty($property)) {
-                $prop = $reflection->getProperty($property);
-                $value = $prop->getValue($entity);
-                if (is_int($value) || is_string($value)) {
-                    return $value;
+            $getterMethod = $entityMetadata->getGetter($property);
+            if ($getterMethod !== null && method_exists($entity, $getterMethod)) {
+                $id = $entity->$getterMethod();
+                if (is_int($id) || is_string($id)) {
+                    return $id;
                 }
             }
         }
@@ -887,6 +790,7 @@ class EmEngine
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     public function refresh(object $entity): void
     {

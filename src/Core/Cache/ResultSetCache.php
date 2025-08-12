@@ -265,7 +265,7 @@ readonly class ResultSetCache implements TaggableCacheInterface
     private function deserializeAndValidate(string $serialized): array|bool|float|int|string|null
     {
         try {
-            $result = unserialize($serialized, ['allowed_classes' => false]);
+            $result = @unserialize($serialized, ['allowed_classes' => false]);
 
             if ($result === false && $serialized !== serialize(false)) {
                 return null;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
 use ReflectionException;
@@ -27,7 +27,7 @@ readonly class MigrationCodeGenerator
      */
     private MigrationStatementGenerator $statementGenerator;
 
-    public function __construct(private MetadataCache $metadataCache)
+    public function __construct(private MetadataRegistry $metadataRegistry)
     {
         $this->typeConverter = new SqlTypeConverter();
         $this->statementGenerator = new MigrationStatementGenerator();
@@ -112,7 +112,7 @@ readonly class MigrationCodeGenerator
     private function addCreateTablesCode(SchemaDifference $diff, array &$code): void
     {
         foreach ($diff->getTablesToCreate() as $tableName => $entityClass) {
-            $code[] = $this->statementGenerator->generateCreateTableStatement($tableName, $this->metadataCache);
+            $code[] = $this->statementGenerator->generateCreateTableStatement($tableName, $this->metadataRegistry);
         }
     }
 
@@ -253,9 +253,6 @@ readonly class MigrationCodeGenerator
         $this->processNestedItems(
             $diff->getColumnsToModify(),
             function ($tableName, $columnName, $differences) {
-                if (!is_array($differences)) {
-                    return null;
-                }
                 /** @phpstan-var array{
                  *     COLUMN_TYPE?: array{from: string, to: string},
                  *     IS_NULLABLE?: array{from: 'NO'|'YES', to: 'NO'|'YES'},

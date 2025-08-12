@@ -31,11 +31,6 @@ class DeleteBuilder extends AbstractQueryBuilder
     private array $from = [];
 
     /**
-     * @var bool
-     */
-    private bool $quick = false;
-
-    /**
      * DeleteBuilder constructor.
      *
      * @param EmEngine|null $emEngine
@@ -60,25 +55,8 @@ class DeleteBuilder extends AbstractQueryBuilder
     }
 
     /**
-     * Enable QUICK option
-     * @return self
+     * @return string
      */
-    public function quick(): self
-    {
-        $this->quick = true;
-        return $this;
-    }
-
-    /**
-     * Disable QUICK option
-     * @return self
-     */
-    public function withoutQuick(): self
-    {
-        $this->quick = false;
-        return $this;
-    }
-
     protected function buildSql(): string
     {
         $parts = [];
@@ -86,9 +64,6 @@ class DeleteBuilder extends AbstractQueryBuilder
 
         // Modifiers
         $modifiers = $this->buildQueryModifiers();
-        if ($this->quick) {
-            $modifiers[] = 'QUICK';
-        }
         if (!empty($modifiers)) {
             $parts = array_merge($parts, $modifiers);
         }

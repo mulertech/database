@@ -36,7 +36,7 @@ class MigrationManager
     /**
      * @param EntityManagerInterface $entityManager
      * @param class-string $migrationHistory
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -50,20 +50,16 @@ class MigrationManager
      * Ensure migration history table exists
      *
      * @return void
-     * @throws ReflectionException
+     * @throws Exception
      */
     private function initializeMigrationTable(): void
     {
         // Create the migration history table if it doesn't exist
         // Using low-level approach to avoid circular dependencies
-        $metadataCache = $this->entityManager->getMetadataCache();
+        $metadataRegistry = $this->entityManager->getMetadataRegistry();
         $emEngine = $this->entityManager->getEmEngine();
 
-        $tableName = $metadataCache->getTableName($this->migrationHistory);
-        if ($tableName === null) { // @phpstan-ignore-line
-            // If migration history is not in the main mapping, use default table name
-            $tableName = 'migration_history';
-        }
+        $tableName = $metadataRegistry->getEntityMetadata($this->migrationHistory)->tableName;
 
         // Check if table exists in the database
         $informationSchema = new InformationSchema($emEngine);
@@ -109,36 +105,36 @@ class MigrationManager
      * Load executed migrations from database
      *
      * @return void
+     * @throws ReflectionException
      */
     private function loadExecutedMigrations(): void
     {
-        try {
-            $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
-                ->select('version')
-                ->from('migration_history')
-                ->orderBy('version');
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
+            ->select('version')
+            ->from('migration_history')
+            ->orderBy('version');
 
-            $results = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
-                $queryBuilder,
-                $this->migrationHistory,
-            );
+        $results = $this->entityManager->getEmEngine()->getQueryBuilderListResult(
+            $queryBuilder,
+            $this->migrationHistory,
+        );
 
-            // Extract versions (string) from objects
-            if (is_iterable($results)) {
-                $versions = [];
-                foreach ($results as $row) {
-                    if (isset($row->version) && is_string($row->version)) {
-                        $versions[] = $row->version;
+        // Extract versions (string) from objects
+        if (is_iterable($results)) {
+            $versions = [];
+            foreach ($results as $row) {
+                if (method_exists($row, 'getVersion')) {
+                    $version = $row->getVersion();
+                    if (is_string($version) && $version !== '') {
+                        $versions[] = $version;
                     }
                 }
-                $this->executedMigrations = $versions;
-            } else {
-                $this->executedMigrations = [];
             }
-        } catch (Exception) {
-            // Table might not exist yet
-            $this->executedMigrations = [];
+            $this->executedMigrations = $versions;
+            return;
         }
+
+        $this->executedMigrations = [];
     }
 
     /**
@@ -283,12 +279,10 @@ class MigrationManager
             // Update executed migrations cache
             $this->executedMigrations[] = $migration->getVersion();
         } catch (Exception $e) {
-            // Rollback transaction if it's possible
             if ($this->entityManager->getPdm()->inTransaction()) {
                 $this->entityManager->getPdm()->rollBack();
             }
 
-            // Re-throw exception
             throw new RuntimeException("Migration {$migration->getVersion()} failed: " . $e->getMessage(), 0, $e);
         }
     }
@@ -299,16 +293,11 @@ class MigrationManager
      * @param Migration $migration
      * @param float $executionTime
      * @return void
-     * @throws ReflectionException
+     * @throws ReflectionException|Exception
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
-        $tableName = $this->entityManager->getMetadataCache()->getTableName($this->migrationHistory);
-
-        if ($tableName === null) { // @phpstan-ignore-line
-            // If migration history is not in the main mapping, use default table name
-            $tableName = 'migration_history';
-        }
+        $tableName = $this->entityManager->getMetadataRegistry()->getEntityMetadata($this->migrationHistory)->tableName;
 
         $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine())
             ->insert($tableName)
@@ -326,16 +315,12 @@ class MigrationManager
      */
     public function rollback(): bool
     {
-        if (empty($this->executedMigrations)) {
-            return false;
-        }
-
         $lastVersion = end($this->executedMigrations);
 
         // Find the migration
-        $migration = $this->migrations[$lastVersion] ?? null;
-        if ($migration === null) {
-            throw new RuntimeException("Migration $lastVersion is recorded as executed but cannot be found.");
+        $migration = $lastVersion !== false ? $this->migrations[$lastVersion] ?? null : null;
+        if ($lastVersion === false || $migration === null) {
+            return false;
         }
 
         try {
@@ -356,10 +341,10 @@ class MigrationManager
 
             return true;
         } catch (Exception $e) {
-            // Rollback transaction
-            $this->entityManager->getPdm()->rollBack();
+            if ($this->entityManager->getPdm()->inTransaction()) {
+                $this->entityManager->getPdm()->rollBack();
+            }
 
-            // Re-throw exception
             throw new RuntimeException("Migration rollback $lastVersion failed: " . $e->getMessage(), 0, $e);
         }
     }

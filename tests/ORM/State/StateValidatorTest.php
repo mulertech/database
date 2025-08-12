@@ -332,4 +332,55 @@ class StateValidatorTest extends TestCase
             $this->assertFalse($result, "Operation '$operation' should be invalid for state '{$state->value}'");
         }
     }
+
+    public function testValidateCustomOperationWithValidator(): void
+    {
+        $entity = new User();
+        $currentState = EntityLifecycleState::MANAGED;
+        
+        // Use reflection to access private properties and add a custom validator
+        $validator = $this->validator;
+        $reflection = new \ReflectionClass($validator);
+        
+        $validatorsProperty = $reflection->getProperty('validators');
+        $validatorsProperty->setAccessible(true);
+        
+        // Add a custom validator that returns true
+        $customValidator = function($entity, $currentState, $context) {
+            return true;
+        };
+        
+        $entityClass = User::class;
+        $operationKey = sprintf('%s:operation:%s', $entityClass, 'custom_operation');
+        
+        $validatorsProperty->setValue($validator, [
+            $entityClass => [
+                $operationKey => $customValidator
+            ]
+        ]);
+        
+        // This should trigger the first echo statement and use the custom validator
+        $result = $validator->validateOperation($entity, $currentState, 'custom_operation');
+        
+        $this->assertTrue($result);
+    }
+
+    public function testValidateCustomOperationWithNonStrictMode(): void
+    {
+        $entity = new User();
+        $currentState = EntityLifecycleState::MANAGED;
+        
+        // Use reflection to disable strict mode
+        $validator = $this->validator;
+        $reflection = new \ReflectionClass($validator);
+        
+        $strictModeProperty = $reflection->getProperty('strictMode');
+        $strictModeProperty->setAccessible(true);
+        $strictModeProperty->setValue($validator, false);
+        
+        // This should trigger the second echo statement and return true
+        $result = $validator->validateOperation($entity, $currentState, 'unknown_custom_operation');
+        
+        $this->assertTrue($result);
+    }
 }

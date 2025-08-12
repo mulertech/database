@@ -11,7 +11,6 @@ use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
-use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
 use ReflectionException;
@@ -58,6 +57,15 @@ class EntityProcessor
 
             $this->buildEntityMetadata($reflection);
         }
+    }
+
+    /**
+     * Get all loaded entity class names
+     * @return array<class-string>
+     */
+    public function getLoadedEntityClasses(): array
+    {
+        return array_keys($this->tables);
     }
 
     /**
@@ -119,7 +127,12 @@ class EntityProcessor
         $propertyMappings = $this->processProperties($reflection);
 
         // Always define columns for the table, even if empty
-        $this->columns[$className] = $propertyMappings['columns'];
+        // Convert MtColumn objects to column name mapping for backward compatibility
+        $columnNames = [];
+        foreach ($propertyMappings['columns'] as $property => $column) {
+            $columnNames[$property] = $column->columnName ?? $property;
+        }
+        $this->columns[$className] = $columnNames;
 
         return $this->createEntityMetadata(
             $reflection,
@@ -132,7 +145,7 @@ class EntityProcessor
      * Extract entity configuration from MtEntity attribute
      * @param ReflectionClass<object> $reflection
      * @param string $className
-     * @return array{tableName: string, repository: ?class-string, autoIncrement: ?int}|null
+     * @return array{tableName: string, repository: ?class-string, autoIncrement: ?int, entity: MtEntity}|null
      */
     private function extractEntityConfiguration(ReflectionClass $reflection, string $className): ?array
     {
@@ -147,6 +160,7 @@ class EntityProcessor
             'tableName' => $entityAttr->tableName ?? $this->classNameToTableName($className),
             'repository' => $entityAttr->repository,
             'autoIncrement' => $entityAttr->autoIncrement,
+            'entity' => $entityAttr,
         ];
     }
 
@@ -154,58 +168,47 @@ class EntityProcessor
      * Process all properties to extract mappings and relationships
      * @param ReflectionClass<object> $reflection
      * @return array{
-     *     columns: array<string, string>,
-     *     foreignKeys: array<string, array{
-     *      constraintName: string|null,
-     *      column: string,
-     *      referencedTable: string|null,
-     *      referencedColumn: string|null,
-     *      deleteRule: FkRule|null,
-     *      updateRule: FkRule|null
-     *      }>,
-     *     relationships: array<string, array<string, array<string, mixed>>>
+     *     columns: array<string, MtColumn>,
+     *     foreignKeys: array<string, MtFk>,
+     *     oneToManyRelations: array<string, MtOneToMany>,
+     *     manyToOneRelations: array<string, MtManyToOne>,
+     *     oneToOneRelations: array<string, MtOneToOne>,
+     *     manyToManyRelations: array<string, MtManyToMany>
      * }
      */
     private function processProperties(ReflectionClass $reflection): array
     {
         $columns = [];
         $foreignKeys = [];
-        $relationships = $this->initializeRelationships();
+        $oneToManyRelations = [];
+        $manyToOneRelations = [];
+        $oneToOneRelations = [];
+        $manyToManyRelations = [];
 
         foreach ($reflection->getProperties() as $property) {
             $propertyName = $property->getName();
 
             $this->processColumnMapping($property, $propertyName, $columns);
             $this->processForeignKeyMapping($property, $propertyName, $foreignKeys);
-            $this->processRelationshipMappings($property, $propertyName, $relationships);
+            $this->processRelationshipMappings($property, $propertyName, $oneToManyRelations, $manyToOneRelations, $oneToOneRelations, $manyToManyRelations);
         }
 
         return [
             'columns' => $columns,
             'foreignKeys' => $foreignKeys,
-            'relationships' => $relationships,
+            'oneToManyRelations' => $oneToManyRelations,
+            'manyToOneRelations' => $manyToOneRelations,
+            'oneToOneRelations' => $oneToOneRelations,
+            'manyToManyRelations' => $manyToManyRelations,
         ];
     }
 
-    /**
-     * Initialize empty relationships array
-     * @return array<string, array<string, array<string, mixed>>>
-     */
-    private function initializeRelationships(): array
-    {
-        return [
-            'OneToOne' => [],
-            'ManyToOne' => [],
-            'OneToMany' => [],
-            'ManyToMany' => [],
-        ];
-    }
 
     /**
      * Process column mapping from MtColumn attribute
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, string> $columns
+     * @param array<string, MtColumn> $columns
      * @return void
      */
     private function processColumnMapping(ReflectionProperty $property, string $propertyName, array &$columns): void
@@ -217,29 +220,14 @@ class EntityProcessor
         }
 
         $columnAttr = $columnAttrs[0]->newInstance();
-        $columns[$propertyName] = $columnAttr->columnName ?? $propertyName;
+        $columns[$propertyName] = $columnAttr;
     }
 
     /**
      * Process foreign key mapping from MtFk attribute
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, array{
-     *     constraintName: string|null,
-     *     column: string,
-     *     referencedTable: string|null,
-     *     referencedColumn: string|null,
-     *     deleteRule: FkRule|null,
-     *     updateRule: FkRule|null
-     *     }> $foreignKeys
-     * @param-out array<string, array{
-     *     constraintName: string|null,
-     *     column: string,
-     *     referencedTable: string|null,
-     *     referencedColumn: string|null,
-     *     deleteRule: FkRule|null,
-     *     updateRule: FkRule|null
-     *     }> $foreignKeys
+     * @param array<string, MtFk> $foreignKeys
      * @return void
      */
     private function processForeignKeyMapping(
@@ -254,45 +242,44 @@ class EntityProcessor
         }
 
         $fkAttr = $fkAttrs[0]->newInstance();
-        $foreignKeys[$propertyName] = [
-            'constraintName' => $fkAttr->constraintName,
-            'column' => $fkAttr->column ?? $propertyName,
-            'referencedTable' => $fkAttr->referencedTable,
-            'referencedColumn' => $fkAttr->referencedColumn,
-            'deleteRule' => $fkAttr->deleteRule,
-            'updateRule' => $fkAttr->updateRule,
-        ];
+        $foreignKeys[$propertyName] = $fkAttr;
     }
 
     /**
      * Process relationship mappings from Mt* relation attributes
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, array<string, array<string, mixed>>> $relationships
+     * @param array<string, MtOneToMany> $oneToManyRelations
+     * @param array<string, MtManyToOne> $manyToOneRelations
+     * @param array<string, MtOneToOne> $oneToOneRelations
+     * @param array<string, MtManyToMany> $manyToManyRelations
      * @return void
      */
     private function processRelationshipMappings(
         ReflectionProperty $property,
         string $propertyName,
-        array &$relationships
+        array &$oneToManyRelations,
+        array &$manyToOneRelations,
+        array &$oneToOneRelations,
+        array &$manyToManyRelations
     ): void {
-        $this->processOneToOneRelation($property, $propertyName, $relationships);
-        $this->processManyToOneRelation($property, $propertyName, $relationships);
-        $this->processOneToManyRelation($property, $propertyName, $relationships);
-        $this->processManyToManyRelation($property, $propertyName, $relationships);
+        $this->processOneToOneRelation($property, $propertyName, $oneToOneRelations);
+        $this->processManyToOneRelation($property, $propertyName, $manyToOneRelations);
+        $this->processOneToManyRelation($property, $propertyName, $oneToManyRelations);
+        $this->processManyToManyRelation($property, $propertyName, $manyToManyRelations);
     }
 
     /**
      * Process OneToOne relationship
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, array<string, array<string, mixed>>> $relationships
+     * @param array<string, MtOneToOne> $oneToOneRelations
      * @return void
      */
     private function processOneToOneRelation(
         ReflectionProperty $property,
         string $propertyName,
-        array &$relationships
+        array &$oneToOneRelations
     ): void {
         $oneToOneAttrs = $property->getAttributes(MtOneToOne::class);
 
@@ -301,22 +288,20 @@ class EntityProcessor
         }
 
         $relationAttr = $oneToOneAttrs[0]->newInstance();
-        $relationships['OneToOne'][$propertyName] = [
-            'targetEntity' => $relationAttr->targetEntity,
-        ];
+        $oneToOneRelations[$propertyName] = $relationAttr;
     }
 
     /**
      * Process ManyToOne relationship
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, array<string, array<string, mixed>>> $relationships
+     * @param array<string, MtManyToOne> $manyToOneRelations
      * @return void
      */
     private function processManyToOneRelation(
         ReflectionProperty $property,
         string $propertyName,
-        array &$relationships
+        array &$manyToOneRelations
     ): void {
         $manyToOneAttrs = $property->getAttributes(MtManyToOne::class);
 
@@ -325,22 +310,20 @@ class EntityProcessor
         }
 
         $relationAttr = $manyToOneAttrs[0]->newInstance();
-        $relationships['ManyToOne'][$propertyName] = [
-            'targetEntity' => $relationAttr->targetEntity,
-        ];
+        $manyToOneRelations[$propertyName] = $relationAttr;
     }
 
     /**
      * Process OneToMany relationship
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, array<string, array<string, mixed>>> $relationships
+     * @param array<string, MtOneToMany> $oneToManyRelations
      * @return void
      */
     private function processOneToManyRelation(
         ReflectionProperty $property,
         string $propertyName,
-        array &$relationships
+        array &$oneToManyRelations
     ): void {
         $oneToManyAttrs = $property->getAttributes(MtOneToMany::class);
 
@@ -349,23 +332,20 @@ class EntityProcessor
         }
 
         $relationAttr = $oneToManyAttrs[0]->newInstance();
-        $relationships['OneToMany'][$propertyName] = [
-            'targetEntity' => $relationAttr->targetEntity,
-            'inverseJoinProperty' => $relationAttr->inverseJoinProperty ?? null,
-        ];
+        $oneToManyRelations[$propertyName] = $relationAttr;
     }
 
     /**
      * Process ManyToMany relationship
      * @param ReflectionProperty $property
      * @param string $propertyName
-     * @param array<string, array<string, array<string, mixed>>> $relationships
+     * @param array<string, MtManyToMany> $manyToManyRelations
      * @return void
      */
     private function processManyToManyRelation(
         ReflectionProperty $property,
         string $propertyName,
-        array &$relationships
+        array &$manyToManyRelations
     ): void {
         $manyToManyAttrs = $property->getAttributes(MtManyToMany::class);
 
@@ -374,29 +354,20 @@ class EntityProcessor
         }
 
         $relationAttr = $manyToManyAttrs[0]->newInstance();
-        $relationships['ManyToMany'][$propertyName] = [
-            'targetEntity' => $relationAttr->targetEntity,
-            'mappedBy' => $relationAttr->mappedBy ?? null,
-            'joinProperty' => $relationAttr->joinProperty ?? null,
-            'inverseJoinProperty' => $relationAttr->inverseJoinProperty ?? null,
-        ];
+        $manyToManyRelations[$propertyName] = $relationAttr;
     }
 
     /**
      * Create EntityMetadata instance with processed data
      * @param ReflectionClass<object> $reflection
-     * @param array{tableName: string, repository: ?class-string, autoIncrement: ?int} $entityConfig
+     * @param array{tableName: string, repository: ?class-string, autoIncrement: ?int, entity: MtEntity} $entityConfig
      * @param array{
-     *     columns: array<string, string>,
-     *     foreignKeys: array<string, array{
-     *      constraintName: string|null,
-     *      column: string,
-     *      referencedTable: string|null,
-     *      referencedColumn: string|null,
-     *      deleteRule: FkRule|null,
-     *      updateRule: FkRule|null
-     *      }>,
-     *     relationships: array<string, array<string, array<string, mixed>>>
+     *     columns: array<string, MtColumn>,
+     *     foreignKeys: array<string, MtFk>,
+     *     oneToManyRelations: array<string, MtOneToMany>,
+     *     manyToOneRelations: array<string, MtManyToOne>,
+     *     oneToOneRelations: array<string, MtOneToOne>,
+     *     manyToManyRelations: array<string, MtManyToMany>
      * } $propertyMappings
      * @return EntityMetadata
      */
@@ -408,6 +379,7 @@ class EntityProcessor
         return new EntityMetadata(
             className: $reflection->getName(),
             tableName: $entityConfig['tableName'],
+            entity: $entityConfig['entity'],
             properties: $reflection->getProperties(),
             getters: array_filter(
                 $reflection->getMethods(),
@@ -421,7 +393,10 @@ class EntityProcessor
             ),
             columns: $propertyMappings['columns'],
             foreignKeys: $propertyMappings['foreignKeys'],
-            relationships: $propertyMappings['relationships'],
+            oneToManyRelations: $propertyMappings['oneToManyRelations'],
+            manyToOneRelations: $propertyMappings['manyToOneRelations'],
+            oneToOneRelations: $propertyMappings['oneToOneRelations'],
+            manyToManyRelations: $propertyMappings['manyToManyRelations'],
             repository: $entityConfig['repository'],
             autoIncrement: $entityConfig['autoIncrement']
         );

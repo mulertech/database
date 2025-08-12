@@ -61,19 +61,6 @@ final readonly class ChangeSetValidator
     }
 
     /**
-     * @param object $entity
-     * @return bool
-     */
-    public function isValidForPersistence(object $entity): bool
-    {
-        if ($this->identityMap->isManaged($entity)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
      * @param ChangeSet $changeSet
      * @return bool
      */

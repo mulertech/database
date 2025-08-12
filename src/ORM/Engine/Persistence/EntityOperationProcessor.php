@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use DateTimeImmutable;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityState;
@@ -32,6 +33,7 @@ class EntityOperationProcessor
         private readonly InsertionProcessor $insertionProcessor,
         private readonly UpdateProcessor $updateProcessor,
         private readonly DeletionProcessor $deletionProcessor,
+        private readonly MetadataRegistry $metadataRegistry,
     ) {
     }
 
@@ -155,7 +157,8 @@ class EntityOperationProcessor
         if ($this->entityProcessor === null) {
             $this->entityProcessor = new EntityProcessor(
                 $this->changeDetector,
-                $this->identityMap
+                $this->identityMap,
+                $this->metadataRegistry
             );
         }
         return $this->entityProcessor;

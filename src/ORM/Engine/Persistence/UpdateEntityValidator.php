@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use RuntimeException;
 
@@ -18,7 +18,7 @@ readonly class UpdateEntityValidator
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MetadataCache $metadataCache
+        private MetadataRegistry $metadataRegistry
     ) {
     }
 
@@ -67,7 +67,7 @@ readonly class UpdateEntityValidator
                 return false;
             }
 
-            $tableName = $this->metadataCache->getTableName($entity::class);
+            $tableName = $this->metadataRegistry->getEntityMetadata($entity::class)->tableName;
 
             $pdo = $this->entityManager->getPdm();
             $statement = $pdo->prepare("SELECT COUNT(*) FROM `$tableName` WHERE id = :id");

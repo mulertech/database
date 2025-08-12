@@ -1,0 +1,1000 @@
+git branch -M main
+git push -u origin main
+gco "update cv.html"
+g add
+gco "update cv.html"
+g add
+gco "update cv.html"
+g status
+g add
+gco "create stylesheet.css and include it into cv.html"
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+git rm -r --cached .idea
+g status
+g push
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+./vendor/bin/mtdocker test-coverage
+./vendor/bin/mtdocker test
+g status
+g add
+g status
+./vendor/bin/mtdocker test
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+g status
+g add
+gco "update phone number and adress"
+g status
+g push
+g status
+g add
+g status
+gco "update Soyhuce date"
+g push
+g status
+g ad
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+./vendor/bin/mtdocker up -d
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/mtdocker all
+g status
+./vendor/bin/mtdocker all
+gfs refactoring-folder-structure
+chmod +x reorganize_structure.sh
+./reorganize_structure.sh
+php UpdateNamespaces.php
+php VerifyStructure.php
+php UpdateNamespaces.php
+php VerifyStructure.php
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker test
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+gfp
+php CleanupOldStructure.php
+composer dump-autoload
+g status
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+g checkout
+git merge develop
+./vendor/bin/mtdocker all
+g status
+g pull
+g checkout
+gfs refact-simplify-structure
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+gfp
+g status
+g push
+g checkout
+git merge develop
+g pull
+g checkout
+g ss
+git stash list
+g branch
+g checkout
+g branch
+ls
+cd src
+tree
+sudo apt install tree
+tree
+./vendor/bin/mtdocker all
+cd ..
+./vendor/bin/mtdocker all
+g status
+g add
+cd src
+tree
+cd ..
+composer dump-autoload
+g status
+g push
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/mtdocker all
+composer update
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+gfs fix-phpstan-n9
+g status
+g add
+g status
+gfp
+./vendor/bin/mtdocker all
+g status
+g add
+rm "\\wsl.localhost\\Ubuntu\\home\\mulertech\\projects\\database\\src\\Database\\Interface\\DatabaseAdapter.php"
+./vendor/bin/mtdocker all
+pwd
+find . -name "PhpDatabaseManager.php" -type f
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode,codesize,controversial,design,naming,unusedcode
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+g status
+g add
+./vendor/bin/phpmd src text cleancode,codesize,controversial,design,naming,unusedcode
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+g status
+g add
+./vendor/bin/phpmd src text cleancode,codesize,controversial,design,naming,unusedcode
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+g status
+g push
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text cleancode
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text cleancode
+g status
+g add
+g status
+g add
+g status
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+g status
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+g statsu
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text cleancode
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+g status
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text cleancode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text cleancode
+g status
+g add
+./vendor/bin/phpmd src text codesize
+g status
+g push
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+g status
+g add
+g status
+./vendor/bin/phpmd src text codesize
+cd /home/mulertech/projects/database && php vendor/bin/phpunit tests/ORM/EntityManagerTest.php --testdox
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+g status
+g add
+g status
+g push
+./vendor/bin/mtdocker all
+g status
+g ad
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker up -d
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker up -d
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+g status
+g add
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+g status
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+g status
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+cd /var/www/html && ./vendor/bin/phpunit tests/Migration/MigrationTest.php::testGenerateMigrationReturnsNullWhenNoChanges --stop-on-failure -v
+./vendor/bin/phpunit tests/Migration/MigrationTest.php::testGenerateMigrationReturnsNullWhenNoChanges --stop-on-failure -v
+ls
+cd mulertech/
+ls
+./vendor/bin/phpunit tests/Migration/MigrationTest.php::testGenerateMigrationReturnsNullWhenNoChanges --no-coverage
+cd ~/projects/database && pwd && ls -la
+cd ~/projects/database && ./vendor/bin/phpunit tests/Migration/MigrationTest.php::testGenerateMigrationReturnsNullWhenNoChanges --no-coverage
+ls
+cd /home/mulertech/projects/database && php -l src/Schema/Migration/MigrationGenerator.php && php -l src/Schema/Diff/SchemaComparer.php
+./vendor/bin/mtdocker all
+cd /home/mulertech/projects/database && php -l src/Schema/Migration/MigrationGenerator.php
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+g status
+g add
+./vendor/bin/phpmd src text codesize
+g status
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text codesize
+g status
+g add
+g status
+g push
+gfs refactoring-information-schema-dbmapping
+./vendor/bin/phpunit tests/Migration/MigrationTest.php::testGenerateMigrationReturnsNullWhenNoChanges --stop-on-failure -v
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+g status
+g add
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+gfp
+./vendor/bin/mtdocker up -d
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+g status
+g checkout
+./vendor/bin/phpmd src text codesize
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+ls
+cd projects/
+ls
+git clone git@github.com:mulertech/dev-installer.git
+composer update
+./dev-installer
+chmod +x ./dev-installer
+./dev-installer
+nvm --version
+node --version
+nvm list
+nvm install --lts
+nvm list
+g status
+g add
+g status
+g add
+g status
+git restore --staged .idea/*
+git restore --staged .idea/copilotDiffState.xml 
+git restore --staged .idea/deployment.xml 
+git restore --staged .idea/dev-installer.iml 
+git restore --staged .idea/modules.xml 
+git restore --staged .idea/php.xml 
+git restore --staged .idea/phpspec.xml 
+git restore --staged .idea/vcs.xml 
+g status
+git restore --staged .idea/.gitignore 
+g status
+g push
+npm --version
+g checkout
+ls
+cd projects/
+npm --version
+npm install -g @anthropic-ai/claude-code
+claude
+./vendor/bin/mtdocker up -d
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text codesize
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text controversial
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text controversial
+g status
+g add
+./vendor/bin/phpmd src text design
+g status
+g push
+./vendor/bin/phpmd src text design
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text design
+./vendor/bin/phpmd src text naming
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text unusedcode
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g push
+g status
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+claude
+ls
+cd projects/
+ls
+git clone git@github.com:mulertech/dev-tools.git
+g status
+./vendor/bin/mtdocker up -d
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+./vendor/bin/phpmd src text unusedcode
+g status
+g add
+./vendor/bin/phpmd src text unusedcode
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text unusedcode
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+./vendor/bin/mtdocker all
+./vendor/bin/mtdocker phpstan
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
+./vendor/bin/phpmd src text unusedcode
+./vendor/bin/mtdocker all
+g status
+g add
+./vendor/bin/phpmd src text unusedcode
+g status
+g push
+c name
+composer name
+grep -r "EntityManagerBaseInterface" src/
+g status
+g add
+mtdocker phpstan
+composer an
+c all
+c an
+g stauts
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+c all
+c an
+c all
+g status
+g add
+g status
+g add
+c all
+g status
+c all
+g status
+g add
+g status
+g push
+claude
+ls
+cd doc
+ls
+cd dev-tools/
+g status
+cd ../vps
+g status
+g status
+g add
+g status
+g push
+cd projects/
+ls
+cd database/
+g status
+tree
+cd src
+tree
+tree > tree.txt
+cd projects/database/
+g status
+claude
+c up-d
+c all
+g status
+g add
+c all
+c an
+g status
+g add
+c all
+g status
+g add
+c all
+g status
+g add
+c all
+g status
+g add
+c all
+g status
+g push
+g status
+g add
+g status
+g add
+c all
+g status
+g push
+g status
+g add
+c all
+g status
+g add
+g status
+g push
+g status
+g add
+c all
+g status
+g push
+g status
+g add
+c all
+g status
+g add
+c all
+g status
+g push
+gfs create-update-orm-tests
+g checkout
+gfs refact-mapping-only-mt
+g status
+g add
+c all
+g checkout
+g status
+g checkout
+g add
+g status
+g push
+claude
+g status
+g add
+c all
+c an
+c all
+g status
+g add
+c all
+g status
+g add
+g status
+gfp
+c up-d
+c all
+g status
+g add
+g status
+gfs refact-DbMapping
+g status
+g add
+g status
+gfp
+c all
+./vendor/bin/phpmd src text cleancode,codesize,unusedcode
+c all
+./vendor/bin/phpmd src text cleancode,codesize,unusedcode
+g status
+g add
+c all
+./vendor/bin/phpmd src text cleancode,codesize,unusedcode
+c all
+g status
+g add
+g status
+g push
+g status
+g add
+c all
+g status
+g push
+g checkout
+c all
+c an
+./vendor/bin/phpmd src text cleancode,codesize,unusedcode
+claude
+g status
+g add
+g status
+g push
+c all
+c test
+c all
+c phpstan
+c an
+c all
+g status
+g add
+g status
+c up-d
+./vendor/bin/phpmd src text cleancode,codesize,unusedcode
+g status
+g push
+c all
+mt all
+g status
+mt all
+g status
+g add
+g status
+mt all
+mt an
+mt all
+g status
+g add
+g status
+mt all
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+g add
+mt all
+g status
+g add
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+mt all
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+g push
+g status
+g push
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+mt all
+g status
+g add
+mt all
+g status
+g push
+g checkout
+g status
+claude
+./vendor/bin/phpmd src text
+./vendor/bin/phpmd src text cleancode,codesize,controversial,design,naming,unusedcode
+cd /var/www/html && tail -50 tests/ORM/Engine/Relations/EntityRelationLoaderTest.php
+g status
+ls
+cd mulertech/
+ls
+g checkout
+git merge develop
+mt up-d
+mt all
+g status
+g push
+tree
+tree src,tests
+cd src
+tree > src.txt
+cd ../tests/
+tree > tests.txt
+cd ..
+g checkout
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g push
+g status
+g add
+g status
+mt all
+mt an
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+mt all
+g status
+g statsu
+g status
+g add
+mt all
+g status
+g add
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g add
+mt all
+mt an
+g status
+g add
+g status
+g add
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+g add
+g status
+g add
+mt all
+g status
+g add
+g status
+g add
+g status
+g add
+claude
+cd /var/www/html && php debug_schema.php
+ls
+cd /var/www/html && php -r "
+\$entityManager = new \MulerTech\Database\ORM\EntityManager(
+    new \MulerTech\Database\Database\Interface\PhpDatabaseManager(
+        new \MulerTech\Database\Database\Interface\PdoConnector(new \MulerTech\Database\Database\MySQLDriver()), 
+        []
+    ),
+    new \MulerTech\Database\Core\Cache\MetadataCache(null, dirname(__FILE__) . '/tests/Files/Entity')
+);
+\$informationSchema = new \MulerTech\Database\Schema\Information\InformationSchema(\$entityManager->getEmEngine());
+\$schemaComparer = new \MulerTech\Database\Schema\Diff\SchemaComparer(\$informationSchema, \$entityManager->getMetadataCache(), 'db');
+\$diff = \$schemaComparer->compare();
+echo 'Has differences: ' . (\$diff->hasDifferences() ? 'true' : 'false') . PHP_EOL;
+echo 'Tables to create: ' . json_encode(\$diff->getTablesToCreate()) . PHP_EOL;
+echo 'Tables to drop: ' . json_encode(\$diff->getTablesToDrop()) . PHP_EOL;
+echo 'Columns to add: ' . json_encode(\$diff->getColumnsToAdd()) . PHP_EOL;
+echo 'Columns to modify: ' . json_encode(\$diff->getColumnsToModify()) . PHP_EOL;
+echo 'Columns to drop: ' . json_encode(\$diff->getColumnsToDrop()) . PHP_EOL;
+echo 'Foreign keys to add: ' . json_encode(\$diff->getForeignKeysToAdd()) . PHP_EOL;
+echo 'Foreign keys to drop: ' . json_encode(\$diff->getForeignKeysToDrop()) . PHP_EOL;
+"
+claude
+g status
+g add
+g status
+g add
+g status
+g add
+g status
+g add
+mt all
+g status
+g add
+g status
+git restore --staged .claude/settings.local.json 
+g status
+g push
+mt all
+g status
+g add
+g status
+g add
+g status
+g push
+claude
+g status
+g checkout
+git merge develop
+g checkout
+g status
+git restore .vscode/settings.json
+g status
+mt all
+g status
+g add
+mt all
+g status
+g add
+g status
+g add
+mt all
+f status
+g status
+g add
+mt all
+g status
+git rm --cached .vscode
+git rm -r --cached .vscode
+g status
+g push
+g checkout
+git merge develop
+g checkout
+mt test-c
+g status
+g add
+g status
+g add
+mt all
+mt test-c
+g status
+g add
+mt test-c
+mt all
+g status
+g add
+mt all
+g status
+g push
+mt test-c
+claude
+g status
+mt up-d
+./vendor/bin/mtdocker test-coverage
+g status
+g add
+mt test-c
+g status
+g add
+g status
+g push
+g status
+g add
+mt test-c
+g status
+g push
+g status
+g add
+mt test-c
+g status
+Je ne comprends pas pourquoi les tests passent pour moi et pas pour toi ? Je pense que nos environnements diffèrent, et que tu n'as pas de base de données accessible ?
+claude
+g status
+g add
+cd /mnt/c/Users/Windows/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/rootfs/home/mulertech/projects/database && ./vendor/bin/mtdocker test tests/ORM/ValueProcessor/
+cd \\wsl.localhost\Ubuntu\home\mulertech\projects\database && ./vendor/bin/mtdocker test-coverage
+cd "\\wsl.localhost\Ubuntu\home\mulertech\projects\database" && ./vendor/bin/mtdocker test
+cd /mnt/c/wsl.localhost/Ubuntu/home/mulertech/projects/database && ./vendor/bin/mtdocker test
+cd "\\wsl.localhost\Ubuntu\home\mulertech\projects\database" && ./vendor/bin/mtdocker test
+claude

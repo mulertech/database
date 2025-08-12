@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\ValueProcessor;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use ReflectionException;
 
 /**
@@ -24,9 +24,9 @@ interface EntityHydratorInterface
     public function hydrate(array $data, string $entityName): object;
 
     /**
-     * Get the metadata cache
+     * Get the metadata registry
      *
-     * @return MetadataCache
+     * @return MetadataRegistry
      */
-    public function getMetadataCache(): MetadataCache;
+    public function getMetadataRegistry(): MetadataRegistry;
 }

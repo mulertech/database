@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Diff;
 
 use Exception;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
+use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
 use RuntimeException;
@@ -19,7 +20,7 @@ use RuntimeException;
 readonly class ForeignKeyComparer
 {
     public function __construct(
-        private MetadataCache $metadataCache
+        private MetadataRegistry $metadataRegistry
     ) {
     }
 
@@ -82,15 +83,6 @@ readonly class ForeignKeyComparer
             }
 
             $constraintName = $foreignKeyInfo['constraintName'];
-
-            if ($constraintName === null
-                || $foreignKeyInfo['referencedTable'] === null
-                || $foreignKeyInfo['referencedColumn'] === null
-            ) {
-                throw new RuntimeException(
-                    "Foreign key for $entityClass::$property is not fully defined in entity metadata"
-                );
-            }
 
             $entityForeignKeys[$constraintName] = [
                 'COLUMN_NAME' => $columnName,
@@ -182,10 +174,9 @@ readonly class ForeignKeyComparer
      * @param class-string $entityClass
      * @param string $property
      * @return array{
-     *     foreignKey: mixed,
-     *     constraintName: string|null,
-     *     referencedTable: string|null,
-     *     referencedColumn: string|null,
+     *     constraintName: string,
+     *     referencedTable: string,
+     *     referencedColumn: string,
      *     deleteRule: FkRule|null,
      *     updateRule: FkRule|null
      * }|null
@@ -193,72 +184,46 @@ readonly class ForeignKeyComparer
      */
     private function getForeignKeyInfo(string $entityClass, string $property): ?array
     {
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
         $foreignKey = $metadata->getForeignKey($property);
 
-        if (!$this->isValidForeignKey($foreignKey)) {
+        if (!$foreignKey instanceof MtFk) {
             return null;
         }
 
-        /** @var array<string, mixed> $foreignKey */
+        $referencedTable = $foreignKey->referencedTable;
+        $referencedColumn = $foreignKey->referencedColumn;
 
-        $referencedTable = $this->extractStringValue($foreignKey, 'referencedTable');
+        if ($referencedTable === null || $referencedColumn === null) {
+            throw new RuntimeException(
+                "Foreign key for $entityClass::$property is not fully defined in entity metadata"
+            );
+        }
+
         $constraintName = $this->resolveConstraintName($foreignKey, $entityClass, $property, $referencedTable);
 
         return [
-            'foreignKey' => $foreignKey,
             'constraintName' => $constraintName,
             'referencedTable' => $referencedTable,
-            'referencedColumn' => $this->extractStringValue($foreignKey, 'referencedColumn'),
-            'deleteRule' => $this->extractFkRule($foreignKey, 'deleteRule'),
-            'updateRule' => $this->extractFkRule($foreignKey, 'updateRule'),
+            'referencedColumn' => $referencedColumn,
+            'deleteRule' => $foreignKey->deleteRule,
+            'updateRule' => $foreignKey->updateRule,
         ];
-    }
-
-    /**
-     * @param mixed $foreignKey
-     * @return bool
-     */
-    private function isValidForeignKey(mixed $foreignKey): bool
-    {
-        return is_array($foreignKey);
-    }
-
-    /**
-     * @param array<string, mixed> $foreignKey
-     * @param string $key
-     * @return string|null
-     */
-    private function extractStringValue(array $foreignKey, string $key): ?string
-    {
-        $value = $foreignKey[$key] ?? null;
-        return is_string($value) ? $value : null;
-    }
-
-    /**
-     * @param array<string, mixed> $foreignKey
-     * @param string $key
-     * @return FkRule|null
-     */
-    private function extractFkRule(array $foreignKey, string $key): ?FkRule
-    {
-        $value = $foreignKey[$key] ?? null;
-        return $value instanceof FkRule ? $value : null;
     }
 
     /**
      * Resolve constraint name with generation if needed
      *
-     * @param array<string, mixed> $foreignKey
+     * @param MtFk $foreignKey
      * @param class-string $entityClass
      * @param string $property
-     * @param string|null $referencedTable
-     * @return string|null
+     * @param string $referencedTable
+     * @return string
      * @throws ReflectionException
      */
-    private function resolveConstraintName(array $foreignKey, string $entityClass, string $property, ?string $referencedTable): ?string
+    private function resolveConstraintName(MtFk $foreignKey, string $entityClass, string $property, string $referencedTable): string
     {
-        $constraintName = $this->extractStringValue($foreignKey, 'constraintName');
+        $constraintName = $foreignKey->constraintName;
 
         return $constraintName ?? $this->generateConstraintName($entityClass, $property, $referencedTable);
     }
@@ -268,19 +233,15 @@ readonly class ForeignKeyComparer
      *
      * @param class-string $entityClass
      * @param string $property
-     * @param string|null $referencedTable
-     * @return string|null
+     * @param string $referencedTable
+     * @return string
      * @throws ReflectionException
      * @throws Exception
      */
-    private function generateConstraintName(string $entityClass, string $property, ?string $referencedTable): ?string
+    private function generateConstraintName(string $entityClass, string $property, string $referencedTable): string
     {
-        if (empty($referencedTable)) {
-            return null;
-        }
-
-        $tableName = $this->metadataCache->getTableName($entityClass);
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $tableName = $this->metadataRegistry->getEntityMetadata($entityClass)->tableName;
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
         $columnName = $metadata->getColumnName($property);
 
         return sprintf(

@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Relations;
 
-use MulerTech\Database\Core\Cache\CacheConfig;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use PHPUnit\Framework\TestCase;
@@ -23,27 +21,22 @@ class RelationManagerTest extends TestCase
     private RelationManager $relationManager;
     private EntityManagerInterface $entityManager;
     private StateManagerInterface $stateManager;
-    private MetadataCache $metadataCache;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
         
-        // Create a real MetadataCache instance since it's final and cannot be mocked
-        $cacheConfig = new CacheConfig(
-            maxSize: 100,
-            ttl: 3600,
-            evictionPolicy: 'lru'
-        );
-        $this->metadataCache = new MetadataCache($cacheConfig);
-        $this->metadataCache->loadEntitiesFromPath(
+        // Create a real MetadataRegistry instance since it's final and cannot be mocked
+        $this->metadataRegistry = new MetadataRegistry();
+        $this->metadataRegistry->loadEntitiesFromPath(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         
         // Create mocked EntityManager
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->entityManager->method('getMetadataCache')
-            ->willReturn($this->metadataCache);
+        $this->entityManager->method('getMetadataRegistry')
+            ->willReturn($this->metadataRegistry);
 
         // Create mocked StateManager
         $this->stateManager = $this->createMock(StateManagerInterface::class);

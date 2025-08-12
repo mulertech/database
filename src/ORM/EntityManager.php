@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use InvalidArgumentException;
-use MulerTech\Database\Core\Cache\MetadataCache;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Query\Builder\QueryBuilder;
+use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\EventManager\EventManager;
 use ReflectionException;
 
@@ -30,16 +31,16 @@ class EntityManager implements EntityManagerInterface
 
     /**
      * @param PhpDatabaseInterface $pdm
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @param EventManager|null $eventManager
      */
     public function __construct(
         private readonly PhpDatabaseInterface $pdm,
-        private readonly MetadataCache $metadataCache,
+        private readonly MetadataRegistry $metadataRegistry,
         private readonly ?EventManager $eventManager = null
     ) {
-        $this->emEngine = new EmEngine($this, $metadataCache);
-        $this->hydrator = new EntityHydrator($metadataCache);
+        $this->emEngine = new EmEngine($this, $metadataRegistry);
+        $this->hydrator = new EntityHydrator($metadataRegistry);
     }
 
     /**
@@ -59,11 +60,11 @@ class EntityManager implements EntityManagerInterface
     }
 
     /**
-     * @return MetadataCache
+     * @return MetadataRegistry
      */
-    public function getMetadataCache(): MetadataCache
+    public function getMetadataRegistry(): MetadataRegistry
     {
-        return $this->metadataCache;
+        return $this->metadataRegistry;
     }
 
 
@@ -74,7 +75,7 @@ class EntityManager implements EntityManagerInterface
      */
     public function getRepository(string $entity): EntityRepository
     {
-        $metadata = $this->metadataCache->getEntityMetadata($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity);
         $repository = $metadata->getRepository();
         if ($repository === null) {
             throw new InvalidArgumentException("No repository found for entity '$entity'. Ensure MtEntity attribute specifies a repository.");
@@ -141,7 +142,7 @@ class EntityManager implements EntityManagerInterface
         int|string|null $id = null,
         bool $matchCase = false
     ): bool {
-        $metadata = $this->metadataCache->getEntityMetadata($entity);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity);
         $column = $metadata->getColumnName($property);
         $tableName = $metadata->tableName;
 
@@ -149,10 +150,11 @@ class EntityManager implements EntityManagerInterface
             throw new InvalidArgumentException("Entity '$entity' does not have a valid table or column mapping.");
         }
 
+        $binaryClause = $matchCase ? 'BINARY' : '';
         $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('*')
             ->from($tableName)
-            ->whereRaw('BINARY `' . $column . '` = :param0', [':param0' => $search]);
+            ->whereRaw($binaryClause . ' `' . $column . '` = :param0', [':param0' => $search]);
 
         $results = $this->emEngine->getQueryBuilderListResult($queryBuilder, $entity);
 
@@ -160,25 +162,16 @@ class EntityManager implements EntityManagerInterface
             return true;
         }
 
-        $getter = $metadata->getGetter($property) ?? 'get' . ucfirst($property);
-        $matchingResults = array_filter($results, static function ($item) use ($getter, $search) {
-            $value = $item->$getter();
-            return !(is_numeric($value) && is_numeric($search) && $value != $search);
-        });
-
-        if (empty($matchingResults)) {
-            return true;
-        }
-
-        if (count($matchingResults) > 1) {
+        if (count($results) > 1) {
             return false;
         }
 
-        if (!method_exists(current($matchingResults), 'getId')) {
+        $firstResult = current($results);
+        if (!method_exists($firstResult, 'getId')) {
             return false;
         }
 
-        return !($id === null) && current($matchingResults)->getId() == $id;
+        return $id !== null && $firstResult->getId() == $id;
     }
 
     /**

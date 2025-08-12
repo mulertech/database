@@ -7,7 +7,7 @@ namespace MulerTech\Database\Tests\Core\Cache;
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Core\Cache\CacheFactory;
 use MulerTech\Database\Core\Cache\MemoryCache;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Core\Cache\QueryStructureCache;
 use MulerTech\Database\Core\Cache\ResultSetCache;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -60,39 +60,39 @@ final class CacheFactoryTest extends TestCase
         CacheFactory::createMemoryCache('conflict_name');
     }
 
-    public function testCreateMetadataCache(): void
+    public function testCreateMetadataRegistry(): void
     {
-        $cache = CacheFactory::createMetadataCache('test_metadata');
+        $cache = CacheFactory::createMetadataRegistry('test_metadata');
 
-        $this->assertInstanceOf(MetadataCache::class, $cache);
+        $this->assertInstanceOf(MetadataRegistry::class, $cache);
         $this->assertSame($cache, CacheFactory::get('test_metadata'));
     }
 
-    public function testCreateMetadataCacheWithCustomConfig(): void
+    public function testCreateMetadataRegistryWithEntitiesPath(): void
     {
-        $config = new CacheConfig(maxSize: 3000, ttl: 900);
-        $cache = CacheFactory::createMetadataCache('test_metadata_custom', $config);
+        $entitiesPath = __DIR__ . '/../../Files/Entity';
+        $cache = CacheFactory::createMetadataRegistry('test_metadata_custom', $entitiesPath);
 
-        $this->assertInstanceOf(MetadataCache::class, $cache);
+        $this->assertInstanceOf(MetadataRegistry::class, $cache);
     }
 
-    public function testCreateMetadataCacheReturnsSameInstance(): void
+    public function testCreateMetadataRegistryReturnsSameInstance(): void
     {
-        $cache1 = CacheFactory::createMetadataCache('test_metadata_singleton');
-        $cache2 = CacheFactory::createMetadataCache('test_metadata_singleton');
+        $cache1 = CacheFactory::createMetadataRegistry('test_metadata_singleton');
+        $cache2 = CacheFactory::createMetadataRegistry('test_metadata_singleton');
 
         $this->assertSame($cache1, $cache2);
     }
 
-    public function testCreateMetadataCacheThrowsExceptionForWrongType(): void
+    public function testCreateMetadataRegistryThrowsExceptionForWrongType(): void
     {
         // First create a MemoryCache with the same name
         CacheFactory::createMemoryCache('metadata_conflict');
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Cache instance is not of type MetadataCache');
+        $this->expectExceptionMessage('Registry instance is not of type MetadataRegistry');
 
-        CacheFactory::createMetadataCache('metadata_conflict');
+        CacheFactory::createMetadataRegistry('metadata_conflict');
     }
 
     public function testCreateResultSetCache(): void
@@ -175,7 +175,7 @@ final class CacheFactoryTest extends TestCase
     public function testReset(): void
     {
         CacheFactory::createMemoryCache('test1');
-        CacheFactory::createMetadataCache('test2');
+        CacheFactory::createMetadataRegistry('test2');
 
         $this->assertNotNull(CacheFactory::get('test1'));
         $this->assertNotNull(CacheFactory::get('test2'));
@@ -203,7 +203,7 @@ final class CacheFactoryTest extends TestCase
         CacheFactory::createMemoryCache('shared_name');
 
         $this->expectException(RuntimeException::class);
-        CacheFactory::createMetadataCache('shared_name');
+        CacheFactory::createMetadataRegistry('shared_name');
     }
 
     private function getQueryStructureCacheMaxSize(QueryStructureCache $cache): mixed

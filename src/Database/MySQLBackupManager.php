@@ -38,10 +38,8 @@ class MySQLBackupManager
 
         $backupDir = dirname($pathBackup);
 
-        if (!is_dir($backupDir)) {
-            if (!@mkdir($backupDir, 0o777, true) && !is_dir($backupDir)) {
-                throw new RuntimeException('Unable to create backup directory: ' . $backupDir);
-            }
+        if (!is_dir($backupDir) && !@mkdir($backupDir, 0o777, true) && !is_dir($backupDir)) {
+            throw new RuntimeException('Unable to create backup directory: ' . $backupDir);
         }
         if (!is_writable($backupDir)) {
             throw new RuntimeException('Backup directory is not writable: ' . $backupDir);
@@ -59,7 +57,7 @@ class MySQLBackupManager
             @unlink($pathBackup);
         }
 
-        $command = $pathMysqldump . 'mysqldump --opt ';
+        $command = $pathMysqldump . 'mysqldump --opt --skip-ssl --no-tablespaces --single-transaction ';
         $command .= $this->getHostCommand();
         $command .= $this->getUserCommand();
         $command .= $this->getPasswordCommand();
@@ -92,7 +90,7 @@ class MySQLBackupManager
 
         $output = [];
         $this->checkPasswordQuotes();
-        $command = 'mysql ';
+        $command = 'mysql --skip-ssl ';
         $command .= $this->getHostCommand();
         $command .= $this->getUserCommand();
         $command .= $this->getPasswordCommand();
@@ -149,10 +147,10 @@ class MySQLBackupManager
         $passwordStr = is_string($password) ? $password : '';
 
         if (str_contains($passwordStr, "'")) {
-            return '"' . $passwordStr . '" ';
+            return '--password="' . $passwordStr . '" ';
         }
 
-        return "'" . $passwordStr . "' ";
+        return "--password='" . $passwordStr . "' ";
     }
 
     /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -23,14 +23,13 @@ class EntityManagerInterfaceTest extends TestCase
         parent::setUp();
         
         $eventManager = new EventManager();
-        $metadataCache = new MetadataCache();
-        $metadataCache->loadEntitiesFromPath(
+        $metadataRegistry = new MetadataRegistry(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $metadataCache,
+            $metadataRegistry,
             $eventManager
         );
 

@@ -7,8 +7,9 @@ namespace MulerTech\Database\ORM;
 use Error;
 use Exception;
 use JsonException;
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\ColumnMapping;
 use MulerTech\Database\Mapping\EntityMetadata;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\Exception\HydrationException;
 use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
@@ -22,21 +23,23 @@ use ReflectionException;
 class EntityHydrator implements EntityHydratorInterface
 {
     private ValueProcessorManager $valueProcessorManager;
+    private ColumnMapping $columnMapping;
 
     /**
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      */
-    public function __construct(private readonly MetadataCache $metadataCache)
+    public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
-        $this->valueProcessorManager = new ValueProcessorManager($this);
+        $this->valueProcessorManager = new ValueProcessorManager();
+        $this->columnMapping = new ColumnMapping();
     }
 
     /**
-     * @return MetadataCache
+     * @return MetadataRegistry
      */
-    public function getMetadataCache(): MetadataCache
+    public function getMetadataRegistry(): MetadataRegistry
     {
-        return $this->metadataCache;
+        return $this->metadataRegistry;
     }
 
     /**
@@ -44,36 +47,39 @@ class EntityHydrator implements EntityHydratorInterface
      * @param class-string $entityName
      * @return object
      * @throws ReflectionException
+     * @throws JsonException
      */
     public function hydrate(array $data, string $entityName): object
     {
         $entity = new $entityName();
-        $metadata = $this->metadataCache->getEntityMetadata($entityName);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityName);
 
-        try {
-            foreach ($metadata->getPropertiesColumns() as $property => $column) {
-                if (!isset($data[$column]) || $this->isRelationProperty($metadata, $property)) {
-                    continue;
-                }
-
-                $value = $data[$column];
-                $processedValue = $this->processValue($metadata, $property, $value);
-
-                // Validate nullable constraints
-                if ($processedValue === null && !$this->isPropertyNullable($metadata, $property)) {
-                    throw HydrationException::propertyCannotBeNull($property, $entityName);
-                }
-
-                $setter = $metadata->getSetter($property);
-                if ($setter !== null) {
-                    $entity->$setter($processedValue);
-                    continue;
-                }
-
-                $entity->$property = $processedValue;
+        foreach ($metadata->getPropertiesColumns() as $property => $column) {
+            if ($this->isRelationProperty($metadata, $property)) {
+                continue;
             }
-        } catch (Exception $e) {
-            throw HydrationException::failedToHydrateEntity($entityName, $e);
+
+            // Skip properties not in the data array entirely (they weren't provided)
+            if (!array_key_exists($column, $data)) {
+                continue;
+            }
+
+            $value = $data[$column];
+            $processedValue = $this->processValue($metadata, $property, $value);
+
+            // Validate nullable constraints - let this exception bubble up directly
+            if ($processedValue === null && !$this->isPropertyNullable($metadata, $property)) {
+                throw HydrationException::propertyCannotBeNull($property, $entityName);
+            }
+
+            $setter = $metadata->getSetter($property);
+            if ($setter === null) {
+                throw new HydrationException(
+                    "No setter defined for property '$property' in entity '$entityName'."
+                );
+            }
+
+            $entity->$setter($processedValue);
         }
 
         return $entity;
@@ -89,21 +95,17 @@ class EntityHydrator implements EntityHydratorInterface
     public function extract(object $entity): array
     {
         $entityClass = $entity::class;
-        $metadata = $this->metadataCache->getEntityMetadata($entityClass);
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
         $data = [];
 
         foreach ($metadata->getPropertiesColumns() as $propertyName => $columnName) {
-            try {
-                $getter = $metadata->getGetter($propertyName);
-                if ($getter !== null) {
-                    $data[$columnName] = $entity->$getter();
-                    continue;
-                }
-
-                $data[$columnName] = $entity->$propertyName ?? null;
-            } catch (Error|Exception) {
-                $data[$columnName] = null;
+            $getter = $metadata->getGetter($propertyName);
+            if ($getter === null) {
+                throw new HydrationException(
+                    "No getter defined for property '$propertyName' in entity '$entityClass'."
+                );
             }
+            $data[$columnName] = $entity->$getter();
         }
 
         return $data;
@@ -114,21 +116,9 @@ class EntityHydrator implements EntityHydratorInterface
      * @param string $propertyName
      * @return ColumnType|null
      */
-    private function getCachedColumnType(EntityMetadata $metadata, string $propertyName): ?ColumnType
+    private function getColumnType(EntityMetadata $metadata, string $propertyName): ?ColumnType
     {
-        $cacheKey = 'column_type:' . $metadata->className . ':' . $propertyName;
-        $cached = $this->metadataCache->getPropertyMetadata($metadata->className, $cacheKey);
-        if ($cached instanceof ColumnType) {
-            return $cached;
-        }
-
-        $columnType = $metadata->getColumnType($propertyName);
-
-        if ($columnType !== null) {
-            $this->metadataCache->setPropertyMetadata($metadata->className, $cacheKey, $columnType);
-        }
-
-        return $columnType;
+        return $metadata->getColumnType($propertyName);
     }
 
     /**
@@ -140,10 +130,7 @@ class EntityHydrator implements EntityHydratorInterface
      */
     private function isRelationProperty(EntityMetadata $metadata, string $propertyName): bool
     {
-        return array_any(
-            ['OneToOne', 'ManyToOne'],
-            static fn ($type) => isset($metadata->getRelationsByType($type)[$propertyName])
-        );
+        return $metadata->hasRelation($propertyName);
     }
 
     /**
@@ -152,15 +139,11 @@ class EntityHydrator implements EntityHydratorInterface
      * @param EntityMetadata $metadata
      * @param string $propertyName
      * @return bool
+     * @throws ReflectionException
      */
     private function isPropertyNullable(EntityMetadata $metadata, string $propertyName): bool
     {
-        // Defensive: check if property exists and has nullable info
-        $property = $metadata->getProperty($propertyName);
-        if ($property && $property->getType() !== null) {
-            return $property->getType()->allowsNull();
-        }
-        return true;
+        return $this->columnMapping->isNullable($metadata->className, $propertyName) ?? true;
     }
 
     /**
@@ -180,13 +163,13 @@ class EntityHydrator implements EntityHydratorInterface
             return null;
         }
 
-        $columnType = $this->getCachedColumnType($metadata, $propertyName);
-        $property = $metadata->getProperty($propertyName);
+        $columnType = $this->getColumnType($metadata, $propertyName);
 
         return $this->valueProcessorManager->processValue(
             $value,
-            $property,
-            $columnType
+            $columnType,
+            $metadata,
+            $propertyName
         );
     }
 }

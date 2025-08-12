@@ -105,9 +105,9 @@ final class QueryStructureCacheTest extends TestCase
     {
         $cache = new QueryStructureCache(2); // Max 2 items
         
-        $builder1 = new MockQueryBuilder('SELECT', ['table' => 'users']);
-        $builder2 = new MockQueryBuilder('INSERT', ['table' => 'posts']); // Different type to ensure different keys
-        $builder3 = new MockQueryBuilder('UPDATE', ['table' => 'comments']); // Different type
+        $builder1 = new MockQueryBuilder('SELECT');
+        $builder2 = new MockQueryBuilder('INSERT');
+        $builder3 = new MockQueryBuilder('UPDATE');
         
         $cache->set($builder1, 'SQL1');
         $cache->set($builder2, 'SQL2');
@@ -144,8 +144,8 @@ final class QueryStructureCacheTest extends TestCase
     public function testClearWithPrefix(): void
     {
         // Create builders that will generate different keys based on class and structure
-        $selectBuilder = new MockQueryBuilder('SELECT', ['table' => 'users']);
-        $insertBuilder = new MockQueryBuilder('INSERT', ['table' => 'posts']);
+        $selectBuilder = new MockQueryBuilder('SELECT');
+        $insertBuilder = new MockQueryBuilder('INSERT');
         
         $this->cache->set($selectBuilder, 'SELECT SQL');
         $this->cache->set($insertBuilder, 'INSERT SQL');
@@ -187,8 +187,8 @@ final class QueryStructureCacheTest extends TestCase
     {
         $cache = new QueryStructureCache(10, 1); // 1 second TTL
         
-        $builder1 = new MockQueryBuilder('SELECT', ['id' => 1]);
-        $builder2 = new MockQueryBuilder('INSERT', ['id' => 2]); // Different type to ensure different key
+        $builder1 = new MockQueryBuilder('SELECT');
+        $builder2 = new MockQueryBuilder('INSERT');
         
         $cache->set($builder1, 'SQL1');
         sleep(2); // Let first expire
@@ -217,8 +217,8 @@ final class QueryStructureCacheTest extends TestCase
 
     public function testSameBuildersGenerateSameKey(): void
     {
-        $builder1 = new MockQueryBuilder('SELECT', ['table' => 'users']);
-        $builder2 = new MockQueryBuilder('SELECT', ['table' => 'users']);
+        $builder1 = new MockQueryBuilder('SELECT');
+        $builder2 = new MockQueryBuilder('SELECT');
         
         $this->cache->set($builder1, 'SQL1');
         
@@ -246,19 +246,7 @@ final class QueryStructureCacheTest extends TestCase
 
     public function testBuilderWithComplexProperties(): void
     {
-        $complexProperties = [
-            'table' => 'users',
-            'columns' => ['id', 'name', 'email'],
-            'conditions' => [
-                'where' => [['column' => 'active', 'operator' => '=', 'value' => true]],
-                'orderBy' => [['column' => 'name', 'direction' => 'ASC']]
-            ],
-            'joins' => [
-                ['type' => 'INNER', 'table' => 'profiles', 'on' => 'users.id = profiles.user_id']
-            ]
-        ];
-        
-        $builder = new MockQueryBuilder('SELECT', $complexProperties);
+        $builder = new MockQueryBuilder('SELECT');
         $sql = 'SELECT u.*, p.* FROM users u INNER JOIN profiles p ON u.id = p.user_id WHERE u.active = 1 ORDER BY u.name ASC';
         
         $this->cache->set($builder, $sql);
@@ -269,7 +257,7 @@ final class QueryStructureCacheTest extends TestCase
 
     public function testCacheKeyGenerationConsistency(): void
     {
-        $builder = new MockQueryBuilder('SELECT', ['table' => 'users']);
+        $builder = new MockQueryBuilder('SELECT');
         
         $this->cache->set($builder, 'SQL');
         
@@ -297,5 +285,59 @@ final class QueryStructureCacheTest extends TestCase
         $result = $this->cache->get($builder);
         
         $this->assertEquals('SQL', $result);
+    }
+
+    public function testEvictionWithNullKey(): void
+    {
+        $cache = new QueryStructureCache(1); // Max 1 item
+        
+        // This test verifies the edge case where key() might return null
+        // We fill the cache and then add another item to trigger eviction
+        $builder1 = new MockQueryBuilder('SELECT');
+        $cache->set($builder1, 'SQL1');
+        
+        // Add another item to trigger eviction
+        $builder2 = new MockQueryBuilder('INSERT');
+        $cache->set($builder2, 'SQL2');
+        
+        // The cache should handle the eviction gracefully
+        $this->assertEquals(1, $cache->size());
+        $this->assertEquals('SQL2', $cache->get($builder2));
+    }
+
+    public function testExtractArrayStructureWithObjects(): void
+    {
+        // Create objects to include in array structure
+        $testObject1 = new \stdClass();
+        $testObject1->property = 'value1';
+        
+        $testObject2 = new \DateTime();
+        
+        $customObject = new MockQueryBuilder('SELECT');
+        
+        // Create a builder with an array property containing objects
+        $arrayWithObjects = [
+            'plain_value' => 'string',
+            'number' => 42,
+            'object1' => $testObject1,           // This should trigger is_object condition
+            'object2' => $testObject2,           // This should trigger is_object condition  
+            'custom_object' => $customObject,    // This should trigger is_object condition
+            'nested_array' => [
+                'inner_object' => $testObject1   // This should also trigger is_object condition in recursion
+            ]
+        ];
+        
+        // Pass the array as testArrayProperty so extractArrayStructure gets called
+        $builder = new MockQueryBuilder('SELECT', $arrayWithObjects);
+        
+        // Setting this builder should trigger extractArrayStructure which will hit the is_object condition
+        $this->cache->set($builder, 'SELECT SQL WITH OBJECTS');
+        
+        // Verify the cache works with object-containing arrays
+        $result = $this->cache->get($builder);
+        $this->assertEquals('SELECT SQL WITH OBJECTS', $result);
+        
+        // Verify cache size
+        $this->assertEquals(1, $this->cache->size());
     }
 }

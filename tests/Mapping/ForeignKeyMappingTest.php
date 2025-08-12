@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Mapping;
 
-use MulerTech\Database\Mapping\Attributes\MtColumn;
-use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\EntityProcessor;
 use MulerTech\Database\Mapping\ForeignKeyMapping;
-use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\Mapping\Types\FkRule;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use MulerTech\Database\Tests\Files\Mapping\TestEntityWithForeignKeys;
-use MulerTech\Database\Tests\Files\Mapping\TestEntityWithCustomConstraint;
-use MulerTech\Database\Tests\Files\Mapping\TestEntityWithNullReferencedTable;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithForeignKeys;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithCustomConstraint;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithNullReferencedTable;
 
 #[CoversClass(ForeignKeyMapping::class)]
 class ForeignKeyMappingTest extends TestCase
@@ -32,7 +29,7 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetMtFkReturnsArrayOfMtFkAttributes(): void
     {
-        $foreignKeys = $this->foreignKeyMapping->getMtFk(TestEntityWithForeignKeys::class);
+        $foreignKeys = $this->foreignKeyMapping->getMtFk(EntityWithForeignKeys::class);
         
         $this->assertIsArray($foreignKeys);
         $this->assertArrayHasKey('userId', $foreignKeys);
@@ -43,8 +40,8 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetForeignKeyReturnsCorrectForeignKey(): void
     {
-        $userIdFk = $this->foreignKeyMapping->getForeignKey(TestEntityWithForeignKeys::class, 'userId');
-        $categoryIdFk = $this->foreignKeyMapping->getForeignKey(TestEntityWithForeignKeys::class, 'categoryId');
+        $userIdFk = $this->foreignKeyMapping->getForeignKey(EntityWithForeignKeys::class, 'userId');
+        $categoryIdFk = $this->foreignKeyMapping->getForeignKey(EntityWithForeignKeys::class, 'categoryId');
         
         $this->assertInstanceOf(MtFk::class, $userIdFk);
         $this->assertInstanceOf(MtFk::class, $categoryIdFk);
@@ -55,7 +52,7 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetForeignKeyReturnsNullForNonExistentProperty(): void
     {
-        $foreignKey = $this->foreignKeyMapping->getForeignKey(TestEntityWithForeignKeys::class, 'nonExistent');
+        $foreignKey = $this->foreignKeyMapping->getForeignKey(EntityWithForeignKeys::class, 'nonExistent');
         
         $this->assertNull($foreignKey);
     }
@@ -64,26 +61,26 @@ class ForeignKeyMappingTest extends TestCase
     {
         $this->entityProcessor->expects($this->once())
             ->method('getEntities')
-            ->willReturn([TestEntityWithForeignKeys::class]);
+            ->willReturn([EntityWithForeignKeys::class]);
         
         $this->entityProcessor->expects($this->once())
             ->method('getColumnName')
-            ->with(TestEntityWithForeignKeys::class, 'userId')
+            ->with(EntityWithForeignKeys::class, 'userId')
             ->willReturn('user_id');
         
         $this->entityProcessor->expects($this->once())
             ->method('getTableName')
-            ->with(TestEntityWithForeignKeys::class)
+            ->with(EntityWithForeignKeys::class)
             ->willReturn('posts');
         
-        $constraintName = $this->foreignKeyMapping->getConstraintName(TestEntityWithForeignKeys::class, 'userId');
+        $constraintName = $this->foreignKeyMapping->getConstraintName(EntityWithForeignKeys::class, 'userId');
         
         $this->assertEquals('fk_posts_user_id_users', $constraintName);
     }
 
     public function testGetConstraintNameReturnsNullWhenForeignKeyNotFound(): void
     {
-        $constraintName = $this->foreignKeyMapping->getConstraintName(TestEntityWithForeignKeys::class, 'nonExistent');
+        $constraintName = $this->foreignKeyMapping->getConstraintName(EntityWithForeignKeys::class, 'nonExistent');
         
         $this->assertNull($constraintName);
     }
@@ -92,22 +89,22 @@ class ForeignKeyMappingTest extends TestCase
     {
         $this->entityProcessor->expects($this->once())
             ->method('getEntities')
-            ->willReturn([TestEntityWithForeignKeys::class]);
+            ->willReturn([EntityWithForeignKeys::class]);
         
         $this->entityProcessor->expects($this->once())
             ->method('getColumnName')
-            ->with(TestEntityWithForeignKeys::class, 'userId')
+            ->with(EntityWithForeignKeys::class, 'userId')
             ->willReturn(null);
         
-        $constraintName = $this->foreignKeyMapping->getConstraintName(TestEntityWithForeignKeys::class, 'userId');
+        $constraintName = $this->foreignKeyMapping->getConstraintName(EntityWithForeignKeys::class, 'userId');
         
         $this->assertNull($constraintName);
     }
 
     public function testGetReferencedTableReturnsCorrectTable(): void
     {
-        $userTable = $this->foreignKeyMapping->getReferencedTable(TestEntityWithForeignKeys::class, 'userId');
-        $categoryTable = $this->foreignKeyMapping->getReferencedTable(TestEntityWithForeignKeys::class, 'categoryId');
+        $userTable = $this->foreignKeyMapping->getReferencedTable(EntityWithForeignKeys::class, 'userId');
+        $categoryTable = $this->foreignKeyMapping->getReferencedTable(EntityWithForeignKeys::class, 'categoryId');
         
         $this->assertEquals('users', $userTable);
         $this->assertEquals('categories', $categoryTable);
@@ -115,15 +112,15 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetReferencedTableReturnsNullForNonExistentProperty(): void
     {
-        $table = $this->foreignKeyMapping->getReferencedTable(TestEntityWithForeignKeys::class, 'nonExistent');
+        $table = $this->foreignKeyMapping->getReferencedTable(EntityWithForeignKeys::class, 'nonExistent');
         
         $this->assertNull($table);
     }
 
     public function testGetReferencedColumnReturnsCorrectColumn(): void
     {
-        $userColumn = $this->foreignKeyMapping->getReferencedColumn(TestEntityWithForeignKeys::class, 'userId');
-        $categoryColumn = $this->foreignKeyMapping->getReferencedColumn(TestEntityWithForeignKeys::class, 'categoryId');
+        $userColumn = $this->foreignKeyMapping->getReferencedColumn(EntityWithForeignKeys::class, 'userId');
+        $categoryColumn = $this->foreignKeyMapping->getReferencedColumn(EntityWithForeignKeys::class, 'categoryId');
         
         $this->assertEquals('id', $userColumn);
         $this->assertEquals('id', $categoryColumn);
@@ -131,15 +128,15 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetReferencedColumnReturnsNullForNonExistentProperty(): void
     {
-        $column = $this->foreignKeyMapping->getReferencedColumn(TestEntityWithForeignKeys::class, 'nonExistent');
+        $column = $this->foreignKeyMapping->getReferencedColumn(EntityWithForeignKeys::class, 'nonExistent');
         
         $this->assertNull($column);
     }
 
     public function testGetDeleteRuleReturnsCorrectRule(): void
     {
-        $userDeleteRule = $this->foreignKeyMapping->getDeleteRule(TestEntityWithForeignKeys::class, 'userId');
-        $categoryDeleteRule = $this->foreignKeyMapping->getDeleteRule(TestEntityWithForeignKeys::class, 'categoryId');
+        $userDeleteRule = $this->foreignKeyMapping->getDeleteRule(EntityWithForeignKeys::class, 'userId');
+        $categoryDeleteRule = $this->foreignKeyMapping->getDeleteRule(EntityWithForeignKeys::class, 'categoryId');
         
         $this->assertEquals(FkRule::CASCADE, $userDeleteRule);
         $this->assertEquals(FkRule::SET_NULL, $categoryDeleteRule);
@@ -147,15 +144,15 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetDeleteRuleReturnsNullForNonExistentProperty(): void
     {
-        $deleteRule = $this->foreignKeyMapping->getDeleteRule(TestEntityWithForeignKeys::class, 'nonExistent');
+        $deleteRule = $this->foreignKeyMapping->getDeleteRule(EntityWithForeignKeys::class, 'nonExistent');
         
         $this->assertNull($deleteRule);
     }
 
     public function testGetUpdateRuleReturnsCorrectRule(): void
     {
-        $userUpdateRule = $this->foreignKeyMapping->getUpdateRule(TestEntityWithForeignKeys::class, 'userId');
-        $categoryUpdateRule = $this->foreignKeyMapping->getUpdateRule(TestEntityWithForeignKeys::class, 'categoryId');
+        $userUpdateRule = $this->foreignKeyMapping->getUpdateRule(EntityWithForeignKeys::class, 'userId');
+        $categoryUpdateRule = $this->foreignKeyMapping->getUpdateRule(EntityWithForeignKeys::class, 'categoryId');
         
         $this->assertEquals(FkRule::RESTRICT, $userUpdateRule);
         $this->assertEquals(FkRule::CASCADE, $categoryUpdateRule);
@@ -163,14 +160,14 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testGetUpdateRuleReturnsNullForNonExistentProperty(): void
     {
-        $updateRule = $this->foreignKeyMapping->getUpdateRule(TestEntityWithForeignKeys::class, 'nonExistent');
+        $updateRule = $this->foreignKeyMapping->getUpdateRule(EntityWithForeignKeys::class, 'nonExistent');
         
         $this->assertNull($updateRule);
     }
 
     public function testGetConstraintNameWithCustomConstraintName(): void
     {
-        $constraintName = $this->foreignKeyMapping->getConstraintName(TestEntityWithCustomConstraint::class, 'authorId');
+        $constraintName = $this->foreignKeyMapping->getConstraintName(EntityWithCustomConstraint::class, 'authorId');
         
         // Should return null because the custom constraint name is set, but the method doesn't use it
         // The actual constraint name would come from the attribute itself
@@ -179,11 +176,16 @@ class ForeignKeyMappingTest extends TestCase
 
     public function testForeignKeyMappingWithNullReferencedTable(): void
     {
-        $constraintName = $this->foreignKeyMapping->getConstraintName(TestEntityWithNullReferencedTable::class, 'someId');
-        $referencedTable = $this->foreignKeyMapping->getReferencedTable(TestEntityWithNullReferencedTable::class, 'someId');
-        $referencedColumn = $this->foreignKeyMapping->getReferencedColumn(TestEntityWithNullReferencedTable::class, 'someId');
-        $deleteRule = $this->foreignKeyMapping->getDeleteRule(TestEntityWithNullReferencedTable::class, 'someId');
-        $updateRule = $this->foreignKeyMapping->getUpdateRule(TestEntityWithNullReferencedTable::class, 'someId');
+        // First, we need to mock the entityProcessor to have the entity loaded
+        $this->entityProcessor->expects($this->once())
+            ->method('getEntities')
+            ->willReturn([EntityWithNullReferencedTable::class]);
+        
+        $constraintName = $this->foreignKeyMapping->getConstraintName(EntityWithNullReferencedTable::class, 'someId');
+        $referencedTable = $this->foreignKeyMapping->getReferencedTable(EntityWithNullReferencedTable::class, 'someId');
+        $referencedColumn = $this->foreignKeyMapping->getReferencedColumn(EntityWithNullReferencedTable::class, 'someId');
+        $deleteRule = $this->foreignKeyMapping->getDeleteRule(EntityWithNullReferencedTable::class, 'someId');
+        $updateRule = $this->foreignKeyMapping->getUpdateRule(EntityWithNullReferencedTable::class, 'someId');
         
         $this->assertNull($constraintName);
         $this->assertNull($referencedTable);

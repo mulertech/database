@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 use DateTimeImmutable;
-use Error;
 use InvalidArgumentException;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
-use ReflectionClass;
 use ReflectionException;
 use WeakMap;
 use WeakReference;
@@ -35,7 +34,7 @@ final class IdentityMap
      */
     private WeakMap $entityIds;
 
-    public function __construct()
+    public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
         $this->metadata = new WeakMap();
         $this->entityIds = new WeakMap();
@@ -86,6 +85,7 @@ final class IdentityMap
      * @param int|string|null $id
      * @param EntityState|null $entityState
      * @return void
+     * @throws ReflectionException
      */
     public function add(object $entity, int|string|null $id = null, ?EntityState $entityState = null): void
     {
@@ -107,14 +107,16 @@ final class IdentityMap
         // If EntityState is explicitly provided, use it; otherwise create automatically
         if ($entityState !== null) {
             $this->metadata[$entity] = $entityState;
-        } else {
-            $this->storeMetadata($entity, $id);
+            return;
         }
+
+        $this->storeMetadata($entity, $id);
     }
 
     /**
      * @param object $entity
      * @return void
+     * @throws ReflectionException
      */
     public function remove(object $entity): void
     {
@@ -267,6 +269,7 @@ final class IdentityMap
      * @param object $entity
      * @param int|string|null $id
      * @return void
+     * @throws ReflectionException
      */
     private function storeMetadata(object $entity, int|string|null $id): void
     {
@@ -287,6 +290,7 @@ final class IdentityMap
     /**
      * @param object $entity
      * @return int|string|null
+     * @throws ReflectionException
      */
     private function extractEntityId(object $entity): int|string|null
     {
@@ -297,17 +301,15 @@ final class IdentityMap
             }
         }
 
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
+
+        // Check common ID properties using metadata
         foreach (['id', 'uuid', 'identifier'] as $property) {
-            if (property_exists($entity, $property)) {
-                try {
-                    $reflection = new ReflectionClass($entity);
-                    $prop = $reflection->getProperty($property);
-                    $value = $prop->getValue($entity);
-                    if (is_int($value) || is_string($value)) {
-                        return $value;
-                    }
-                } catch (ReflectionException) {
-                    // Continue to next property
+            $getter = $metadata->getGetter($property);
+            if ($getter !== null && method_exists($entity, $getter)) {
+                $value = $entity->$getter();
+                if (is_int($value) || is_string($value)) {
+                    return $value;
                 }
             }
         }
@@ -318,33 +320,19 @@ final class IdentityMap
     /**
      * @param object $entity
      * @return array<string, mixed>
+     * @throws ReflectionException
      */
     private function extractEntityData(object $entity): array
     {
-        $reflection = new ReflectionClass($entity);
+        $entityClass = $entity::class;
         $data = [];
 
-        foreach ($reflection->getProperties() as $property) {
-            if ($property->isStatic()) {
-                continue;
-            }
+        $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
+        $propertyGetterMapping = $metadata->getPropertyGetterMapping();
 
-            $propertyName = $property->getName();
-            $getterMethod = 'get' . ucfirst($propertyName);
-
-            if (method_exists($entity, $getterMethod)) {
-                try {
-                    $data[$propertyName] = $entity->$getterMethod();
-                    continue;
-                } catch (Error) {
-                    // Getter failed, try direct property access
-                }
-            }
-
-            try {
-                $data[$propertyName] = $property->getValue($entity);
-            } catch (Error) {
-                $data[$propertyName] = null;
+        foreach ($propertyGetterMapping as $propertyName => $getter) {
+            if (method_exists($entity, $getter)) {
+                $data[$propertyName] = $entity->$getter();
             }
         }
 

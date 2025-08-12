@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\ValueProcessor;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
@@ -93,17 +93,17 @@ class EntityHydratorInterfaceTest extends TestCase
         $this->hydrator->hydrate($data, $entityName);
     }
 
-    public function testGetMetadataCacheMethod(): void
+    public function testGetMetadataRegistryMethod(): void
     {
-        $expectedCache = new MetadataCache();
+        $expectedRegistry = new MetadataRegistry();
 
-        $this->hydrator->method('getMetadataCache')
-            ->willReturn($expectedCache);
+        $this->hydrator->method('getMetadataRegistry')
+            ->willReturn($expectedRegistry);
 
-        $result = $this->hydrator->getMetadataCache();
+        $result = $this->hydrator->getMetadataRegistry();
 
-        $this->assertSame($expectedCache, $result);
-        $this->assertInstanceOf(MetadataCache::class, $result);
+        $this->assertSame($expectedRegistry, $result);
+        $this->assertInstanceOf(MetadataRegistry::class, $result);
     }
 
     public function testInterfaceMethodSignatures(): void
@@ -111,14 +111,14 @@ class EntityHydratorInterfaceTest extends TestCase
         $data = ['test' => 'data'];
         $entityName = User::class;
         $entity = new User();
-        $cache = new MetadataCache();
+        $cache = new MetadataRegistry();
 
         // Configure mock to return expected values
         $this->hydrator->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($entity);
         
-        $this->hydrator->method('getMetadataCache')
+        $this->hydrator->method('getMetadataRegistry')
             ->willReturn($cache);
 
         // Test hydrate method signature and return type
@@ -126,9 +126,9 @@ class EntityHydratorInterfaceTest extends TestCase
         $this->assertIsObject($hydrateResult);
         $this->assertInstanceOf(User::class, $hydrateResult);
 
-        // Test getMetadataCache method signature and return type
-        $cacheResult = $this->hydrator->getMetadataCache();
-        $this->assertInstanceOf(MetadataCache::class, $cacheResult);
+        // Test getMetadataRegistry method signature and return type
+        $cacheResult = $this->hydrator->getMetadataRegistry();
+        $this->assertInstanceOf(MetadataRegistry::class, $cacheResult);
     }
 
     public function testHydrateWithNullValuesInData(): void
@@ -192,18 +192,18 @@ class EntityHydratorInterfaceTest extends TestCase
         $testData = ['test' => 'value'];
         $testEntityName = User::class;
         $testEntity = new User();
-        $testCache = new MetadataCache();
+        $testCache = new MetadataRegistry();
 
         // Set up method expectations
         $this->hydrator->method('hydrate')->willReturn($testEntity);
-        $this->hydrator->method('getMetadataCache')->willReturn($testCache);
+        $this->hydrator->method('getMetadataRegistry')->willReturn($testCache);
 
         // Verify interface contracts
         $hydrateResult = $this->hydrator->hydrate($testData, $testEntityName);
         $this->assertIsObject($hydrateResult);
 
-        $cacheResult = $this->hydrator->getMetadataCache();
-        $this->assertInstanceOf(MetadataCache::class, $cacheResult);
+        $cacheResult = $this->hydrator->getMetadataRegistry();
+        $this->assertInstanceOf(MetadataRegistry::class, $cacheResult);
 
         // Verify method calls work without exceptions
         $this->assertTrue(true);
@@ -239,17 +239,17 @@ class EntityHydratorInterfaceTest extends TestCase
         $this->assertNotSame($result1, $result2);
     }
 
-    public function testGetMetadataCacheConsistency(): void
+    public function testGetMetadataRegistryConsistency(): void
     {
-        $cache = new MetadataCache();
+        $cache = new MetadataRegistry();
 
-        $this->hydrator->method('getMetadataCache')
+        $this->hydrator->method('getMetadataRegistry')
             ->willReturn($cache);
 
         // Call multiple times to ensure consistency
-        $result1 = $this->hydrator->getMetadataCache();
-        $result2 = $this->hydrator->getMetadataCache();
-        $result3 = $this->hydrator->getMetadataCache();
+        $result1 = $this->hydrator->getMetadataRegistry();
+        $result2 = $this->hydrator->getMetadataRegistry();
+        $result3 = $this->hydrator->getMetadataRegistry();
 
         $this->assertSame($cache, $result1);
         $this->assertSame($cache, $result2);

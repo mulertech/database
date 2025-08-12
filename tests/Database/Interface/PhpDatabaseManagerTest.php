@@ -450,4 +450,68 @@ final class PhpDatabaseManagerTest extends TestCase
 
         $this->assertSame($this->mockPdo, $connection);
     }
+
+    public function testBeginTransactionThrowsPDOException(): void
+    {
+        $pdoException = new \PDOException('Connection failed', 2002);
+
+        $this->mockConnector->expects($this->once())
+            ->method('connect')
+            ->willReturn($this->mockPdo);
+
+        $this->mockPdo->expects($this->once())
+            ->method('beginTransaction')
+            ->willThrowException($pdoException);
+
+        $this->expectException(\PDOException::class);
+        $this->expectExceptionMessage('Connection failed');
+        $this->expectExceptionCode(2002);
+
+        $this->manager->beginTransaction();
+    }
+
+    public function testCommitThrowsPDOException(): void
+    {
+        $pdoException = new \PDOException('Commit failed', 2006);
+
+        $this->mockConnector->expects($this->once())
+            ->method('connect')
+            ->willReturn($this->mockPdo);
+
+        // First begin a transaction
+        $this->mockPdo->expects($this->once())
+            ->method('beginTransaction')
+            ->willReturn(true);
+
+        // Then make commit throw exception
+        $this->mockPdo->expects($this->once())
+            ->method('commit')
+            ->willThrowException($pdoException);
+
+        $this->expectException(\PDOException::class);
+        $this->expectExceptionMessage('Commit failed');
+        $this->expectExceptionCode(2006);
+
+        $this->manager->beginTransaction();
+        $this->manager->commit();
+    }
+
+    public function testRollBackThrowsPDOException(): void
+    {
+        $pdoException = new \PDOException('Rollback failed', 2013);
+
+        $this->mockConnector->expects($this->once())
+            ->method('connect')
+            ->willReturn($this->mockPdo);
+
+        $this->mockPdo->expects($this->once())
+            ->method('rollBack')
+            ->willThrowException($pdoException);
+
+        $this->expectException(\PDOException::class);
+        $this->expectExceptionMessage('Rollback failed');
+        $this->expectExceptionCode(2013);
+
+        $this->manager->rollBack();
+    }
 }

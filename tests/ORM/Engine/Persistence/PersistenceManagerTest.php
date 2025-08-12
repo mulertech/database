@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
@@ -30,14 +30,13 @@ class PersistenceManagerTest extends TestCase
         parent::setUp();
         
         $eventManager = new EventManager();
-        $metadataCache = new MetadataCache();
-        $metadataCache->loadEntitiesFromPath(
+        $metadataRegistry = new MetadataRegistry(
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $metadataCache,
+            $metadataRegistry,
             $eventManager
         );
         
@@ -51,21 +50,21 @@ class PersistenceManagerTest extends TestCase
         $stateManager->method('getScheduledUpdates')->willReturn([]);
         $stateManager->method('getScheduledDeletions')->willReturn([]);
 
-        $changeDetector = new \MulerTech\Database\ORM\ChangeDetector();
+        $changeDetector = new \MulerTech\Database\ORM\ChangeDetector($metadataRegistry);
         $relationManager = $this->createMock(\MulerTech\Database\ORM\Engine\Relations\RelationManager::class);
 
         // Create processors
         $insertionProcessor = new \MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor(
             $this->entityManager,
-            $metadataCache
+            $metadataRegistry
         );
         $updateProcessor = new \MulerTech\Database\ORM\Engine\Persistence\UpdateProcessor(
             $this->entityManager,
-            $metadataCache
+            $metadataRegistry
         );
         $deletionProcessor = new \MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor(
             $this->entityManager,
-            $metadataCache
+            $metadataRegistry
         );
 
         // Create ChangeSetManager
@@ -73,7 +72,8 @@ class PersistenceManagerTest extends TestCase
         $changeSetManager = new \MulerTech\Database\ORM\ChangeSetManager(
             $this->identityMap,
             $entityRegistry,
-            $changeDetector
+            $changeDetector,
+            $metadataRegistry
         );
 
         $this->persistenceManager = new PersistenceManager(
@@ -252,6 +252,20 @@ class PersistenceManagerTest extends TestCase
 
         // Test detach workflow
         $this->persistenceManager->detach($user);
+
+        self::assertTrue(true);
+    }
+
+    public function testClear(): void
+    {
+        $user = new User();
+        $user->setUsername('TestUser');
+
+        // Persist an entity first
+        $this->persistenceManager->persist($user);
+
+        // Test the clear method
+        $this->persistenceManager->clear();
 
         self::assertTrue(true);
     }

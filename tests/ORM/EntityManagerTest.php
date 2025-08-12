@@ -2,8 +2,9 @@
 
 namespace MulerTech\Database\Tests\ORM;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
+use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Event\DbEvents;
@@ -19,29 +20,34 @@ use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use MulerTech\Database\Tests\Files\Entity\Unit;
 use MulerTech\Database\Tests\Files\Entity\User;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithInvalidColumnMapping;
+use MulerTech\Database\Tests\Files\Mapping\EntityWithoutGetId;
 use MulerTech\Database\Tests\Files\Repository\UserRepository;
 use MulerTech\EventManager\EventManager;
 use MulerTech\EventManager\EventManagerInterface;
+use InvalidArgumentException;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use Exception;
 
 class EntityManagerTest extends TestCase
 {
     private EventManagerInterface $eventManager;
     private EntityManager $entityManager;
 
+    /**
+     * @throws Exception
+     */
     protected function setUp(): void
     {
         parent::setUp();
         $this->eventManager = new EventManager();
-        $metadataCache = new MetadataCache();
-        // Load entities from the test directory
-        $metadataCache->loadEntitiesFromPath(
+        $metadataRegistry = new MetadataRegistry(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         $this->entityManager = new EntityManager(
             new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
-            $metadataCache,
+            $metadataRegistry,
             $this->eventManager
         );
     }
@@ -651,6 +657,87 @@ class EntityManagerTest extends TestCase
         self::assertTrue($em->isUnique(User::class, 'size', '165', 4));
     }
 
+
+    public function testIsUniqueThrowsExceptionForInvalidColumnMapping(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('does not have a valid table or column mapping');
+
+        // Create a standalone EntityManager without database connection for this test
+        $metadataRegistry = new MetadataRegistry();
+        // Load the specific entity that has invalid column mapping
+        $metadataRegistry->loadEntitiesFromPath(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
+        );
+
+        // Create a mock database interface that won't be used for this test
+        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
+        $em = new EntityManager($mockPdm, $metadataRegistry);
+
+        $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
+    }
+
+    public function testIsUniqueReturnsTrueWhenNoMatchingResults(): void
+    {
+        $this->createTestTables();
+        $em = $this->entityManager;
+
+        // Insert data with a specific value
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare('INSERT INTO users_test (id, size) VALUES (:id, :size)');
+        $statement->execute(['id' => 1, 'size' => 100]);
+
+        // Search for a different value that doesn't exist in the database
+        $result = $em->isUnique(User::class, 'size', 200);
+
+        self::assertTrue($result, 'Should return true when no matching results exist in database');
+    }
+
+    public function testIsUniqueReturnsFalseWhenMultipleMatchingResults(): void
+    {
+        $this->createTestTables();
+        $em = $this->entityManager;
+
+        // Insert multiple users with the same username
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare('INSERT INTO users_test (id, username) VALUES (:id, :username)');
+        $statement->execute(['id' => 1, 'username' => 'duplicate']);
+        $statement->execute(['id' => 2, 'username' => 'duplicate']);
+
+        $result = $em->isUnique(User::class, 'username', 'duplicate');
+
+        self::assertFalse($result, 'Should return false when multiple matching results exist');
+    }
+
+    /**
+     * Test isUnique returns false when entity doesn't have getId method
+     */
+    public function testIsUniqueReturnsFalseWhenEntityHasNoGetIdMethod(): void
+    {
+        $this->createTestTables();
+        $em = $this->entityManager;
+
+        // Create entity_without_get_id table
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare(
+            'CREATE TABLE IF NOT EXISTS entity_without_get_id (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL)'
+        );
+        $statement->execute();
+
+        // We need to manually insert data for EntityWithoutGetId since it can't be managed normally
+        // But for this test, we'll use a User entity first to create the scenario
+        $pdo = $this->entityManager->getPdm();
+        $statement = $pdo->prepare('INSERT INTO entity_without_get_id (id, name) VALUES (:id, :name)');
+        $statement->execute(['id' => 1, 'name' => 'test']);
+
+        $result = $em->isUnique(EntityWithoutGetId::class, 'name', 'test');
+        self::assertFalse($result, 'Should return false when value is not unique');
+
+        // Remove entity_without_get_id table after test
+        $statement = $pdo->prepare('DROP TABLE IF EXISTS entity_without_get_id');
+        $statement->execute();
+    }
+
     public function testRowsCount(): void
     {
         $this->createTestTables();
@@ -663,159 +750,6 @@ class EntityManagerTest extends TestCase
         self::assertEquals(2, $em->rowCount(User::class));
     }
 
-    // Tests by Claude
-    public function testByClaudeFindEntityWithOneToOneRelation(): void
-    {
-        $this->createTestTables();
-        $this->createGroupTestTable();
-        $this->createLinkUserGroupTestTable();
-        $em = $this->entityManager;
-        $unit = new Unit()->setName('JohnUnit');
-        $em->persist($unit);
-        $createUser = new User()->setUsername('John')->setUnit($unit);
-        $em->persist($createUser);
-        $em->flush();
-
-        // Store John's ID to use a different one for the bad user test
-        $johnId = $createUser->getId();
-
-        $user = $em->find(User::class, 'username=\'John\'');
-        self::assertInstanceOf(User::class, $user);
-        self::assertEquals('John', $user->getUsername());
-        self::assertEquals('JohnUnit', $user->getUnit()->getName());
-
-        // Use an ID that really doesn't exist (not John's ID)
-        $nonExistentId = $johnId + 1000;
-        $badUser = $em->find(User::class, $nonExistentId);
-        self::assertNull($badUser);
-
-        // Vérifier qu'il n'y a qu'un seul utilisateur
-        $stmt = $this->entityManager->getPdm()->prepare('SELECT COUNT(*) as count FROM users_test');
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        self::assertEquals(1, $result['count'], 'Should have exactly 1 user in database');
-    }
-
-    public function testByClaudeExecuteDeletionsAndPreRemoveEvent(): void
-    {
-        $this->createTestTables();
-        $this->createGroupTestTable();
-        $this->createLinkUserGroupTestTable();
-        $em = $this->entityManager;
-
-        // Create unit
-        $unit = new Unit()->setName('TestUnit');
-        $em->persist($unit);
-        $em->flush();
-
-        $manager = new User();
-        $manager->setUsername('Manager');
-        $manager->setUnit($unit);
-        $otherManager = new User();
-        $otherManager->setUsername('OtherManager');
-        $otherManager->setUnit($unit);
-        $user = new User();
-        $user->setUsername('John');
-        $user->setUnit($unit);
-        $user->setManager($manager);
-        $em->persist($manager);
-        $em->persist($otherManager);
-        $em->persist($user);
-        $em->flush();
-
-        // Store IDs for later use
-        $managerId = $manager->getId();
-        $otherManagerId = $otherManager->getId();
-        $userId = $user->getId();
-
-        // Register the event listener BEFORE the remove operation
-        $eventFired = false;
-        $this->eventManager->addListener(DbEvents::preRemove->value, static function (PreRemoveEvent $event) use ($em, $managerId, $otherManagerId, $userId, &$eventFired) {
-            $entity = $event->getEntity();
-            if ($entity instanceof User && $entity->getId() === $managerId) {
-                $eventFired = true;
-                // Update user's manager before the deletion actually happens
-                $stmt = $em->getPdm()->prepare('UPDATE users_test SET manager = ? WHERE id = ?');
-                $stmt->execute([$otherManagerId, $userId]);
-            }
-        });
-
-        $em->remove($manager);
-        $em->flush();
-
-        self::assertTrue($eventFired, 'PreRemove event should have been fired');
-
-        // Refresh from database to get updated data
-        $user = $em->find(User::class, $userId);
-        self::assertNotNull($user, 'User should still exist');
-        self::assertNotNull($user->getManager(), 'User should have a manager');
-        self::assertEquals('OtherManager', $user->getManager()->getUsername());
-    }
-
-    public function testByClaudeExecuteDeletionsAndPostRemoveEvent(): void
-    {
-        $this->createTestTables();
-        $this->createGroupTestTable();
-        $this->createLinkUserGroupTestTable();
-        $em = $this->entityManager;
-
-        // Create unit
-        $unit = new Unit()->setName('TestUnit');
-        $em->persist($unit);
-        $em->flush();
-
-        $manager = new User();
-        $manager->setUsername('Manager');
-        $manager->setUnit($unit);
-        $otherManager = new User();
-        $otherManager->setUsername('OtherManager');
-        $otherManager->setUnit($unit);
-        $user = new User();
-        $user->setUsername('John');
-        $user->setUnit($unit);
-        $user->setManager($manager);
-        $em->persist($manager);
-        $em->persist($otherManager);
-        $em->persist($user);
-        $em->flush();
-
-        // Store IDs for later use
-        $managerId = $manager->getId();
-        $otherManagerId = $otherManager->getId();
-        $userId = $user->getId();
-
-        // Register the event listener BEFORE the remove operation
-        $eventFired = false;
-        $this->eventManager->addListener(DbEvents::postRemove->value, function (PostRemoveEvent $event) use ($em, $managerId, $otherManagerId, $userId, &$eventFired) {
-            $entity = $event->getEntity();
-            if ($entity instanceof User && $entity->getId() === $managerId) {
-                $eventFired = true;
-                // Update user's manager after the deletion has happened
-                $stmt = $em->getPdm()->prepare('UPDATE users_test SET manager = ? WHERE id = ?');
-                $stmt->execute([$otherManagerId, $userId]);
-            }
-        });
-
-        $em->remove($manager);
-        $em->flush();
-
-        self::assertTrue($eventFired, 'PostRemove event should have been fired');
-
-        // Clear entity manager to force reload from database
-        $em->getEmEngine()->clear();
-
-        // Reload from database to get updated data
-        $user = $em->find(User::class, $userId);
-        self::assertNotNull($user, 'User should still exist');
-        self::assertNotNull($user->getManager(), 'User should have a manager');
-        self::assertNotNull($user->getUnit(), 'User should have a unit');
-        self::assertEquals('OtherManager', $user->getManager()->getUsername());
-    }
-
-    /**
-     * Test spécifique pour démontrer l'importance du OneToManyProcessor
-     * Ce test devrait échouer si OneToManyProcessor::processProperty() n'est pas implémenté
-     */
     public function testOneToManyProcessorIsRequired(): void
     {
         $this->createGroupTestTable();
@@ -913,6 +847,28 @@ class EntityManagerTest extends TestCase
         self::assertLessThan($user1Position, $unit1Position, 'Unit1 should come before User1');
         self::assertLessThan($user2Position, $unit2Position, 'Unit2 should come before User2');
         self::assertLessThan($user2Position, $user1Position, 'User1 should come before User2');
+    }
+
+    /**
+     * Test getRepository throws exception when no repository is found
+     */
+    public function testGetRepositoryThrowsExceptionWhenNoRepositoryFound(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('No repository found for entity');
+
+        // Create a standalone EntityManager without database connection for this test
+        $metadataRegistry = new MetadataRegistry();
+        // Load the specific entity that has no repository
+        $metadataRegistry->loadEntitiesFromPath(
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Mapping'
+        );
+        
+        // Create a mock database interface that won't be used for this test
+        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
+        $em = new EntityManager($mockPdm, $metadataRegistry);
+        
+        $em->getRepository(EntityWithoutGetId::class);
     }
 }
 

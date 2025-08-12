@@ -57,13 +57,6 @@ class MemoryCache implements TaggableCacheInterface
             return null;
         }
 
-        // Check TTL
-        if ($this->isExpired($key)) {
-            $this->delete($key);
-            $this->stats['misses']++;
-            return null;
-        }
-
         // Update access info
         $this->accessTime[$key] = time();
         $this->accessCount[$key] = ($this->accessCount[$key] ?? 0) + 1;

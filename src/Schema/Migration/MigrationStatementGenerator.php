@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use MulerTech\Database\Core\Cache\MetadataCache;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\ColumnMapping;
 use MulerTech\Database\Mapping\Types\FkRule;
 use ReflectionException;
@@ -29,19 +29,19 @@ class MigrationStatementGenerator
      * Generate code to create a table with all its columns
      *
      * @param string $tableName
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @return string
      * @throws ReflectionException
      */
-    public function generateCreateTableStatement(string $tableName, MetadataCache $metadataCache): string
+    public function generateCreateTableStatement(string $tableName, MetadataRegistry $metadataRegistry): string
     {
-        $entityClass = $this->findEntityClassForTable($tableName, $metadataCache);
+        $entityClass = $this->findEntityClassForTable($tableName, $metadataRegistry);
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
         $code[] = '        $tableDefinition = $schema->createTable("' . $tableName . '");';
 
-        $this->addColumnDefinitions($code, $entityClass, $metadataCache);
+        $this->addColumnDefinitions($code, $entityClass, $metadataRegistry);
         $this->addTableConfiguration($code);
         $this->addExecutionCode($code);
 
@@ -259,14 +259,14 @@ class MigrationStatementGenerator
 
     /**
      * @param string $tableName
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @return class-string
      * @throws ReflectionException
      */
-    private function findEntityClassForTable(string $tableName, MetadataCache $metadataCache): string
+    private function findEntityClassForTable(string $tableName, MetadataRegistry $metadataRegistry): string
     {
-        foreach ($metadataCache->getLoadedEntities() as $entity) {
-            if ($metadataCache->getTableName($entity) === $tableName) {
+        foreach ($metadataRegistry->getLoadedEntities() as $entity) {
+            if ($metadataRegistry->getEntityMetadata($entity)->tableName === $tableName) {
                 return $entity;
             }
         }
@@ -276,19 +276,19 @@ class MigrationStatementGenerator
     /**
      * @param array<string> &$code
      * @param class-string $entityClass
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @return void
      * @throws ReflectionException
      */
-    private function addColumnDefinitions(array &$code, string $entityClass, MetadataCache $metadataCache): void
+    private function addColumnDefinitions(array &$code, string $entityClass, MetadataRegistry $metadataRegistry): void
     {
-        $propertiesColumns = $metadataCache->getPropertiesColumns($entityClass);
+        $propertiesColumns = $metadataRegistry->getEntityMetadata($entityClass)->getPropertiesColumns();
         foreach ($propertiesColumns as $property => $columnName) {
             $columnDefinitionCode = $this->generateColumnDefinitionFromMapping(
                 $entityClass,
                 $property,
                 $columnName,
-                $metadataCache
+                $metadataRegistry
             );
             $code[] = '        ' . $columnDefinitionCode;
 
@@ -323,7 +323,7 @@ class MigrationStatementGenerator
      * @param class-string $entityClass
      * @param string $property
      * @param string $columnName
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @return string
      * @throws ReflectionException
      */
@@ -331,7 +331,7 @@ class MigrationStatementGenerator
         string $entityClass,
         string $property,
         string $columnName,
-        MetadataCache $metadataCache
+        MetadataRegistry $metadataRegistry
     ): string {
         $code = '$tableDefinition->column("' . $columnName . '")';
 
@@ -340,7 +340,7 @@ class MigrationStatementGenerator
             ? new SqlTypeConverter()->convertToBuilderMethod($columnTypeDefinition)
             : '->string()';
 
-        $this->addColumnConstraints($code, $entityClass, $property, $metadataCache);
+        $this->addColumnConstraints($code, $entityClass, $property, $metadataRegistry);
 
         return $code . ';';
     }
@@ -350,7 +350,7 @@ class MigrationStatementGenerator
      * @param string &$code
      * @param class-string $entityClass
      * @param string $property
-     * @param MetadataCache $metadataCache
+     * @param MetadataRegistry $metadataRegistry
      * @return void
      * @throws ReflectionException
      */
@@ -358,7 +358,7 @@ class MigrationStatementGenerator
         string &$code,
         string $entityClass,
         string $property,
-        MetadataCache $metadataCache
+        MetadataRegistry $metadataRegistry
     ): void {
         if ($this->columnMapping->isNullable($entityClass, $property) === false) {
             $code .= '->notNull()';
