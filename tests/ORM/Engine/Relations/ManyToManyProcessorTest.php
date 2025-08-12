@@ -8,32 +8,25 @@ use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\Engine\Relations\ManyToManyProcessor;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\Database\Tests\Files\Entity\User;
 use MulerTech\Database\Tests\Files\Entity\Group;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionException;
 
 class ManyToManyProcessorTest extends TestCase
 {
     private ManyToManyProcessor $processor;
-    private EntityManagerInterface $entityManager;
-    private StateManagerInterface $stateManager;
     private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->stateManager = $this->createMock(StateManagerInterface::class);
-        
+        $entityManager = $this->createMock(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
-        
-        $this->entityManager->method('getMetadataRegistry')
+        $entityManager->method('getMetadataRegistry')
             ->willReturn($this->metadataRegistry);
-        
-        $this->processor = new ManyToManyProcessor($this->entityManager);
+        $this->processor = new ManyToManyProcessor($entityManager);
     }
 
     public function testProcessWithNoManyToManyRelations(): void
@@ -103,10 +96,8 @@ class ManyToManyProcessorTest extends TestCase
         $user->setId(1);
         $user->setUsername('TestUser');
         
-        $reflection = new ReflectionClass($user);
-        
         // Process with basic setup - should not throw exceptions
-        $this->processor->process($user, $reflection);
+        $this->processor->process($user);
         
         $operations = $this->processor->getOperations();
         $this->assertIsArray($operations);
@@ -114,6 +105,9 @@ class ManyToManyProcessorTest extends TestCase
         $this->assertEmpty($operations);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testProcessWithDifferentEntityTypes(): void
     {
         $entities = [
@@ -122,8 +116,7 @@ class ManyToManyProcessorTest extends TestCase
         ];
         
         foreach ($entities as $entity) {
-            $reflection = new ReflectionClass($entity);
-            $this->processor->process($entity, $reflection);
+            $this->processor->process($entity);
             
             // Should not throw exceptions
             $operations = $this->processor->getOperations();
@@ -131,14 +124,16 @@ class ManyToManyProcessorTest extends TestCase
         }
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testClearResetsAllInternalState(): void
     {
         // Add some mock processing first
         $user = new User();
         $user->setId(1);
-        $reflection = new ReflectionClass($user);
-        
-        $this->processor->process($user, $reflection);
+
+        $this->processor->process($user);
         
         // Clear should reset everything
         $this->processor->clear();
@@ -180,10 +175,8 @@ class ManyToManyProcessorTest extends TestCase
         $user->setId(123);
         $user->setUsername('TestUser');
         
-        $reflection = new ReflectionClass($user);
-        
         // This should process the entity and may trigger some echo statements
-        $this->processor->process($user, $reflection);
+        $this->processor->process($user);
         
         $operations = $this->processor->getOperations();
         $this->assertIsArray($operations);
@@ -197,8 +190,7 @@ class ManyToManyProcessorTest extends TestCase
         // Use reflection to access private method
         $processorReflection = new ReflectionClass($this->processor);
         $method = $processorReflection->getMethod('hasValidProperty');
-        $method->setAccessible(true);
-        
+
         // Test with non-existent property
         $result = $method->invoke($this->processor, $user, 'nonExistentProperty');
         
@@ -215,16 +207,14 @@ class ManyToManyProcessorTest extends TestCase
         
         // Set processed relations to trigger the echo
         $processedProperty = $processorReflection->getProperty('processedRelations');
-        $processedProperty->setAccessible(true);
-        
+
         $entityId = spl_object_id($user);
         $relationKey = $entityId . '_groups';
         $processedProperty->setValue($this->processor, [$relationKey => true]);
         
         // Access private processProperty method
         $processPropertyMethod = $processorReflection->getMethod('processProperty');
-        $processPropertyMethod->setAccessible(true);
-        
+
         $manyToMany = new MtManyToMany(
             targetEntity: Group::class,
             joinProperty: 'user',
@@ -251,8 +241,7 @@ class ManyToManyProcessorTest extends TestCase
         // Use reflection to set empty mapping cache
         $processorReflection = new ReflectionClass($this->processor);
         $mappingCacheProperty = $processorReflection->getProperty('mappingCache');
-        $mappingCacheProperty->setAccessible(true);
-        
+
         // Set empty mapping
         $emptyMapping = [];
         $mappingCacheProperty->setValue($this->processor, [User::class => $emptyMapping]);

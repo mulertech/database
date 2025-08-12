@@ -116,21 +116,9 @@ class EntityHydrator implements EntityHydratorInterface
      * @param string $propertyName
      * @return ColumnType|null
      */
-    private function getCachedColumnType(EntityMetadata $metadata, string $propertyName): ?ColumnType
+    private function getColumnType(EntityMetadata $metadata, string $propertyName): ?ColumnType
     {
-        $cacheKey = 'column_type:' . $metadata->className . ':' . $propertyName;
-        $cached = $this->metadataRegistry->getPropertyMetadata($metadata->className, $cacheKey);
-        if ($cached instanceof ColumnType) {
-            return $cached;
-        }
-
-        $columnType = $metadata->getColumnType($propertyName);
-
-        if ($columnType !== null) {
-            // Note: MetadataRegistry ne supporte plus setPropertyMetadata - le cache est maintenant immutable
-        }
-
-        return $columnType;
+        return $metadata->getColumnType($propertyName);
     }
 
     /**
@@ -142,10 +130,7 @@ class EntityHydrator implements EntityHydratorInterface
      */
     private function isRelationProperty(EntityMetadata $metadata, string $propertyName): bool
     {
-        return array_any(
-            ['OneToOne', 'ManyToOne'],
-            static fn ($type) => isset($metadata->getRelationsByType($type)[$propertyName])
-        );
+        return $metadata->hasRelation($propertyName);
     }
 
     /**
@@ -178,7 +163,7 @@ class EntityHydrator implements EntityHydratorInterface
             return null;
         }
 
-        $columnType = $this->getCachedColumnType($metadata, $propertyName);
+        $columnType = $this->getColumnType($metadata, $propertyName);
 
         return $this->valueProcessorManager->processValue(
             $value,
