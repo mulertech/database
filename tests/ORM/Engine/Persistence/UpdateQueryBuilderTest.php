@@ -291,31 +291,4 @@ class UpdateQueryBuilderTest extends TestCase
         $result = $this->queryBuilder->buildQuery($user, $changes);
         $this->assertInstanceOf(UpdateBuilder::class, $result);
     }
-
-    /**
-     * @throws ReflectionException
-     * @throws Exception
-     */
-    public function testGetForeignKeyColumnTriggersEchoStatements(): void
-    {
-        // Load metadata for proper relation handling
-        $this->metadataRegistry->loadEntitiesFromPath(
-            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
-        );
-
-        // Create a reflection instance to access private method
-        $reflection = new \ReflectionClass($this->queryBuilder);
-        $method = $reflection->getMethod('getForeignKeyColumn');
-
-        // Test different paths in getForeignKeyColumn that trigger echo statements
-        // Lines 179, 186, and 193 should be triggered with different property scenarios
-        
-        // Test with 'unit' property which should trigger one of the echo paths
-        $result = $method->invoke($this->queryBuilder, User::class, 'unit');
-        $this->assertIsString($result);
-        
-        // Test with 'manager' property which should trigger another echo path  
-        $result = $method->invoke($this->queryBuilder, User::class, 'manager');
-        $this->assertIsString($result);
-    }
 }

@@ -43,7 +43,7 @@ readonly class UpdateQueryBuilder
         $tableName = $this->metadataRegistry->getEntityMetadata($entity::class)->tableName;
         $updateBuilder = new QueryBuilder($this->entityManager->getEmEngine())->update($tableName);
 
-        $this->addDirectPropertyUpdates($updateBuilder, $entity, $changes);
+        $this->addPropertyUpdates($updateBuilder, $entity, $changes);
         $this->addWhereClause($updateBuilder, $entity);
 
         return $updateBuilder;
@@ -59,17 +59,16 @@ readonly class UpdateQueryBuilder
      */
     public function hasValidUpdates(object $entity, array $changes): bool
     {
-        $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
+        if (empty($changes)) {
+            return false;
+        }
 
-        // Check all changes in a single loop
+        $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
+        $propertiesColumns = $metadata->getPropertiesColumns();
+
+        // Since all relation properties also have MtColumn, we only need to check propertiesColumns
         foreach ($changes as $property => $propertyChange) {
-            // Check direct property mappings
             if (isset($propertiesColumns[$property])) {
-                return true;
-            }
-
-            // Check relation properties with foreign keys
-            if ($this->getForeignKeyColumn($entity::class, $property) !== null) {
                 return true;
             }
         }
@@ -78,14 +77,16 @@ readonly class UpdateQueryBuilder
     }
 
     /**
-     * Add direct property to column updates
+     * Add property updates to the query (handles both direct properties and relations)
+     * Since all relation properties also have MtColumn attributes, this single method
+     * handles all property updates including foreign keys.
      *
      * @param UpdateBuilder $updateBuilder
      * @param object $entity
      * @param array<string, PropertyChange> $changes
      * @throws ReflectionException
      */
-    private function addDirectPropertyUpdates(UpdateBuilder $updateBuilder, object $entity, array $changes): void
+    private function addPropertyUpdates(UpdateBuilder $updateBuilder, object $entity, array $changes): void
     {
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
 
@@ -118,49 +119,6 @@ readonly class UpdateQueryBuilder
         }
 
         $updateBuilder->where('id', $entityId);
-    }
-
-    /**
-     * Get foreign key column for a relation property
-     *
-     * @param class-string $entityClass
-     * @param string $property
-     * @return string|null
-     */
-    private function getForeignKeyColumn(string $entityClass, string $property): ?string
-    {
-        try {
-            $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
-
-            // Try direct column mapping first
-            $directColumn = $metadata->getColumnName($property);
-            if ($directColumn !== null) {
-                return $directColumn;
-            }
-
-            // Check properties columns mapping
-            $allPropertiesColumns = $this->metadataRegistry->getEntityMetadata($entityClass)->getPropertiesColumns();
-            if (isset($allPropertiesColumns[$property])) {
-                return $allPropertiesColumns[$property];
-            }
-
-            // Check ManyToOne relations
-            $manyToOneList = $metadata->getManyToOneRelations();
-            if (isset($manyToOneList[$property])) {
-                return $metadata->getColumnName($property);
-            }
-
-            // Check OneToOne relations
-            $oneToOneList = $metadata->getOneToOneRelations();
-            if (isset($oneToOneList[$property])) {
-                return $metadata->getColumnName($property);
-            }
-
-        } catch (Exception) {
-            return null;
-        }
-
-        return null;
     }
 
     /**
