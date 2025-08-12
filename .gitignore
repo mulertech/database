@@ -8,3 +8,6 @@ vendor
 clover.xml
 composer.lock
 mt-compose.yml
+
+# PhpStorm terminal history files (Windows paths in WSL)
+C:\Users\*\AppData\Local\JetBrains\*\terminal\history\*
