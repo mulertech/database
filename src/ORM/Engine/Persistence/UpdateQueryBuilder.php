@@ -44,7 +44,6 @@ readonly class UpdateQueryBuilder
         $updateBuilder = new QueryBuilder($this->entityManager->getEmEngine())->update($tableName);
 
         $this->addDirectPropertyUpdates($updateBuilder, $entity, $changes);
-        $this->addRelationPropertyUpdates($updateBuilder, $entity, $changes);
         $this->addWhereClause($updateBuilder, $entity);
 
         return $updateBuilder;
@@ -62,19 +61,14 @@ readonly class UpdateQueryBuilder
     {
         $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
 
-        // Check direct property mappings
-        foreach ($propertiesColumns as $property => $column) {
-            if (isset($changes[$property])) {
+        // Check all changes in a single loop
+        foreach ($changes as $property => $propertyChange) {
+            // Check direct property mappings
+            if (isset($propertiesColumns[$property])) {
                 return true;
             }
-        }
 
-        // Check relation properties with foreign keys
-        foreach ($changes as $property => $propertyChange) {
-            if (isset($propertiesColumns[$property])) {
-                continue;
-            }
-
+            // Check relation properties with foreign keys
             if ($this->getForeignKeyColumn($entity::class, $property) !== null) {
                 return true;
             }
@@ -104,37 +98,6 @@ readonly class UpdateQueryBuilder
             if ($this->valueProcessor->isProcessableValue($newValue)) {
                 /** @var array<string, mixed>|object|string|null $newValue */
                 $updateBuilder->set($column, $this->valueProcessor->extractForeignKeyId($newValue));
-            }
-        }
-    }
-
-    /**
-     * Add relation property updates (foreign keys)
-     *
-     * @param UpdateBuilder $updateBuilder
-     * @param object $entity
-     * @param array<string, PropertyChange> $changes
-     * @throws ReflectionException
-     */
-    private function addRelationPropertyUpdates(UpdateBuilder $updateBuilder, object $entity, array $changes): void
-    {
-        $propertiesColumns = $this->getPropertiesColumns($entity::class, false);
-
-        foreach ($changes as $property => $propertyChange) {
-            // Skip direct properties (already handled)
-            if (isset($propertiesColumns[$property])) {
-                continue;
-            }
-
-            $foreignKeyColumn = $this->getForeignKeyColumn($entity::class, $property);
-            if ($foreignKeyColumn === null) {
-                continue;
-            }
-
-            $newValue = $propertyChange->newValue;
-            if ($this->valueProcessor->isProcessableValue($newValue)) {
-                /** @var array<string, mixed>|object|string|null $newValue */
-                $updateBuilder->set($foreignKeyColumn, $this->valueProcessor->extractForeignKeyId($newValue));
             }
         }
     }
@@ -182,13 +145,13 @@ readonly class UpdateQueryBuilder
             }
 
             // Check ManyToOne relations
-            $manyToOneList = $metadata->getRelationsByType('ManyToOne');
+            $manyToOneList = $metadata->getManyToOneRelations();
             if (isset($manyToOneList[$property])) {
                 return $metadata->getColumnName($property);
             }
 
             // Check OneToOne relations
-            $oneToOneList = $metadata->getRelationsByType('OneToOne');
+            $oneToOneList = $metadata->getOneToOneRelations();
             if (isset($oneToOneList[$property])) {
                 return $metadata->getColumnName($property);
             }

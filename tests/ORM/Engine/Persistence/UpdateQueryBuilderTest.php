@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 
+use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
+use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateEntityValidator;
 use MulerTech\Database\ORM\Engine\Persistence\UpdateQueryBuilder;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\PropertyChange;
+use MulerTech\Database\Query\Builder\UpdateBuilder;
 use MulerTech\Database\Tests\Files\Entity\User;
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
 
 class UpdateQueryBuilderTest extends TestCase
 {
@@ -44,7 +48,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEngine = $this->createMock(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -54,7 +58,7 @@ class UpdateQueryBuilderTest extends TestCase
         
         $result = $this->queryBuilder->buildQuery($user, $changes);
         
-        $this->assertInstanceOf(\MulerTech\Database\Query\Builder\UpdateBuilder::class, $result);
+        $this->assertInstanceOf(UpdateBuilder::class, $result);
     }
 
     public function testHasValidUpdates(): void
@@ -109,7 +113,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEngine = $this->createMock(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -138,7 +142,7 @@ class UpdateQueryBuilderTest extends TestCase
         ];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEngine = $this->createMock(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -148,7 +152,7 @@ class UpdateQueryBuilderTest extends TestCase
         
         $result = $this->queryBuilder->buildQuery($user, $changes);
         
-        $this->assertInstanceOf(\MulerTech\Database\Query\Builder\UpdateBuilder::class, $result);
+        $this->assertInstanceOf(UpdateBuilder::class, $result);
     }
 
     public function testHasValidUpdatesWithDirectPropertyMapping(): void
@@ -212,7 +216,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['unit' => $change];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEngine = $this->createMock(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -222,9 +226,12 @@ class UpdateQueryBuilderTest extends TestCase
         
         $result = $this->queryBuilder->buildQuery($user, $changes);
         
-        $this->assertInstanceOf(\MulerTech\Database\Query\Builder\UpdateBuilder::class, $result);
+        $this->assertInstanceOf(UpdateBuilder::class, $result);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testHasValidUpdatesTriggersEchoStatements(): void
     {
         // Load metadata to ensure proper mapping
@@ -273,7 +280,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['unit' => $unitChange];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEngine = $this->createMock(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -282,9 +289,13 @@ class UpdateQueryBuilderTest extends TestCase
             ->willReturn(123);
         
         $result = $this->queryBuilder->buildQuery($user, $changes);
-        $this->assertInstanceOf(\MulerTech\Database\Query\Builder\UpdateBuilder::class, $result);
+        $this->assertInstanceOf(UpdateBuilder::class, $result);
     }
 
+    /**
+     * @throws ReflectionException
+     * @throws Exception
+     */
     public function testGetForeignKeyColumnTriggersEchoStatements(): void
     {
         // Load metadata for proper relation handling
@@ -295,8 +306,7 @@ class UpdateQueryBuilderTest extends TestCase
         // Create a reflection instance to access private method
         $reflection = new \ReflectionClass($this->queryBuilder);
         $method = $reflection->getMethod('getForeignKeyColumn');
-        $method->setAccessible(true);
-        
+
         // Test different paths in getForeignKeyColumn that trigger echo statements
         // Lines 179, 186, and 193 should be triggered with different property scenarios
         
