@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Engine\Relations;
 
 use Error;
-use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
@@ -36,7 +35,6 @@ class ManyToManyProcessor
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly StateManagerInterface $stateManager
     ) {
     }
 
@@ -98,11 +96,6 @@ class ManyToManyProcessor
 
         if ($entities instanceof DatabaseCollection) {
             $this->processDatabaseCollection($entity, $entities, $manyToMany);
-            return;
-        }
-
-        if ($entities instanceof Collection && $this->shouldProcessNewCollection($entities, $entity)) {
-            $this->processNewCollection($entity, $entities, $manyToMany);
         }
     }
 
@@ -117,19 +110,6 @@ class ManyToManyProcessor
     {
         $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entity::class);
         return $metadata->getGetter($property) !== null;
-    }
-
-    /**
-     * Check if new collection should be processed
-     * @param mixed $entities
-     * @param object $entity
-     * @return bool
-     */
-    private function shouldProcessNewCollection(mixed $entities, object $entity): bool
-    {
-        return $entities instanceof Collection
-            && $entities->count() > 0
-            && $this->stateManager->isScheduledForInsertion($entity);
     }
 
     /**
@@ -157,24 +137,6 @@ class ManyToManyProcessor
         // Process deletions
         foreach ($collection->getRemovedEntities() as $relatedEntity) {
             $this->addOperation($entity, $relatedEntity, $manyToMany, 'delete');
-        }
-    }
-
-    /**
-     * Process new Collection relations
-     * @template TKey of int|string
-     * @template TValue of object
-     * @param object $entity
-     * @param Collection<TKey, TValue> $collection
-     * @param MtManyToMany $manyToMany
-     */
-    private function processNewCollection(
-        object $entity,
-        Collection $collection,
-        MtManyToMany $manyToMany
-    ): void {
-        foreach ($collection->items() as $relatedEntity) {
-            $this->addOperation($entity, $relatedEntity, $manyToMany, 'insert');
         }
     }
 

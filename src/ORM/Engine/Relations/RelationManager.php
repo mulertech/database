@@ -44,7 +44,7 @@ class RelationManager
         private readonly StateManagerInterface $stateManager
     ) {
         $this->relationLoader = new EntityRelationLoader($this->entityManager);
-        $this->manyToManyProcessor = new ManyToManyProcessor($this->entityManager, $this->stateManager);
+        $this->manyToManyProcessor = new ManyToManyProcessor($this->entityManager);
         $this->linkEntityManager = new LinkEntityManager($this->entityManager, $this->stateManager);
     }
 

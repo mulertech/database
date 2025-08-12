@@ -33,10 +33,7 @@ class ManyToManyProcessorTest extends TestCase
         $this->entityManager->method('getMetadataRegistry')
             ->willReturn($this->metadataRegistry);
         
-        $this->processor = new ManyToManyProcessor(
-            $this->entityManager,
-            $this->stateManager
-        );
+        $this->processor = new ManyToManyProcessor($this->entityManager);
     }
 
     public function testProcessWithNoManyToManyRelations(): void
@@ -234,7 +231,7 @@ class ManyToManyProcessorTest extends TestCase
             inverseJoinProperty: 'group'
         );
         
-        // This should trigger the echo for already processed relation
+        // This should trigger early return for already processed relation
         $processPropertyMethod->invoke(
             $this->processor,
             $user,
@@ -246,52 +243,11 @@ class ManyToManyProcessorTest extends TestCase
         $this->assertTrue(true);
     }
 
-    public function testShouldProcessNewCollection(): void
-    {
-        // Use reflection to test private method
-        $reflection = new ReflectionClass($this->processor);
-        $method = $reflection->getMethod('shouldProcessNewCollection');
-        $method->setAccessible(true);
-        
-        $user = new User();
-        $collection = new \MulerTech\Database\ORM\DatabaseCollection();
-        
-        // This should trigger the echo statement in shouldProcessNewCollection
-        $result = $method->invoke($this->processor, $collection, $user);
-        
-        $this->assertIsBool($result);
-    }
-
-    public function testProcessNewCollection(): void
-    {
-        // Use reflection to test private method
-        $reflection = new ReflectionClass($this->processor);
-        $method = $reflection->getMethod('processNewCollection');
-        $method->setAccessible(true);
-        
-        $user = new User();
-        $group = new Group();
-        $collection = new \MulerTech\Database\ORM\DatabaseCollection([$group]);
-        
-        $manyToMany = new MtManyToMany(
-            targetEntity: Group::class,
-            joinProperty: 'user',
-            inverseJoinProperty: 'group'
-        );
-        
-        // This should trigger the echo statement in processNewCollection
-        $method->invoke($this->processor, $user, $collection, $manyToMany);
-        
-        $this->assertTrue(true);
-    }
-
-
     public function testProcessWithEmptyRelations(): void
     {
         // Test processing when entity has no ManyToMany relations
         $user = new User();
-        $reflection = new ReflectionClass($user);
-        
+
         // Use reflection to set empty mapping cache
         $processorReflection = new ReflectionClass($this->processor);
         $mappingCacheProperty = $processorReflection->getProperty('mappingCache');
@@ -302,8 +258,8 @@ class ManyToManyProcessorTest extends TestCase
         $mappingCacheProperty->setValue($this->processor, [User::class => $emptyMapping]);
         
         // Process should handle empty relations gracefully
-        $this->processor->process($user, $reflection);
-        
+        $this->processor->process($user);
+
         $operations = $this->processor->getOperations();
         $this->assertIsArray($operations);
         $this->assertEmpty($operations);
