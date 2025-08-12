@@ -657,17 +657,7 @@ class EmEngine
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
-        $entityMetadata = $this->metadataRegistry->getEntityMetadata($entityClass);
-
-        // Check all relation types
-        foreach (['OneToOne', 'ManyToOne', 'OneToMany', 'ManyToMany'] as $relationType) {
-            $relations = $entityMetadata->getRelationsByType($relationType);
-            if (isset($relations[$propertyName])) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->metadataRegistry->getEntityMetadata($entityClass)->hasRelation($propertyName);
     }
 
     /**

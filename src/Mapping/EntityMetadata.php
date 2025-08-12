@@ -182,23 +182,6 @@ final readonly class EntityMetadata
     }
 
     /**
-     * Get relations by type (backward compatibility method)
-     * @param string $type
-     * @return array<string, mixed>
-     * @deprecated Use specific methods like getOneToManyRelations() instead
-     */
-    public function getRelationsByType(string $type): array
-    {
-        return match($type) {
-            'OneToMany' => $this->oneToManyRelations,
-            'ManyToOne' => $this->manyToOneRelations,
-            'OneToOne' => $this->oneToOneRelations,
-            'ManyToMany' => $this->manyToManyRelations,
-            default => []
-        };
-    }
-
-    /**
      * @param string $property
      * @return string|null
      */
