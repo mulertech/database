@@ -328,12 +328,10 @@ final class IdentityMap
         $data = [];
 
         $metadata = $this->metadataRegistry->getEntityMetadata($entityClass);
+        $propertyGetterMapping = $metadata->getPropertyGetterMapping();
 
-        foreach ($metadata->getProperties() as $property) {
-            $propertyName = $property->getName();
-            $getter = $metadata->getGetter($propertyName);
-
-            if ($getter !== null && method_exists($entity, $getter)) {
+        foreach ($propertyGetterMapping as $propertyName => $getter) {
+            if (method_exists($entity, $getter)) {
                 $data[$propertyName] = $entity->$getter();
             }
         }

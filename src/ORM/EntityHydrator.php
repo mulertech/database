@@ -179,11 +179,10 @@ class EntityHydrator implements EntityHydratorInterface
         }
 
         $columnType = $this->getCachedColumnType($metadata, $propertyName);
-        $property = $metadata->getProperty($propertyName);
 
         return $this->valueProcessorManager->processValue(
             $value,
-            $property,
+            null,
             $columnType
         );
     }

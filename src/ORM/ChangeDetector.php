@@ -8,7 +8,7 @@ use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Comparator\ValueComparator;
 use MulerTech\Database\ORM\Processor\ValueProcessor;
 use MulerTech\Database\ORM\Validator\ArrayValidator;
-use ReflectionClass;
+use ReflectionException;
 
 /**
  * Detects changes in entities for ORM tracking
@@ -63,28 +63,18 @@ class ChangeDetector
     /**
      * @param object $entity
      * @return array<string, mixed>
+     * @throws ReflectionException
      */
     public function extractCurrentData(object $entity): array
     {
         $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
         $data = [];
+        $propertyGetterMapping = $metadata->getPropertyGetterMapping();
 
-        foreach ($metadata->getProperties() as $property) {
-            $propertyName = $property->getName();
-            $getter = $metadata->getGetter($propertyName);
-
-            if ($getter !== null) {
-                try {
-                    $value = $entity->$getter();
-                    $data[$propertyName] = $this->getValueProcessor()->processValue($value);
-                } catch (\Throwable) {
-                    // If getter throws an exception, set to null
-                    $data[$propertyName] = null;
-                }
-            } else {
-                // No getter available, set to null
-                $data[$propertyName] = null;
-            }
+        // First, process all properties with getters
+        foreach ($propertyGetterMapping as $propertyName => $getter) {
+            $value = $entity->$getter();
+            $data[$propertyName] = $this->getValueProcessor()->processValue($value);
         }
 
         return $data;
@@ -94,6 +84,7 @@ class ChangeDetector
      * @param object $entity
      * @param array<string, mixed> $originalData
      * @return ChangeSet
+     * @throws ReflectionException
      */
     public function computeChangeSet(object $entity, array $originalData): ChangeSet
     {

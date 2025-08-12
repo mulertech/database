@@ -14,7 +14,6 @@ use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use ReflectionMethod;
-use ReflectionNamedType;
 use ReflectionProperty;
 use RuntimeException;
 
@@ -200,29 +199,6 @@ final readonly class EntityMetadata
     }
 
     /**
-     * @return array<ReflectionProperty>
-     */
-    public function getProperties(): array
-    {
-        return $this->properties;
-    }
-
-    /**
-     * @param string $property
-     * @return ReflectionProperty|null
-     */
-    public function getProperty(string $property): ?ReflectionProperty
-    {
-        foreach ($this->properties as $prop) {
-            if ($prop->getName() === $property) {
-                return $prop;
-            }
-        }
-        return null;
-    }
-
-
-    /**
      * @param string $property
      * @return string|null
      */
@@ -313,6 +289,23 @@ final readonly class EntityMetadata
     }
 
     /**
+     * Get mapping of property names to getter method names
+     * @return array<string, string>
+     */
+    public function getPropertyGetterMapping(): array
+    {
+        $mapping = [];
+        foreach ($this->properties as $property) {
+            $propertyName = $property->getName();
+            $getter = $this->getGetter($propertyName);
+            if ($getter !== null) {
+                $mapping[$propertyName] = $getter;
+            }
+        }
+        return $mapping;
+    }
+
+    /**
      * @return string|null
      */
     public function getRepository(): ?string
@@ -356,31 +349,6 @@ final readonly class EntityMetadata
      */
     public function getColumnType(string $property): ?ColumnType
     {
-        // First check if we have explicit MtColumn attribute
-        $column = $this->getColumn($property);
-        $columnType = $column?->columnType;
-        if ($columnType !== null) {
-            return $columnType;
-        }
-
-        // Fallback to infer from PHP type
-        $prop = $this->getProperty($property);
-        if ($prop !== null && $prop->getType() !== null) {
-            $reflectionType = $prop->getType();
-            if ($reflectionType instanceof ReflectionNamedType) {
-                $typeName = $reflectionType->getName();
-                // Map PHP types to MySQL ColumnType
-                return match($typeName) {
-                    'int' => ColumnType::INT,
-                    'string' => ColumnType::VARCHAR,
-                    'float' => ColumnType::FLOAT,
-                    'bool' => ColumnType::TINYINT,
-                    'array' => ColumnType::JSON,
-                    'DateTime', DateTime::class => ColumnType::DATETIME,
-                    default => null
-                };
-            }
-        }
-        return null;
+        return $this->getColumn($property)?->columnType;
     }
 }
