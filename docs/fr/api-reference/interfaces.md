@@ -1,794 +1,162 @@
-# Interfaces Publiques - API Reference
+# Interfaces Publiques - Référence API
 
-Cette section documente toutes les interfaces publiques de MulerTech Database ORM, définissant les contrats pour l'extensibilité et l'implémentation personnalisée.
+Ce document liste les interfaces présentes dans le code source.
 
-## 📋 Table des matières
-
+## Table des matières
 - [DriverInterface](#driverinterface)
-- [EntityRepositoryInterface](#entityrepositoryinterface)
+- [PhpDatabaseInterface](#phpdatabaseinterface)
+- [ConnectorInterface](#connectorinterface)
+- [QueryExecutorInterface](#queryexecutorinterface)
+- [DatabaseParameterParserInterface](#databaseparameterparserinterface)
 - [CacheInterface](#cacheinterface)
-- [EventDispatcherInterface](#eventdispatcherinterface)
-- [QueryInterface](#queryinterface)
-- [ConnectionInterface](#connectioninterface)
-- [MetadataInterface](#metadatainterface)
-- [TypeInterface](#typeinterface)
+- [TaggableCacheInterface](#taggablecacheinterface)
 
+---
 ## DriverInterface
+Génération d'un DSN PDO MySQL.
 
-Interface définissant le contrat pour les drivers de base de données.
-
-### Namespace
+**Namespace**
 ```php
 MulerTech\Database\Database\Interface\DriverInterface
 ```
 
-### Méthodes
+**Méthode**
+| Signature | Description |
+|-----------|-------------|
+| `generateDsn(array $dsnOptions): string` | Construit une chaîne DSN à partir des options (host, port, dbname, unix_socket, charset). |
 
-#### connect()
+**Exemple**
 ```php
-/**
- * Établit la connexion à la base de données
- *
- * @throws \RuntimeException En cas d'échec de connexion
- */
-public function connect(): void;
+$driver = new MySQLDriver();
+$dsn = $driver->generateDsn([
+    'host' => 'localhost',
+    'port' => 3306,
+    'dbname' => 'app',
+    'charset' => 'utf8mb4'
+]);
+$pdo = new PDO($dsn, 'user', 'pass');
 ```
 
-#### disconnect()
+---
+## PhpDatabaseInterface
+Abstraction principale d'une connexion PDO + exécution de requêtes (wrapper typé). Retourne des objets `Statement` (classe interne) plutôt que des PDOStatement bruts.
+
+**Namespace**
 ```php
-/**
- * Ferme la connexion à la base de données
- */
-public function disconnect(): void;
+MulerTech\Database\Database\Interface\PhpDatabaseInterface
 ```
 
-#### isConnected()
+**Méthodes clés**
+| Signature | Rôle |
+|-----------|------|
+| `prepare(string $query, array $options = []): Statement` | Prépare une requête |
+| `beginTransaction(): bool` | Démarre une transaction |
+| `commit(): bool` | Commit |
+| `rollBack(): bool` | Rollback |
+| `inTransaction(): bool` | État transactionnel |
+| `exec(string $statement): int` | Exec direct (DDL / DML) |
+| `query(string $query, ?int $fetchMode = null, int|string|object $arg3 = '', ?array $constructorArgs = null): Statement` | Exécution directe |
+| `lastInsertId(?string $name = null): string` | Dernier ID |
+| `errorCode(): string|int|false` | Code erreur |
+| `errorInfo(): array` | Infos erreur |
+| `setAttribute(int $attribute, mixed $value): bool` | Set attribut PDO |
+| `getAttribute(int $attribute): mixed` | Get attribut PDO |
+| `quote(string $string, int $type = PDO::PARAM_STR): string` | Quote sécurisé |
+
+---
+## ConnectorInterface
+Création bas-niveau d'un objet PDO initialisé.
+
+**Namespace**
 ```php
-/**
- * Vérifie si la connexion est active
- *
- * @return bool
- */
-public function isConnected(): bool;
+MulerTech\Database\Database\Interface\ConnectorInterface
 ```
 
-#### execute()
+**Méthode**
+| Signature | Description |
+|-----------|-------------|
+| `connect(array $parameters, string $username, string $password, ?array $options = null): PDO` | Construit et retourne une instance PDO prête. |
+
+---
+## QueryExecutorInterface
+Exécution d'une requête avec mode de récupération dynamique.
+
+**Namespace**
 ```php
-/**
- * Exécute une requête SQL et retourne les résultats
- *
- * @param string $sql
- * @param array<mixed> $parameters
- * @return array<array<string, mixed>>
- * @throws \RuntimeException
- */
-public function execute(string $sql, array $parameters = []): array;
+MulerTech\Database\Database\Interface\QueryExecutorInterface
 ```
 
-#### executeUpdate()
+**Méthode**
+| Signature | Description |
+|-----------|-------------|
+| `executeQuery(PDO $pdo, string $query, ?int $fetchMode = null, int|string|object $arg3 = '', ?array $constructorArgs = null): Statement` | Prépare + exécute, renvoie wrapper `Statement`. |
+
+---
+## DatabaseParameterParserInterface
+Normalisation/validation de paramètres de connexion.
+
+**Namespace**
 ```php
-/**
- * Exécute une requête de modification (INSERT, UPDATE, DELETE)
- *
- * @param string $sql
- * @param array<mixed> $parameters
- * @return int Nombre de lignes affectées
- * @throws \RuntimeException
- */
-public function executeUpdate(string $sql, array $parameters = []): int;
+MulerTech\Database\Database\Interface\DatabaseParameterParserInterface
 ```
 
-#### getLastInsertId()
-```php
-/**
- * Obtient le dernier ID généré par auto-increment
- *
- * @return string|null
- */
-public function getLastInsertId(): ?string;
-```
+**Méthode**
+| Signature | Description |
+|-----------|-------------|
+| `parseParameters(array $parameters = []): array` | Retourne un tableau de paramètres normalisés. |
 
-#### beginTransaction()
-```php
-/**
- * Démarre une transaction
- *
- * @throws \RuntimeException
- */
-public function beginTransaction(): void;
-```
-
-#### commit()
-```php
-/**
- * Valide la transaction courante
- *
- * @throws \RuntimeException
- */
-public function commit(): void;
-```
-
-#### rollback()
-```php
-/**
- * Annule la transaction courante
- *
- * @throws \RuntimeException
- */
-public function rollback(): void;
-```
-
-#### getDatabaseName()
-```php
-/**
- * Obtient le nom de la base de données
- *
- * @return string
- */
-public function getDatabaseName(): string;
-```
-
-#### getServerVersion()
-```php
-/**
- * Obtient la version du serveur de base de données
- *
- * @return string
- */
-public function getServerVersion(): string;
-```
-
-### Exemple d'implémentation
-
-```php
-use MulerTech\Database\Database\Interface\DriverInterface;
-
-/**
- * @package MulerTech\Database
- * @author Sébastien Muler
- */
-class CustomDriver implements DriverInterface
-{
-    private bool $connected = false;
-    private \PDO $connection;
-
-    public function connect(): void
-    {
-        try {
-            $this->connection = new \PDO($this->getDsn(), $this->username, $this->password);
-            $this->connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $this->connected = true;
-        } catch (\PDOException $e) {
-            throw new \RuntimeException('Connection failed: ' . $e->getMessage());
-        }
-    }
-
-    public function execute(string $sql, array $parameters = []): array
-    {
-        $stmt = $this->connection->prepare($sql);
-        $stmt->execute($parameters);
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    // ... autres méthodes
-}
-```
-
-## EntityRepositoryInterface
-
-Interface pour les repositories d'entités.
-
-### Namespace
-```php
-MulerTech\Database\ORM\Repository\Interface\EntityRepositoryInterface
-```
-
-### Méthodes
-
-#### find()
-```php
-/**
- * Trouve une entité par son identifiant
- *
- * @param mixed $id
- * @return object|null
- */
-public function find(mixed $id): ?object;
-```
-
-#### findAll()
-```php
-/**
- * Trouve toutes les entités
- *
- * @return array<object>
- */
-public function findAll(): array;
-```
-
-#### findBy()
-```php
-/**
- * Trouve des entités selon des critères
- *
- * @param array<string, mixed> $criteria
- * @param array<string, string>|null $orderBy
- * @param int|null $limit
- * @param int|null $offset
- * @return array<object>
- */
-public function findBy(
-    array $criteria,
-    ?array $orderBy = null,
-    ?int $limit = null,
-    ?int $offset = null
-): array;
-```
-
-#### findOneBy()
-```php
-/**
- * Trouve une entité selon des critères
- *
- * @param array<string, mixed> $criteria
- * @return object|null
- */
-public function findOneBy(array $criteria): ?object;
-```
-
-#### count()
-```php
-/**
- * Compte les entités selon des critères
- *
- * @param array<string, mixed> $criteria
- * @return int
- */
-public function count(array $criteria = []): int;
-```
-
-#### save()
-```php
-/**
- * Sauvegarde une entité
- *
- * @param object $entity
- */
-public function save(object $entity): void;
-```
-
-#### delete()
-```php
-/**
- * Supprime une entité
- *
- * @param object $entity
- */
-public function delete(object $entity): void;
-```
-
-### Exemple d'usage
-
-```php
-/**
- * @template T of object
- * @implements EntityRepositoryInterface<T>
- * @package MulerTech\Database
- * @author Sébastien Muler
- */
-class CustomUserRepository implements EntityRepositoryInterface
-{
-    /**
-     * @return array<User>
-     */
-    public function findActiveUsers(): array
-    {
-        return $this->findBy(['active' => true]);
-    }
-
-    public function findByEmail(string $email): ?User
-    {
-        return $this->findOneBy(['email' => $email]);
-    }
-}
-```
-
+---
 ## CacheInterface
+API de cache simple clé/valeur + opérations multiples.
 
-Interface pour les systèmes de cache.
-
-### Namespace
+**Namespace**
 ```php
 MulerTech\Database\Core\Cache\CacheInterface
 ```
 
-### Méthodes
-
-#### get()
-```php
-/**
- * Récupère une valeur du cache
- *
- * @param string $key
- * @param mixed $default
- * @return mixed
- */
-public function get(string $key, mixed $default = null): mixed;
-```
-
-#### set()
-```php
-/**
- * Stocke une valeur dans le cache
- *
- * @param string $key
- * @param mixed $value
- * @param int|null $ttl Durée de vie en secondes
- * @return bool
- */
-public function set(string $key, mixed $value, ?int $ttl = null): bool;
-```
-
-#### delete()
-```php
-/**
- * Supprime une entrée du cache
- *
- * @param string $key
- * @return bool
- */
-public function delete(string $key): bool;
-```
-
-#### clear()
-```php
-/**
- * Vide entièrement le cache
- *
- * @return bool
- */
-public function clear(): bool;
-```
-
-#### has()
-```php
-/**
- * Vérifie si une clé existe dans le cache
- *
- * @param string $key
- * @return bool
- */
-public function has(string $key): bool;
-```
-
-#### remember()
-```php
-/**
- * Récupère ou calcule et stocke une valeur
- *
- * @param string $key
- * @param callable(): mixed $callback
- * @param int|null $ttl
- * @return mixed
- */
-public function remember(string $key, callable $callback, ?int $ttl = null): mixed;
-```
-
-#### deleteByPattern()
-```php
-/**
- * Supprime les entrées correspondant à un pattern
- *
- * @param string $pattern
- * @return int Nombre d'entrées supprimées
- */
-public function deleteByPattern(string $pattern): int;
-```
-
-### Exemple d'implémentation
-
-```php
-/**
- * @package MulerTech\Database
- * @author Sébastien Muler
- */
-class RedisCache implements CacheInterface
-{
-    private \Redis $redis;
-
-    public function __construct(\Redis $redis)
-    {
-        $this->redis = $redis;
-    }
-
-    public function get(string $key, mixed $default = null): mixed
-    {
-        $value = $this->redis->get($key);
-        return $value !== false ? unserialize($value) : $default;
-    }
-
-    public function set(string $key, mixed $value, ?int $ttl = null): bool
-    {
-        $serialized = serialize($value);
-        return $ttl 
-            ? $this->redis->setex($key, $ttl, $serialized)
-            : $this->redis->set($key, $serialized);
-    }
-
-    public function remember(string $key, callable $callback, ?int $ttl = null): mixed
-    {
-        if ($this->has($key)) {
-            return $this->get($key);
-        }
-
-        $value = $callback();
-        $this->set($key, $value, $ttl);
-        return $value;
-    }
-}
-```
-
-## EventDispatcherInterface
-
-Interface pour le système d'événements.
-
-### Namespace
-```php
-MulerTech\Database\Event\Interface\EventDispatcherInterface
-```
-
-### Méthodes
-
-#### dispatch()
-```php
-/**
- * Dispatche un événement
- *
- * @param object $event
- * @param string|null $eventName
- * @return object L'événement après dispatch
- */
-public function dispatch(object $event, ?string $eventName = null): object;
-```
-
-#### addListener()
-```php
-/**
- * Ajoute un listener pour un événement
- *
- * @param string $eventName
- * @param callable $listener
- * @param int $priority
- */
-public function addListener(string $eventName, callable $listener, int $priority = 0): void;
-```
-
-#### removeListener()
-```php
-/**
- * Supprime un listener
- *
- * @param string $eventName
- * @param callable $listener
- */
-public function removeListener(string $eventName, callable $listener): void;
-```
-
-#### getListeners()
-```php
-/**
- * Obtient les listeners pour un événement
- *
- * @param string|null $eventName
- * @return array<callable>
- */
-public function getListeners(?string $eventName = null): array;
-```
-
-#### hasListeners()
-```php
-/**
- * Vérifie si des listeners existent pour un événement
- *
- * @param string $eventName
- * @return bool
- */
-public function hasListeners(string $eventName): bool;
-```
-
-## QueryInterface
-
-Interface pour les objets de requête.
-
-### Namespace
-```php
-MulerTech\Database\Query\Interface\QueryInterface
-```
-
-### Méthodes
-
-#### getSql()
-```php
-/**
- * Obtient la requête SQL générée
- *
- * @return string
- */
-public function getSql(): string;
-```
-
-#### getParameters()
-```php
-/**
- * Obtient les paramètres de la requête
- *
- * @return array<int|string, mixed>
- */
-public function getParameters(): array;
-```
-
-#### execute()
-```php
-/**
- * Exécute la requête
- *
- * @return array<array<string, mixed>>
- */
-public function execute(): array;
-```
-
-#### getResult()
-```php
-/**
- * Obtient le résultat sous forme d'objets
- *
- * @return array<object>
- */
-public function getResult(): array;
-```
-
-#### getArrayResult()
-```php
-/**
- * Obtient le résultat sous forme de tableaux
- *
- * @return array<array<string, mixed>>
- */
-public function getArrayResult(): array;
-```
-
-#### getSingleResult()
-```php
-/**
- * Obtient un seul résultat sous forme d'objet
- *
- * @return object|null
- */
-public function getSingleResult(): ?object;
-```
-
-#### getSingleScalarResult()
-```php
-/**
- * Obtient un seul résultat scalaire
- *
- * @return mixed
- */
-public function getSingleScalarResult(): mixed;
-```
-
-## ConnectionInterface
-
-Interface pour les connexions de base de données.
-
-### Namespace
-```php
-MulerTech\Database\Connection\Interface\ConnectionInterface
-```
-
-### Méthodes
-
-#### prepare()
-```php
-/**
- * Prépare une requête SQL
- *
- * @param string $sql
- * @return \PDOStatement
- */
-public function prepare(string $sql): \PDOStatement;
-```
-
-#### exec()
-```php
-/**
- * Exécute une requête SQL directement
- *
- * @param string $sql
- * @return int|false
- */
-public function exec(string $sql): int|false;
-```
-
-#### query()
-```php
-/**
- * Exécute une requête et retourne un statement
- *
- * @param string $sql
- * @return \PDOStatement|false
- */
-public function query(string $sql): \PDOStatement|false;
-```
-
-#### lastInsertId()
-```php
-/**
- * @param string|null $name
- * @return string|false
- */
-public function lastInsertId(?string $name = null): string|false;
-```
-
-#### getAttribute()
-```php
-/**
- * @param int $attribute
- * @return mixed
- */
-public function getAttribute(int $attribute): mixed;
-```
-
-#### setAttribute()
-```php
-/**
- * @param int $attribute
- * @param mixed $value
- * @return bool
- */
-public function setAttribute(int $attribute, mixed $value): bool;
-```
-
-## MetadataInterface
-
-Interface pour les métadonnées d'entité.
-
-### Namespace
-```php
-MulerTech\Database\Mapping\Interface\MetadataInterface
-```
-
-### Méthodes
-
-#### getTableName()
-```php
-/**
- * @return string
- */
-public function getTableName(): string;
-```
-
-#### getColumnMappings()
-```php
-/**
- * @return array<string, ColumnMapping>
- */
-public function getColumnMappings(): array;
-```
-
-#### getRelationMappings()
-```php
-/**
- * @return array<string, RelationMapping>
- */
-public function getRelationMappings(): array;
-```
-
-#### getPrimaryKeyFields()
-```php
-/**
- * @return array<string>
- */
-public function getPrimaryKeyFields(): array;
-```
-
-#### getFieldValue()
-```php
-/**
- * @param object $entity
- * @param string $field
- * @return mixed
- */
-public function getFieldValue(object $entity, string $field): mixed;
-```
-
-#### setFieldValue()
-```php
-/**
- * @param object $entity
- * @param string $field
- * @param mixed $value
- */
-public function setFieldValue(object $entity, string $field, mixed $value): void;
-```
-
-## TypeInterface
-
-Interface pour les types de colonnes personnalisés.
-
-### Namespace
-```php
-MulerTech\Database\Mapping\Types\Interface\TypeInterface
-```
-
-### Méthodes
-
-#### getName()
-```php
-/**
- * @return string
- */
-public function getName(): string;
-```
-
-#### getSQLDeclaration()
-```php
-/**
- * @param array<string, mixed> $fieldDeclaration
- * @return string
- */
-public function getSQLDeclaration(array $fieldDeclaration): string;
-```
-
-#### convertToPHPValue()
-```php
-/**
- * @param mixed $value
- * @return mixed
- */
-public function convertToPHPValue(mixed $value): mixed;
-```
-
-#### convertToDatabaseValue()
-```php
-/**
- * @param mixed $value
- * @return mixed
- */
-public function convertToDatabaseValue(mixed $value): mixed;
-```
-
-### Exemple d'implémentation
-
-```php
-/**
- * @package MulerTech\Database
- * @author Sébastien Muler
- */
-class UuidType implements TypeInterface
-{
-    public function getName(): string
-    {
-        return 'uuid';
-    }
-
-    public function getSQLDeclaration(array $fieldDeclaration): string
-    {
-        return 'CHAR(36)';
-    }
-
-    public function convertToPHPValue(mixed $value): ?string
-    {
-        return $value === null ? null : (string) $value;
-    }
-
-    public function convertToDatabaseValue(mixed $value): ?string
-    {
-        return $value === null ? null : (string) $value;
-    }
-}
-```
+**Méthodes**
+| Signature | Description |
+|-----------|-------------|
+| `get(string $key): mixed` | Lecture |
+| `set(string $key, mixed $value, int $ttl = 0): void` | Écriture (TTL optionnel) |
+| `delete(string $key): void` | Suppression clé |
+| `clear(): void` | Flush complet |
+| `has(string $key): bool` | Existence |
+| `getMultiple(array $keys): array` | Lecture groupée |
+| `setMultiple(array $values, int $ttl = 0): void` | Écriture groupée |
+| `deleteMultiple(array $keys): void` | Suppression groupée |
 
 ---
+## TaggableCacheInterface
+Extension ajoutant un système de tags invalidables.
 
-Ces interfaces définissent les contrats publics de MulerTech Database ORM, permettant l'extensibilité et l'implémentation de composants personnalisés tout en maintenant la compatibilité avec le système.
+**Namespace**
+```php
+MulerTech\Database\Core\Cache\TaggableCacheInterface
+```
+
+**Méthodes supplémentaires**
+| Signature | Description |
+|-----------|-------------|
+| `tag(string $key, array $tags): void` | Associe des tags à une entrée |
+| `invalidateTag(string $tag): void` | Invalide toutes les clés taguées |
+| `invalidateTags(array $tags): void` | Invalidation multiple |
+
+**Exemple minimal**
+```php
+class ArrayTagCache implements TaggableCacheInterface {
+    private array $store = [];
+    private array $tagIndex = [];
+    public function get(string $key): mixed { return $this->store[$key] ?? null; }
+    public function set(string $key, mixed $value, int $ttl = 0): void { $this->store[$key] = $value; }
+    public function delete(string $key): void { unset($this->store[$key]); }
+    public function clear(): void { $this->store = $this->tagIndex = []; }
+    public function has(string $key): bool { return array_key_exists($key, $this->store); }
+    public function getMultiple(array $keys): array { return array_intersect_key($this->store, array_flip($keys)); }
+    public function setMultiple(array $values, int $ttl = 0): void { foreach ($values as $k=>$v) { $this->store[$k]=$v; } }
+    public function deleteMultiple(array $keys): void { foreach ($keys as $k) unset($this->store[$k]); }
+    public function tag(string $key, array $tags): void { foreach ($tags as $t) { $this->tagIndex[$t][] = $key; } }
+    public function invalidateTag(string $tag): void { foreach ($this->tagIndex[$tag] ?? [] as $k) unset($this->store[$k]); unset($this->tagIndex[$tag]); }
+    public function invalidateTags(array $tags): void { foreach ($tags as $t) $this->invalidateTag($t); }
+}
+```
