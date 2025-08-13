@@ -1,504 +1,598 @@
 # Requêtes de Base - Query Builder
 
-## Table des Matières
-- [Introduction](#introduction)
+🌍 **Languages:** [🇫🇷 Français](basic-queries.md) | [🇬🇧 English](../../en/query-builder/basic-queries.md)
+
+---
+
+## 📋 Table des Matières
+
+- [Vue d'Ensemble](#vue-densemble)
+- [Architecture du Query Builder](#architecture-du-query-builder)
 - [Configuration et Initialisation](#configuration-et-initialisation)
 - [Requêtes SELECT](#requêtes-select)
 - [Requêtes INSERT](#requêtes-insert)
 - [Requêtes UPDATE](#requêtes-update)
 - [Requêtes DELETE](#requêtes-delete)
-- [Méthodes de Base](#méthodes-de-base)
+- [Requêtes Raw SQL](#requêtes-raw-sql)
 - [Exemples Pratiques](#exemples-pratiques)
 
-## Introduction
+---
 
-Le Query Builder de MulerTech Database offre une interface fluide et intuitive pour construire des requêtes SQL de manière programmatique. Il combine la flexibilité du SQL brut avec la sécurité et la lisibilité du code orienté objet.
+## Vue d'Ensemble
 
-### Avantages du Query Builder
+Le Query Builder de MulerTech Database utilise une **architecture modulaire** avec des builders spécialisés pour chaque type de requête. Cette approche garantit la type-safety et permet des optimisations spécifiques à chaque type d'opération.
 
-- **Sécurité** : Protection automatique contre les injections SQL
-- **Lisibilité** : Code plus maintenir et compréhensible
-- **Flexibilité** : Construction dynamique de requêtes
-- **Type Safety** : Validation des types à l'exécution
+### 🎯 Avantages du Query Builder
+
+- **Type-Safety** : Chaque builder est optimisé pour son type de requête
+- **Sécurité** : Protection automatique contre les injections SQL via les paramètres
+- **Flexibilité** : Construction dynamique de requêtes complexes
+- **Performance** : Optimisations spécifiques par type de requête
+- **Lisibilité** : API fluide et intuitive
+
+### 📦 Imports Nécessaires
+
+```php
+<?php
+use MulerTech\Database\Query\Builder\{
+    QueryBuilder, SelectBuilder, InsertBuilder, 
+    UpdateBuilder, DeleteBuilder, RawQueryBuilder
+};
+use MulerTech\Database\ORM\EmEngine;
+```
+
+---
+
+## Architecture du Query Builder
+
+### 🏭 Pattern Factory
+
+Le `QueryBuilder` est une factory qui crée des builders spécialisés :
+
+```php
+<?php
+
+// Factory pour créer des builders spécialisés
+$queryBuilder = new QueryBuilder($emEngine);
+
+// Création des différents types de builders
+$selectBuilder = $queryBuilder->select('*');           // → SelectBuilder
+$insertBuilder = $queryBuilder->insert('users');       // → InsertBuilder
+$updateBuilder = $queryBuilder->update('users');       // → UpdateBuilder
+$deleteBuilder = $queryBuilder->delete('users');       // → DeleteBuilder
+$rawBuilder = $queryBuilder->raw('SELECT 1');          // → RawQueryBuilder
+```
+
+### 🔧 Builders Spécialisés
+
+Chaque builder a ses propres méthodes optimisées :
+
+- **SelectBuilder** : `select()`, `from()`, `where()`, `join()`, `groupBy()`, `orderBy()`, `limit()`
+- **InsertBuilder** : `into()`, `set()`, `value()`
+- **UpdateBuilder** : `table()`, `set()`, `where()`
+- **DeleteBuilder** : `from()`, `where()`
+- **RawQueryBuilder** : `setParameter()`, `fetchAll()`, `fetchScalar()`
+
+---
 
 ## Configuration et Initialisation
 
-### Obtenir une Instance du Query Builder
+### 🚀 Initialisation Standard
 
 ```php
 <?php
-declare(strict_types=1);
 
-use MulerTech\Database\ORM\EmEngine;
-use MulerTech\Database\Query\Builder\QueryBuilder;
+// Avec EmEngine (recommandé pour l'hydratation automatique)
+$emEngine = $entityManager->getEmEngine();
+$queryBuilder = new QueryBuilder($emEngine);
 
-// Via l'EntityManager
-$em = new EmEngine($databaseDriver);
-$queryBuilder = $em->createQueryBuilder();
-
-// Directement avec le driver
-$queryBuilder = new QueryBuilder($databaseDriver);
+// Sans EmEngine (pour requêtes simples)
+$queryBuilder = new QueryBuilder();
 ```
 
-### Configuration de Base
+### 🔧 Utilisation dans les Services
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Configuration avec options
-$queryBuilder = new QueryBuilder($driver, [
-    'fetchMode' => \PDO::FETCH_ASSOC,
-    'debug' => true,
-    'timeout' => 30
-]);
+class UserService
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {}
+    
+    private function getQueryBuilder(): QueryBuilder
+    {
+        return new QueryBuilder($this->entityManager->getEmEngine());
+    }
+}
 ```
+
+---
 
 ## Requêtes SELECT
 
-### SELECT Simple
+### 🔍 SELECT de Base
 
 ```php
 <?php
-declare(strict_types=1);
 
-// SELECT basique
-$users = $queryBuilder
-    ->select(['id', 'name', 'email'])
-    ->from('users')
-    ->execute()
-    ->fetchAll();
+$queryBuilder = new QueryBuilder($emEngine);
 
-// SELECT avec alias
-$users = $queryBuilder
-    ->select(['u.id', 'u.name as username', 'u.email'])
-    ->from('users', 'u')
-    ->execute()
-    ->fetchAll();
+// SELECT simple
+$selectBuilder = $queryBuilder->select('*');
+$users = $selectBuilder->from('users')->fetchAll();
+
+// SELECT avec colonnes spécifiques
+$selectBuilder = $queryBuilder->select('id', 'name', 'email');
+$users = $selectBuilder->from('users')->fetchAll();
+
+// SELECT avec alias de table
+$selectBuilder = $queryBuilder->select('u.*');
+$users = $selectBuilder->from('users', 'u')->fetchAll();
 ```
 
-### SELECT avec WHERE
+### 🎯 Conditions WHERE
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Conditions simples
-$activeUsers = $queryBuilder
-    ->select(['*'])
+// Condition simple
+$selectBuilder = $queryBuilder
+    ->select('*')
     ->from('users')
-    ->where('status = ?', ['active'])
-    ->execute()
-    ->fetchAll();
+    ->where('status = ?', 'active');
+
+$activeUsers = $selectBuilder->fetchAll();
 
 // Conditions multiples
-$users = $queryBuilder
-    ->select(['*'])
+$selectBuilder = $queryBuilder
+    ->select('*')
     ->from('users')
-    ->where('age >= ?', [18])
-    ->andWhere('city = ?', ['Paris'])
-    ->execute()
-    ->fetchAll();
+    ->where('age >= ?', 18)
+    ->where('city = ?', 'Paris');
 
-// Conditions OR
-$users = $queryBuilder
-    ->select(['*'])
-    ->from('users')
-    ->where('role = ?', ['admin'])
-    ->orWhere('role = ?', ['moderator'])
-    ->execute()
-    ->fetchAll();
+$users = $selectBuilder->fetchAll();
+
+// Conditions avec opérateurs
+$selectBuilder = $queryBuilder
+    ->select('*')
+    ->from('products')
+    ->where('price BETWEEN ? AND ?', 10, 100)
+    ->where('name LIKE ?', '%phone%');
+
+$products = $selectBuilder->fetchAll();
 ```
 
-### SELECT avec ORDER BY et LIMIT
+### 🔗 Jointures
+
+Les jointures utilisent les traits `JoinClauseTrait` :
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Tri et pagination
-$users = $queryBuilder
-    ->select(['*'])
-    ->from('users')
-    ->where('status = ?', ['active'])
-    ->orderBy('created_at', 'DESC')
-    ->limit(10)
-    ->offset(20)
-    ->execute()
-    ->fetchAll();
+// INNER JOIN
+$selectBuilder = $queryBuilder
+    ->select('u.name', 'p.title')
+    ->from('users', 'u')
+    ->join('posts', 'p', 'u.id = p.user_id');
 
-// Tri multiple
-$users = $queryBuilder
-    ->select(['*'])
-    ->from('users')
-    ->orderBy('last_name', 'ASC')
-    ->addOrderBy('first_name', 'ASC')
-    ->execute()
-    ->fetchAll();
+$results = $selectBuilder->fetchAll();
+
+// LEFT JOIN
+$selectBuilder = $queryBuilder
+    ->select('u.name', 'pr.bio')
+    ->from('users', 'u')
+    ->leftJoin('profiles', 'pr', 'u.id = pr.user_id');
+
+$results = $selectBuilder->fetchAll();
+
+// Jointures multiples
+$selectBuilder = $queryBuilder
+    ->select('u.name', 'p.title', 'c.name as category')
+    ->from('users', 'u')
+    ->join('posts', 'p', 'u.id = p.user_id')
+    ->join('categories', 'c', 'p.category_id = c.id');
+
+$results = $selectBuilder->fetchAll();
 ```
 
-### SELECT avec GROUP BY et HAVING
+### 📊 Groupement et Tri
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Groupement avec agrégation
-$stats = $queryBuilder
-    ->select(['department', 'COUNT(*) as count', 'AVG(salary) as avg_salary'])
+// GROUP BY avec agrégation
+$selectBuilder = $queryBuilder
+    ->select('department', 'COUNT(*) as count', 'AVG(salary) as avg_salary')
     ->from('employees')
-    ->groupBy('department')
-    ->having('COUNT(*) > ?', [5])
-    ->execute()
-    ->fetchAll();
+    ->groupBy('department');
+
+$stats = $selectBuilder->fetchAll();
+
+// HAVING
+$selectBuilder = $queryBuilder
+    ->select('category_id', 'COUNT(*) as product_count')
+    ->from('products')
+    ->groupBy('category_id')
+    ->having('COUNT(*) > ?', 5);
+
+$categories = $selectBuilder->fetchAll();
+
+// ORDER BY
+$selectBuilder = $queryBuilder
+    ->select('*')
+    ->from('users')
+    ->orderBy('name', 'ASC')
+    ->orderBy('created_at', 'DESC');
+
+$users = $selectBuilder->fetchAll();
 ```
+
+### 📄 Pagination
+
+```php
+<?php
+
+// LIMIT et OFFSET
+$selectBuilder = $queryBuilder
+    ->select('*')
+    ->from('users')
+    ->orderBy('created_at', 'DESC')
+    ->limit(20)
+    ->offset(40); // Page 3 si 20 par page
+
+$users = $selectBuilder->fetchAll();
+```
+
+---
 
 ## Requêtes INSERT
 
-### INSERT Simple
+### 💾 INSERT Simple
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Insert d'un enregistrement
-$result = $queryBuilder
-    ->insert('users')
-    ->values([
-        'name' => 'John Doe',
-        'email' => 'john@example.com',
-        'created_at' => date('Y-m-d H:i:s')
-    ])
-    ->execute();
+$insertBuilder = $queryBuilder->insert('users');
 
-$insertId = $result->getLastInsertId();
+// Insertion d'un enregistrement
+$insertBuilder
+    ->set('name', 'John Doe')
+    ->set('email', 'john@example.com')
+    ->set('created_at', date('Y-m-d H:i:s'));
+
+$insertBuilder->execute();
 ```
 
-### INSERT Multiple
+### 📝 INSERT avec Données Multiples
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Insert multiple
+$insertBuilder = $queryBuilder->insert('users');
+
+// Insertion par lot (nécessite plusieurs appels)
 $users = [
     ['name' => 'Alice', 'email' => 'alice@example.com'],
     ['name' => 'Bob', 'email' => 'bob@example.com'],
     ['name' => 'Charlie', 'email' => 'charlie@example.com']
 ];
 
-$result = $queryBuilder
-    ->insert('users')
-    ->values($users)
-    ->execute();
+foreach ($users as $userData) {
+    $insertBuilder = $queryBuilder->insert('users');
+    foreach ($userData as $field => $value) {
+        $insertBuilder->set($field, $value);
+    }
+    $insertBuilder->execute();
+}
 ```
 
-### INSERT avec SELECT
-
-```php
-<?php
-declare(strict_types=1);
-
-// Insert depuis une autre table
-$result = $queryBuilder
-    ->insert('archived_users')
-    ->columns(['name', 'email', 'archived_at'])
-    ->select(['name', 'email', 'NOW()'])
-    ->from('users')
-    ->where('last_login < ?', ['2023-01-01'])
-    ->execute();
-```
+---
 
 ## Requêtes UPDATE
 
-### UPDATE Simple
+### ✏️ UPDATE Simple
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Update basique
-$result = $queryBuilder
-    ->update('users')
-    ->set([
-        'last_login' => date('Y-m-d H:i:s'),
-        'login_count' => 'login_count + 1'
-    ])
-    ->where('id = ?', [123])
-    ->execute();
+$updateBuilder = $queryBuilder->update('users');
 
-$affectedRows = $result->getAffectedRows();
+// Mise à jour d'un utilisateur
+$updateBuilder
+    ->set('last_login', date('Y-m-d H:i:s'))
+    ->set('login_count', 'login_count + 1') // Expression SQL
+    ->where('id = ?', 123);
+
+$updateBuilder->execute();
 ```
 
-### UPDATE Conditionnel
+### 🎯 UPDATE Conditionnel
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Update avec conditions multiples
-$result = $queryBuilder
-    ->update('users')
-    ->set(['status' => 'inactive'])
-    ->where('last_login < ?', ['2023-01-01'])
-    ->andWhere('status = ?', ['active'])
-    ->execute();
+$updateBuilder = $queryBuilder->update('users');
+
+// Mise à jour avec conditions multiples
+$updateBuilder
+    ->set('status', 'inactive')
+    ->where('last_login < ?', '2023-01-01')
+    ->where('status = ?', 'active');
+
+$updateBuilder->execute();
 ```
 
-### UPDATE avec JOIN
-
-```php
-<?php
-declare(strict_types=1);
-
-// Update avec jointure
-$result = $queryBuilder
-    ->update('users', 'u')
-    ->innerJoin('u', 'profiles', 'p', 'u.id = p.user_id')
-    ->set(['u.status' => 'verified'])
-    ->where('p.verification_status = ?', ['approved'])
-    ->execute();
-```
+---
 
 ## Requêtes DELETE
 
-### DELETE Simple
+### 🗑️ DELETE Simple
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Delete basique
-$result = $queryBuilder
-    ->delete('users')
-    ->where('id = ?', [123])
-    ->execute();
+$deleteBuilder = $queryBuilder->delete('users');
+
+// Suppression par ID
+$deleteBuilder->where('id = ?', 123);
+$deleteBuilder->execute();
 ```
 
-### DELETE Conditionnel
+### 🎯 DELETE Conditionnel
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Delete avec conditions multiples
-$result = $queryBuilder
-    ->delete('users')
-    ->where('status = ?', ['inactive'])
-    ->andWhere('last_login < ?', ['2022-01-01'])
-    ->execute();
+$deleteBuilder = $queryBuilder->delete('users');
+
+// Suppression avec conditions multiples
+$deleteBuilder
+    ->where('status = ?', 'inactive')
+    ->where('last_login < ?', '2022-01-01');
+
+$deleteBuilder->execute();
 ```
 
-### DELETE avec LIMIT
+---
+
+## Requêtes Raw SQL
+
+Pour les requêtes complexes, utilisez `RawQueryBuilder` :
+
+### 🔧 Raw SQL avec Paramètres
 
 ```php
 <?php
-declare(strict_types=1);
 
-// Delete avec limitation
-$result = $queryBuilder
-    ->delete('old_logs')
-    ->where('created_at < ?', ['2023-01-01'])
-    ->orderBy('created_at', 'ASC')
-    ->limit(1000)
-    ->execute();
+// Requête complexe avec sous-requête
+$rawBuilder = $queryBuilder->raw("
+    SELECT 
+        u.id,
+        u.name,
+        u.email,
+        (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as order_count
+    FROM users u
+    WHERE u.status = ?
+    ORDER BY order_count DESC
+");
+
+$rawBuilder->setParameter(0, 'active');
+$results = $rawBuilder->fetchAll();
 ```
 
-## Méthodes de Base
-
-### Méthodes de Construction
+### 📊 Requêtes d'Agrégation Complexes
 
 ```php
 <?php
-declare(strict_types=1);
 
-interface QueryBuilderInterface
-{
-    // SELECT
-    public function select(array $columns = ['*']): self;
-    public function from(string $table, ?string $alias = null): self;
-    
-    // Conditions
-    public function where(string $condition, array $params = []): self;
-    public function andWhere(string $condition, array $params = []): self;
-    public function orWhere(string $condition, array $params = []): self;
-    
-    // Tri et groupement
-    public function orderBy(string $column, string $direction = 'ASC'): self;
-    public function groupBy(string $column): self;
-    public function having(string $condition, array $params = []): self;
-    
-    // Limitation
-    public function limit(int $limit): self;
-    public function offset(int $offset): self;
-    
-    // INSERT/UPDATE/DELETE
-    public function insert(string $table): self;
-    public function update(string $table, ?string $alias = null): self;
-    public function delete(string $table, ?string $alias = null): self;
-    
-    // Exécution
-    public function execute(): QueryResult;
-    public function getSQL(): string;
-    public function getParameters(): array;
-}
+// Statistiques avancées
+$rawBuilder = $queryBuilder->raw("
+    SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') as month,
+        COUNT(*) as total_orders,
+        SUM(total) as revenue,
+        AVG(total) as avg_order_value
+    FROM orders 
+    WHERE status = ? 
+    AND created_at >= ?
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    ORDER BY month DESC
+");
+
+$rawBuilder->setParameter(0, 'completed');
+$rawBuilder->setParameter(1, '2024-01-01');
+
+$monthlyStats = $rawBuilder->fetchAll();
 ```
 
-### Méthodes Utilitaires
-
-```php
-<?php
-declare(strict_types=1);
-
-// Obtenir la requête SQL générée
-$sql = $queryBuilder
-    ->select(['*'])
-    ->from('users')
-    ->where('age > ?', [18])
-    ->getSQL();
-
-// Obtenir les paramètres
-$params = $queryBuilder->getParameters();
-
-// Debug de la requête
-$queryBuilder->debug(); // Affiche SQL + paramètres
-
-// Reset du builder
-$queryBuilder->reset(); // Remet à zéro pour une nouvelle requête
-```
+---
 
 ## Exemples Pratiques
 
-### Recherche d'Utilisateurs
+### 🔍 Service de Recherche
 
 ```php
 <?php
-declare(strict_types=1);
 
-class UserService
+class UserSearchService
 {
-    private QueryBuilder $queryBuilder;
-    
-    public function __construct(QueryBuilder $queryBuilder)
-    {
-        $this->queryBuilder = $queryBuilder;
-    }
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {}
     
     public function searchUsers(array $criteria): array
     {
-        $qb = $this->queryBuilder
-            ->select(['u.id', 'u.name', 'u.email', 'p.avatar'])
-            ->from('users', 'u')
-            ->leftJoin('u', 'profiles', 'p', 'u.id = p.user_id');
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
         
+        $selectBuilder = $queryBuilder
+            ->select('u.*', 'p.bio', 'p.avatar_url')
+            ->from('users', 'u')
+            ->leftJoin('profiles', 'p', 'u.id = p.user_id');
+        
+        // Filtres dynamiques
         if (!empty($criteria['name'])) {
-            $qb->andWhere('u.name LIKE ?', ['%' . $criteria['name'] . '%']);
+            $selectBuilder->where('u.name LIKE ?', "%{$criteria['name']}%");
         }
         
         if (!empty($criteria['email'])) {
-            $qb->andWhere('u.email = ?', [$criteria['email']]);
+            $selectBuilder->where('u.email = ?', $criteria['email']);
         }
         
         if (!empty($criteria['status'])) {
-            $qb->andWhere('u.status = ?', [$criteria['status']]);
+            $selectBuilder->where('u.status = ?', $criteria['status']);
         }
         
-        return $qb->orderBy('u.name', 'ASC')
-                 ->execute()
-                 ->fetchAll();
+        // Tri et pagination
+        $orderBy = $criteria['sort'] ?? 'name';
+        $direction = $criteria['direction'] ?? 'ASC';
+        $selectBuilder->orderBy("u.$orderBy", $direction);
+        
+        if (isset($criteria['limit'])) {
+            $selectBuilder->limit($criteria['limit']);
+            
+            if (isset($criteria['offset'])) {
+                $selectBuilder->offset($criteria['offset']);
+            }
+        }
+        
+        return $selectBuilder->fetchAll();
     }
 }
 ```
 
-### Pagination
+### 📊 Service de Statistiques
 
 ```php
 <?php
-declare(strict_types=1);
 
-class PaginationHelper
+class StatsService
 {
-    public function paginate(QueryBuilder $qb, int $page, int $perPage): array
-    {
-        // Compter le total
-        $countQb = clone $qb;
-        $total = $countQb
-            ->select(['COUNT(*) as count'])
-            ->execute()
-            ->fetch()['count'];
-        
-        // Récupérer les données paginées
-        $offset = ($page - 1) * $perPage;
-        $data = $qb
-            ->limit($perPage)
-            ->offset($offset)
-            ->execute()
-            ->fetchAll();
-        
-        return [
-            'data' => $data,
-            'total' => $total,
-            'page' => $page,
-            'per_page' => $perPage,
-            'total_pages' => ceil($total / $perPage)
-        ];
-    }
-}
-```
-
-### Transactions avec Query Builder
-
-```php
-<?php
-declare(strict_types=1);
-
-class TransactionExample
-{
-    private QueryBuilder $queryBuilder;
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {}
     
-    public function transferMoney(int $fromUserId, int $toUserId, float $amount): bool
+    public function getUserStats(): array
     {
-        $this->queryBuilder->beginTransaction();
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
         
-        try {
-            // Débiter le compte source
-            $this->queryBuilder
-                ->update('accounts')
-                ->set(['balance' => 'balance - ?'])
-                ->where('user_id = ? AND balance >= ?', [$fromUserId, $amount])
-                ->execute();
-            
-            // Créditer le compte destination
-            $this->queryBuilder
-                ->update('accounts')
-                ->set(['balance' => 'balance + ?'])
-                ->where('user_id = ?', [$toUserId])
-                ->execute();
-            
-            // Enregistrer la transaction
-            $this->queryBuilder
-                ->insert('transactions')
-                ->values([
-                    'from_user_id' => $fromUserId,
-                    'to_user_id' => $toUserId,
-                    'amount' => $amount,
-                    'created_at' => date('Y-m-d H:i:s')
-                ])
-                ->execute();
-            
-            $this->queryBuilder->commit();
-            return true;
-            
-        } catch (\Exception $e) {
-            $this->queryBuilder->rollback();
-            throw $e;
-        }
+        // Statistiques simples
+        $selectBuilder = $queryBuilder
+            ->select(
+                'COUNT(*) as total_users',
+                'COUNT(CASE WHEN status = "active" THEN 1 END) as active_users',
+                'COUNT(CASE WHEN created_at >= CURDATE() THEN 1 END) as new_today'
+            )
+            ->from('users');
+        
+        return $selectBuilder->fetch();
+    }
+    
+    public function getOrderStatsByMonth(): array
+    {
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
+        
+        // Requête complexe avec Raw SQL
+        $rawBuilder = $queryBuilder->raw("
+            SELECT 
+                DATE_FORMAT(o.created_at, '%Y-%m') as month,
+                COUNT(DISTINCT o.id) as order_count,
+                COUNT(DISTINCT o.user_id) as customer_count,
+                SUM(o.total) as revenue,
+                AVG(o.total) as avg_order_value
+            FROM orders o
+            WHERE o.status = 'completed'
+            AND o.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+            GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
+            ORDER BY month DESC
+        ");
+        
+        return $rawBuilder->fetchAll();
     }
 }
 ```
 
-## Prochaines Étapes
+### 🔄 Service de Gestion des Données
 
-- [Requêtes Avancées](advanced-queries.md) - Jointures, sous-requêtes, CTE
-- [Requêtes SQL Brutes](raw-queries.md) - Quand utiliser du SQL natif
-- [Optimisation des Requêtes](query-optimization.md) - Performance et bonnes pratiques
+```php
+<?php
+
+class DataManagementService
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {}
+    
+    public function createUser(array $userData): int
+    {
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
+        
+        $insertBuilder = $queryBuilder->insert('users');
+        
+        foreach ($userData as $field => $value) {
+            $insertBuilder->set($field, $value);
+        }
+        
+        $insertBuilder->set('created_at', date('Y-m-d H:i:s'));
+        $insertBuilder->execute();
+        
+        // Récupérer l'ID inséré via une requête séparée
+        $rawBuilder = $queryBuilder->raw("SELECT LAST_INSERT_ID() as id");
+        $result = $rawBuilder->fetch();
+        
+        return (int) $result['id'];
+    }
+    
+    public function updateUserLastLogin(int $userId): void
+    {
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
+        
+        $updateBuilder = $queryBuilder->update('users');
+        $updateBuilder
+            ->set('last_login', date('Y-m-d H:i:s'))
+            ->set('login_count', 'login_count + 1')
+            ->where('id = ?', $userId);
+        
+        $updateBuilder->execute();
+    }
+    
+    public function cleanupInactiveUsers(int $daysInactive): int
+    {
+        $queryBuilder = new QueryBuilder($this->entityManager->getEmEngine());
+        
+        $cutoffDate = date('Y-m-d', strtotime("-$daysInactive days"));
+        
+        $deleteBuilder = $queryBuilder->delete('users');
+        $deleteBuilder
+            ->where('status = ?', 'inactive')
+            ->where('last_login < ?', $cutoffDate);
+        
+        $deleteBuilder->execute();
+        
+        // Compter les lignes affectées via une requête séparée
+        $rawBuilder = $queryBuilder->raw("SELECT ROW_COUNT() as affected");
+        $result = $rawBuilder->fetch();
+        
+        return (int) $result['affected'];
+    }
+}
+```
+
+---
+
+## ➡️ Étapes Suivantes
+
+Pour approfondir votre compréhension :
+
+1. 🚀 [Requêtes Avancées](advanced-queries.md) - Requêtes complexes et optimisations
+2. 🗂️ [Repositories](../../fr/orm/repositories.md) - Utilisation avec les repositories
+3. 🎯 [Exemples Pratiques](../../fr/quick-start/basic-examples.md) - Cas d'usage concrets
+
+---
+
+## 🔗 Liens Utiles
+
+- 🏠 [Retour au README](../../fr/../README.md)
+- 📖 [Documentation Complète](../../fr/README.md)
+- 🚀 [Démarrage Rapide](../../fr/quick-start/installation.md)
