@@ -1,20 +1,6 @@
 # Exemples de Base
 
-🌍 **Languages:** [🇫🇷 Français](basic-examples.md) | [🇬🇧 English](../../en/quick-start/basic-examples.md)
-
----
-
-## 📋 Table des Matières
-
-- [Blog Simple](#blog-simple)
-- [Gestion d'Utilisateurs](#gestion-dutilisateurs)
-- [Relations OneToMany](#relations-onetomany)
-- [Relations ManyToMany](#relations-manytomany)
-- [Requêtes Complexes](#requêtes-complexes)
-- [Transactions et Performance](#transactions-et-performance)
-- [Validation et Événements](#validation-et-événements)
-
----
+Exemples pratiques d'utilisation de MulerTech Database.
 
 ## Blog Simple
 
@@ -129,7 +115,7 @@ class Post
 }
 ```
 
-### 🚀 Utilisation du Blog
+### Utilisation du Blog
 
 ```php
 <?php
@@ -139,36 +125,25 @@ use App\Entity\{User, Post};
 
 // Créer un auteur
 $author = new User();
-$author->setName('Alice Dupont')
-       ->setEmail('alice@example.com');
+$author->setName('Alice Dupont');
+$author->setEmail('alice@example.com');
 
 $entityManager->persist($author);
 $entityManager->flush();
 
 // Créer un article
 $post = new Post();
-$post->setTitle('Mon premier article')
-     ->setContent('Ceci est le contenu de mon premier article sur ce blog.')
-     ->setAuthor($author);
+$post->setTitle('Mon premier article');
+$post->setContent('Ceci est le contenu de mon premier article.');
+$post->setAuthor($author);
 
 $entityManager->persist($post);
 $entityManager->flush();
 
-echo "✅ Article créé avec l'ID: " . $post->getId() . "\n";
-echo "👤 Auteur: " . $post->getAuthor()->getName() . "\n";
-
-// Publier l'article
-$post->setPublished(true);
-$entityManager->flush();
-
-echo "📰 Article publié le: " . $post->getPublishedAt()->format('Y-m-d H:i:s') . "\n";
+echo "Article créé avec l'ID: " . $post->getId() . "\n";
 ```
 
----
-
-## Gestion d'Utilisateurs
-
-### 👥 Repository Personnalisé
+## Repository Personnalisé
 
 ```php
 <?php
@@ -177,88 +152,59 @@ namespace App\Repository;
 
 use App\Entity\User;
 use MulerTech\Database\ORM\EntityRepository;
-use MulerTech\Database\Query\Builder\QueryBuilder;
 
 class UserRepository extends EntityRepository
 {
-    /**
-     * Trouver les utilisateurs récents
-     */
     public function findRecentUsers(int $days = 7): array
     {
         $date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
         
-        $queryBuilder = new QueryBuilder($this->getEntityManager()->getEmEngine());
+        $queryBuilder = $this->createQueryBuilder();
         
-        $results = $queryBuilder
-            ->select('*')
-            ->from('users', 'u')
-            ->where('u.created_at', '>=', $date)
-            ->orderBy('u.created_at', 'DESC')
-            ->getResult();
-        
-        return $this->hydrateResults($results);
+        return $queryBuilder
+            ->raw('SELECT * FROM users WHERE created_at >= ? ORDER BY created_at DESC')
+            ->bind([$date])
+            ->execute()
+            ->fetchAll();
     }
 
-    /**
-     * Rechercher par nom ou email
-     */
     public function searchUsers(string $query): array
     {
-        $queryBuilder = new QueryBuilder($this->getEntityManager()->getEmEngine());
+        $queryBuilder = $this->createQueryBuilder();
         
-        $results = $queryBuilder
-            ->select('*')
-            ->from('users', 'u')
-            ->where('u.name', 'LIKE', "%{$query}%")
-            ->orWhere('u.email', 'LIKE', "%{$query}%")
-            ->orderBy('u.name', 'ASC')
-            ->getResult();
-        
-        return $this->hydrateResults($results);
+        return $queryBuilder
+            ->raw('SELECT * FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY name')
+            ->bind(["%{$query}%", "%{$query}%"])
+            ->execute()
+            ->fetchAll();
     }
 
-    /**
-     * Statistiques des utilisateurs
-     */
     public function getUserStats(): array
     {
-        $queryBuilder = new QueryBuilder($this->getEntityManager()->getEmEngine());
+        $queryBuilder = $this->createQueryBuilder();
         
         $total = $queryBuilder
-            ->select('COUNT(*) as total')
-            ->from('users', 'u')
-            ->getResult()[0]['total'];
+            ->raw('SELECT COUNT(*) as total FROM users')
+            ->execute()
+            ->fetchScalar();
 
         $recent = $queryBuilder
-            ->select('COUNT(*) as recent')
-            ->from('users', 'u')
-            ->where('u.created_at', '>=', date('Y-m-d H:i:s', strtotime('-30 days')))
-            ->getResult()[0]['recent'];
+            ->raw('SELECT COUNT(*) as recent FROM users WHERE created_at >= ?')
+            ->bind([date('Y-m-d H:i:s', strtotime('-30 days'))])
+            ->execute()
+            ->fetchScalar();
 
         return [
             'total' => (int)$total,
-            'recent_30_days' => (int)$recent,
-            'growth_rate' => $total > 0 ? round(($recent / $total) * 100, 2) : 0
+            'recent_30_days' => (int)$recent
         ];
-    }
-
-    private function hydrateResults(array $results): array
-    {
-        $entities = [];
-        foreach ($results as $result) {
-            $entities[] = $this->getEntityManager()->getEmEngine()->hydrateEntity(User::class, $result);
-        }
-        return $entities;
     }
 }
 ```
 
----
-
 ## Relations OneToMany
 
-### 📝 Entité avec Collection
+### Entité avec Collection
 
 ```php
 <?php
@@ -316,11 +262,9 @@ class Category
 }
 ```
 
----
-
 ## Relations ManyToMany
 
-### 🏷️ Système de Tags
+### Système de Tags
 
 ```php
 <?php
@@ -376,11 +320,9 @@ class Tag
 }
 ```
 
----
-
 ## Requêtes Complexes
 
-### 🔍 Query Builder Avancé
+### Query Builder
 
 ```php
 <?php
@@ -388,34 +330,30 @@ require_once 'bootstrap.php';
 
 use MulerTech\Database\Query\Builder\QueryBuilder;
 
-$queryBuilder = new QueryBuilder($entityManager->getEmEngine());
+$queryBuilder = new QueryBuilder();
 
-// Posts publiés avec auteur et catégorie
+// Posts publiés avec auteur
 $publishedPosts = $queryBuilder
-    ->select([
-        'p.title',
-        'u.name as author_name',
-        'c.name as category_name',
-        'p.published_at'
-    ])
-    ->from('posts', 'p')
-    ->join('users', 'u', 'p.user_id = u.id')
-    ->leftJoin('categories', 'c', 'p.category_id = c.id')
-    ->where('p.published', '=', true)
-    ->orderBy('p.published_at', 'DESC')
-    ->limit(5)
-    ->getResult();
+    ->raw('
+        SELECT p.title, u.name as author_name, p.published_at
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.published = ?
+        ORDER BY p.published_at DESC
+        LIMIT 5
+    ')
+    ->bind([true])
+    ->execute()
+    ->fetchAll();
 
 foreach ($publishedPosts as $post) {
     echo "- {$post['title']} par {$post['author_name']}\n";
 }
 ```
 
----
+## Transactions
 
-## Transactions et Performance
-
-### 💾 Gestion des Transactions
+### Gestion des Transactions
 
 ```php
 <?php
@@ -425,13 +363,11 @@ use App\Entity\User;
 
 // Transaction sécurisée
 try {
-    $entityManager->beginTransaction();
-    
     // Créer des utilisateurs par batch
     for ($i = 1; $i <= 100; $i++) {
         $user = new User();
-        $user->setName("User {$i}")
-             ->setEmail("user{$i}@example.com");
+        $user->setName("User {$i}");
+        $user->setEmail("user{$i}@example.com");
         
         $entityManager->persist($user);
         
@@ -442,77 +378,46 @@ try {
     }
     
     $entityManager->flush();
-    $entityManager->commit();
     
-    echo "✅ 100 utilisateurs créés avec succès\n";
+    echo "100 utilisateurs créés avec succès\n";
     
 } catch (Exception $e) {
-    $entityManager->rollback();
-    echo "❌ Erreur : " . $e->getMessage() . "\n";
+    echo "Erreur : " . $e->getMessage() . "\n";
 }
 ```
 
----
+## Validation
 
-## Validation et Événements
-
-### 🔔 Système d'Événements
+### Validation Simple
 
 ```php
 <?php
 require_once 'bootstrap.php';
 
-use App\Entity\{User, Post};
-use MulerTech\Database\Event\{PrePersistEvent, PostPersistEvent};
+use App\Entity\User;
 
-$eventManager = $entityManager->getEventManager();
-
-// Validation avant sauvegarde
-$eventManager->addListener(PrePersistEvent::class, function(PrePersistEvent $event) {
-    $entity = $event->getEntity();
-    
-    if ($entity instanceof User) {
-        if (!filter_var($entity->getEmail(), FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Email invalide");
-        }
-        echo "🔍 Validation utilisateur OK\n";
+function validateUser(User $user): bool
+{
+    if (!filter_var($user->getEmail(), FILTER_VALIDATE_EMAIL)) {
+        throw new InvalidArgumentException("Email invalide");
     }
-});
+    return true;
+}
 
-// Actions après sauvegarde
-$eventManager->addListener(PostPersistEvent::class, function(PostPersistEvent $event) {
-    $entity = $event->getEntity();
-    
-    if ($entity instanceof Post) {
-        echo "📧 Notification envoyée pour: {$entity->getTitle()}\n";
-    }
-});
-
-// Test des événements
+// Test de validation
 $user = new User();
-$user->setName('Diana Prince')
-     ->setEmail('diana@example.com');
+$user->setName('Diana Prince');
+$user->setEmail('diana@example.com');
 
-$entityManager->persist($user);
-$entityManager->flush();
+if (validateUser($user)) {
+    $entityManager->persist($user);
+    $entityManager->flush();
+    echo "Utilisateur créé avec succès\n";
+}
 ```
 
----
+## Étapes Suivantes
 
-## ➡️ Étapes Suivantes
-
-Continuez votre apprentissage avec :
-
-1. 🎨 [Attributs de Mapping](../entity-mapping/attributes.md) - Mapping avancé
-2. 🗄️ [Entity Manager](../orm/entity-manager.md) - API complète
-3. 🔧 [Query Builder](../query-builder/basic-queries.md) - Requêtes avancées
-4. 🏗️ [Architecture](../core-concepts/architecture.md) - Concepts techniques
-
----
-
-## 🔗 Liens Utiles
-
-- 🏠 [Retour au README](../../README.md)
-- ⬅️ [Premiers Pas](first-steps.md)
-- ➡️ [Attributs de Mapping](../entity-mapping/attributes.md)
-- 📖 [Documentation Complète](../README.md)
+- [Attributs de Mapping](../entity-mapping/attributes.md)
+- [Entity Manager](../orm/entity-manager.md)
+- [Query Builder](../query-builder/basic-queries.md)
