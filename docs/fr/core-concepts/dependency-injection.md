@@ -1,284 +1,263 @@
 # Injection de Dépendances
 
+🌍 **Languages:** [🇫🇷 Français](dependency-injection.md) | [🇬🇧 English](../../en/core-concepts/dependency-injection.md)
+
+---
+
 ## Table des Matières
 - [Vue d'ensemble](#vue-densemble)
-- [Configuration du Container](#configuration-du-container)
-- [Injection dans les Services](#injection-dans-les-services)
-- [Services Disponibles](#services-disponibles)
-- [Création de Services Personnalisés](#création-de-services-personnalisés)
+- [Configuration avec un Container PSR-11](#configuration-avec-un-container-psr-11)
+- [Services Principaux](#services-principaux)
+- [Exemples d'Intégration](#exemples-dintégration)
 - [Bonnes Pratiques](#bonnes-pratiques)
+
+---
 
 ## Vue d'ensemble
 
-MulerTech Database utilise un système d'injection de dépendances pour gérer les services et leurs dépendances. Ce système permet une meilleure testabilité et une architecture plus modulaire.
+MulerTech Database ne fournit pas son propre container d'injection de dépendances, mais s'intègre parfaitement avec tout container compatible PSR-11. Cette approche offre une flexibilité maximale pour l'intégration dans vos applications existantes.
 
 ### Principe de Base
 
 ```php
 <?php
-use MulerTech\Database\Core\Container\Container;
-use MulerTech\Database\ORM\EmEngine;
-
-// Le container gère automatiquement les dépendances
-$container = new Container();
-$emEngine = $container->get(EmEngine::class);
-```
-
-## Configuration du Container
-
-### Configuration Automatique
-
-Le container se configure automatiquement avec les services de base :
-
-```php
-<?php
-use MulerTech\Database\Core\Container\Container;
+use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Mapping\MetadataRegistry;
 
-$container = new Container([
-    'database' => [
-        'driver' => MySQLDriver::class,
-        'host' => 'localhost',
-        'database' => 'myapp',
-        'username' => 'user',
-        'password' => 'password'
-    ]
+// Configuration manuelle simple
+$driver = new MySQLDriver([
+    'host' => 'localhost',
+    'database' => 'myapp',
+    'username' => 'user',
+    'password' => 'password'
 ]);
+
+$metadataRegistry = new MetadataRegistry('/path/to/entities');
+$entityManager = new EntityManager($driver, $metadataRegistry);
 ```
 
-### Configuration Manuelle
+---
 
-Vous pouvez également enregistrer des services manuellement :
+## Configuration avec un Container PSR-11
+
+### Exemple avec PHP-DI
 
 ```php
 <?php
-use MulerTech\Database\Core\Container\Container;
+use DI\ContainerBuilder;
+use MulerTech\Database\ORM\EntityManager;
+use MulerTech\Database\ORM\EntityManagerInterface;
+use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
+use MulerTech\Database\Mapping\MetadataRegistry;
 
-$container = new Container();
+$containerBuilder = new ContainerBuilder();
 
-// Service simple
-$container->bind('config', ['debug' => true]);
+$containerBuilder->addDefinitions([
+    // Configuration de base
+    'database.config' => [
+        'host' => $_ENV['DB_HOST'] ?? 'localhost',
+        'database' => $_ENV['DB_NAME'] ?? 'myapp',
+        'username' => $_ENV['DB_USER'] ?? 'user',
+        'password' => $_ENV['DB_PASS'] ?? 'password',
+    ],
+    
+    'entities.path' => '/path/to/your/entities',
+    
+    // Driver de base de données
+    PhpDatabaseInterface::class => function($container) {
+        return new MySQLDriver($container->get('database.config'));
+    },
+    
+    // Registre des métadonnées
+    MetadataRegistry::class => function($container) {
+        return new MetadataRegistry($container->get('entities.path'));
+    },
+    
+    // Entity Manager
+    EntityManagerInterface::class => function($container) {
+        return new EntityManager(
+            $container->get(PhpDatabaseInterface::class),
+            $container->get(MetadataRegistry::class)
+        );
+    },
+]);
 
-// Service avec factory
-$container->bind(Logger::class, function($container) {
-    return new Logger($container->get('config')['debug']);
-});
-
-// Singleton
-$container->singleton(CacheManager::class, function($container) {
-    return new CacheManager($container->get('config'));
-});
+$container = $containerBuilder->build();
 ```
 
-## Injection dans les Services
-
-### Injection par Constructeur
-
-Le container résout automatiquement les dépendances par constructeur :
+### Exemple avec Symfony DI
 
 ```php
 <?php
-use MulerTech\Database\ORM\EmEngine;
-use MulerTech\Database\Database\Interface\DatabaseDriverInterface;
+// config/services.yaml
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
 
+    # Configuration
+    app.database.config:
+        class: array
+        arguments:
+            - host: '%env(DB_HOST)%'
+              database: '%env(DB_NAME)%'
+              username: '%env(DB_USER)%'
+              password: '%env(DB_PASS)%'
+
+    # Driver
+    MulerTech\Database\Database\Interface\PhpDatabaseInterface:
+        class: MulerTech\Database\Database\MySQLDriver
+        arguments:
+            - '@app.database.config'
+
+    # Métadonnées
+    MulerTech\Database\Mapping\MetadataRegistry:
+        arguments:
+            - '%kernel.project_dir%/src/Entity'
+
+    # Entity Manager
+    MulerTech\Database\ORM\EntityManagerInterface:
+        class: MulerTech\Database\ORM\EntityManager
+        arguments:
+            - '@MulerTech\Database\Database\Interface\PhpDatabaseInterface'
+            - '@MulerTech\Database\Mapping\MetadataRegistry'
+```
+
+---
+
+## Services Principaux
+
+### Services Core Disponibles
+
+| Service | Interface | Description |
+|---------|-----------|-------------|
+| `EntityManager` | `EntityManagerInterface` | Point d'entrée principal de l'ORM |
+| `MySQLDriver` | `PhpDatabaseInterface` | Driver de base de données MySQL |
+| `MetadataRegistry` | - | Registre des métadonnées d'entités |
+| `EmEngine` | - | Moteur interne de l'ORM |
+
+### Configuration des Services
+
+```php
+<?php
+use MulerTech\Database\ORM\EntityRepository;
+
+// Service personnalisé utilisant l'EntityManager
 class UserService
 {
     public function __construct(
-        private EmEngine $emEngine,
-        private DatabaseDriverInterface $driver,
-        private LoggerInterface $logger
+        private EntityManagerInterface $entityManager
     ) {}
 
-    public function createUser(array $userData): User
+    public function findUserByEmail(string $email): ?User
     {
-        $this->logger->info('Creating user', $userData);
-        
+        $repository = $this->entityManager->getRepository(User::class);
+        return $repository->findOneBy(['email' => $email]);
+    }
+
+    public function createUser(string $name, string $email): User
+    {
         $user = new User();
-        $user->setName($userData['name']);
-        $user->setEmail($userData['email']);
+        $user->setName($name);
+        $user->setEmail($email);
         
-        $this->emEngine->persist($user);
-        $this->emEngine->flush();
+        // Utilisation directe de l'EmEngine pour la persistance
+        $this->entityManager->getEmEngine()->persist($user);
+        $this->entityManager->getEmEngine()->flush();
         
         return $user;
     }
 }
-
-// Résolution automatique
-$userService = $container->get(UserService::class);
 ```
 
-### Injection par Interface
+---
 
-Le container peut résoudre les interfaces vers leurs implémentations :
+## Exemples d'Intégration
+
+### Avec Laravel
 
 ```php
 <?php
-use MulerTech\Database\Core\Container\Container;
-use MulerTech\Database\Database\Interface\DatabaseDriverInterface;
+// app/Providers/DatabaseServiceProvider.php
+use Illuminate\Support\ServiceProvider;
+use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Mapping\MetadataRegistry;
 
-$container = new Container();
-
-// Liaison interface -> implémentation
-$container->bind(DatabaseDriverInterface::class, MySQLDriver::class);
-
-// Le service recevra automatiquement MySQLDriver
-class RepositoryService
+class DatabaseServiceProvider extends ServiceProvider
 {
-    public function __construct(
-        private DatabaseDriverInterface $driver
-    ) {}
-}
-```
-
-## Services Disponibles
-
-### Services Core
-
-| Service | Interface | Description |
-|---------|-----------|-------------|
-| `EmEngine` | - | Moteur ORM principal |
-| `DatabaseDriverInterface` | `MySQLDriver` | Driver de base de données |
-| `MetadataRegistry` | - | Registre des métadonnées d'entités |
-| `ChangeSetManager` | - | Gestionnaire des changements |
-| `EventDispatcher` | - | Gestionnaire d'événements |
-
-### Services de Cache
-
-```php
-<?php
-use MulerTech\Database\Core\Cache\CacheInterface;
-use MulerTech\Database\Core\Cache\ArrayCache;
-
-// Cache en mémoire (par défaut)
-$container->bind(CacheInterface::class, ArrayCache::class);
-
-// Cache Redis personnalisé
-$container->bind(CacheInterface::class, function($container) {
-    return new RedisCache($container->get('redis.connection'));
-});
-```
-
-### Services de Logging
-
-```php
-<?php
-use Psr\Log\LoggerInterface;
-use Monolog\Logger;
-
-$container->bind(LoggerInterface::class, function($container) {
-    $logger = new Logger('mulertech-db');
-    $logger->pushHandler(new StreamHandler('logs/database.log'));
-    return $logger;
-});
-```
-
-## Création de Services Personnalisés
-
-### Service Simple
-
-```php
-<?php
-class EmailService
-{
-    public function __construct(
-        private array $config,
-        private LoggerInterface $logger
-    ) {}
-
-    public function sendWelcomeEmail(User $user): void
+    public function register(): void
     {
-        $this->logger->info('Sending welcome email', ['user_id' => $user->getId()]);
-        // Logique d'envoi d'email
+        $this->app->singleton(MySQLDriver::class, function ($app) {
+            return new MySQLDriver([
+                'host' => config('database.connections.mysql.host'),
+                'database' => config('database.connections.mysql.database'),
+                'username' => config('database.connections.mysql.username'),
+                'password' => config('database.connections.mysql.password'),
+            ]);
+        });
+
+        $this->app->singleton(MetadataRegistry::class, function ($app) {
+            return new MetadataRegistry(app_path('Models'));
+        });
+
+        $this->app->singleton(EntityManager::class, function ($app) {
+            return new EntityManager(
+                $app->make(MySQLDriver::class),
+                $app->make(MetadataRegistry::class)
+            );
+        });
     }
 }
-
-// Enregistrement
-$container->bind(EmailService::class);
-$container->bind('email.config', [
-    'smtp_host' => 'smtp.example.com',
-    'smtp_port' => 587
-]);
 ```
 
-### Service avec Configuration
+### Avec un Container Générique
 
 ```php
 <?php
-class NotificationService
-{
-    public function __construct(
-        private EmEngine $emEngine,
-        private EmailService $emailService,
-        private array $config
-    ) {}
+use Psr\Container\ContainerInterface;
 
-    public function notifyUserRegistration(User $user): void
+class DatabaseContainerFactory
+{
+    public static function create(array $config): ContainerInterface
     {
-        // Sauvegarder la notification
-        $notification = new Notification();
-        $notification->setUser($user);
-        $notification->setType('registration');
+        $container = new YourFavoriteContainer();
         
-        $this->emEngine->persist($notification);
-        $this->emEngine->flush();
-
-        // Envoyer l'email
-        if ($this->config['send_emails']) {
-            $this->emailService->sendWelcomeEmail($user);
-        }
+        $container->set('database.config', $config);
+        
+        $container->set(MySQLDriver::class, function($container) {
+            return new MySQLDriver($container->get('database.config'));
+        });
+        
+        $container->set(MetadataRegistry::class, function($container) {
+            return new MetadataRegistry($container->get('entities.path'));
+        });
+        
+        $container->set(EntityManager::class, function($container) {
+            return new EntityManager(
+                $container->get(MySQLDriver::class),
+                $container->get(MetadataRegistry::class)
+            );
+        });
+        
+        return $container;
     }
 }
 
-// Configuration
-$container->bind('notification.config', [
-    'send_emails' => true,
-    'queue_notifications' => false
+// Utilisation
+$container = DatabaseContainerFactory::create([
+    'host' => 'localhost',
+    'database' => 'myapp',
+    'username' => 'user',
+    'password' => 'password'
 ]);
 
-$container->bind(NotificationService::class, function($container) {
-    return new NotificationService(
-        $container->get(EmEngine::class),
-        $container->get(EmailService::class),
-        $container->get('notification.config')
-    );
-});
+$entityManager = $container->get(EntityManager::class);
 ```
 
-### Service Provider Pattern
-
-```php
-<?php
-use MulerTech\Database\Core\Container\ServiceProviderInterface;
-
-class AppServiceProvider implements ServiceProviderInterface
-{
-    public function register(Container $container): void
-    {
-        // Services core de l'application
-        $container->bind(UserService::class);
-        $container->bind(ProductService::class);
-        $container->bind(OrderService::class);
-
-        // Configuration partagée
-        $container->bind('app.config', [
-            'timezone' => 'Europe/Paris',
-            'locale' => 'fr_FR'
-        ]);
-    }
-
-    public function boot(Container $container): void
-    {
-        // Initialisation après enregistrement
-        $userService = $container->get(UserService::class);
-        $userService->initialize();
-    }
-}
-
-// Enregistrement du provider
-$container->addProvider(new AppServiceProvider());
-```
+---
 
 ## Bonnes Pratiques
 
@@ -290,109 +269,43 @@ $container->addProvider(new AppServiceProvider());
 class UserController
 {
     public function __construct(
-        private UserRepositoryInterface $userRepository
+        private EntityManagerInterface $entityManager
     ) {}
 }
 
-// ❌ Éviter - Dépend de l'implémentation
+// ❌ Éviter - Dépend de l'implémentation concrète
 class UserController
 {
     public function __construct(
-        private UserRepository $userRepository
+        private EntityManager $entityManager
     ) {}
 }
 ```
 
-### 2. Évitez les Dépendances Circulaires
+### 2. Configuration par Environnement
 
 ```php
 <?php
-// ❌ Éviter - Dépendance circulaire
-class ServiceA
-{
-    public function __construct(private ServiceB $serviceB) {}
-}
-
-class ServiceB
-{
-    public function __construct(private ServiceA $serviceA) {}
-}
-
-// ✅ Bon - Utiliser un service commun ou des événements
-class ServiceA
-{
-    public function __construct(private EventDispatcher $eventDispatcher) {}
-    
-    public function doSomething(): void
-    {
-        $this->eventDispatcher->dispatch(new SomethingHappened());
-    }
-}
-
-class ServiceB
-{
-    public function __construct(private EventDispatcher $eventDispatcher) {}
-    
-    public function __invoke(): void
-    {
-        $this->eventDispatcher->addListener(SomethingHappened::class, [$this, 'handle']);
-    }
-}
-```
-
-### 3. Configurez les Services par Environnement
-
-```php
-<?php
-// config/services_dev.php
-return [
-    LoggerInterface::class => function($container) {
-        $logger = new Logger('dev');
-        $logger->pushHandler(new StreamHandler('php://stdout'));
-        return $logger;
-    },
-    
-    CacheInterface::class => ArrayCache::class, // Cache en mémoire pour les tests
+// Configuration de développement
+$devConfig = [
+    'host' => 'localhost',
+    'database' => 'myapp_dev',
+    'username' => 'dev_user',
+    'password' => 'dev_password'
 ];
 
-// config/services_prod.php
-return [
-    LoggerInterface::class => function($container) {
-        $logger = new Logger('prod');
-        $logger->pushHandler(new RotatingFileHandler('logs/app.log'));
-        return $logger;
-    },
-    
-    CacheInterface::class => function($container) {
-        return new RedisCache($container->get('redis'));
-    },
+// Configuration de production
+$prodConfig = [
+    'host' => $_ENV['DB_HOST'],
+    'database' => $_ENV['DB_NAME'],
+    'username' => $_ENV['DB_USER'],
+    'password' => $_ENV['DB_PASS']
 ];
+
+$config = $_ENV['APP_ENV'] === 'production' ? $prodConfig : $devConfig;
 ```
 
-### 4. Utilisez des Factory pour la Logique Complexe
-
-```php
-<?php
-class DatabaseConnectionFactory
-{
-    public function create(array $config): DatabaseDriverInterface
-    {
-        return match($config['driver']) {
-            'mysql' => new MySQLDriver($config),
-            'postgresql' => new PostgreSQLDriver($config),
-            'sqlite' => new SQLiteDriver($config),
-            default => throw new InvalidArgumentException("Unsupported driver: {$config['driver']}")
-        };
-    }
-}
-
-$container->bind(DatabaseDriverInterface::class, function($container) {
-    $factory = new DatabaseConnectionFactory();
-    return $factory->create($container->get('database.config'));
-});
-```
-
-### 5. Testez avec des Mocks
+### 3. Tests avec Injection
 
 ```php
 <?php
@@ -400,31 +313,46 @@ use PHPUnit\Framework\TestCase;
 
 class UserServiceTest extends TestCase
 {
+    private EntityManagerInterface $entityManager;
+    private UserService $userService;
+    
+    protected function setUp(): void
+    {
+        // Configuration de test avec SQLite en mémoire
+        $driver = new MySQLDriver([
+            'host' => 'localhost',
+            'database' => ':memory:'
+        ]);
+        
+        $metadataRegistry = new MetadataRegistry(__DIR__ . '/Fixtures/Entities');
+        $this->entityManager = new EntityManager($driver, $metadataRegistry);
+        $this->userService = new UserService($this->entityManager);
+    }
+    
     public function testCreateUser(): void
     {
-        $container = new Container();
+        $user = $this->userService->createUser('John Doe', 'john@example.com');
         
-        // Mock des dépendances
-        $mockEmEngine = $this->createMock(EmEngine::class);
-        $mockLogger = $this->createMock(LoggerInterface::class);
-        
-        $container->bind(EmEngine::class, $mockEmEngine);
-        $container->bind(LoggerInterface::class, $mockLogger);
-        
-        $userService = $container->get(UserService::class);
-        
-        // Test du service
-        $user = $userService->createUser(['name' => 'John', 'email' => 'john@example.com']);
-        
-        $this->assertInstanceOf(User::class, $user);
-        $this->assertEquals('John', $user->getName());
+        $this->assertEquals('John Doe', $user->getName());
+        $this->assertEquals('john@example.com', $user->getEmail());
     }
 }
 ```
 
 ---
 
-**Navigation :**
-- [← Architecture](architecture.md)
-- [→ Configuration](configuration.md)
-- [↑ Concepts Fondamentaux](../README.md)
+## ➡️ Étapes Suivantes
+
+Pour approfondir votre compréhension :
+
+1. 🏗️ [Architecture](architecture.md) - Architecture générale
+2. 🗄️ [Entity Manager](../../fr/orm/entity-manager.md) - Utilisation détaillée
+3. 🎯 [Exemples Pratiques](../../fr/quick-start/basic-examples.md) - Cas d'usage concrets
+
+---
+
+## 🔗 Liens Utiles
+
+- 🏠 [Retour au README](../../fr/../README.md)
+- 📖 [Documentation Complète](../../fr/README.md)
+- 🚀 [Démarrage Rapide](../../fr/quick-start/installation.md)

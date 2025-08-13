@@ -4,7 +4,6 @@
 
 ---
 
-
 ## 📋 Table des Matières
 
 - [Vue d'Ensemble](#vue-densemble)
@@ -73,30 +72,25 @@ Le **point d'entrée principal** de l'ORM, responsable de la gestion des entité
 ```php
 interface EntityManagerInterface
 {
-    // Gestion des entités
-    public function persist(object $entity): void;
-    public function remove(object $entity): void;
-    public function flush(): void;
-    public function clear(): void;
+    // Accès aux composants internes
+    public function getEmEngine(): EmEngine;
+    public function getPdm(): PhpDatabaseInterface;
+    public function getMetadataRegistry(): MetadataRegistry;
+    public function getEventManager(): ?EventManager;
     
     // Récupération
-    public function find(string $class, mixed $id): ?object;
-    public function findBy(string $class, array $criteria): array;
+    public function find(string $entity, string|int $idOrWhere): ?object;
     
     // Repositories
-    public function getRepository(string $class): EntityRepository;
-    
-    // Utilitaires
-    public function detach(object $entity): void;
-    public function refresh(object $entity): void;
+    public function getRepository(string $entity): EntityRepository;
 }
 ```
 
 **Responsabilités :**
-- Orchestrer les opérations CRUD
-- Gérer l'Identity Map
-- Coordonner le Unit of Work
-- Interfacer avec l'EmEngine
+- Orchestrer les opérations CRUD via EmEngine
+- Gérer l'accès aux repositories
+- Interfacer avec la base de données
+- Coordination des événements
 
 ### ⚙️ EmEngine (Entity Manager Engine)
 
@@ -105,27 +99,26 @@ Le **cœur technique** qui implémente la logique métier de l'ORM.
 ```php
 class EmEngine
 {
-    private EntityManagerInterface $entityManager;
-    private MetadataRegistry $metadataRegistry;
+    private StateManagerInterface $stateManager;
     private IdentityMap $identityMap;
+    private ChangeDetector $changeDetector;
     private ChangeSetManager $changeSetManager;
-    private FlushOrchestrator $flushOrchestrator;
+    private EntityHydrator $hydrator;
+    private EntityRegistry $entityRegistry;
+    private PersistenceManager $persistenceManager;
+    private RelationManager $relationManager;
     
     public function __construct(
         EntityManagerInterface $entityManager,
         MetadataRegistry $metadataRegistry
     ) {
-        $this->entityManager = $entityManager;
-        $this->metadataRegistry = $metadataRegistry;
-        $this->identityMap = new IdentityMap();
-        $this->changeSetManager = new ChangeSetManager();
-        $this->flushOrchestrator = new FlushOrchestrator($this);
+        // Initialisation des composants
     }
 }
 ```
 
 **Responsabilités :**
-- Gestion des états d'entités
+- Gestion des états d'entités via StateManager
 - Change Detection (détection des modifications)
 - Orchestration des opérations de persistance
 - Hydratation des entités
@@ -139,19 +132,19 @@ Le **registre des métadonnées** qui contient les informations de mapping.
 class MetadataRegistry
 {
     private array $metadata = [];
-    private CacheInterface $cache;
+    private EntityProcessor $entityProcessor;
     
-    public function registerEntity(string $class): void;
+    public function __construct(?string $entitiesPath = null);
+    public function loadEntitiesFromPath(string $entitiesPath): void;
     public function getEntityMetadata(string $class): EntityMetadata;
-    public function hasEntity(string $class): bool;
-    public function autoRegisterEntities(string $directory): void;
+    public function hasEntityMetadata(string $class): bool;
 }
 ```
 
 **Responsabilités :**
-- Analyser les attributs des entités
+- Analyser les attributs des entités via EntityProcessor
 - Stocker les métadonnées de mapping
-- Cache des métadonnées pour les performances
+- Chargement automatique des entités
 - Validation des entités
 
 ### 🔍 Query Builder
@@ -165,7 +158,6 @@ class QueryBuilder
     public function insert(string $table): InsertBuilder;
     public function update(string $table): UpdateBuilder;
     public function delete(string $table): DeleteBuilder;
-    public function raw(string $sql): RawQueryBuilder;
 }
 ```
 
@@ -180,16 +172,15 @@ class QueryBuilder
 Le **pattern Repository** pour encapsuler la logique d'accès aux données.
 
 ```php
-abstract class EntityRepository
+class EntityRepository
 {
     protected EntityManagerInterface $entityManager;
-    protected string $entityClass;
+    private string $entityName;
     
-    public function find(mixed $id): ?object;
-    public function findAll(): array;
-    public function findBy(array $criteria): array;
-    public function findOneBy(array $criteria): ?object;
-    public function count(array $criteria = []): int;
+    public function find(string|int $id): ?object;
+    public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array;
+    protected function createQueryBuilder(): QueryBuilder;
+    protected function getTableName(): string;
 }
 ```
 
@@ -218,7 +209,7 @@ graph TD
 
 1. **Application** fait une demande via EntityManager
 2. **EntityManager** délègue au Repository approprié
-3. **Repository** vérifie l'Identity Map
+3. **Repository** vérifie l'Identity Map via EmEngine
 4. Si **cache miss**, construction de la requête
 5. **Exécution** de la requête en base
 6. **Hydratation** des résultats en entités
@@ -229,13 +220,13 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Application] --> B[EntityManager.persist]
-    B --> C[EmEngine]
+    A[Application] --> B[EmEngine.persist]
+    B --> C[StateManager]
     C --> D[Entity State Management]
     D --> E[Track Changes]
     E --> F[Application.flush]
     F --> G[Change Detection]
-    G --> H[Unit of Work]
+    G --> H[PersistenceManager]
     H --> I[SQL Generation]
     I --> J[Transaction]
     J --> K[Database]
@@ -244,11 +235,11 @@ graph TD
 
 **Étapes détaillées :**
 
-1. **persist()** marque l'entité pour persistance
+1. **persist()** marque l'entité pour persistance via StateManager
 2. **Suivi** des modifications dans le ChangeSet
 3. **flush()** déclenche la synchronisation
 4. **Détection** des changements (dirty checking)
-5. **Planification** des opérations (Unit of Work)
+5. **Planification** des opérations via PersistenceManager
 6. **Génération** du SQL optimisé
 7. **Exécution** dans une transaction
 8. **Mise à jour** des caches et métadonnées
@@ -257,27 +248,22 @@ graph TD
 
 ## Patterns Architecturaux
 
-### 🔄 Unit of Work Pattern
+### 🔄 Persistence Manager Pattern
 
-Gère les modifications comme une **unité atomique**.
+Gère les modifications comme une **unité atomique** via le PersistenceManager.
 
 ```php
-class FlushOrchestrator
+class PersistenceManager
 {
-    private array $scheduledInserts = [];
-    private array $scheduledUpdates = [];
-    private array $scheduledDeletes = [];
+    private InsertionProcessor $insertionProcessor;
+    private UpdateProcessor $updateProcessor;
+    private DeletionProcessor $deletionProcessor;
     
-    public function scheduleForInsert(object $entity): void
+    public function flush(): void
     {
-        $this->scheduledInserts[] = $entity;
-    }
-    
-    public function executeOperations(): void
-    {
-        $this->executeInserts();
-        $this->executeUpdates();
-        $this->executeDeletes();
+        $this->insertionProcessor->processInsertions();
+        $this->updateProcessor->processUpdates();
+        $this->deletionProcessor->processDeletions();
     }
 }
 ```
@@ -296,25 +282,20 @@ class FlushOrchestrator
 class IdentityMap
 {
     private array $entities = [];
+    private WeakMap $metadata;
+    private WeakMap $entityIds;
     
-    public function add(object $entity): void
-    {
-        $class = get_class($entity);
-        $id = $this->getEntityId($entity);
-        $this->entities[$class][$id] = $entity;
-    }
-    
-    public function get(string $class, mixed $id): ?object
-    {
-        return $this->entities[$class][$id] ?? null;
-    }
+    public function contains(string $entityClass, int|string $id): bool;
+    public function get(string $entityClass, int|string $id): ?object;
+    public function add(object $entity): void;
+    public function remove(object $entity): void;
 }
 ```
 
 **Avantages :**
 - **Performance** : Évite les requêtes redondantes
 - **Cohérence** : Une seule instance par ID
-- **Mémoire** : Gestion optimisée des références
+- **Mémoire** : Gestion optimisée via WeakMap
 
 ### 📊 Data Mapper Pattern
 
@@ -323,18 +304,10 @@ class IdentityMap
 ```php
 class EntityHydrator
 {
-    public function hydrateEntity(string $class, array $data): object
-    {
-        $metadata = $this->metadataRegistry->getEntityMetadata($class);
-        $entity = new $class();
-        
-        foreach ($metadata->getColumns() as $column) {
-            $value = $this->processValue($data[$column->getColumnName()], $column);
-            $this->setProperty($entity, $column->getPropertyName(), $value);
-        }
-        
-        return $entity;
-    }
+    public function __construct(private readonly MetadataRegistry $metadataRegistry);
+    
+    public function hydrateEntity(string $class, array $data): object;
+    public function hydrateCollection(string $class, array $rows): array;
 }
 ```
 
@@ -343,17 +316,15 @@ class EntityHydrator
 **Encapsulation** de la logique d'accès aux données.
 
 ```php
-class UserRepository extends EntityRepository
+class EntityRepository
 {
-    public function findActiveUsers(): array
-    {
-        return $this->findBy(['isActive' => true]);
-    }
+    protected EntityManagerInterface $entityManager;
+    private string $entityName;
     
-    public function findByEmail(string $email): ?User
-    {
-        return $this->findOneBy(['email' => $email]);
-    }
+    public function find(string|int $id): ?object;
+    public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array;
+    protected function createQueryBuilder(): QueryBuilder;
+    protected function getTableName(): string;
 }
 ```
 
@@ -364,12 +335,14 @@ class UserRepository extends EntityRepository
 ### 📋 États des Entités
 
 ```php
-enum EntityState
+enum EntityLifecycleState: string
 {
-    case NEW;        // Nouvelle entité, pas encore persistée
-    case MANAGED;    // Entité gérée par l'EntityManager
-    case DETACHED;   // Entité détachée du contexte
-    case REMOVED;    // Entité marquée pour suppression
+    case NEW = 'new';        // Nouvelle entité, pas encore persistée
+    case MANAGED = 'managed'; // Entité gérée par l'EntityManager
+    case DETACHED = 'detached'; // Entité détachée du contexte
+    case REMOVED = 'removed';  // Entité marquée pour suppression
+    
+    public function canTransitionTo(EntityLifecycleState $to): bool;
 }
 ```
 
@@ -379,30 +352,25 @@ enum EntityState
 stateDiagram-v2
     [*] --> NEW : new Entity()
     NEW --> MANAGED : persist()
-    MANAGED --> MANAGED : property changes
+    NEW --> DETACHED : detach()
+    NEW --> REMOVED : remove()
     MANAGED --> REMOVED : remove()
     MANAGED --> DETACHED : detach()
-    DETACHED --> MANAGED : merge()
     REMOVED --> [*] : flush()
-    NEW --> [*] : GC if not persisted
+    DETACHED --> [*] : GC
 ```
 
 **Gestion des transitions :**
 
 ```php
-class EntityStateManager
+class StateManagerInterface
 {
-    private array $entityStates = [];
-    
-    public function getEntityState(object $entity): EntityState
-    {
-        return $this->entityStates[spl_object_id($entity)] ?? EntityState::NEW;
-    }
-    
-    public function setEntityState(object $entity, EntityState $state): void
-    {
-        $this->entityStates[spl_object_id($entity)] = $state;
-    }
+    public function getEntityState(object $entity): EntityLifecycleState;
+    public function transitionTo(object $entity, EntityLifecycleState $newState): void;
+    public function isManaged(object $entity): bool;
+    public function isNew(object $entity): bool;
+    public function isRemoved(object $entity): bool;
+    public function isDetached(object $entity): bool;
 }
 ```
 
