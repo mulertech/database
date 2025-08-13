@@ -24,7 +24,7 @@ class SchemaComparerTest extends TestCase
     private EntityManager $entityManager;
     private InformationSchema $informationSchema;
     private string $databaseName = 'db';
-    
+
     protected function setUp(): void
     {
         // Create MetadataRegistry with automatic entity loading from test directory
@@ -39,11 +39,13 @@ class SchemaComparerTest extends TestCase
 
     private function createSameTables(): void
     {
+        // Create MigrationManager first to ensure migration_history table exists
+        $migrationManager = new MigrationManager($this->entityManager);
+
         // Clean migration history to ensure migrations can run
         $this->entityManager->getPdm()->exec('DELETE FROM migration_history WHERE 1=1');
-        
+
         // Replace by a migration script
-        $migrationManager = new MigrationManager($this->entityManager);
         $migrationManager->registerMigrations(
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'OriginalMigration'
         );
@@ -52,9 +54,13 @@ class SchemaComparerTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Clean up migration history first
-        $this->entityManager->getPdm()->exec('DELETE FROM migration_history WHERE 1=1');
-        
+        // Clean up migration history first (if table exists)
+        try {
+            $this->entityManager->getPdm()->exec('DELETE FROM migration_history WHERE 1=1');
+        } catch (\Exception $e) {
+            // Table might not exist yet, ignore the error
+        }
+
         $tables = [
             'link_user_group_test',
             'users_test',
@@ -77,7 +83,7 @@ class SchemaComparerTest extends TestCase
             throw new RuntimeException(implode(', ', $errors));
         }
     }
-    
+
     public function testCompareFindsNewTables(): void
     {
         // Database has no tables
@@ -100,7 +106,7 @@ class SchemaComparerTest extends TestCase
         );
         $this->assertEmpty($diff->getTablesToDrop());
     }
-    
+
     public function testCompareFindsTablesToDrop(): void
     {
         $this->entityManager->getPdm()->exec(
@@ -112,7 +118,7 @@ class SchemaComparerTest extends TestCase
         $this->assertTrue($diff->hasDifferences());
         $this->assertEquals(['fake'], $diff->getTablesToDrop());
     }
-    
+
     public function testCompareIgnoresMigrationHistoryTable(): void
     {
         $this->createSameTables();
