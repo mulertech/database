@@ -67,47 +67,48 @@ use App\Enum\PaymentMethod;
 use MulerTech\Database\ORM\Attribute\MtEntity;
 use MulerTech\Database\ORM\Attribute\MtColumn;
 use MulerTech\Database\ORM\Attribute\MtRelation;
+use MulerTech\Database\Mapping\Types\ColumnType;
 
 #[MtEntity(table: 'payments')]
 class Payment extends BaseEntity
 {
-    #[MtColumn(type: 'int', primaryKey: true, autoIncrement: true)]
+    #[MtColumn(columnType: ColumnType::INT, columnKey: ColumnKey::PRIMARY_KEY, extra: 'AUTO_INCREMENT')]
     private int $id;
     
-    #[MtColumn(name: 'order_id', type: 'int')]
+    #[MtColumn(columnName: 'order_id', columnType: ColumnType::INT)]
     private int $orderId;
     
-    #[MtColumn(type: MoneyType::class)]
+    #[MtColumn(columnType: MoneyType::class)]
     private int $amount;
     
-    #[MtColumn(type: 'enum', values: PaymentMethod::class)]
+    #[MtColumn(columnType: ColumnType::ENUM, choices: PaymentMethod::class)]
     private PaymentMethod $method;
     
-    #[MtColumn(type: 'enum', values: PaymentStatus::class)]
+    #[MtColumn(columnType: ColumnType::ENUM, choices: PaymentStatus::class)]
     private PaymentStatus $status = PaymentStatus::PENDING;
     
-    #[MtColumn(type: 'varchar', length: 50)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 50)]
     private string $gateway; // stripe, paypal, bank_transfer
     
-    #[MtColumn(name: 'gateway_id', type: 'varchar', length: 255, nullable: true)]
+    #[MtColumn(columnName: 'gateway_id', columnType: ColumnType::VARCHAR, length: 255, isNullable: true)]
     private ?string $gatewayId = null; // ID chez le provider
     
-    #[MtColumn(name: 'gateway_reference', type: 'varchar', length: 255, nullable: true)]
+    #[MtColumn(columnName: 'gateway_reference', columnType: ColumnType::VARCHAR, length: 255, isNullable: true)]
     private ?string $gatewayReference = null;
     
-    #[MtColumn(name: 'currency_code', type: 'varchar', length: 3, default: 'EUR')]
+    #[MtColumn(columnName: 'currency_code', columnType: ColumnType::VARCHAR, length: 3, columnDefault: 'EUR')]
     private string $currencyCode = 'EUR';
     
-    #[MtColumn(type: 'json', nullable: true)]
+    #[MtColumn(columnType: ColumnType::JSON, isNullable: true)]
     private ?array $metadata = null; // Données spécifiques au gateway
     
-    #[MtColumn(name: 'failure_reason', type: 'text', nullable: true)]
+    #[MtColumn(columnName: 'failure_reason', columnType: ColumnType::TEXT, isNullable: true)]
     private ?string $failureReason = null;
     
-    #[MtColumn(name: 'processed_at', type: 'timestamp', nullable: true)]
+    #[MtColumn(columnName: 'processed_at', columnType: ColumnType::TIMESTAMP, isNullable: true)]
     private ?\DateTimeInterface $processedAt = null;
     
-    #[MtColumn(name: 'expires_at', type: 'timestamp', nullable: true)]
+    #[MtColumn(columnName: 'expires_at', columnType: ColumnType::TIMESTAMP, isNullable: true)]
     private ?\DateTimeInterface $expiresAt = null;
     
     // Relations
@@ -189,47 +190,49 @@ use App\Entity\Customer\Customer;
 use MulerTech\Database\ORM\Attribute\MtEntity;
 use MulerTech\Database\ORM\Attribute\MtColumn;
 use MulerTech\Database\ORM\Attribute\MtRelation;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnKey;
 
 #[MtEntity(table: 'payment_methods')]
 class PaymentMethod extends BaseEntity
 {
-    #[MtColumn(type: 'int', primaryKey: true, autoIncrement: true)]
+    #[MtColumn(columnType: ColumnType::INT, columnKey: ColumnKey::PRIMARY_KEY, extra: 'AUTO_INCREMENT')]
     private int $id;
     
-    #[MtColumn(name: 'customer_id', type: 'int')]
+    #[MtColumn(columnName: 'customer_id', columnType: ColumnType::INT)]
     private int $customerId;
     
-    #[MtColumn(type: 'varchar', length: 50)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 50)]
     private string $type; // card, paypal, bank_account
     
-    #[MtColumn(type: 'varchar', length: 50)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 50)]
     private string $provider; // stripe, paypal
     
-    #[MtColumn(name: 'provider_id', type: 'varchar', length: 255)]
+    #[MtColumn(columnName: 'provider_id', columnType: ColumnType::VARCHAR, length: 255)]
     private string $providerId; // ID chez le provider
     
-    #[MtColumn(name: 'display_name', type: 'varchar', length: 100)]
+    #[MtColumn(columnName: 'display_name', columnType: ColumnType::VARCHAR, length: 100)]
     private string $displayName; // "Visa ****1234"
     
-    #[MtColumn(name: 'last_four', type: 'varchar', length: 4, nullable: true)]
+    #[MtColumn(columnName: 'last_four', columnType: ColumnType::VARCHAR, length: 4, isNullable: true)]
     private ?string $lastFour = null;
     
-    #[MtColumn(name: 'card_brand', type: 'varchar', length: 20, nullable: true)]
+    #[MtColumn(columnName: 'card_brand', columnType: ColumnType::VARCHAR, length: 20, isNullable: true)]
     private ?string $cardBrand = null; // visa, mastercard, amex
     
-    #[MtColumn(name: 'expires_month', type: 'int', nullable: true)]
+    #[MtColumn(columnName: 'expires_month', columnType: ColumnType::INT, isNullable: true)]
     private ?int $expiresMonth = null;
     
-    #[MtColumn(name: 'expires_year', type: 'int', nullable: true)]
+    #[MtColumn(columnName: 'expires_year', columnType: ColumnType::INT, isNullable: true)]
     private ?int $expiresYear = null;
     
-    #[MtColumn(name: 'is_default', type: 'boolean', default: false)]
+    #[MtColumn(columnName: 'is_default', columnType: ColumnType::TINYINT, columnDefault: '0')]
     private bool $isDefault = false;
     
-    #[MtColumn(name: 'is_active', type: 'boolean', default: true)]
+    #[MtColumn(columnName: 'is_active', columnType: ColumnType::TINYINT, columnDefault: '1')]
     private bool $isActive = true;
     
-    #[MtColumn(name: 'last_used_at', type: 'timestamp', nullable: true)]
+    #[MtColumn(columnName: 'last_used_at', columnType: ColumnType::TIMESTAMP, isNullable: true)]
     private ?\DateTimeInterface $lastUsedAt = null;
     
     // Relations

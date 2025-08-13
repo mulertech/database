@@ -539,38 +539,40 @@ namespace App\Entity;
 
 use MulerTech\Database\ORM\Attribute\MtEntity;
 use MulerTech\Database\ORM\Attribute\MtColumn;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnKey;
 
 #[MtEntity(table: 'audit_logs')]
 class AuditLog
 {
-    #[MtColumn(type: 'int', primaryKey: true, autoIncrement: true)]
+    #[MtColumn(columnType: ColumnType::INT, columnKey: ColumnKey::PRIMARY_KEY, extra: 'AUTO_INCREMENT')]
     private int $id;
     
-    #[MtColumn(type: 'varchar', length: 100)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 100)]
     private string $entityType;
     
-    #[MtColumn(name: 'entity_id', type: 'int')]
+    #[MtColumn(columnName: 'entity_id', columnType: ColumnType::INT)]
     private int $entityId;
     
-    #[MtColumn(type: 'varchar', length: 20)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 20)]
     private string $action; // create, update, delete
     
-    #[MtColumn(type: 'json', nullable: true)]
+    #[MtColumn(columnType: ColumnType::JSON, isNullable: true)]
     private ?array $oldValues = null;
     
-    #[MtColumn(type: 'json', nullable: true)]
+    #[MtColumn(columnType: ColumnType::JSON, isNullable: true)]
     private ?array $newValues = null;
     
-    #[MtColumn(name: 'user_id', type: 'int', nullable: true)]
+    #[MtColumn(columnName: 'user_id', columnType: ColumnType::INT, isNullable: true)]
     private ?int $userId = null;
     
-    #[MtColumn(name: 'ip_address', type: 'varchar', length: 45, nullable: true)]
+    #[MtColumn(columnName: 'ip_address', columnType: ColumnType::VARCHAR, length: 45, isNullable: true)]
     private ?string $ipAddress = null;
     
-    #[MtColumn(name: 'user_agent', type: 'text', nullable: true)]
+    #[MtColumn(columnName: 'user_agent', columnType: ColumnType::TEXT, isNullable: true)]
     private ?string $userAgent = null;
     
-    #[MtColumn(name: 'created_at', type: 'timestamp', default: 'CURRENT_TIMESTAMP')]
+    #[MtColumn(columnName: 'created_at', columnType: ColumnType::TIMESTAMP, columnDefault: 'CURRENT_TIMESTAMP')]
     private \DateTimeInterface $createdAt;
     
     // Getters et setters...
@@ -957,10 +959,11 @@ class DatabaseOptimizationService
 namespace App\Trait;
 
 use MulerTech\Database\ORM\Attribute\MtColumn;
+use MulerTech\Database\Mapping\Types\ColumnType;
 
 trait SoftDeletableTrait
 {
-    #[MtColumn(name: 'deleted_at', type: 'timestamp', nullable: true)]
+    #[MtColumn(columnName: 'deleted_at', columnType: ColumnType::TIMESTAMP, isNullable: true)]
     private ?\DateTimeInterface $deletedAt = null;
     
     public function getDeletedAt(): ?\DateTimeInterface
@@ -1218,35 +1221,37 @@ namespace App\Entity;
 
 use MulerTech\Database\ORM\Attribute\MtEntity;
 use MulerTech\Database\ORM\Attribute\MtColumn;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnKey;
 
 #[MtEntity(table: 'post_versions')]
 class PostVersion
 {
-    #[MtColumn(type: 'int', primaryKey: true, autoIncrement: true)]
+    #[MtColumn(columnType: ColumnType::INT, columnKey: ColumnKey::PRIMARY_KEY, extra: 'AUTO_INCREMENT')]
     private int $id;
     
-    #[MtColumn(name: 'post_id', type: 'int')]
+    #[MtColumn(columnName: 'post_id', columnType: ColumnType::INT)]
     private int $postId;
     
-    #[MtColumn(name: 'version_number', type: 'int')]
+    #[MtColumn(columnName: 'version_number', columnType: ColumnType::INT)]
     private int $versionNumber;
     
-    #[MtColumn(type: 'varchar', length: 255)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 255)]
     private string $title;
     
-    #[MtColumn(type: 'text')]
+    #[MtColumn(columnType: ColumnType::TEXT)]
     private string $content;
     
-    #[MtColumn(type: 'varchar', length: 20)]
+    #[MtColumn(columnType: ColumnType::VARCHAR, length: 20)]
     private string $status;
     
-    #[MtColumn(name: 'created_by', type: 'int')]
+    #[MtColumn(columnName: 'created_by', columnType: ColumnType::INT)]
     private int $createdBy;
     
-    #[MtColumn(name: 'created_at', type: 'timestamp', default: 'CURRENT_TIMESTAMP')]
+    #[MtColumn(columnName: 'created_at', columnType: ColumnType::TIMESTAMP, columnDefault: 'CURRENT_TIMESTAMP')]
     private \DateTimeInterface $createdAt;
     
-    #[MtColumn(type: 'text', nullable: true)]
+    #[MtColumn(columnType: ColumnType::TEXT, isNullable: true)]
     private ?string $changeNotes = null;
     
     // Getters et setters...

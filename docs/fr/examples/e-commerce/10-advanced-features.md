@@ -28,12 +28,10 @@ namespace App\Entity\Analytics;
 
 use MulerTech\Database\ORM\Attribute\MtEntity;
 use MulerTech\Database\ORM\Attribute\MtColumn;
-use MulerTech\Database\ORM\Attribute\MtId;
 
 #[MtEntity(table: 'analytics_events')]
 class AnalyticsEvent
 {
-    #[MtId]
     #[MtColumn(name: 'id', type: 'bigint', autoIncrement: true)]
     private int $id;
 

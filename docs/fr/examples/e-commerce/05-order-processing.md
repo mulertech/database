@@ -861,29 +861,31 @@ use App\Enum\OrderStatus;
 use MulerTech\Database\ORM\Attribute\MtEntity;
 use MulerTech\Database\ORM\Attribute\MtColumn;
 use MulerTech\Database\ORM\Attribute\MtRelation;
+use MulerTech\Database\Mapping\Types\ColumnType;
+use MulerTech\Database\Mapping\Types\ColumnKey;
 
 #[MtEntity(table: 'order_status_history')]
 class OrderStatusHistory extends BaseEntity
 {
-    #[MtColumn(type: 'int', primaryKey: true, autoIncrement: true)]
+    #[MtColumn(columnType: ColumnType::INT, columnKey: ColumnKey::PRIMARY_KEY, extra: 'AUTO_INCREMENT')]
     private int $id;
     
-    #[MtColumn(name: 'order_id', type: 'int')]
+    #[MtColumn(columnName: 'order_id', columnType: ColumnType::INT)]
     private int $orderId;
     
-    #[MtColumn(type: 'enum', values: OrderStatus::class)]
+    #[MtColumn(columnType: ColumnType::ENUM, choices: OrderStatus::class)]
     private OrderStatus $status;
     
-    #[MtColumn(type: 'text', nullable: true)]
+    #[MtColumn(columnType: ColumnType::TEXT, isNullable: true)]
     private ?string $comment = null;
     
-    #[MtColumn(name: 'created_by', type: 'int', nullable: true)]
+    #[MtColumn(columnName: 'created_by', columnType: ColumnType::INT, isNullable: true)]
     private ?int $createdBy = null; // Admin user qui a fait le changement
     
-    #[MtColumn(name: 'is_customer_notified', type: 'boolean', default: false)]
+    #[MtColumn(columnName: 'is_customer_notified', columnType: ColumnType::TINYINT, columnDefault: '0')]
     private bool $isCustomerNotified = false;
     
-    #[MtColumn(name: 'notification_sent_at', type: 'timestamp', nullable: true)]
+    #[MtColumn(columnName: 'notification_sent_at', columnType: ColumnType::TIMESTAMP, isNullable: true)]
     private ?\DateTimeInterface $notificationSentAt = null;
     
     // Relations
