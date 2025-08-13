@@ -1,10 +1,5 @@
 g status
 g add
-gco "update phone number and adress"
-g status
-g push
-g status
-g add
 g status
 gco "update Soyhuce date"
 g push
@@ -998,3 +993,8 @@ g status
 g push
 g status
 claude
+cd /home/mulertech/projects/database && ./vendor/bin/mtdocker test
+cd /home/mulertech/projects/database && ./vendor/bin/mtdocker up -d
+cd /home/mulertech/projects/database && ./vendor/bin/mtdocker test
+cd /home/mulertech/projects/database && ./vendor/bin/mtdocker test tests/ORM/Engine/Persistence/UpdateQueryBuilderTest.php
+cd /home/mulertech/projects/database && ./vendor/bin/mtdocker phpstan

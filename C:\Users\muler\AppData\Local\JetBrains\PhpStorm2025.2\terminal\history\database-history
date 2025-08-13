@@ -1,3 +1,51 @@
+git branch -M main
+git push -u origin main
+gco "update cv.html"
+g add
+gco "update cv.html"
+g add
+gco "update cv.html"
+g status
+g add
+gco "create stylesheet.css and include it into cv.html"
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+git rm -r --cached .idea
+g status
+g push
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+g status
+g add
+g status
+g push
+./vendor/bin/mtdocker test-coverage
+./vendor/bin/mtdocker test
+g status
+g add
+g status
+./vendor/bin/mtdocker test
+./vendor/bin/mtdocker all
+g status
+g add
+g status
+g push
 g status
 g add
 gco "update phone number and adress"
@@ -949,52 +997,4 @@ cd \\wsl.localhost\Ubuntu\home\mulertech\projects\database && ./vendor/bin/mtdoc
 cd "\\wsl.localhost\Ubuntu\home\mulertech\projects\database" && ./vendor/bin/mtdocker test
 cd /mnt/c/wsl.localhost/Ubuntu/home/mulertech/projects/database && ./vendor/bin/mtdocker test
 cd "\\wsl.localhost\Ubuntu\home\mulertech\projects\database" && ./vendor/bin/mtdocker test
-g status
-g add
-mt test-c
-mt an
-g status
-g ss
-mt test-c
-g status
-g add
-g status
-g add
-g status
-mt test-c
-g status
-g add
-mt an
-g status
-g push
-mt an
-g status
-g add
-g status
-g add
-g status
-g add
-mt test-c
-mt an
-g status
-mt re
-mt list
-mt up-d
-mt down
-docker system prune -a
-mt up-d
-mt down
-docker system prune -a
-g status
-g add
-mt test-c
-g status
-g add
-g status
-g add
-mt test-c
-mt an
-g status
-g push
-g status
 claude
