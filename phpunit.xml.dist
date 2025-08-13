@@ -18,6 +18,15 @@
         <ini name="date.timezone" value="UTC" />
         <ini name="intl.default_locale" value="C.UTF-8" />
         <ini name="memory_limit" value="2048M" />
+
+        <!-- Database environment variables for tests -->
+        <env name="DATABASE_HOST" value="127.0.0.1" />
+        <env name="DATABASE_PORT" value="3306" />
+        <env name="DATABASE_PATH" value="/db" />
+        <env name="DATABASE_SCHEME" value="mysql" />
+        <env name="DATABASE_QUERY" value="serverVersion=5.7" />
+        <env name="DATABASE_USER" value="user" />
+        <env name="DATABASE_PASS" value="password" />
     </php>
     <source ignoreIndirectDeprecations="true" restrictNotices="true" restrictWarnings="true">
         <include>
