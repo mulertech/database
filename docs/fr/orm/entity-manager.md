@@ -8,85 +8,175 @@
 
 - [Vue d'Ensemble](#vue-densemble)
 - [Configuration de Base](#configuration-de-base)
+- [Méthodes Principales](#méthodes-principales)
 - [Opérations CRUD](#opérations-crud)
-- [Gestion du Cycle de Vie](#gestion-du-cycle-de-vie)
-- [États des Entités](#états-des-entités)
-- [Gestion des Relations](#gestion-des-relations)
-- [Transactions](#transactions)
-- [Performance et Optimisation](#performance-et-optimisation)
-- [Événements](#événements)
-- [API Complète](#api-complète)
+- [Gestion des Repositories](#gestion-des-repositories)
+- [Composants Internes](#composants-internes)
+- [Exemples Pratiques](#exemples-pratiques)
 
 ---
 
 ## Vue d'Ensemble
 
-L'**EntityManager** est le cœur de MulerTech Database. Il gère le cycle de vie des entités, le suivi des modifications et la synchronisation avec la base de données.
+L'**EntityManager** est le point d'entrée principal de MulerTech Database. Il fournit une interface simple pour interagir avec les entités et délègue les opérations complexes à l'**EmEngine**.
 
 ### 🎯 Responsabilités Principales
 
-- **Persistance** : Sauvegarder les entités en base
-- **Hydratation** : Transformer les données SQL en objets PHP
-- **Change Tracking** : Détecter les modifications automatiquement
-- **Relations** : Gérer les associations entre entités
-- **Transactions** : Assurer la cohérence des données
-- **Cache** : Optimiser les performances
+- **Point d'entrée** : Interface simplifiée pour l'utilisateur
+- **Delegation** : Transfert des opérations vers EmEngine
+- **Repositories** : Accès aux repositories d'entités
+- **Métadonnées** : Accès au registre des métadonnées
+- **Base de données** : Interface avec le driver de base de données
 
-### 🏗️ Architecture
+### 📦 Imports Nécessaires
 
 ```php
 <?php
-
-use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\ORM\Engine\EmEngine;
-
-// L'EntityManager utilise EmEngine pour les opérations de base
-$entityManager = new EntityManager($connection, $config);
-$emEngine = $entityManager->getEmEngine();
+use MulerTech\Database\ORM\{EntityManager, EntityManagerInterface};
+use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Mapping\MetadataRegistry;
 ```
 
 ---
 
 ## Configuration de Base
 
-### 🔧 Initialisation
+### 🔧 Initialisation Standard
 
 ```php
 <?php
-
-use MulerTech\Database\Connection\DatabaseConnection;
 use MulerTech\Database\ORM\EntityManager;
-use MulerTech\Database\Config\Configuration;
+use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Mapping\MetadataRegistry;
 
 // Configuration de la base de données
-$config = new Configuration([
+$driver = new MySQLDriver([
     'host' => 'localhost',
     'database' => 'my_database',
     'username' => 'user',
-    'password' => 'password',
-    'driver' => 'mysql',
-    'charset' => 'utf8mb4'
+    'password' => 'password'
 ]);
 
-// Connexion
-$connection = new DatabaseConnection($config);
+// Registre des métadonnées avec chargement automatique
+$metadataRegistry = new MetadataRegistry('/path/to/entities');
 
 // EntityManager
-$entityManager = new EntityManager($connection, $config);
+$entityManager = new EntityManager($driver, $metadataRegistry);
 ```
 
-### 🗂️ Configuration des Entités
+### 🔧 Avec Gestionnaire d'Événements
 
 ```php
 <?php
+use MulerTech\EventManager\EventManager;
 
-// Enregistrement des entités
-$entityManager->addEntityPath('App\\Entity\\');
-$entityManager->addEntityClass(User::class);
-$entityManager->addEntityClass(Post::class);
+// Gestionnaire d'événements (optionnel)
+$eventManager = new EventManager();
 
-// Scan automatique d'un dossier
-$entityManager->scanEntitiesDirectory('/path/to/entities/');
+// EntityManager avec événements
+$entityManager = new EntityManager($driver, $metadataRegistry, $eventManager);
+```
+
+---
+
+## Méthodes Principales
+
+L'interface `EntityManagerInterface` définit les méthodes réellement disponibles :
+
+### 🔍 Méthodes de Recherche
+
+```php
+/**
+ * Rechercher une entité par ID ou critère WHERE
+ * @param class-string $entity
+ * @param string|int $idOrWhere
+ * @return object|null
+ */
+public function find(string $entity, string|int $idOrWhere): ?object;
+
+/**
+ * Vérifier l'unicité d'une propriété
+ * @param class-string $entity
+ * @param string $property
+ * @param int|string $search
+ * @param int|string|null $id
+ * @param bool $matchCase
+ * @return bool
+ */
+public function isUnique(
+    string $entity,
+    string $property,
+    int|string $search,
+    int|string|null $id = null,
+    bool $matchCase = false
+): bool;
+```
+
+### 💾 Méthodes de Persistance
+
+```php
+/**
+ * Marquer une entité pour persistance
+ */
+public function persist(object $entity): void;
+
+/**
+ * Marquer une entité pour suppression
+ */
+public function remove(object $entity): void;
+
+/**
+ * Synchroniser toutes les modifications avec la base de données
+ */
+public function flush(): void;
+```
+
+### 🔄 Méthodes de Gestion d'État
+
+```php
+/**
+ * Fusionner une entité détachée
+ */
+public function merge(object $entity): object;
+
+/**
+ * Détacher une entité du contexte de persistance
+ */
+public function detach(object $entity): void;
+
+/**
+ * Recharger une entité depuis la base de données
+ */
+public function refresh(object $entity): void;
+```
+
+### 🗂️ Méthodes d'Accès aux Composants
+
+```php
+/**
+ * Obtenir le moteur ORM
+ */
+public function getEmEngine(): EmEngine;
+
+/**
+ * Obtenir le driver de base de données
+ */
+public function getPdm(): PhpDatabaseInterface;
+
+/**
+ * Obtenir le registre des métadonnées
+ */
+public function getMetadataRegistry(): MetadataRegistry;
+
+/**
+ * Obtenir le gestionnaire d'événements
+ */
+public function getEventManager(): ?EventManager;
+
+/**
+ * Obtenir un repository d'entité
+ */
+public function getRepository(string $entity): EntityRepository;
 ```
 
 ---
@@ -97,13 +187,12 @@ $entityManager->scanEntitiesDirectory('/path/to/entities/');
 
 ```php
 <?php
-
 use App\Entity\User;
 
 // Créer une nouvelle entité
 $user = new User();
-$user->setName('Jean Dupont')
-     ->setEmail('jean@example.com');
+$user->setName('Jean Dupont');
+$user->setEmail('jean@example.com');
 
 // Marquer pour persistance
 $entityManager->persist($user);
@@ -122,22 +211,18 @@ echo "Utilisateur créé avec l'ID: " . $user->getId();
 // Trouver par ID
 $user = $entityManager->find(User::class, 1);
 
-// Trouver un seul résultat
-$user = $entityManager->findOneBy(User::class, ['email' => 'jean@example.com']);
+// Trouver avec condition WHERE personnalisée
+$user = $entityManager->find(User::class, "email = 'jean@example.com'");
 
-// Trouver tous les résultats
-$users = $entityManager->findAll(User::class);
+// Vérifier l'unicité d'un email
+$isUnique = $entityManager->isUnique(User::class, 'email', 'test@example.com');
 
-// Trouver avec critères
-$activeUsers = $entityManager->findBy(User::class, [
-    'status' => 'active',
-    'verified' => true
-]);
+if ($isUnique) {
+    echo "L'email est disponible";
+}
 
-// Trouver avec tri et limite
-$recentUsers = $entityManager->findBy(User::class, [], [
-    'createdAt' => 'DESC'
-], 10);
+// Vérifier l'unicité en excluant un ID (pour les mises à jour)
+$isUnique = $entityManager->isUnique(User::class, 'email', 'nouveau@example.com', 1);
 ```
 
 ### ✏️ Update - Modifier une Entité
@@ -148,14 +233,16 @@ $recentUsers = $entityManager->findBy(User::class, [], [
 // Récupérer l'entité
 $user = $entityManager->find(User::class, 1);
 
-// Modifier les propriétés
-$user->setName('Jean Martin');
-$user->setUpdatedAt(new DateTime());
-
-// Sauvegarder automatiquement (change tracking)
-$entityManager->flush();
-
-echo "Utilisateur mis à jour";
+if ($user) {
+    // Modifier les propriétés
+    $user->setName('Jean Martin');
+    $user->setUpdatedAt(new DateTime());
+    
+    // Les modifications sont automatiquement détectées
+    $entityManager->flush();
+    
+    echo "Utilisateur mis à jour";
+}
 ```
 
 ### 🗑️ Delete - Supprimer une Entité
@@ -166,467 +253,261 @@ echo "Utilisateur mis à jour";
 // Récupérer l'entité
 $user = $entityManager->find(User::class, 1);
 
-// Marquer pour suppression
-$entityManager->remove($user);
-
-// Exécuter la suppression
-$entityManager->flush();
-
-echo "Utilisateur supprimé";
-```
-
----
-
-## Gestion du Cycle de Vie
-
-### 📊 États des Entités
-
-```php
-<?php
-
-use MulerTech\Database\ORM\EntityState;
-
-$user = new User();
-echo $entityManager->getEntityState($user); // EntityState::NEW
-
-$entityManager->persist($user);
-echo $entityManager->getEntityState($user); // EntityState::MANAGED
-
-$entityManager->flush();
-echo $entityManager->getEntityState($user); // EntityState::MANAGED
-
-$entityManager->remove($user);
-echo $entityManager->getEntityState($user); // EntityState::REMOVED
-
-$entityManager->detach($user);
-echo $entityManager->getEntityState($user); // EntityState::DETACHED
-```
-
-### 🔄 Opérations de Cycle de Vie
-
-```php
-<?php
-
-$user = $entityManager->find(User::class, 1);
-
-// Détacher une entité (ne plus suivre les modifications)
-$entityManager->detach($user);
-
-// Réattacher une entité
-$entityManager->merge($user);
-
-// Actualiser une entité depuis la base
-$entityManager->refresh($user);
-
-// Vider le gestionnaire d'entités
-$entityManager->clear();
-
-// Vérifier si une entité est gérée
-if ($entityManager->contains($user)) {
-    echo "L'entité est gérée par l'EntityManager";
-}
-```
-
----
-
-## États des Entités
-
-### 🏷️ Enum EntityState
-
-```php
-<?php
-
-enum EntityState: string
-{
-    case NEW = 'new';           // Nouvelle entité, pas encore persistée
-    case MANAGED = 'managed';   // Entité gérée par l'EntityManager
-    case DETACHED = 'detached'; // Entité détachée, plus suivie
-    case REMOVED = 'removed';   // Entité marquée pour suppression
-}
-```
-
-### 📈 Suivi des Modifications
-
-```php
-<?php
-
-$user = $entityManager->find(User::class, 1);
-
-// Obtenir les modifications
-$changeSet = $entityManager->getChangeSet($user);
-
-foreach ($changeSet as $property => $changes) {
-    echo "Propriété '{$property}' : {$changes['old']} → {$changes['new']}\n";
-}
-
-// Vérifier si l'entité a été modifiée
-if ($entityManager->hasChanges($user)) {
-    echo "L'entité a des modifications non sauvegardées";
-}
-
-// Annuler les modifications
-$entityManager->refresh($user);
-```
-
----
-
-## Gestion des Relations
-
-### 🔗 Relations OneToMany
-
-```php
-<?php
-
-use App\Entity\{User, Post};
-
-$user = $entityManager->find(User::class, 1);
-
-// Créer un nouveau post
-$post = new Post();
-$post->setTitle('Mon Article')
-     ->setContent('Contenu de l\'article')
-     ->setAuthor($user);
-
-$entityManager->persist($post);
-$entityManager->flush();
-
-// Récupérer tous les posts de l'utilisateur
-$posts = $user->getPosts();
-foreach ($posts as $post) {
-    echo "- " . $post->getTitle() . "\n";
-}
-```
-
-### 🔗 Relations ManyToMany
-
-```php
-<?php
-
-use App\Entity\{Post, Tag};
-
-$post = $entityManager->find(Post::class, 1);
-$tag = $entityManager->find(Tag::class, 1);
-
-// Ajouter un tag au post
-$post->getTags()->add($tag);
-
-// L'EntityManager détecte automatiquement les modifications
-$entityManager->flush();
-
-// Supprimer un tag
-$post->getTags()->removeElement($tag);
-$entityManager->flush();
-```
-
-### 🔄 Chargement Lazy vs Eager
-
-```php
-<?php
-
-// Chargement lazy (par défaut)
-$user = $entityManager->find(User::class, 1);
-$posts = $user->getPosts(); // Requête SQL lors de l'accès
-
-// Chargement eager avec jointure
-$queryBuilder = $entityManager->createQueryBuilder();
-$usersWithPosts = $queryBuilder
-    ->select('u', 'p')
-    ->from(User::class, 'u')
-    ->leftJoin('u.posts', 'p')
-    ->where('u.id = :id')
-    ->setParameter('id', 1)
-    ->getResult();
-```
-
----
-
-## Transactions
-
-### 💾 Transaction Manuelle
-
-```php
-<?php
-
-try {
-    // Commencer la transaction
-    $entityManager->beginTransaction();
+if ($user) {
+    // Marquer pour suppression
+    $entityManager->remove($user);
     
-    $user = new User();
-    $user->setName('Transaction Test')
-         ->setEmail('test@example.com');
-    
-    $entityManager->persist($user);
-    
-    $post = new Post();
-    $post->setTitle('Post Transactionnel')
-         ->setAuthor($user);
-    
-    $entityManager->persist($post);
+    // Exécuter la suppression
     $entityManager->flush();
     
-    // Valider la transaction
-    $entityManager->commit();
-    
-    echo "Transaction réussie";
-    
-} catch (Exception $e) {
-    // Annuler la transaction
-    $entityManager->rollback();
-    echo "Erreur: " . $e->getMessage();
+    echo "Utilisateur supprimé";
 }
-```
-
-### 🎯 Transaction avec Callback
-
-```php
-<?php
-
-use MulerTech\Database\Exception\DatabaseException;
-
-$result = $entityManager->transactional(function($em) {
-    $user = new User();
-    $user->setName('Callback Test')
-         ->setEmail('callback@example.com');
-    
-    $em->persist($user);
-    $em->flush();
-    
-    // Retourner une valeur
-    return $user->getId();
-});
-
-echo "Utilisateur créé avec l'ID: " . $result;
 ```
 
 ---
 
-## Performance et Optimisation
+## Gestion des Repositories
 
-### ⚡ Batch Processing
+### 🗂️ Accès aux Repositories
 
 ```php
 <?php
 
-// Traitement par batch pour éviter les problèmes mémoire
-$batchSize = 50;
-$i = 0;
+// Obtenir un repository
+$userRepository = $entityManager->getRepository(User::class);
 
-foreach ($largeDataSet as $data) {
-    $entity = new User();
-    $entity->setName($data['name'])
-           ->setEmail($data['email']);
-    
-    $entityManager->persist($entity);
-    
-    if (($i % $batchSize) === 0) {
-        $entityManager->flush();
-        $entityManager->clear(); // Libérer la mémoire
+// Utiliser les méthodes du repository
+$user = $userRepository->find(1);
+$users = $userRepository->findBy(['status' => 'active']);
+```
+
+### 🎯 Repository Personnalisé
+
+```php
+<?php
+use MulerTech\Database\ORM\EntityRepository;
+
+class UserRepository extends EntityRepository
+{
+    public function findActiveUsers(): array
+    {
+        return $this->findBy(['status' => 'active']);
     }
     
-    $i++;
+    public function findByEmail(string $email): ?User
+    {
+        $result = $this->entityManager->find($this->entityName, "email = '{$email}'");
+        return $result;
+    }
 }
 
-// Traiter le dernier batch
-$entityManager->flush();
-$entityManager->clear();
-```
-
-### 🚀 Optimisation des Requêtes
-
-```php
-<?php
-
-// Éviter N+1 queries avec des jointures
-$queryBuilder = $entityManager->createQueryBuilder();
-
-$posts = $queryBuilder
-    ->select('p', 'u', 't')
-    ->from(Post::class, 'p')
-    ->join('p.author', 'u')
-    ->leftJoin('p.tags', 't')
-    ->where('p.published = :published')
-    ->setParameter('published', true)
-    ->getResult();
-
-// Tous les auteurs et tags sont chargés en une seule requête
-foreach ($posts as $post) {
-    echo $post->getTitle() . ' par ' . $post->getAuthor()->getName() . "\n";
+// Configuration dans l'entité
+#[MtEntity(repository: UserRepository::class, tableName: 'users')]
+class User
+{
+    // ...
 }
-```
 
-### 💾 Cache d'Entités
-
-```php
-<?php
-
-// Activer le cache
-$entityManager->getConfiguration()->enableResultCache();
-
-// Requête avec cache
-$users = $entityManager->findBy(User::class, ['active' => true]);
-
-// Invalider le cache
-$entityManager->getConfiguration()->getCache()->clear();
-
-// Cache pour une requête spécifique
-$queryBuilder = $entityManager->createQueryBuilder();
-$result = $queryBuilder
-    ->select('u')
-    ->from(User::class, 'u')
-    ->setCacheable(true)
-    ->setCacheLifetime(3600) // 1 heure
-    ->getResult();
+// Utilisation
+$userRepository = $entityManager->getRepository(User::class);
+$activeUsers = $userRepository->findActiveUsers();
 ```
 
 ---
 
-## Événements
+## Composants Internes
 
-### 🔔 Gestionnaire d'Événements
+### ⚙️ EmEngine - Moteur ORM
 
 ```php
 <?php
 
-use MulerTech\Database\Event\{PrePersistEvent, PostPersistEvent, PreUpdateEvent, PostUpdateEvent};
+// Accès direct au moteur pour des opérations avancées
+$emEngine = $entityManager->getEmEngine();
 
+// Le moteur gère les opérations complexes
+$emEngine->persist($entity);
+$emEngine->flush();
+```
+
+### 📊 MetadataRegistry - Métadonnées
+
+```php
+<?php
+
+// Accès aux métadonnées
+$metadataRegistry = $entityManager->getMetadataRegistry();
+
+// Obtenir les métadonnées d'une entité
+$metadata = $metadataRegistry->getEntityMetadata(User::class);
+
+echo "Nom de table: " . $metadata->tableName;
+echo "Repository: " . $metadata->getRepository();
+```
+
+### 🎯 PhpDatabaseInterface - Driver
+
+```php
+<?php
+
+// Accès direct au driver de base de données
+$driver = $entityManager->getPdm();
+
+// Exécuter une requête personnalisée
+$result = $driver->query("SELECT COUNT(*) FROM users");
+```
+
+---
+
+## Exemples Pratiques
+
+### 🔄 Gestion Complète d'une Entité
+
+```php
+<?php
+
+class UserService
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {}
+    
+    public function createUser(string $name, string $email): User
+    {
+        // Vérifier l'unicité de l'email
+        if (!$this->entityManager->isUnique(User::class, 'email', $email)) {
+            throw new Exception("L'email existe déjà");
+        }
+        
+        // Créer l'utilisateur
+        $user = new User();
+        $user->setName($name);
+        $user->setEmail($email);
+        $user->setCreatedAt(new DateTime());
+        
+        // Persister
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+        
+        return $user;
+    }
+    
+    public function updateUser(int $id, string $newEmail): User
+    {
+        $user = $this->entityManager->find(User::class, $id);
+        
+        if (!$user) {
+            throw new Exception("Utilisateur non trouvé");
+        }
+        
+        // Vérifier l'unicité en excluant l'utilisateur actuel
+        if (!$this->entityManager->isUnique(User::class, 'email', $newEmail, $id)) {
+            throw new Exception("L'email est déjà utilisé");
+        }
+        
+        // Mettre à jour
+        $user->setEmail($newEmail);
+        $user->setUpdatedAt(new DateTime());
+        
+        $this->entityManager->flush();
+        
+        return $user;
+    }
+    
+    public function deleteUser(int $id): bool
+    {
+        $user = $this->entityManager->find(User::class, $id);
+        
+        if (!$user) {
+            return false;
+        }
+        
+        $this->entityManager->remove($user);
+        $this->entityManager->flush();
+        
+        return true;
+    }
+}
+```
+
+### 🎛️ Gestion d'État des Entités
+
+```php
+<?php
+
+class EntityStateService
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {}
+    
+    public function cloneAndDetachEntity(object $entity): object
+    {
+        // Créer une copie
+        $clone = clone $entity;
+        
+        // Détacher du contexte de persistance
+        $this->entityManager->detach($clone);
+        
+        return $clone;
+    }
+    
+    public function refreshFromDatabase(object $entity): object
+    {
+        // Recharger depuis la base de données
+        $this->entityManager->refresh($entity);
+        
+        return $entity;
+    }
+    
+    public function mergeDetachedEntity(object $detachedEntity): object
+    {
+        // Fusionner une entité détachée
+        return $this->entityManager->merge($detachedEntity);
+    }
+}
+```
+
+### 📊 Utilisation avec Événements
+
+```php
+<?php
+
+// Configuration des événements
 $eventManager = $entityManager->getEventManager();
 
-// Événement avant persistance
-$eventManager->addListener(PrePersistEvent::class, function(PrePersistEvent $event) {
-    $entity = $event->getEntity();
-    
-    if ($entity instanceof User) {
-        $entity->setCreatedAt(new DateTime());
-        $entity->setToken(bin2hex(random_bytes(32)));
-    }
-});
-
-// Événement après persistance
-$eventManager->addListener(PostPersistEvent::class, function(PostPersistEvent $event) {
-    $entity = $event->getEntity();
-    
-    if ($entity instanceof User) {
-        // Envoyer un email de bienvenue
-        mail($entity->getEmail(), 'Bienvenue', 'Compte créé avec succès');
-    }
-});
-```
-
-### 📝 Événements Disponibles
-
-```php
-<?php
-
-// Événements de persistance
-PrePersistEvent::class;   // Avant insert
-PostPersistEvent::class;  // Après insert
-
-// Événements de mise à jour
-PreUpdateEvent::class;    // Avant update
-PostUpdateEvent::class;   // Après update
-
-// Événements de suppression
-PreRemoveEvent::class;    // Avant delete
-PostRemoveEvent::class;   // Après delete
-
-// Événements de chargement
-PostLoadEvent::class;     // Après chargement depuis la DB
-```
-
----
-
-## API Complète
-
-### 🔧 Méthodes Principales
-
-```php
-<?php
-
-interface EntityManagerInterface
-{
-    // === PERSISTANCE ===
-    public function persist(object $entity): void;
-    public function remove(object $entity): void;
-    public function flush(): void;
-    public function clear(): void;
-    
-    // === RECHERCHE ===
-    public function find(string $className, mixed $id): ?object;
-    public function findOneBy(string $className, array $criteria): ?object;
-    public function findBy(string $className, array $criteria = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): array;
-    public function findAll(string $className): array;
-    
-    // === ÉTAT DES ENTITÉS ===
-    public function contains(object $entity): bool;
-    public function detach(object $entity): void;
-    public function merge(object $entity): object;
-    public function refresh(object $entity): void;
-    public function getEntityState(object $entity): EntityState;
-    
-    // === MODIFICATIONS ===
-    public function hasChanges(object $entity): bool;
-    public function getChangeSet(object $entity): array;
-    public function computeChangeSets(): void;
-    
-    // === TRANSACTIONS ===
-    public function beginTransaction(): void;
-    public function commit(): void;
-    public function rollback(): void;
-    public function transactional(callable $callback): mixed;
-    
-    // === CONFIGURATION ===
-    public function getConnection(): ConnectionInterface;
-    public function getConfiguration(): Configuration;
-    public function getEventManager(): EventManager;
-    public function getEmEngine(): EmEngine;
-    
-    // === MÉTADONNÉES ===
-    public function getMetadataFor(string $className): EntityMetadata;
-    public function hasMetadataFor(string $className): bool;
-    
-    // === REPOSITORIES ===
-    public function getRepository(string $className): EntityRepository;
+if ($eventManager) {
+    $eventManager->addListener('pre.persist', function($event) {
+        $entity = $event->getEntity();
+        
+        if ($entity instanceof User && !$entity->getCreatedAt()) {
+            $entity->setCreatedAt(new DateTime());
+        }
+    });
 }
-```
 
-### 📊 Méthodes de Debug
-
-```php
-<?php
-
-// Statistiques de l'EntityManager
-$stats = $entityManager->getStats();
-echo "Entités gérées: " . $stats['managed_entities'] . "\n";
-echo "Requêtes exécutées: " . $stats['executed_queries'] . "\n";
-
-// Logger les requêtes SQL
-$entityManager->getConfiguration()->setSQLLogger(new class {
-    public function logSQL(string $sql, array $params = []): void {
-        echo "SQL: " . $sql . "\n";
-        echo "Params: " . json_encode($params) . "\n";
-    }
-});
-
-// Mode debug
-$entityManager->getConfiguration()->setDebugMode(true);
+// Les événements se déclenchent automatiquement lors des opérations
+$user = new User();
+$user->setName('Test');
+$entityManager->persist($user); // Déclenche pre.persist
+$entityManager->flush();
 ```
 
 ---
 
 ## ➡️ Étapes Suivantes
 
-Explorez les concepts suivants :
+Pour approfondir votre compréhension :
 
-1. 🗂️ [Repositories](repositories.md) - Repositories personnalisés
-2. 🔄 [Change Tracking](change-tracking.md) - Suivi détaillé des modifications
-3. 🎉 [Événements](events.md) - Système d'événements avancé
-4. 💾 [Cache](caching.md) - Système de cache et performance
+1. 🔄 [Suivi des Changements](change-tracking.md) - Système de change tracking
+2. 🗂️ [Repositories](repositories.md) - Repositories personnalisés
+3. 🎨 [Attributs de Mapping](../../fr/entity-mapping/attributes.md) - Configuration des entités
+4. 🎯 [Exemples Pratiques](../../fr/quick-start/basic-examples.md) - Cas d'usage concrets
 
 ---
 
 ## 🔗 Liens Utiles
 
-- 🏠 [Retour au README](../../README.md)
-- ⬅️ [Attributs de Mapping](../entity-mapping/attributes.md)
-- ➡️ [Repositories](repositories.md)
-- 📖 [Documentation Complète](../README.md)
+- 🏠 [Retour au README](../../fr/../README.md)
+- 📖 [Documentation Complète](../../fr/README.md)
+- 🚀 [Démarrage Rapide](../../fr/quick-start/installation.md)
