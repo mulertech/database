@@ -11,7 +11,7 @@
 ---
 
 <!-- DESCRIPTION SECTION -->
-A modern PHP package for **database management** combining a powerful **Database Abstraction Layer (DBAL)** and an efficient **Object-Relational Mapping (ORM)**. Designed for PHP 8.4+ with a focus on simplicity, performance, and maintainability.
+A modern PHP package for **database management** combining a performant **Database Abstraction Layer (DBAL)** and **Object-Relational Mapping (ORM)**. Designed for PHP 8.4+ with a focus on simplicity, performance and maintainability.
 
 ---
 
@@ -21,7 +21,7 @@ A modern PHP package for **database management** combining a powerful **Database
 - [🚀 Quick Installation](#-quick-installation)
 - [🎯 First Example](#-first-example)
 - [📚 Documentation](#-documentation)
-- [🧪 Tests and Quality](#-tests-and-quality)
+- [🧪 Testing and Quality](#-testing-and-quality)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
@@ -30,8 +30,8 @@ A modern PHP package for **database management** combining a powerful **Database
 ## ✨ Features
 
 ### 🗄️ **Modern ORM**
-- **PHP 8 Attribute Mapping** (`#[MtEntity]`, `#[MtColumn]`, etc.)
-- **Complete relationships** (OneToOne, OneToMany, ManyToMany)
+- **PHP 8 attribute mapping** (`#[MtEntity]`, `#[MtColumn]`, etc.)
+- **Complete relations** (OneToOne, OneToMany, ManyToMany)
 - **Entity Manager** with automatic change tracking
 - **Custom repositories** with typed queries
 - **Event system** (PrePersist, PostUpdate, etc.)
@@ -46,22 +46,22 @@ A modern PHP package for **database management** combining a powerful **Database
 
 ### 🛠️ **Schema Management**
 - **Automatic migrations** with change detection
-- **Integrated CLI commands** (`migration:run`, `migration:rollback`)
+- **Built-in CLI commands** (`migration:run`, `migration:rollback`)
 - **Schema comparison** and diff generation
 - **Multi-environment support**
 
 ### 🎯 **Performance and Reliability**
-- **Lazy loading** of relationships
+- **Lazy loading** of relations
 - **Connection pooling** and transaction management
 - **Multi-level caching** (metadata, queries, results)
-- **Complete testing** (100% coverage)
+- **Comprehensive tests** (100% coverage)
 - **Static analysis** PHPStan level 9
 
 ---
 
 ## 🚀 Quick Installation
 
-### Prerequisites
+### Requirements
 - **PHP 8.4+**
 - **PDO** with MySQL/PostgreSQL/SQLite driver
 - **Composer**
@@ -148,7 +148,7 @@ $users = $entityManager->getRepository(User::class)->findBy(['name' => 'John']);
 
 // Update a user
 $user->setEmail('john.doe@example.com');
-$entityManager->flush(); // Changes automatically detected
+$entityManager->flush(); // Change automatically detected
 
 // Delete a user
 $entityManager->remove($user);
@@ -198,14 +198,14 @@ $results = $queryBuilder
 - [First Steps](docs/en/quick-start/first-steps.md)
 - [Basic Examples](docs/en/quick-start/basic-examples.md)
 
-### 🏗️ **Core Concepts**
+### 🏗️ **Fundamental Concepts**
 - [General Architecture](docs/en/core-concepts/architecture.md)
 - [Advanced Configuration](docs/en/core-concepts/configuration.md)
 - [Dependency Injection](docs/en/core-concepts/dependency-injection.md)
 
 ### 🎯 **Entity Mapping**
 - [Mapping Attributes](docs/en/entity-mapping/attributes.md)
-- [Entity Relationships](docs/en/entity-mapping/relationships.md)
+- [Entity Relations](docs/en/entity-mapping/relationships.md)
 - [Types and Columns](docs/en/entity-mapping/types-and-columns.md)
 - [Custom Entities](docs/en/entity-mapping/custom-entities.md)
 
@@ -220,7 +220,7 @@ $results = $queryBuilder
 - [Basic Queries](docs/en/query-builder/basic-queries.md)
 - [Advanced Queries](docs/en/query-builder/advanced-queries.md)
 - [Raw SQL Queries](docs/en/query-builder/raw-queries.md)
-- [Query Optimization](docs/en/query-builder/query-optimization.md)
+- [Optimization](docs/en/query-builder/query-optimization.md)
 
 ### 🛠️ **Schema and Migrations**
 - [Creating Migrations](docs/en/schema-migrations/creating-migrations.md)
@@ -250,7 +250,7 @@ $results = $queryBuilder
 
 ---
 
-## 🧪 Tests and Quality
+## 🧪 Testing and Quality
 
 ### Running Tests
 ```bash
@@ -293,14 +293,14 @@ XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-html coverage
 1. **Fork** the repository
 2. **Create** a feature branch (`git checkout -b feature/my-feature`)
 3. **Commit** changes (`git commit -am 'Add my feature'`)
-4. **Push** to branch (`git push origin feature/my-feature`)
+4. **Push** to the branch (`git push origin feature/my-feature`)
 5. **Create** a Pull Request
 
 ### Development Standards
 - **PSR-12** for code style
 - **PHPStan level 9** mandatory
-- **Unit tests** for any new functionality
-- **Updated documentation**
+- **Unit tests** for any new feature
+- **Documentation** updated
 
 ### Development Environment
 ```bash
@@ -322,7 +322,7 @@ cp .env.example .env
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the **MIT** license. See the [LICENSE](LICENSE) file for more details.
 
 ---
 
@@ -330,7 +330,6 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 - **📦 Packagist** : [mulertech/database](https://packagist.org/packages/mulertech/database)
 - **🐛 Issues** : [GitHub Issues](https://github.com/mulertech/database/issues)
-- **🇬🇧 English Documentation** : [docs/en/](docs/en/)
 - **📧 Support** : sebastien.muler@mulertech.net
 - **🌐 Website** : [mulertech.net](https://mulertech.net)
 
