@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Files\Query\Builder;
 
+use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
 use MulerTech\Database\Query\Builder\Traits\ValidationTrait;
 use MulerTech\Database\Query\Builder\Traits\QueryOptionsTrait;
@@ -29,7 +30,7 @@ class TestableQueryBuilder extends AbstractQueryBuilder
 
     private string $sql = '';
 
-    public function __construct($emEngine = null)
+    public function __construct(?EmEngine $emEngine = null)
     {
         parent::__construct($emEngine);
         // Initialize builders if they exist as properties
