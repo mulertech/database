@@ -9,8 +9,10 @@ use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\ORM\EntityManager;
+use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
-use MulerTech\Database\Schema\Migration\Migration;
+use MulerTech\Database\Tests\Files\Schema\Migration\InvalidMigrationForTesting;
+use MulerTech\Database\Tests\Files\Schema\Migration\Migration202501010000;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
 use RuntimeException;
@@ -19,6 +21,9 @@ class AbstractMigrationTest extends TestCase
 {
     private EntityManager $entityManager;
 
+    /**
+     * @throws ReflectionException
+     */
     protected function setUp(): void
     {
         $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
@@ -36,7 +41,7 @@ class AbstractMigrationTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Invalid migration class name format. Expected: MigrationYYYYMMDDHHMM');
 
-        new InvalidMigrationForTest($this->entityManager);
+        new InvalidMigrationForTesting($this->entityManager);
     }
 
     public function testValidMigrationClassNameFormat(): void
@@ -52,19 +57,6 @@ class AbstractMigrationTest extends TestCase
         
         $queryBuilder = $migration->createQueryBuilder();
         
-        $this->assertInstanceOf('MulerTech\Database\Query\Builder\QueryBuilder', $queryBuilder);
+        $this->assertInstanceOf(QueryBuilder::class, $queryBuilder);
     }
-}
-
-// Test classes defined in same file to avoid autoloading issues
-class InvalidMigrationForTest extends Migration
-{
-    public function up(): void {}
-    public function down(): void {}
-}
-
-class Migration202501010000 extends Migration
-{
-    public function up(): void {}
-    public function down(): void {}
 }

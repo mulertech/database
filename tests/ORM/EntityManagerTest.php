@@ -9,6 +9,7 @@ use MulerTech\Database\Database\Interface\PhpDatabaseManager;
 use MulerTech\Database\Database\MySQLDriver;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
+use MulerTech\Database\Event\PreFlushEvent;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
@@ -472,6 +473,39 @@ class EntityManagerTest extends TestCase
         self::assertNotNull($john, 'John should exist');
         self::assertEquals('John', $john->getUsername());
         self::assertEquals('John', $jane->getManager()->getUsername());
+    }
+
+    public function testExecuteInsertionsAndPreFlushEvent(): void
+    {
+        $this->createTestTables();
+        $this->createLinkUserGroupTestTable();
+        $this->createGroupTestTable();
+        $em = $this->entityManager;
+        
+        // Create a unit first
+        $unit = new Unit();
+        $unit->setName('TestUnit');
+        $em->persist($unit);
+        $em->flush();
+        
+        $preFlushEventTriggered = false;
+        $this->eventManager->addListener(DbEvents::preFlush->value, static function (PreFlushEvent $event) use (&$preFlushEventTriggered) {
+            $preFlushEventTriggered = true;
+            self::assertInstanceOf(PreFlushEvent::class, $event);
+            self::assertNotNull($event->getEntityManager());
+        });
+        
+        $user = new User();
+        $user->setUsername('John');
+        $user->setUnit($unit);
+        $em->persist($user);
+        $em->flush();
+        
+        self::assertTrue($preFlushEventTriggered, 'PreFlushEvent should have been triggered');
+        
+        $john = $em->find(User::class, 'username=\'John\'');
+        self::assertNotNull($john, 'John should exist');
+        self::assertEquals('John', $john->getUsername());
     }
 
     public function testExecuteUpdatesAndPostUpdateEvent(): void

@@ -10,7 +10,6 @@ use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
  * Test entity without getId method - used for testing DeletionProcessor exception handling
- * Note: This is in EntityNotMapped namespace to avoid being processed by schema comparers
  * @package MulerTech\Database
  * @author Sébastien Muler
  */

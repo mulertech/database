@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Tests\Query\Builder\Traits;
 
-use MulerTech\Database\Query\Builder\Traits\ValidationTrait;
-use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
+use MulerTech\Database\Tests\Files\Query\Builder\TestableQueryBuilder;
 use RuntimeException;
 use PHPUnit\Framework\TestCase;
 
@@ -14,11 +13,11 @@ use PHPUnit\Framework\TestCase;
  */
 class ValidationTraitTest extends TestCase
 {
-    private TestableValidationBuilder $builder;
+    private TestableQueryBuilder $builder;
 
     protected function setUp(): void
     {
-        $this->builder = new TestableValidationBuilder();
+        $this->builder = new TestableQueryBuilder();
     }
 
     public function testValidateTableNameValid(): void
@@ -260,44 +259,5 @@ class ValidationTraitTest extends TestCase
         $this->builder->testValidateColumnName('_private_column_name');
         
         $this->addToAssertionCount(3);
-    }
-}
-
-/**
- * Testable implementation of a query builder using ValidationTrait
- */
-class TestableValidationBuilder extends AbstractQueryBuilder
-{
-    use ValidationTrait;
-
-    public function getQueryType(): string
-    {
-        return 'TEST';
-    }
-
-    protected function buildSql(): string
-    {
-        return 'SELECT * FROM test';
-    }
-
-    // Expose protected methods for testing
-    public function testValidateTableName(string $table): void
-    {
-        $this->validateTableName($table);
-    }
-
-    public function testValidateColumnName(string $column): void
-    {
-        $this->validateColumnName($column);
-    }
-
-    public function testValidateColumnNames(array $columns): void
-    {
-        $this->validateColumnNames($columns);
-    }
-
-    public function testValidateNotEmpty(mixed $value, string $fieldName): void
-    {
-        $this->validateNotEmpty($value, $fieldName);
     }
 }
