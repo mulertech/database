@@ -66,7 +66,7 @@ jobs:
           DATABASE_PORT: "3306"
           DATABASE_PATH: "/db"
           DATABASE_SCHEME: "mysql"
-          DATABASE_QUERY: "serverVersion=5.7"
+          DATABASE_QUERY: "serverVersion=8"
           DATABASE_USER: "user"
           DATABASE_PASS: "password"
 
@@ -102,9 +102,17 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: pdo_sqlite
+          ini-values: error_reporting=E_ALL
           tools: composer:v2
           coverage: xdebug
+
+      - name: Setup MySQL
+        uses: shogo82148/actions-setup-mysql@v1
+        with:
+          mysql-version: '8.0'
+          auto-start: 'true'
+          user: 'user'
+          password: 'password'
 
       - name: Set PHPUnit
         uses: nick-fields/retry@v3
@@ -124,5 +132,10 @@ jobs:
       - name: Execute tests
         run: vendor/bin/phpunit
         env:
-          DATABASE_SCHEME: "sqlite"
-          DATABASE_PATH: ":memory:"
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_PORT: "3306"
+          DATABASE_PATH: "/db"
+          DATABASE_SCHEME: "mysql"
+          DATABASE_QUERY: "serverVersion=8"
+          DATABASE_USER: "user"
+          DATABASE_PASS: "password"
