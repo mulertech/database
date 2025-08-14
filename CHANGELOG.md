@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-08-13
+## [1.0.0] - 2025-08-14
 
 ### Added
 
@@ -150,7 +150,7 @@ This is the initial release of MulerTech Database. No upgrade path is required.
 
 ## Credits
 
-Developed with ❤️ by [Sébastien Muler](https://github.com/sebastienmuler) at [MulerTech](https://mulertech.net).
+Developed by [Sébastien Muler](https://github.com/mulertech) at [MulerTech](https://mulertech.net).
 
 ## License
 
