@@ -5,7 +5,7 @@ namespace MulerTech\Database\Tests\Schema\Diff;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Information\InformationSchema;
@@ -30,8 +30,9 @@ class SchemaComparerTest extends TestCase
         // Create MetadataRegistry with automatic entity loading from test directory
         $entitiesPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataRegistry = new MetadataRegistry($entitiesPath);
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
+            new PhpDatabaseManager(new PdoConnector(DriverFactory::create($scheme)), []),
             $metadataRegistry,
         );
         $this->informationSchema = new InformationSchema($this->entityManager->getEmEngine());

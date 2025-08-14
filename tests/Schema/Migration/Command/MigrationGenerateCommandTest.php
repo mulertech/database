@@ -5,7 +5,7 @@ namespace MulerTech\Database\Tests\Schema\Migration\Command;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
@@ -31,8 +31,9 @@ class MigrationGenerateCommandTest extends TestCase
         // Create MetadataRegistry with automatic entity loading from test directory
         $entitiesPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataRegistry = new MetadataRegistry($entitiesPath);
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
+            new PhpDatabaseManager(new PdoConnector(DriverFactory::create($scheme)), []),
             $metadataRegistry
         );
         $this->migrationsDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'migrations';
