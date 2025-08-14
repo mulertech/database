@@ -80,18 +80,6 @@ jobs:
   windows_tests:
     runs-on: windows-2022
 
-    services:
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_DATABASE: db
-          MYSQL_USER: user
-          MYSQL_PASSWORD: password
-          MYSQL_ROOT_PASSWORD: root
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
     strategy:
       fail-fast: true
       matrix:
@@ -135,10 +123,5 @@ jobs:
       - name: Execute tests
         run: vendor/bin/phpunit
         env:
-          DATABASE_HOST: 127.0.0.1
-          DATABASE_PORT: "3306"
-          DATABASE_PATH: "/db"
-          DATABASE_SCHEME: "mysql"
-          DATABASE_QUERY: "serverVersion=5.7"
-          DATABASE_USER: "user"
-          DATABASE_PASS: "password"
+          DATABASE_SCHEME: "sqlite"
+          DATABASE_PATH: ":memory:"
