@@ -5,11 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.0 - 2025-08-14
+
+v1.0.0
+
 ## [1.0.0] - 2025-08-14
 
 ### Added
 
 #### Core ORM Features
+
 - **Modern ORM architecture** with Entity Manager implementing Unit of Work pattern
 - **PHP 8.4+ attribute-based mapping** (`#[MtEntity]`, `#[MtColumn]`, `#[MtRelation]`)
 - **Comprehensive entity lifecycle management** with automatic change tracking
@@ -18,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Advanced metadata registry** with reflection-based attribute parsing
 
 #### Database Access Layer (DBAL)
+
 - **MySQL database driver** with native PDO integration
 - **Connection pooling** and transaction management
 - **Prepared statement support** with automatic parameter binding
@@ -25,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Connection state monitoring** and automatic reconnection
 
 #### Query Builder
+
 - **Fluent API** for building complex SQL queries
 - **Type-safe query construction** with IDE autocompletion support
 - **Advanced JOIN support** (INNER, LEFT, RIGHT, FULL OUTER)
@@ -34,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Query optimization** and performance monitoring
 
 #### Entity Mapping System
+
 - **Comprehensive column types** (VARCHAR, INT, DECIMAL, DATETIME, JSON, ENUM, etc.)
 - **Column constraints** (NOT NULL, UNIQUE, PRIMARY KEY, FOREIGN KEY)
 - **Automatic table and column name mapping** with snake_case conversion
@@ -42,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data type validation** and conversion between PHP and database formats
 
 #### Schema Management
+
 - **Database migration system** with version control
 - **Automatic migration generation** from entity definitions
 - **Schema comparison tools** for detecting database drift
@@ -50,26 +59,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `migration:generate` - Generate migrations from entity changes
   - `migration:run` - Execute pending migrations
   - `migration:rollback` - Rollback last migration
+  
 - **Migration history tracking** with execution time monitoring
 
 #### Event System
+
 - **Comprehensive entity lifecycle events**:
   - `PrePersist` / `PostPersist` - Before/after entity creation
   - `PreUpdate` / `PostUpdate` - Before/after entity modification
   - `PreRemove` / `PostRemove` - Before/after entity deletion
   - `PreFlush` / `PostFlush` - Before/after batch operations
+  
 - **Event listener registration** and priority-based execution
 - **Change set access** in update events for audit trails
 
 #### Caching System
+
 - **Multi-level caching architecture**:
   - Metadata caching for entity definitions
   - Query result caching for performance
   - Identity map caching for object consistency
+  
 - **Cache invalidation strategies** with automatic cleanup
 - **Configurable cache backends** and TTL settings
 
 #### Repository Pattern
+
 - **Base repository class** with standard CRUD operations
 - **Custom repository support** for domain-specific queries
 - **Specification pattern implementation** for complex query logic
@@ -77,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bulk operation methods** for performance optimization
 
 #### Change Tracking
+
 - **Automatic change detection** for managed entities
 - **Property-level change tracking** with old/new value comparison
 - **Batch update optimization** with single SQL statements
@@ -84,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Change set validation** before database persistence
 
 #### Data Access Features
+
 - **Repository factory pattern** for dependency injection
 - **Entity hydration** from database results
 - **Lazy loading** for related entities and collections
@@ -91,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Transaction support** with automatic rollback on errors
 
 #### Developer Experience
+
 - **Comprehensive documentation** in French and English
 - **Code examples** for common use cases (blog, e-commerce)
 - **IDE autocompletion** support with proper PHPDoc annotations
@@ -98,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Debugging tools** for query inspection and performance analysis
 
 #### Testing Infrastructure
+
 - **PHPUnit integration** with comprehensive test suite
 - **Test utilities** for database setup and teardown
 - **Docker support** for consistent testing environments
@@ -105,6 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Static analysis** with PHPStan level 9 compliance
 
 #### Documentation
+
 - **Complete API documentation** with usage examples
 - **Quick start guides** for rapid development
 - **Advanced tutorials** for complex scenarios
@@ -113,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Migration from other ORMs** documentation
 
 ### Technical Specifications
+
 - **PHP 8.4+ requirement** with strict typing throughout
 - **PSR-12 compliant** code formatting
 - **Modern PHP features**: property promotion, union types, enums, attributes
@@ -121,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Thread-safe** operations for concurrent access
 
 ### Security
+
 - **SQL injection prevention** through prepared statements
 - **Input validation** at entity and database levels
 - **Parameter sanitization** for all user inputs
@@ -128,6 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Access control** patterns for multi-tenant applications
 
 ### Performance
+
 - **Optimized query execution** with connection reuse
 - **Batch operation support** for large datasets
 - **Memory management** with automatic cleanup
@@ -136,11 +159,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Index optimization** suggestions in migration tools
 
 ### Standards Compliance
+
 - **PSR-1**: Basic Coding Standard
 - **PSR-12**: Extended Coding Style
 - **PSR-4**: Autoloader compliance
 - **Semantic Versioning**: Version management
 - **Keep a Changelog**: Documentation standard
+
 
 ---
 
