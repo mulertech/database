@@ -5,7 +5,7 @@ namespace MulerTech\Database\Tests\Database\Interface;
 use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use PDO;
 use PDOException;
 use PHPUnit\Framework\TestCase;
@@ -14,7 +14,8 @@ class PhpDatabaseInterfaceTest extends TestCase
 {
     private function getPhpDatabaseManager(): PhpDatabaseManager
     {
-        return new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []);
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
+        return new PhpDatabaseManager(new PdoConnector(DriverFactory::create($scheme)), []);
     }
 
     private function getDbName(): string
@@ -42,7 +43,7 @@ class PhpDatabaseInterfaceTest extends TestCase
     {
         $this->assertInstanceOf(
             PDO::class,
-            (new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []))->getConnection()
+            (new PhpDatabaseManager(new PdoConnector(DriverFactory::create('mysql')), []))->getConnection()
         );
     }
 

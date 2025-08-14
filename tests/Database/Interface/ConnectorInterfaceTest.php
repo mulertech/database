@@ -6,7 +6,7 @@ namespace MulerTech\Database\Tests\Database\Interface;
 
 use MulerTech\Database\Database\Interface\ConnectorInterface;
 use MulerTech\Database\Database\Interface\PdoConnector;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -24,7 +24,8 @@ final class ConnectorInterfaceTest extends TestCase
             $this->markTestSkipped('PDO MySQL extension is not available');
         }
         
-        $this->connector = new PdoConnector(new MySQLDriver());
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
+        $this->connector = new PdoConnector(DriverFactory::create($scheme));
         $this->validParameters = [
             'host' => $_ENV['DATABASE_HOST'] ?? 'db',
             'port' => (int)($_ENV['DATABASE_PORT'] ?? 3306),

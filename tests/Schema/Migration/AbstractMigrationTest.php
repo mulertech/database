@@ -7,7 +7,7 @@ namespace MulerTech\Database\Tests\Schema\Migration;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
@@ -30,8 +30,9 @@ class AbstractMigrationTest extends TestCase
         $metadataRegistry = new MetadataRegistry($entitiesPath);
         $metadataRegistry->getEntityMetadata(MigrationHistory::class);
         
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
+            new PhpDatabaseManager(new PdoConnector(DriverFactory::create($scheme)), []),
             $metadataRegistry,
         );
     }

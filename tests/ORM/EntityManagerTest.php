@@ -6,7 +6,7 @@ use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseInterface;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostFlushEvent;
 use MulerTech\Database\Event\PreFlushEvent;
@@ -46,8 +46,9 @@ class EntityManagerTest extends TestCase
         $metadataRegistry = new MetadataRegistry(
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
+            new PhpDatabaseManager(new PdoConnector(DriverFactory::create($scheme)), []),
             $metadataRegistry,
             $this->eventManager
         );

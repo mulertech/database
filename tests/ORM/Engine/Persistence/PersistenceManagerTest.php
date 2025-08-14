@@ -7,7 +7,7 @@ namespace MulerTech\Database\Tests\ORM\Engine\Persistence;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Database\Interface\PdoConnector;
 use MulerTech\Database\Database\Interface\PhpDatabaseManager;
-use MulerTech\Database\Database\MySQLDriver;
+use MulerTech\Database\Database\DriverFactory;
 use MulerTech\Database\ORM\Engine\Persistence\PersistenceManager;
 use MulerTech\Database\ORM\EntityManager;
 use MulerTech\Database\ORM\EntityState;
@@ -34,8 +34,9 @@ class PersistenceManagerTest extends TestCase
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         
+        $scheme = getenv('DATABASE_SCHEME') ?: 'mysql';
         $this->entityManager = new EntityManager(
-            new PhpDatabaseManager(new PdoConnector(new MySQLDriver()), []),
+            new PhpDatabaseManager(new PdoConnector(DriverFactory::create($scheme)), []),
             $metadataRegistry,
             $eventManager
         );
