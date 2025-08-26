@@ -1,0 +1,50 @@
+services:
+  apache:
+    build:
+      context: .
+      dockerfile: "../vendor/mulertech/docker-dev/Dockerfile"
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        PHP_IMAGE: "${PHP_IMAGE}"
+    container_name: ${CONTAINER_NAME_APACHE}
+    ports:
+      - "${APACHE_PORT}:80"
+    volumes:
+      - "../:/var/www/html"
+    environment:
+      - PHP_CS_FIXER_IGNORE_ENV=1
+      - DATABASE_HOST=mysql
+      - DATABASE_PORT=3306
+      - DATABASE_PATH=/db
+      - DATABASE_SCHEME=mysql
+      - DATABASE_QUERY=serverVersion=8.0
+      - DATABASE_USER=${DB_USER}
+      - DATABASE_PASS=${DB_PASSWORD}
+    depends_on:
+      - mysql
+    networks:
+      - default
+
+  mysql:
+    image: "mysql:8"
+    container_name: ${CONTAINER_NAME_MYSQL}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init-user.sql:/docker-entrypoint-initdb.d/01-init-user.sql
+      - ./sql:/docker-entrypoint-initdb.d/user-sql
+    networks:
+      - default
+
+volumes:
+  mysql-data:
+
+networks:
+  default:
+    driver: bridge
