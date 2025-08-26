@@ -200,54 +200,27 @@ $results = $queryBuilder
 - [Exemples de Base](docs/fr/quick-start/basic-examples.md)
 
 ### 🏗️ **Concepts Fondamentaux**
-- [Architecture Générale](docs/fr/core-concepts/architecture.md)
-- [Configuration Avancée](docs/fr/core-concepts/configuration.md)
-- [Injection de Dépendances](docs/fr/core-concepts/dependency-injection.md)
+- [Architecture Générale](docs/fr/fundamentals/architecture.md)
+- [Classes Principales](docs/fr/fundamentals/core-classes.md)
+- [Injection de Dépendances](docs/fr/fundamentals/dependency-injection.md)
+- [Interfaces](docs/fr/fundamentals/interfaces.md)
 
 ### 🎯 **Mapping d'Entités**
 - [Attributs de Mapping](docs/fr/entity-mapping/attributes.md)
 - [Relations entre Entités](docs/fr/entity-mapping/relationships.md)
 - [Types et Colonnes](docs/fr/entity-mapping/types-and-columns.md)
-- [Entités Personnalisées](docs/fr/entity-mapping/custom-entities.md)
 
-### 🗄️ **ORM et Entity Manager**
-- [Entity Manager](docs/fr/orm/entity-manager.md)
-- [Repositories](docs/fr/orm/repositories.md)
-- [Suivi des Modifications](docs/fr/orm/change-tracking.md)
-- [Système d'Événements](docs/fr/orm/events.md)
-- [Cache et Performance](docs/fr/orm/caching.md)
-
-### 🔧 **Query Builder**
-- [Requêtes de Base](docs/fr/query-builder/basic-queries.md)
-- [Requêtes Avancées](docs/fr/query-builder/advanced-queries.md)
-- [Requêtes SQL Brutes](docs/fr/query-builder/raw-queries.md)
-- [Optimisation](docs/fr/query-builder/query-optimization.md)
+### 🗄️ **Accès aux Données**
+- [Entity Manager](docs/fr/data-access/entity-manager.md)
+- [Repositories](docs/fr/data-access/repositories.md)
+- [Suivi des Modifications](docs/fr/data-access/change-tracking.md)
+- [Système d'Événements](docs/fr/data-access/events.md)
+- [Query Builder](docs/fr/data-access/query-builder.md)
+- [Requêtes SQL Brutes](docs/fr/data-access/raw-queries.md)
 
 ### 🛠️ **Schéma et Migrations**
-- [Créer des Migrations](docs/fr/schema-migrations/creating-migrations.md)
-- [Exécuter les Migrations](docs/fr/schema-migrations/running-migrations.md)
-- [Commandes CLI](docs/fr/schema-migrations/migration-commands.md)
-- [Comparaison de Schémas](docs/fr/schema-migrations/schema-diff.md)
-
-### 🧪 **Tests et Développement**
-- [Configuration des Tests](docs/fr/testing/unit-tests.md)
-- [Tests d'Intégration](docs/fr/testing/integration-tests.md)
-- [Setup Docker](docs/fr/testing/docker-setup.md)
-
-### 🔬 **Fonctionnalités Avancées**
-- [Étendre l'ORM](docs/fr/advanced/extending-orm.md)
-- [Types Personnalisés](docs/fr/advanced/custom-types.md)
-- [Architecture Interne](docs/fr/advanced/internals.md)
-
-### 📖 **Exemples Complets**
-- [Application Blog](docs/fr/examples/blog-application/)
-- [E-commerce](docs/fr/examples/e-commerce/)
-- [Échantillons de Code](docs/fr/examples/code-samples/)
-
-### 📋 **Référence API**
-- [Classes Principales](docs/fr/api-reference/core-classes.md)
-- [Interfaces](docs/fr/api-reference/interfaces.md)
-- [Exceptions](docs/fr/api-reference/exceptions.md)
+- [Migrations](docs/fr/schema-migrations/migrations.md)
+- [Outils de Migration](docs/fr/schema-migrations/migration-tools.md)
 
 ---
 

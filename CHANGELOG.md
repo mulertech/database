@@ -150,7 +150,7 @@ This is the initial release of MulerTech Database. No upgrade path is required.
 
 ## Credits
 
-Developed with ❤️ by [Sébastien Muler](https://github.com/sebastienmuler) at [MulerTech](https://mulertech.net).
+Developed with ❤️ by [Sébastien Muler](https://github.com/mulertech) at [MulerTech](https://mulertech.net).
 
 ## License
 
