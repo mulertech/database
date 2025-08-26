@@ -24,7 +24,7 @@
   "require-dev": {
     "ext-posix": "*",
     "friendsofphp/php-cs-fixer": "^3",
-    "mulertech/docker-tests": "^1",
+    "mulertech/docker-dev": "^1",
     "phpmd/phpmd": "^2",
     "phpmetrics/phpmetrics": "^2",
     "phpstan/phpstan": "^2",
