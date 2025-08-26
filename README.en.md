@@ -200,54 +200,27 @@ $results = $queryBuilder
 - [Basic Examples](docs/en/quick-start/basic-examples.md)
 
 ### 🏗️ **Fundamental Concepts**
-- [General Architecture](docs/en/core-concepts/architecture.md)
-- [Advanced Configuration](docs/en/core-concepts/configuration.md)
-- [Dependency Injection](docs/en/core-concepts/dependency-injection.md)
+- [General Architecture](docs/en/fundamentals/architecture.md)
+- [Core Classes](docs/en/fundamentals/core-classes.md)
+- [Dependency Injection](docs/en/fundamentals/dependency-injection.md)
+- [Interfaces](docs/en/fundamentals/interfaces.md)
 
 ### 🎯 **Entity Mapping**
 - [Mapping Attributes](docs/en/entity-mapping/attributes.md)
 - [Entity Relations](docs/en/entity-mapping/relationships.md)
 - [Types and Columns](docs/en/entity-mapping/types-and-columns.md)
-- [Custom Entities](docs/en/entity-mapping/custom-entities.md)
 
-### 🗄️ **ORM and Entity Manager**
-- [Entity Manager](docs/en/orm/entity-manager.md)
-- [Repositories](docs/en/orm/repositories.md)
-- [Change Tracking](docs/en/orm/change-tracking.md)
-- [Event System](docs/en/orm/events.md)
-- [Caching and Performance](docs/en/orm/caching.md)
-
-### 🔧 **Query Builder**
-- [Basic Queries](docs/en/query-builder/basic-queries.md)
-- [Advanced Queries](docs/en/query-builder/advanced-queries.md)
-- [Raw SQL Queries](docs/en/query-builder/raw-queries.md)
-- [Optimization](docs/en/query-builder/query-optimization.md)
+### 🗄️ **Data Access**
+- [Entity Manager](docs/en/data-access/entity-manager.md)
+- [Repositories](docs/en/data-access/repositories.md)
+- [Change Tracking](docs/en/data-access/change-tracking.md)
+- [Event System](docs/en/data-access/events.md)
+- [Query Builder](docs/en/data-access/query-builder.md)
+- [Raw SQL Queries](docs/en/data-access/raw-queries.md)
 
 ### 🛠️ **Schema and Migrations**
-- [Creating Migrations](docs/en/schema-migrations/creating-migrations.md)
-- [Running Migrations](docs/en/schema-migrations/running-migrations.md)
-- [CLI Commands](docs/en/schema-migrations/migration-commands.md)
-- [Schema Comparison](docs/en/schema-migrations/schema-diff.md)
-
-### 🧪 **Testing and Development**
-- [Test Configuration](docs/en/testing/unit-tests.md)
-- [Integration Tests](docs/en/testing/integration-tests.md)
-- [Docker Setup](docs/en/testing/docker-setup.md)
-
-### 🔬 **Advanced Features**
-- [Extending the ORM](docs/en/advanced/extending-orm.md)
-- [Custom Types](docs/en/advanced/custom-types.md)
-- [Internal Architecture](docs/en/advanced/internals.md)
-
-### 📖 **Complete Examples**
-- [Blog Application](docs/en/examples/blog-application/)
-- [E-commerce](docs/en/examples/e-commerce/)
-- [Code Samples](docs/en/examples/code-samples/)
-
-### 📋 **API Reference**
-- [Core Classes](docs/en/api-reference/core-classes.md)
-- [Interfaces](docs/en/api-reference/interfaces.md)
-- [Exceptions](docs/en/api-reference/exceptions.md)
+- [Migrations](docs/en/schema-migrations/migrations.md)
+- [Migration Tools](docs/en/schema-migrations/migration-tools.md)
 
 ---
 
