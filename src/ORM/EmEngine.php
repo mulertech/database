@@ -114,7 +114,11 @@ class EmEngine
                 if (null !== $managed) {
                     // For managed entities, only update scalar properties, NOT relations
                     // This prevents overwriting relation changes that haven't been flushed yet
-                    $this->updateManagedEntityScalarPropertiesOnly($managed, $fetch);
+                    $scalarData = [];
+                    foreach ($fetch as $k => $v) {
+                        $scalarData[(string) $k] = is_scalar($v) ? $v : null;
+                    }
+                    $this->updateManagedEntityScalarPropertiesOnly($managed, $scalarData);
 
                     return $managed;
                 }

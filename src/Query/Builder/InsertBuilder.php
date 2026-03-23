@@ -207,7 +207,9 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         $columns = array_keys($this->values);
         $sql .= ' ('.implode(', ', array_map([$this, 'formatIdentifier'], $columns)).')';
-        $sql .= ' VALUES ('.implode(', ', array_values($this->values)).')';
+        /** @var array<string> $values */
+        $values = array_values($this->values);
+        $sql .= ' VALUES ('.implode(', ', $values).')';
 
         return $this->addOnDuplicateKeyUpdate($sql);
     }

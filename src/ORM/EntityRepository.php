@@ -53,8 +53,8 @@ class EntityRepository
     }
 
     /**
-     * @param array<string, mixed>       $criteria
-     * @param array<string, string>|null $orderBy
+     * @param array<string, bool|float|int|string|null> $criteria
+     * @param array<string, string>|null                $orderBy
      *
      * @return array<object>
      *
@@ -68,7 +68,6 @@ class EntityRepository
 
         // Add WHERE conditions for criteria
         foreach ($criteria as $field => $value) {
-            /* @var bool|float|int|string|null $value */
             $queryBuilder->where($field, $value);
         }
 
@@ -112,8 +111,8 @@ class EntityRepository
     }
 
     /**
-     * @param array<string, mixed>       $criteria
-     * @param array<string, string>|null $orderBy
+     * @param array<string, bool|float|int|string|null> $criteria
+     * @param array<string, string>|null                $orderBy
      */
     public function findOneBy(array $criteria, ?array $orderBy = null): ?object
     {
@@ -131,7 +130,7 @@ class EntityRepository
     }
 
     /**
-     * @param array<string, mixed> $criteria
+     * @param array<string, bool|float|int|string|null> $criteria
      */
     public function count(array $criteria = []): int
     {
@@ -141,7 +140,6 @@ class EntityRepository
 
         // Add WHERE conditions for criteria
         foreach ($criteria as $field => $value) {
-            /* @var bool|float|int|string|null $value */
             $queryBuilder->where($field, $value);
         }
 
@@ -165,14 +163,18 @@ class EntityRepository
         // Handle magic methods like findByUsername, findOneByEmail, etc.
         if (str_starts_with($method, 'findBy')) {
             $field = lcfirst(substr($method, 6));
+            /** @var bool|float|int|string|null $criteriaValue */
+            $criteriaValue = $arguments[0] ?? null;
 
-            return $this->findBy([$field => $arguments[0] ?? null]);
+            return $this->findBy([$field => $criteriaValue]);
         }
 
         if (str_starts_with($method, 'findOneBy')) {
             $field = lcfirst(substr($method, 9));
+            /** @var bool|float|int|string|null $criteriaValue */
+            $criteriaValue = $arguments[0] ?? null;
 
-            return $this->findOneBy([$field => $arguments[0] ?? null]);
+            return $this->findOneBy([$field => $criteriaValue]);
         }
 
         throw new \BadMethodCallException("Method $method does not exist");

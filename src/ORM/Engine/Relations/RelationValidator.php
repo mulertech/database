@@ -68,7 +68,10 @@ readonly class RelationValidator
             throw new \RuntimeException(sprintf('Mapped by property is not defined for the class "%s" and property "%s". Please check the mapping configuration.', $entityClass, $propertyName));
         }
 
-        /* @var class-string $mappedBy */
+        if (!is_string($mappedBy) || !class_exists($mappedBy)) {
+            throw new \RuntimeException(sprintf('Invalid mappedBy value for class "%s" property "%s": expected a valid class-string.', $entityClass, $propertyName));
+        }
+
         return $mappedBy;
     }
 

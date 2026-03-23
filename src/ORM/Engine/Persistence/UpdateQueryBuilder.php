@@ -91,8 +91,9 @@ readonly class UpdateQueryBuilder
 
             $newValue = $changes[$property]->newValue;
             if ($this->valueProcessor->isProcessableValue($newValue)) {
-                /* @var array<string, mixed>|object|string|null $newValue */
-                $updateBuilder->set($column, $this->valueProcessor->extractForeignKeyId($newValue));
+                /** @var array<string, mixed>|object|string|null $typedValue */
+                $typedValue = $newValue;
+                $updateBuilder->set($column, $this->valueProcessor->extractForeignKeyId($typedValue));
             }
         }
     }

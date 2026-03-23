@@ -137,14 +137,10 @@ readonly class MigrationCodeGenerator
                     return null;
                 }
 
-                /* @phpstan-var array{
-                 *     COLUMN_TYPE?: array{from: string, to: string},
-                 *     IS_NULLABLE?: array{from: 'NO'|'YES', to: 'NO'|'YES'},
-                 *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
-                 *     EXTRA?: array{from: string|null, to: string|null}
-                 *     } $differences
-                 */
-                return $this->statementGenerator->generateModifyColumnStatement($tableName, $columnName, $differences);
+                /** @var array{COLUMN_TYPE?: array{from: string, to: string}, IS_NULLABLE?: array{from: 'NO'|'YES', to: 'NO'|'YES'}, COLUMN_DEFAULT?: array{from: string|null, to: string|null}, EXTRA?: array{from: string|null, to: string|null}} $typedDifferences */
+                $typedDifferences = $differences;
+
+                return $this->statementGenerator->generateModifyColumnStatement($tableName, $columnName, $typedDifferences);
             },
             $code
         );
