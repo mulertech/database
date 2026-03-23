@@ -25,8 +25,8 @@ class LinkEntityManagerTest extends TestCase
     {
         parent::setUp();
         
-        $entityManager = $this->createMock(EntityManagerInterface::class);
-        $stateManager = $this->createMock(StateManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $stateManager = $this->createStub(StateManagerInterface::class);
         
         // Create a real MetadataRegistry since it's final and cannot be mocked
         $metadataRegistry = new MetadataRegistry();

@@ -6,18 +6,14 @@ namespace MulerTech\Database\ORM\Engine\Relations;
 
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use ReflectionException;
 
 /**
- * Class RelationManager
- * @package MulerTech\Database
+ * Class RelationManager.
+ *
  * @author Sébastien Muler
  */
 class RelationManager
 {
-    /**
-     * @var EntityRelationLoader
-     */
     private EntityRelationLoader $relationLoader;
 
     /**
@@ -25,23 +21,13 @@ class RelationManager
      */
     private array $processedEntities = [];
 
-    /**
-     * @var ManyToManyProcessor
-     */
     private ManyToManyProcessor $manyToManyProcessor;
 
-    /**
-     * @var LinkEntityManager
-     */
     private LinkEntityManager $linkEntityManager;
 
-    /**
-     * @param EntityManagerInterface $entityManager
-     * @param StateManagerInterface $stateManager
-     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly StateManagerInterface $stateManager
+        private readonly StateManagerInterface $stateManager,
     ) {
         $this->relationLoader = new EntityRelationLoader($this->entityManager);
         $this->manyToManyProcessor = new ManyToManyProcessor($this->entityManager);
@@ -49,19 +35,15 @@ class RelationManager
     }
 
     /**
-     * @param object $entity
      * @param array<string, mixed> $entityData
-     * @return void
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function loadEntityRelations(object $entity, array $entityData): void
     {
         $this->relationLoader->loadRelations($entity, $entityData);
     }
 
-    /**
-     * @return void
-     */
     public function startFlushCycle(): void
     {
         $this->processedEntities = [];
@@ -69,8 +51,7 @@ class RelationManager
     }
 
     /**
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function processRelationChanges(): void
     {
@@ -82,8 +63,7 @@ class RelationManager
     }
 
     /**
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function flush(): void
     {
@@ -94,9 +74,6 @@ class RelationManager
         }
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
         $this->processedEntities = [];
@@ -105,7 +82,8 @@ class RelationManager
     }
 
     /**
-     * Collect all entities to process to avoid duplicates
+     * Collect all entities to process to avoid duplicates.
+     *
      * @return array<int, object>
      */
     private function collectEntitiesToProcess(): array
@@ -134,9 +112,7 @@ class RelationManager
     }
 
     /**
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function processEntityRelations(object $entity): void
     {

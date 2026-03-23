@@ -4,31 +4,27 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
-use Exception;
-use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Attributes\MtFk;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\FkRule;
-use ReflectionException;
-use RuntimeException;
 
 /**
  * Class ForeignKeyComparer
- * Compares foreign keys between entity mapping and database schema
- * @package MulerTech\Database
+ * Compares foreign keys between entity mapping and database schema.
+ *
  * @author Sébastien Muler
  */
 readonly class ForeignKeyComparer
 {
     public function __construct(
-        private MetadataRegistry $metadataRegistry
+        private MetadataRegistry $metadataRegistry,
     ) {
     }
 
     /**
-     * Compare foreign keys between entity mapping and database
+     * Compare foreign keys between entity mapping and database.
      *
-     * @param string $tableName
-     * @param class-string $entityClass
+     * @param class-string          $entityClass
      * @param array<string, string> $entityPropertiesColumns
      * @param array<string, array{
      *       TABLE_NAME: string,
@@ -40,16 +36,15 @@ readonly class ForeignKeyComparer
      *       DELETE_RULE: string|null,
      *       UPDATE_RULE: string|null
      *   }> $databaseForeignKeys
-     * @param SchemaDifference $diff
-     * @return void
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function compareForeignKeys(
         string $tableName,
         string $entityClass,
         array $entityPropertiesColumns,
         array $databaseForeignKeys,
-        SchemaDifference $diff
+        SchemaDifference $diff,
     ): void {
         $entityForeignKeys = $this->getEntityForeignKeys($entityClass, $entityPropertiesColumns);
 
@@ -58,10 +53,11 @@ readonly class ForeignKeyComparer
     }
 
     /**
-     * Get entity foreign keys configuration
+     * Get entity foreign keys configuration.
      *
-     * @param class-string $entityClass
+     * @param class-string          $entityClass
      * @param array<string, string> $entityPropertiesColumns
+     *
      * @return array<string, array{
      *     COLUMN_NAME: string,
      *     REFERENCED_TABLE_NAME: string,
@@ -69,7 +65,8 @@ readonly class ForeignKeyComparer
      *     DELETE_RULE: FkRule,
      *     UPDATE_RULE: FkRule
      * }>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function getEntityForeignKeys(string $entityClass, array $entityPropertiesColumns): array
     {
@@ -78,7 +75,7 @@ readonly class ForeignKeyComparer
         foreach ($entityPropertiesColumns as $property => $columnName) {
             $foreignKeyInfo = $this->getForeignKeyInfo($entityClass, $property);
 
-            if ($foreignKeyInfo === null) {
+            if (null === $foreignKeyInfo) {
                 continue;
             }
 
@@ -97,8 +94,8 @@ readonly class ForeignKeyComparer
     }
 
     /**
-     * Find foreign keys to add (in entity mapping but not in database)
-     * @param string $tableName
+     * Find foreign keys to add (in entity mapping but not in database).
+     *
      * @param array<string, array{
      *     COLUMN_NAME: string,
      *     REFERENCED_TABLE_NAME: string,
@@ -116,14 +113,12 @@ readonly class ForeignKeyComparer
      *       DELETE_RULE: string|null,
      *       UPDATE_RULE: string|null
      *   }> $databaseForeignKeys
-     * @param SchemaDifference $diff
-     * @return void
      */
     private function findForeignKeysToAdd(
         string $tableName,
         array $entityForeignKeys,
         array $databaseForeignKeys,
-        SchemaDifference $diff
+        SchemaDifference $diff,
     ): void {
         foreach ($entityForeignKeys as $constraintName => $foreignKeyInfo) {
             if (!isset($databaseForeignKeys[$constraintName])) {
@@ -133,8 +128,8 @@ readonly class ForeignKeyComparer
     }
 
     /**
-     * Find foreign keys to drop (in database but not in entity mapping)
-     * @param string $tableName
+     * Find foreign keys to drop (in database but not in entity mapping).
+     *
      * @param array<string, array{
      *     COLUMN_NAME: string,
      *     REFERENCED_TABLE_NAME: string,
@@ -152,14 +147,12 @@ readonly class ForeignKeyComparer
      *       DELETE_RULE: string|null,
      *       UPDATE_RULE: string|null
      *   }> $databaseForeignKeys
-     * @param SchemaDifference $diff
-     * @return void
      */
     private function findForeignKeysToDrop(
         string $tableName,
         array $entityForeignKeys,
         array $databaseForeignKeys,
-        SchemaDifference $diff
+        SchemaDifference $diff,
     ): void {
         foreach ($databaseForeignKeys as $constraintName => $value) {
             if (!isset($entityForeignKeys[$constraintName])) {
@@ -169,10 +162,10 @@ readonly class ForeignKeyComparer
     }
 
     /**
-     * Get foreign key info for entity property
+     * Get foreign key info for entity property.
      *
      * @param class-string $entityClass
-     * @param string $property
+     *
      * @return array{
      *     constraintName: string,
      *     referencedTable: string,
@@ -180,7 +173,8 @@ readonly class ForeignKeyComparer
      *     deleteRule: FkRule|null,
      *     updateRule: FkRule|null
      * }|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function getForeignKeyInfo(string $entityClass, string $property): ?array
     {
@@ -194,10 +188,8 @@ readonly class ForeignKeyComparer
         $referencedTable = $foreignKey->referencedTable;
         $referencedColumn = $foreignKey->referencedColumn;
 
-        if ($referencedTable === null || $referencedColumn === null) {
-            throw new RuntimeException(
-                "Foreign key for $entityClass::$property is not fully defined in entity metadata"
-            );
+        if (null === $referencedTable || null === $referencedColumn) {
+            throw new \RuntimeException("Foreign key for $entityClass::$property is not fully defined in entity metadata");
         }
 
         $constraintName = $this->resolveConstraintName($foreignKey, $entityClass, $property, $referencedTable);
@@ -212,14 +204,11 @@ readonly class ForeignKeyComparer
     }
 
     /**
-     * Resolve constraint name with generation if needed
+     * Resolve constraint name with generation if needed.
      *
-     * @param MtFk $foreignKey
      * @param class-string $entityClass
-     * @param string $property
-     * @param string $referencedTable
-     * @return string
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function resolveConstraintName(MtFk $foreignKey, string $entityClass, string $property, string $referencedTable): string
     {
@@ -229,14 +218,12 @@ readonly class ForeignKeyComparer
     }
 
     /**
-     * Generate constraint name from entity, property and referenced table
+     * Generate constraint name from entity, property and referenced table.
      *
      * @param class-string $entityClass
-     * @param string $property
-     * @param string $referencedTable
-     * @return string
-     * @throws ReflectionException
-     * @throws Exception
+     *
+     * @throws \ReflectionException
+     * @throws \Exception
      */
     private function generateConstraintName(string $entityClass, string $property, string $referencedTable): string
     {
@@ -245,7 +232,7 @@ readonly class ForeignKeyComparer
         $columnName = $metadata->getColumnName($property);
 
         return sprintf(
-            "fk_%s_%s_%s",
+            'fk_%s_%s_%s',
             strtolower($tableName ?: ''),
             strtolower($columnName ?: ''),
             strtolower($referencedTable)

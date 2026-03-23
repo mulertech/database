@@ -6,15 +6,12 @@ namespace MulerTech\Database\Schema\Migration;
 
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Schema\Diff\SchemaComparer;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Class MigrationGenerator
+ * Class MigrationGenerator.
  *
  * Generate migrations based on schema differences
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationGenerator
@@ -50,11 +47,6 @@ class MigrationGenerator
 
     private readonly MigrationCodeGenerator $codeGenerator;
 
-    /**
-     * @param SchemaComparer $schemaComparer
-     * @param MetadataRegistry $metadataRegistry
-     * @param string $migrationsDirectory
-     */
     public function __construct(
         private readonly SchemaComparer $schemaComparer,
         MetadataRegistry $metadataRegistry,
@@ -62,22 +54,23 @@ class MigrationGenerator
     ) {
         // Ensure migrations directory exists
         if (!is_dir($migrationsDirectory)) {
-            throw new RuntimeException("Migration directory does not exist: $migrationsDirectory");
+            throw new \RuntimeException("Migration directory does not exist: $migrationsDirectory");
         }
 
         $this->codeGenerator = new MigrationCodeGenerator($metadataRegistry);
     }
 
     /**
-     * Generate a migration based on schema differences
+     * Generate a migration based on schema differences.
      *
      * @return string|null Path to generated migration file or null if no changes
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function generateMigration(?string $datetime = null): ?string
     {
-        if ($datetime !== null && !preg_match('/^(\d{8})(\d{4})$/', $datetime)) {
-            throw new RuntimeException('Invalid datetime format. Expected: YYYYMMDDHHMM');
+        if (null !== $datetime && !preg_match('/^(\d{8})(\d{4})$/', $datetime)) {
+            throw new \RuntimeException('Invalid datetime format. Expected: YYYYMMDDHHMM');
         }
         $date = $datetime ?? date('YmdHi');
 
@@ -96,7 +89,7 @@ class MigrationGenerator
             '%down_code%' => $downCode,
         ]);
 
-        $fileName = $this->migrationsDirectory . DIRECTORY_SEPARATOR . 'Migration' . $date . '.php';
+        $fileName = $this->migrationsDirectory.DIRECTORY_SEPARATOR.'Migration'.$date.'.php';
         file_put_contents($fileName, $migrationContent);
 
         return $fileName;

@@ -8,10 +8,10 @@ use MulerTech\Database\Core\Traits\ParameterHandlerTrait;
 use MulerTech\Database\Database\Interface\Statement;
 use MulerTech\Database\Tests\Files\Traits\TestClassWithParameterHandlerTrait;
 use PDO;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
 
-#[CoversClass(ParameterHandlerTrait::class)]
+#[CoversTrait(ParameterHandlerTrait::class)]
 final class ParameterHandlerTraitTest extends TestCase
 {
     private TestClassWithParameterHandlerTrait $handler;

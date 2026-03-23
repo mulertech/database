@@ -13,9 +13,8 @@ use MulerTech\Database\Query\Clause\JoinClauseBuilder;
 use MulerTech\Database\Query\Clause\WhereClauseBuilder;
 
 /**
- * DELETE query builder with JOIN support and batch operations
+ * DELETE query builder with JOIN support and batch operations.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class DeleteBuilder extends AbstractQueryBuilder
@@ -32,8 +31,6 @@ class DeleteBuilder extends AbstractQueryBuilder
 
     /**
      * DeleteBuilder constructor.
-     *
-     * @param EmEngine|null $emEngine
      */
     public function __construct(?EmEngine $emEngine = null)
     {
@@ -42,21 +39,14 @@ class DeleteBuilder extends AbstractQueryBuilder
         $this->joinBuilder = new JoinClauseBuilder($this->parameterBag);
     }
 
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return self
-     */
     public function from(string $table, ?string $alias = null): self
     {
-        $this->from[] = $this->formatIdentifier($table) . ($alias ? ' AS ' . $this->formatIdentifier($alias) : '');
+        $this->from[] = $this->formatIdentifier($table).($alias ? ' AS '.$this->formatIdentifier($alias) : '');
         $this->isDirty = true;
+
         return $this;
     }
 
-    /**
-     * @return string
-     */
     protected function buildSql(): string
     {
         $parts = [];
@@ -68,38 +58,35 @@ class DeleteBuilder extends AbstractQueryBuilder
             $parts = array_merge($parts, $modifiers);
         }
 
-        $parts[] = 'FROM ' . implode(', ', $this->from);
+        $parts[] = 'FROM '.implode(', ', $this->from);
 
         // JOIN clauses
         $joinSql = $this->joinBuilder->toSql();
-        if ($joinSql !== '') {
+        if ('' !== $joinSql) {
             $parts[] = $joinSql;
         }
 
         // WHERE clause
         $whereSql = $this->whereBuilder->toSql();
-        if ($whereSql !== '') {
-            $parts[] = 'WHERE ' . $whereSql;
+        if ('' !== $whereSql) {
+            $parts[] = 'WHERE '.$whereSql;
         }
 
         // ORDER BY clause
         $orderBy = $this->buildOrderByClause();
-        if ($orderBy !== '') {
+        if ('' !== $orderBy) {
             $parts[] = $orderBy;
         }
 
         // LIMIT clause
         $limitClause = $this->buildLimitClause();
-        if ($limitClause !== '') {
+        if ('' !== $limitClause) {
             $parts[] = $limitClause;
         }
 
         return implode(' ', $parts);
     }
 
-    /**
-     * @return string
-     */
     public function getQueryType(): string
     {
         return 'DELETE';

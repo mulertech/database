@@ -25,8 +25,8 @@ final class PhpDatabaseManagerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockConnector = $this->createMock(ConnectorInterface::class);
-        $this->mockPdo = $this->createMock(PDO::class);
+        $this->mockConnector = $this->createStub(ConnectorInterface::class);
+        $this->mockPdo = $this->createStub(PDO::class);
         $this->parameters = [
             'host' => 'localhost',
             'port' => 3306,
@@ -57,16 +57,18 @@ final class PhpDatabaseManagerTest extends TestCase
 
     public function testGetConnection(): void
     {
-        $this->mockConnector->expects($this->once())
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
             ->with(
-                $this->anything(), // Parameters may be modified by environment
-                $this->anything(), // Username may come from environment
-                $this->anything()  // Password may come from environment
+                $this->anything(),
+                $this->anything(),
+                $this->anything()
             )
             ->willReturn($this->mockPdo);
 
-        $connection = $this->manager->getConnection();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $connection = $manager->getConnection();
 
         $this->assertSame($this->mockPdo, $connection);
     }
@@ -81,13 +83,14 @@ final class PhpDatabaseManagerTest extends TestCase
             ->with($this->parameters)
             ->willReturn($parsedParameters);
 
-        $this->mockConnector->expects($this->once())
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
             ->with($parsedParameters, 'testuser', 'testpass')
             ->willReturn($this->mockPdo);
 
         $manager = new PhpDatabaseManager(
-            $this->mockConnector,
+            $connector,
             $this->parameters,
             $mockParser
         );
@@ -99,12 +102,15 @@ final class PhpDatabaseManagerTest extends TestCase
 
     public function testGetConnectionCachesConnection(): void
     {
-        $this->mockConnector->expects($this->once())
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
             ->willReturn($this->mockPdo);
 
-        $connection1 = $this->manager->getConnection();
-        $connection2 = $this->manager->getConnection();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+
+        $connection1 = $manager->getConnection();
+        $connection2 = $manager->getConnection();
 
         $this->assertSame($connection1, $connection2);
     }
@@ -112,18 +118,21 @@ final class PhpDatabaseManagerTest extends TestCase
     public function testPrepareWithoutCache(): void
     {
         $query = 'SELECT * FROM users WHERE id = ?';
-        $mockStatement = $this->createMock(PDOStatement::class);
+        $mockStatement = $this->createStub(PDOStatement::class);
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('prepare')
             ->with($query)
             ->willReturn($mockStatement);
 
-        $statement = $this->manager->prepare($query);
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $statement = $manager->prepare($query);
 
         $this->assertInstanceOf(Statement::class, $statement);
     }
@@ -132,18 +141,21 @@ final class PhpDatabaseManagerTest extends TestCase
     {
         $query = 'SELECT * FROM users WHERE id = ?';
         $options = [PDO::ATTR_CURSOR => PDO::CURSOR_SCROLL];
-        $mockStatement = $this->createMock(PDOStatement::class);
+        $mockStatement = $this->createStub(PDOStatement::class);
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('prepare')
             ->with($query, $options)
             ->willReturn($mockStatement);
 
-        $statement = $this->manager->prepare($query, $options);
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $statement = $manager->prepare($query, $options);
 
         $this->assertInstanceOf(Statement::class, $statement);
     }
@@ -152,40 +164,47 @@ final class PhpDatabaseManagerTest extends TestCase
     {
         $query = 'INVALID SQL';
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('prepare')
             ->with($query)
             ->willReturn(false);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('errorInfo')
             ->willReturn(['42000', 1064, 'Syntax error']);
+
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Failed to prepare statement');
 
-        $this->manager->prepare($query);
+        $manager->prepare($query);
     }
 
     public function testQuery(): void
     {
         $query = 'SELECT * FROM users';
-        $mockStatement = $this->createMock(PDOStatement::class);
+        $mockStatement = $this->createStub(PDOStatement::class);
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query)
             ->willReturn($mockStatement);
 
-        $statement = $this->manager->query($query);
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $statement = $manager->query($query);
 
         $this->assertInstanceOf(Statement::class, $statement);
     }
@@ -194,19 +213,20 @@ final class PhpDatabaseManagerTest extends TestCase
     {
         $query = 'SELECT * FROM users';
         $mockExecutor = $this->createMock(QueryExecutorInterface::class);
-        $mockStatement = $this->createMock(Statement::class);
+        $mockStatement = $this->createStub(Statement::class);
+
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
+            ->method('connect')
+            ->willReturn($this->mockPdo);
 
         $mockExecutor->expects($this->once())
             ->method('executeQuery')
             ->with($this->mockPdo, $query, null, '', null)
             ->willReturn($mockStatement);
 
-        $this->mockConnector->expects($this->once())
-            ->method('connect')
-            ->willReturn($this->mockPdo);
-
         $manager = new PhpDatabaseManager(
-            $this->mockConnector,
+            $connector,
             $this->parameters,
             null,
             $mockExecutor
@@ -219,115 +239,136 @@ final class PhpDatabaseManagerTest extends TestCase
 
     public function testBeginTransaction(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('beginTransaction')
             ->willReturn(true);
 
-        $result = $this->manager->beginTransaction();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->beginTransaction();
 
         $this->assertTrue($result);
     }
 
     public function testNestedTransactions(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('beginTransaction')
             ->willReturn(true);
 
-        $this->assertTrue($this->manager->beginTransaction());
-        $this->assertTrue($this->manager->beginTransaction()); // Nested transaction
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $this->assertTrue($manager->beginTransaction());
+        $this->assertTrue($manager->beginTransaction()); // Nested transaction
     }
 
     public function testCommit(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('beginTransaction')
             ->willReturn(true);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('commit')
             ->willReturn(true);
 
-        $this->manager->beginTransaction();
-        $result = $this->manager->commit();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $manager->beginTransaction();
+        $result = $manager->commit();
 
         $this->assertTrue($result);
     }
 
     public function testCommitNestedTransaction(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('beginTransaction')
             ->willReturn(true);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('commit')
             ->willReturn(true);
 
-        $this->manager->beginTransaction();
-        $this->manager->beginTransaction(); // Nested
-        $this->assertTrue($this->manager->commit()); // Should not commit yet
-        $this->assertTrue($this->manager->commit()); // Should commit now
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $manager->beginTransaction();
+        $manager->beginTransaction(); // Nested
+        $this->assertTrue($manager->commit()); // Should not commit yet
+        $this->assertTrue($manager->commit()); // Should commit now
     }
 
     public function testRollBack(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('rollBack')
             ->willReturn(true);
 
-        $result = $this->manager->rollBack();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->rollBack();
 
         $this->assertTrue($result);
     }
 
     public function testInTransaction(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('inTransaction')
             ->willReturn(true);
 
-        $result = $this->manager->inTransaction();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->inTransaction();
 
         $this->assertTrue($result);
     }
 
     public function testSetAttribute(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('setAttribute')
             ->with(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION)
             ->willReturn(true);
 
-        $result = $this->manager->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         $this->assertTrue($result);
     }
@@ -337,16 +378,19 @@ final class PhpDatabaseManagerTest extends TestCase
         $statement = 'CREATE TABLE test (id INT)';
         $affectedRows = 0;
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('exec')
             ->with($statement)
             ->willReturn($affectedRows);
 
-        $result = $this->manager->exec($statement);
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->exec($statement);
 
         $this->assertEquals($affectedRows, $result);
     }
@@ -355,39 +399,46 @@ final class PhpDatabaseManagerTest extends TestCase
     {
         $statement = 'INVALID SQL';
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('exec')
             ->with($statement)
             ->willReturn(false);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('errorInfo')
             ->willReturn(['42000', 1064, 'Syntax error']);
+
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Failed to execute statement');
 
-        $this->manager->exec($statement);
+        $manager->exec($statement);
     }
 
     public function testLastInsertId(): void
     {
         $insertId = '123';
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('lastInsertId')
             ->with(null)
             ->willReturn($insertId);
 
-        $result = $this->manager->lastInsertId();
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->lastInsertId();
 
         $this->assertEquals($insertId, $result);
     }
@@ -397,34 +448,41 @@ final class PhpDatabaseManagerTest extends TestCase
         $sequenceName = 'users_id_seq';
         $insertId = '456';
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('lastInsertId')
             ->with($sequenceName)
             ->willReturn($insertId);
 
-        $result = $this->manager->lastInsertId($sequenceName);
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
+        $result = $manager->lastInsertId($sequenceName);
 
         $this->assertEquals($insertId, $result);
     }
 
     public function testLastInsertIdThrowsExceptionOnFailure(): void
     {
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('lastInsertId')
             ->willReturn(false);
+
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Failed to get last insert ID');
 
-        $this->manager->lastInsertId();
+        $manager->lastInsertId();
     }
 
 
@@ -432,17 +490,18 @@ final class PhpDatabaseManagerTest extends TestCase
     {
         $parametersWithoutCredentials = ['host' => 'localhost'];
 
-        $this->mockConnector->expects($this->once())
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
             ->with(
-                $this->anything(), // Parameters may be modified by environment
-                $this->anything(), // Username may come from environment
-                $this->anything()  // Password may come from environment
+                $this->anything(),
+                $this->anything(),
+                $this->anything()
             )
             ->willReturn($this->mockPdo);
 
         $manager = new PhpDatabaseManager(
-            $this->mockConnector,
+            $connector,
             $parametersWithoutCredentials
         );
 
@@ -455,63 +514,73 @@ final class PhpDatabaseManagerTest extends TestCase
     {
         $pdoException = new \PDOException('Connection failed', 2002);
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('beginTransaction')
             ->willThrowException($pdoException);
+
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
 
         $this->expectException(\PDOException::class);
         $this->expectExceptionMessage('Connection failed');
         $this->expectExceptionCode(2002);
 
-        $this->manager->beginTransaction();
+        $manager->beginTransaction();
     }
 
     public function testCommitThrowsPDOException(): void
     {
         $pdoException = new \PDOException('Commit failed', 2006);
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        // First begin a transaction
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('beginTransaction')
             ->willReturn(true);
 
-        // Then make commit throw exception
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('commit')
             ->willThrowException($pdoException);
+
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
 
         $this->expectException(\PDOException::class);
         $this->expectExceptionMessage('Commit failed');
         $this->expectExceptionCode(2006);
 
-        $this->manager->beginTransaction();
-        $this->manager->commit();
+        $manager->beginTransaction();
+        $manager->commit();
     }
 
     public function testRollBackThrowsPDOException(): void
     {
         $pdoException = new \PDOException('Rollback failed', 2013);
 
-        $this->mockConnector->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $connector = $this->createMock(ConnectorInterface::class);
+        $connector->expects($this->once())
             ->method('connect')
-            ->willReturn($this->mockPdo);
+            ->willReturn($pdo);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('rollBack')
             ->willThrowException($pdoException);
+
+        $manager = new PhpDatabaseManager($connector, $this->parameters);
 
         $this->expectException(\PDOException::class);
         $this->expectExceptionMessage('Rollback failed');
         $this->expectExceptionCode(2013);
 
-        $this->manager->rollBack();
+        $manager->rollBack();
     }
 }

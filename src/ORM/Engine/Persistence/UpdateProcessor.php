@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\PropertyChange;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class UpdateProcessor
@@ -22,7 +18,7 @@ readonly class UpdateProcessor
 
     public function __construct(
         EntityManagerInterface $entityManager,
-        MetadataRegistry $metadataRegistry
+        MetadataRegistry $metadataRegistry,
     ) {
         $this->validator = new UpdateEntityValidator($entityManager, $metadataRegistry);
         $this->queryBuilder = new UpdateQueryBuilder(
@@ -33,12 +29,11 @@ readonly class UpdateProcessor
     }
 
     /**
-     * Process entity update with given changes
+     * Process entity update with given changes.
      *
-     * @param object $entity
      * @param array<string, PropertyChange> $changes
-     * @return void
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function process(object $entity, array $changes): void
     {
@@ -53,11 +48,9 @@ readonly class UpdateProcessor
     }
 
     /**
-     * Execute the UPDATE operation
+     * Execute the UPDATE operation.
      *
-     * @param object $entity
      * @param array<string, PropertyChange> $changes
-     * @return void
      */
     private function executeUpdate(object $entity, array $changes): void
     {
@@ -67,12 +60,8 @@ readonly class UpdateProcessor
 
             $pdoStatement->execute();
             $pdoStatement->closeCursor();
-        } catch (Exception $e) {
-            throw new RuntimeException(
-                sprintf('Failed to update entity %s: %s', $entity::class, $e->getMessage()),
-                0,
-                $e
-            );
+        } catch (\Exception $e) {
+            throw new \RuntimeException(sprintf('Failed to update entity %s: %s', $entity::class, $e->getMessage()), 0, $e);
         }
     }
 }

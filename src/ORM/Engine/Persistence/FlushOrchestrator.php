@@ -10,11 +10,10 @@ use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\EventManager\EventManager;
-use ReflectionException;
 
 /**
- * Orchestrates the flush process with event handling and iteration management
- * @package MulerTech\Database
+ * Orchestrates the flush process with event handling and iteration management.
+ *
  * @author Sébastien Muler
  */
 readonly class FlushOrchestrator
@@ -31,8 +30,7 @@ readonly class FlushOrchestrator
     }
 
     /**
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function performFlush(): void
     {
@@ -43,7 +41,7 @@ readonly class FlushOrchestrator
         $iteration = 0;
 
         do {
-            $iteration++;
+            ++$iteration;
 
             $this->flushHandler->doFlush(
                 fn ($entity) => $this->operationProcessor->processInsertion($entity, $this->flushHandler->getFlushDepth()),
@@ -53,27 +51,20 @@ readonly class FlushOrchestrator
 
             $this->handlePostFlushEvents();
             $hasMoreWork = $this->hasNewOperationsScheduled();
-
         } while ($hasMoreWork && $iteration < $maxIterations && $this->flushHandler->getFlushDepth() < 3);
     }
 
-    /**
-     * @return bool
-     */
     private function hasNewOperationsScheduled(): bool
     {
-        return !empty($this->changeSetManager->getScheduledInsertions()) ||
-               !empty($this->changeSetManager->getScheduledUpdates()) ||
-               !empty($this->changeSetManager->getScheduledDeletions()) ||
-               !empty($this->stateManager->getScheduledDeletions());
+        return !empty($this->changeSetManager->getScheduledInsertions())
+               || !empty($this->changeSetManager->getScheduledUpdates())
+               || !empty($this->changeSetManager->getScheduledDeletions())
+               || !empty($this->stateManager->getScheduledDeletions());
     }
 
-    /**
-     * @return void
-     */
     private function handlePreFlushEvents(): void
     {
-        if ($this->eventManager === null) {
+        if (null === $this->eventManager) {
             return;
         }
 
@@ -81,12 +72,9 @@ readonly class FlushOrchestrator
         $this->eventManager->dispatch(new PreFlushEvent($this->entityManager));
     }
 
-    /**
-     * @return void
-     */
     private function handlePostFlushEvents(): void
     {
-        if ($this->eventManager === null) {
+        if (null === $this->eventManager) {
             return;
         }
 
@@ -103,9 +91,9 @@ readonly class FlushOrchestrator
         $postEventUpdates = count($this->changeSetManager->getScheduledUpdates());
         $postEventDeletions = count($this->changeSetManager->getScheduledDeletions());
 
-        $hasNewChanges = $postEventInsertions > $preEventInsertions ||
-                        $postEventUpdates > $preEventUpdates ||
-                        $postEventDeletions > $preEventDeletions;
+        $hasNewChanges = $postEventInsertions > $preEventInsertions
+                        || $postEventUpdates > $preEventUpdates
+                        || $postEventDeletions > $preEventDeletions;
 
         if ($hasNewChanges) {
             $this->flushHandler->markPostEventChanges();

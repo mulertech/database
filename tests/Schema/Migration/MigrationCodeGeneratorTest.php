@@ -33,7 +33,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeEmpty(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -49,7 +49,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateDownCodeEmpty(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToAdd')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
         $diff->method('getColumnsToAdd')->willReturn([]);
@@ -62,7 +62,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithDropForeignKeys(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([
             'users' => ['fk_user_department']
         ]);
@@ -81,7 +81,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithDropColumns(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([
             'users' => ['old_column']
@@ -100,7 +100,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithCreateTables(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         // Use empty array to avoid entity lookup issues
@@ -118,7 +118,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithAddColumns(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -145,7 +145,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithModifyColumns(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -170,7 +170,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithAddForeignKeys(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -200,7 +200,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithDropTables(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -217,7 +217,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateDownCodeWithContent(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToAdd')->willReturn([
             'orders' => [
                 'fk_orders_user_id' => [
@@ -256,7 +256,7 @@ class MigrationCodeGeneratorTest extends TestCase
     public function testGenerateUpCodeFiltersColumnsForNewTables(): void
     {
         // Test focuses on column filtering logic without entity lookup
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]); // Empty to avoid entity lookup
@@ -282,7 +282,7 @@ class MigrationCodeGeneratorTest extends TestCase
     public function testGenerateDownCodeFiltersColumnsForNewTables(): void
     {
         // Test down code generation without entity lookup
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToAdd')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]); // Empty to avoid entity lookup
         $diff->method('getColumnsToAdd')->willReturn([
@@ -304,7 +304,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateUpCodeWithComplexScenario(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([
             'orders' => ['old_fk']
         ]);
@@ -353,7 +353,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testGenerateCodeProperIndentation(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -382,7 +382,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testHandleNonArrayColumnDefinition(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -404,7 +404,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testHandleNonArrayColumnModification(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);
@@ -426,7 +426,7 @@ class MigrationCodeGeneratorTest extends TestCase
 
     public function testHandleNonArrayForeignKeyInfo(): void
     {
-        $diff = $this->createMock(SchemaDifference::class);
+        $diff = $this->createStub(SchemaDifference::class);
         $diff->method('getForeignKeysToDrop')->willReturn([]);
         $diff->method('getColumnsToDrop')->willReturn([]);
         $diff->method('getTablesToCreate')->willReturn([]);

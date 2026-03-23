@@ -22,7 +22,7 @@ class InsertionProcessorTest extends TestCase
     {
         parent::setUp();
         
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
         
         $this->insertionProcessor = new InsertionProcessor(
@@ -37,8 +37,8 @@ class InsertionProcessorTest extends TestCase
         $user->setUsername('John');
         
         // Mock necessary methods
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
         
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
@@ -75,8 +75,8 @@ class InsertionProcessorTest extends TestCase
         ];
         
         // Mock necessary methods
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
         
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
@@ -125,8 +125,8 @@ class InsertionProcessorTest extends TestCase
         $entity->setName('Test');
 
         // Mock necessary methods to simulate successful insertion with generated ID
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
         
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);

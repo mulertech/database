@@ -4,34 +4,29 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
-use RuntimeException;
 
 /**
- * Validates entities before UPDATE operations
- * @package MulerTech\Database
+ * Validates entities before UPDATE operations.
+ *
  * @author Sébastien Muler
  */
 readonly class UpdateEntityValidator
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MetadataRegistry $metadataRegistry
+        private MetadataRegistry $metadataRegistry,
     ) {
     }
 
     /**
-     * Validate entity is ready for update
-     *
-     * @param object $entity
-     * @return bool
+     * Validate entity is ready for update.
      */
     public function validateForUpdate(object $entity): bool
     {
         $entityId = $this->getEntityId($entity);
-        if ($entityId === null) {
+        if (null === $entityId) {
             return false;
         }
 
@@ -39,31 +34,22 @@ readonly class UpdateEntityValidator
     }
 
     /**
-     * Get entity ID with validation
-     *
-     * @param object $entity
-     * @return int|string|null
+     * Get entity ID with validation.
      */
     public function getEntityId(object $entity): int|string|null
     {
         if (!method_exists($entity, 'getId')) {
-            throw new RuntimeException(
-                sprintf('The entity %s must have a getId method', $entity::class)
-            );
+            throw new \RuntimeException(sprintf('The entity %s must have a getId method', $entity::class));
         }
 
         return $entity->getId();
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     private function entityExistsInDatabase(object $entity): bool
     {
         try {
             $entityId = $this->getEntityId($entity);
-            if ($entityId === null) {
+            if (null === $entityId) {
                 return false;
             }
 
@@ -77,7 +63,7 @@ readonly class UpdateEntityValidator
             $statement->closeCursor();
 
             return $count > 0;
-        } catch (Exception) {
+        } catch (\Exception) {
             // If we can't check, assume it exists to avoid silent failures
             return true;
         }

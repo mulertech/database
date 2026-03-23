@@ -39,13 +39,13 @@ class MigrationManagerTest extends TestCase
      */
     protected function setUp(): void
     {
-        $mockEntityManager = $this->createMock(EntityManagerInterface::class);
-        $mockEmEngine = $this->createMock(EmEngine::class);
-        
+        $mockEntityManager = $this->createStub(EntityManagerInterface::class);
+        $mockEmEngine = $this->createStub(EmEngine::class);
+
         // Create a real MetadataRegistry instance since it's final and cannot be mocked
         $metadataRegistry = new MetadataRegistry();
-        
-        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
+
+        $mockPdm = $this->createStub(PhpDatabaseInterface::class);
 
         $mockEntityManager->method('getEmEngine')->willReturn($mockEmEngine);
         $mockEntityManager->method('getMetadataRegistry')->willReturn($metadataRegistry);

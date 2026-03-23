@@ -17,9 +17,9 @@ class QueryExecutorInterfaceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockPdo = $this->createMock(PDO::class);
-        
-        $mockStatement = $this->createMock(PDOStatement::class);
+        $this->mockPdo = $this->createStub(PDO::class);
+
+        $mockStatement = $this->createStub(PDOStatement::class);
         $mockStatement->method('execute')->willReturn(true);
         $mockStatement->method('fetchAll')->willReturn([]);
         $mockStatement->method('fetch')->willReturn(false);

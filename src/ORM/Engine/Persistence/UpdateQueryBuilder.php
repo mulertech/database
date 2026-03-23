@@ -4,18 +4,15 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\PropertyChange;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Query\Builder\UpdateBuilder;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Builds UPDATE queries for entities
- * @package MulerTech\Database
+ * Builds UPDATE queries for entities.
+ *
  * @author Sébastien Muler
  */
 readonly class UpdateQueryBuilder
@@ -25,18 +22,17 @@ readonly class UpdateQueryBuilder
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MetadataRegistry $metadataRegistry,
-        private UpdateEntityValidator $validator
+        private UpdateEntityValidator $validator,
     ) {
         $this->valueProcessor = new UpdateValueProcessor();
     }
 
     /**
-     * Build UPDATE query for entity changes
+     * Build UPDATE query for entity changes.
      *
-     * @param object $entity
      * @param array<string, PropertyChange> $changes
-     * @return UpdateBuilder
-     * @throws Exception
+     *
+     * @throws \Exception
      */
     public function buildQuery(object $entity, array $changes): UpdateBuilder
     {
@@ -50,12 +46,11 @@ readonly class UpdateQueryBuilder
     }
 
     /**
-     * Check if there are valid values to update
+     * Check if there are valid values to update.
      *
-     * @param object $entity
      * @param array<string, PropertyChange> $changes
-     * @return bool
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function hasValidUpdates(object $entity, array $changes): bool
     {
@@ -81,10 +76,9 @@ readonly class UpdateQueryBuilder
      * Since all relation properties also have MtColumn attributes, this single method
      * handles all property updates including foreign keys.
      *
-     * @param UpdateBuilder $updateBuilder
-     * @param object $entity
      * @param array<string, PropertyChange> $changes
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function addPropertyUpdates(UpdateBuilder $updateBuilder, object $entity, array $changes): void
     {
@@ -97,37 +91,33 @@ readonly class UpdateQueryBuilder
 
             $newValue = $changes[$property]->newValue;
             if ($this->valueProcessor->isProcessableValue($newValue)) {
-                /** @var array<string, mixed>|object|string|null $newValue */
+                /* @var array<string, mixed>|object|string|null $newValue */
                 $updateBuilder->set($column, $this->valueProcessor->extractForeignKeyId($newValue));
             }
         }
     }
 
     /**
-     * Add WHERE clause with entity ID
-     *
-     * @param UpdateBuilder $updateBuilder
-     * @param object $entity
+     * Add WHERE clause with entity ID.
      */
     private function addWhereClause(UpdateBuilder $updateBuilder, object $entity): void
     {
         $entityId = $this->validator->getEntityId($entity);
-        if ($entityId === null) {
-            throw new RuntimeException(
-                sprintf('Cannot update entity %s without a valid ID', $entity::class)
-            );
+        if (null === $entityId) {
+            throw new \RuntimeException(sprintf('Cannot update entity %s without a valid ID', $entity::class));
         }
 
         $updateBuilder->where('id', $entityId);
     }
 
     /**
-     * Get properties to columns mapping
+     * Get properties to columns mapping.
      *
      * @param class-string $entityName
-     * @param bool $keepId
+     *
      * @return array<string, string>
-     * @throws ReflectionException|Exception
+     *
+     * @throws \ReflectionException|\Exception
      */
     private function getPropertiesColumns(string $entityName, bool $keepId = true): array
     {

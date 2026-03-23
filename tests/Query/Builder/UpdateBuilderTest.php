@@ -30,7 +30,7 @@ class UpdateBuilderTest extends TestCase
 
     public function testConstructorWithEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $builder = new UpdateBuilder($emEngine);
         $this->assertInstanceOf(UpdateBuilder::class, $builder);
     }

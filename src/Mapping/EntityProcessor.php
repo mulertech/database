@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
-use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
+use MulerTech\Database\Mapping\Attributes\MtEntity;
 use MulerTech\Database\Mapping\Attributes\MtFk;
-use MulerTech\Database\Mapping\Attributes\MtOneToOne;
+use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
-use MulerTech\Database\Mapping\Attributes\MtManyToMany;
+use MulerTech\Database\Mapping\Attributes\MtOneToOne;
 use MulerTech\FileManipulation\FileType\Php;
 use ReflectionClass;
-use ReflectionException;
-use ReflectionProperty;
-use RuntimeException;
 
 /**
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EntityProcessor
@@ -34,9 +30,7 @@ class EntityProcessor
     private array $columns = [];
 
     /**
-     * Load entities from a given path and store EntityMetadata
-     * @param string $entitiesPath
-     * @return void
+     * Load entities from a given path and store EntityMetadata.
      */
     public function loadEntities(string $entitiesPath): void
     {
@@ -46,7 +40,7 @@ class EntityProcessor
             if (!class_exists($className)) {
                 continue;
             }
-            $reflection = new ReflectionClass($className);
+            $reflection = new \ReflectionClass($className);
 
             // Only process classes that have MtEntity attribute
             $entityAttrs = $reflection->getAttributes(MtEntity::class);
@@ -60,7 +54,8 @@ class EntityProcessor
     }
 
     /**
-     * Get all loaded entity class names
+     * Get all loaded entity class names.
+     *
      * @return array<class-string>
      */
     public function getLoadedEntityClasses(): array
@@ -69,11 +64,13 @@ class EntityProcessor
     }
 
     /**
-     * Process a single entity class and store its metadata
-     * @param ReflectionClass<object> $reflection
+     * Process a single entity class and store its metadata.
+     *
+     * @param \ReflectionClass<object> $reflection
+     *
      * @return bool True if the entity was processed, false if ignored
      */
-    public function processEntityClass(ReflectionClass $reflection): bool
+    public function processEntityClass(\ReflectionClass $reflection): bool
     {
         // Only process classes that have MtEntity attribute
         $entityAttrs = $reflection->getAttributes(MtEntity::class);
@@ -83,40 +80,40 @@ class EntityProcessor
         }
 
         $metadata = $this->buildEntityMetadata($reflection);
-        return $metadata !== null;
+
+        return null !== $metadata;
     }
 
     /**
-     * Build EntityMetadata for a class by name
+     * Build EntityMetadata for a class by name.
+     *
      * @param class-string $className
-     * @return EntityMetadata
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function buildEntityMetadataForClass(string $className): EntityMetadata
     {
-        $reflection = new ReflectionClass($className);
+        $reflection = new \ReflectionClass($className);
         $metadata = $this->buildEntityMetadata($reflection);
 
-        if ($metadata === null) {
-            throw new RuntimeException(
-                sprintf('Entity %s does not have MtEntity attribute', $className)
-            );
+        if (null === $metadata) {
+            throw new \RuntimeException(sprintf('Entity %s does not have MtEntity attribute', $className));
         }
 
         return $metadata;
     }
 
     /**
-     * Build EntityMetadata from ReflectionClass
-     * @param ReflectionClass<object> $reflection
-     * @return EntityMetadata|null
+     * Build EntityMetadata from ReflectionClass.
+     *
+     * @param \ReflectionClass<object> $reflection
      */
-    private function buildEntityMetadata(ReflectionClass $reflection): ?EntityMetadata
+    private function buildEntityMetadata(\ReflectionClass $reflection): ?EntityMetadata
     {
         $className = $reflection->getName();
         $entityConfig = $this->extractEntityConfiguration($reflection, $className);
 
-        if ($entityConfig === null) {
+        if (null === $entityConfig) {
             return null;
         }
 
@@ -142,12 +139,13 @@ class EntityProcessor
     }
 
     /**
-     * Extract entity configuration from MtEntity attribute
-     * @param ReflectionClass<object> $reflection
-     * @param string $className
+     * Extract entity configuration from MtEntity attribute.
+     *
+     * @param \ReflectionClass<object> $reflection
+     *
      * @return array{tableName: string, repository: ?class-string, autoIncrement: ?int, entity: MtEntity}|null
      */
-    private function extractEntityConfiguration(ReflectionClass $reflection, string $className): ?array
+    private function extractEntityConfiguration(\ReflectionClass $reflection, string $className): ?array
     {
         $entityAttrs = $reflection->getAttributes(MtEntity::class);
 
@@ -156,6 +154,7 @@ class EntityProcessor
         }
 
         $entityAttr = $entityAttrs[0]->newInstance();
+
         return [
             'tableName' => $entityAttr->tableName ?? $this->classNameToTableName($className),
             'repository' => $entityAttr->repository,
@@ -165,8 +164,10 @@ class EntityProcessor
     }
 
     /**
-     * Process all properties to extract mappings and relationships
-     * @param ReflectionClass<object> $reflection
+     * Process all properties to extract mappings and relationships.
+     *
+     * @param \ReflectionClass<object> $reflection
+     *
      * @return array{
      *     columns: array<string, MtColumn>,
      *     foreignKeys: array<string, MtFk>,
@@ -176,7 +177,7 @@ class EntityProcessor
      *     manyToManyRelations: array<string, MtManyToMany>
      * }
      */
-    private function processProperties(ReflectionClass $reflection): array
+    private function processProperties(\ReflectionClass $reflection): array
     {
         $columns = [];
         $foreignKeys = [];
@@ -203,15 +204,12 @@ class EntityProcessor
         ];
     }
 
-
     /**
-     * Process column mapping from MtColumn attribute
-     * @param ReflectionProperty $property
-     * @param string $propertyName
+     * Process column mapping from MtColumn attribute.
+     *
      * @param array<string, MtColumn> $columns
-     * @return void
      */
-    private function processColumnMapping(ReflectionProperty $property, string $propertyName, array &$columns): void
+    private function processColumnMapping(\ReflectionProperty $property, string $propertyName, array &$columns): void
     {
         $columnAttrs = $property->getAttributes(MtColumn::class);
 
@@ -224,16 +222,14 @@ class EntityProcessor
     }
 
     /**
-     * Process foreign key mapping from MtFk attribute
-     * @param ReflectionProperty $property
-     * @param string $propertyName
+     * Process foreign key mapping from MtFk attribute.
+     *
      * @param array<string, MtFk> $foreignKeys
-     * @return void
      */
     private function processForeignKeyMapping(
-        ReflectionProperty $property,
+        \ReflectionProperty $property,
         string $propertyName,
-        array &$foreignKeys
+        array &$foreignKeys,
     ): void {
         $fkAttrs = $property->getAttributes(MtFk::class);
 
@@ -246,22 +242,20 @@ class EntityProcessor
     }
 
     /**
-     * Process relationship mappings from Mt* relation attributes
-     * @param ReflectionProperty $property
-     * @param string $propertyName
-     * @param array<string, MtOneToMany> $oneToManyRelations
-     * @param array<string, MtManyToOne> $manyToOneRelations
-     * @param array<string, MtOneToOne> $oneToOneRelations
+     * Process relationship mappings from Mt* relation attributes.
+     *
+     * @param array<string, MtOneToMany>  $oneToManyRelations
+     * @param array<string, MtManyToOne>  $manyToOneRelations
+     * @param array<string, MtOneToOne>   $oneToOneRelations
      * @param array<string, MtManyToMany> $manyToManyRelations
-     * @return void
      */
     private function processRelationshipMappings(
-        ReflectionProperty $property,
+        \ReflectionProperty $property,
         string $propertyName,
         array &$oneToManyRelations,
         array &$manyToOneRelations,
         array &$oneToOneRelations,
-        array &$manyToManyRelations
+        array &$manyToManyRelations,
     ): void {
         $this->processOneToOneRelation($property, $propertyName, $oneToOneRelations);
         $this->processManyToOneRelation($property, $propertyName, $manyToOneRelations);
@@ -270,16 +264,14 @@ class EntityProcessor
     }
 
     /**
-     * Process OneToOne relationship
-     * @param ReflectionProperty $property
-     * @param string $propertyName
+     * Process OneToOne relationship.
+     *
      * @param array<string, MtOneToOne> $oneToOneRelations
-     * @return void
      */
     private function processOneToOneRelation(
-        ReflectionProperty $property,
+        \ReflectionProperty $property,
         string $propertyName,
-        array &$oneToOneRelations
+        array &$oneToOneRelations,
     ): void {
         $oneToOneAttrs = $property->getAttributes(MtOneToOne::class);
 
@@ -292,16 +284,14 @@ class EntityProcessor
     }
 
     /**
-     * Process ManyToOne relationship
-     * @param ReflectionProperty $property
-     * @param string $propertyName
+     * Process ManyToOne relationship.
+     *
      * @param array<string, MtManyToOne> $manyToOneRelations
-     * @return void
      */
     private function processManyToOneRelation(
-        ReflectionProperty $property,
+        \ReflectionProperty $property,
         string $propertyName,
-        array &$manyToOneRelations
+        array &$manyToOneRelations,
     ): void {
         $manyToOneAttrs = $property->getAttributes(MtManyToOne::class);
 
@@ -314,16 +304,14 @@ class EntityProcessor
     }
 
     /**
-     * Process OneToMany relationship
-     * @param ReflectionProperty $property
-     * @param string $propertyName
+     * Process OneToMany relationship.
+     *
      * @param array<string, MtOneToMany> $oneToManyRelations
-     * @return void
      */
     private function processOneToManyRelation(
-        ReflectionProperty $property,
+        \ReflectionProperty $property,
         string $propertyName,
-        array &$oneToManyRelations
+        array &$oneToManyRelations,
     ): void {
         $oneToManyAttrs = $property->getAttributes(MtOneToMany::class);
 
@@ -336,16 +324,14 @@ class EntityProcessor
     }
 
     /**
-     * Process ManyToMany relationship
-     * @param ReflectionProperty $property
-     * @param string $propertyName
+     * Process ManyToMany relationship.
+     *
      * @param array<string, MtManyToMany> $manyToManyRelations
-     * @return void
      */
     private function processManyToManyRelation(
-        ReflectionProperty $property,
+        \ReflectionProperty $property,
         string $propertyName,
-        array &$manyToManyRelations
+        array &$manyToManyRelations,
     ): void {
         $manyToManyAttrs = $property->getAttributes(MtManyToMany::class);
 
@@ -358,8 +344,9 @@ class EntityProcessor
     }
 
     /**
-     * Create EntityMetadata instance with processed data
-     * @param ReflectionClass<object> $reflection
+     * Create EntityMetadata instance with processed data.
+     *
+     * @param \ReflectionClass<object>                                                                   $reflection
      * @param array{tableName: string, repository: ?class-string, autoIncrement: ?int, entity: MtEntity} $entityConfig
      * @param array{
      *     columns: array<string, MtColumn>,
@@ -369,12 +356,11 @@ class EntityProcessor
      *     oneToOneRelations: array<string, MtOneToOne>,
      *     manyToManyRelations: array<string, MtManyToMany>
      * } $propertyMappings
-     * @return EntityMetadata
      */
     private function createEntityMetadata(
-        ReflectionClass $reflection,
+        \ReflectionClass $reflection,
         array $entityConfig,
-        array $propertyMappings
+        array $propertyMappings,
     ): EntityMetadata {
         return new EntityMetadata(
             className: $reflection->getName(),
@@ -383,9 +369,9 @@ class EntityProcessor
             properties: $reflection->getProperties(),
             getters: array_filter(
                 $reflection->getMethods(),
-                static fn ($refMethod) => str_starts_with($refMethod->getName(), 'get') ||
-                                 str_starts_with($refMethod->getName(), 'is') ||
-                                 str_starts_with($refMethod->getName(), 'has')
+                static fn ($refMethod) => str_starts_with($refMethod->getName(), 'get')
+                                 || str_starts_with($refMethod->getName(), 'is')
+                                 || str_starts_with($refMethod->getName(), 'has')
             ),
             setters: array_filter(
                 $reflection->getMethods(),
@@ -403,43 +389,45 @@ class EntityProcessor
     }
 
     /**
-     * Convert class name to table name (basic implementation)
-     * @param string $className
-     * @return string
+     * Convert class name to table name (basic implementation).
      */
     public function classNameToTableName(string $className): string
     {
         /** @var class-string $className */
-        $reflection = new ReflectionClass($className);
+        $reflection = new \ReflectionClass($className);
         $shortName = $reflection->getShortName();
 
         // Convert CamelCase to snake_case
         $converted = preg_replace('/([a-z])([A-Z])/', '$1_$2', $shortName);
+
         return strtolower($converted ?: $shortName);
     }
 
     /**
      * @param class-string $entityName
-     * @return MtEntity|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getMtEntity(string $entityName): ?MtEntity
     {
         $entity = Php::getInstanceOfClassAttributeNamed($entityName, MtEntity::class);
+
         return $entity instanceof MtEntity ? $entity : null;
     }
 
     /**
      * @param class-string $entityName
+     *
      * @return class-string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getRepository(string $entityName): ?string
     {
         $mtEntity = $this->getMtEntity($entityName);
 
         if (is_null($mtEntity)) {
-            throw new RuntimeException("The MtEntity mapping is not implemented into the $entityName class.");
+            throw new \RuntimeException("The MtEntity mapping is not implemented into the $entityName class.");
         }
 
         return $mtEntity->repository;
@@ -447,8 +435,8 @@ class EntityProcessor
 
     /**
      * @param class-string $entityName
-     * @return int|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getAutoIncrement(string $entityName): ?int
     {
@@ -473,7 +461,6 @@ class EntityProcessor
 
     /**
      * @param class-string $entityName
-     * @return string|null
      */
     public function getTableName(string $entityName): ?string
     {
@@ -482,8 +469,6 @@ class EntityProcessor
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
      */
     public function getColumnName(string $entityName, string $property): ?string
     {

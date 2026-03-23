@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\State;
 
 /**
- * State validator for entity operations
- * @package MulerTech\Database
+ * State validator for entity operations.
+ *
  * @author Sébastien Muler
  */
 final class StateValidator
@@ -14,18 +14,11 @@ final class StateValidator
     /** @var array<class-string, array<string, callable>> */
     private array $validators = [];
 
-    /** @var bool */
     private bool $strictMode = true;
 
     /** @var array<string, mixed> */
     private array $validationContext = [];
 
-    /**
-     * @param object $entity
-     * @param EntityLifecycleState $currentState
-     * @param string $operation
-     * @return bool
-     */
     public function validateOperation(object $entity, EntityLifecycleState $currentState, string $operation): bool
     {
         return match ($operation) {
@@ -35,86 +28,53 @@ final class StateValidator
             'merge' => $this->validateMerge($entity, $currentState),
             'detach' => $this->validateDetach($currentState),
             'refresh' => $this->validateRefresh($currentState),
-            default => $this->validateCustomOperation($entity, $currentState, $operation)
+            default => $this->validateCustomOperation($entity, $currentState, $operation),
         };
     }
 
-    /**
-     * @param object $entity
-     * @param EntityLifecycleState $currentState
-     * @return bool
-     */
     private function validatePersist(object $entity, EntityLifecycleState $currentState): bool
     {
-        if ($currentState !== EntityLifecycleState::NEW && $currentState !== EntityLifecycleState::DETACHED) {
+        if (EntityLifecycleState::NEW !== $currentState && EntityLifecycleState::DETACHED !== $currentState) {
             return false;
         }
 
         return $this->validateEntityIntegrity($entity);
     }
 
-    /**
-     * @param object $entity
-     * @param EntityLifecycleState $currentState
-     * @return bool
-     */
     private function validateUpdate(object $entity, EntityLifecycleState $currentState): bool
     {
-        if ($currentState !== EntityLifecycleState::MANAGED) {
+        if (EntityLifecycleState::MANAGED !== $currentState) {
             return false;
         }
 
         return $this->validateEntityIntegrity($entity);
     }
 
-    /**
-     * @param EntityLifecycleState $currentState
-     * @return bool
-     */
     private function validateRemove(EntityLifecycleState $currentState): bool
     {
-        return $currentState !== EntityLifecycleState::REMOVED;
+        return EntityLifecycleState::REMOVED !== $currentState;
     }
 
-    /**
-     * @param object $entity
-     * @param EntityLifecycleState $currentState
-     * @return bool
-     */
     private function validateMerge(object $entity, EntityLifecycleState $currentState): bool
     {
-        if ($currentState !== EntityLifecycleState::DETACHED) {
+        if (EntityLifecycleState::DETACHED !== $currentState) {
             return false;
         }
 
         return $this->validateEntityIntegrity($entity);
     }
 
-    /**
-     * @param EntityLifecycleState $currentState
-     * @return bool
-     */
     private function validateDetach(EntityLifecycleState $currentState): bool
     {
         // Allow detaching entities that are NEW or MANAGED
-        return $currentState === EntityLifecycleState::MANAGED || $currentState === EntityLifecycleState::NEW;
+        return EntityLifecycleState::MANAGED === $currentState || EntityLifecycleState::NEW === $currentState;
     }
 
-    /**
-     * @param EntityLifecycleState $currentState
-     * @return bool
-     */
     private function validateRefresh(EntityLifecycleState $currentState): bool
     {
-        return $currentState === EntityLifecycleState::MANAGED;
+        return EntityLifecycleState::MANAGED === $currentState;
     }
 
-    /**
-     * @param object $entity
-     * @param EntityLifecycleState $currentState
-     * @param string $operation
-     * @return bool
-     */
     private function validateCustomOperation(object $entity, EntityLifecycleState $currentState, string $operation): bool
     {
         // Check if there's a custom validator for this operation
@@ -123,6 +83,7 @@ final class StateValidator
 
         if (isset($this->validators[$entityClass][$validatorKey])) {
             $validator = $this->validators[$entityClass][$validatorKey];
+
             return $validator($entity, $currentState, $this->validationContext);
         }
 
@@ -134,15 +95,11 @@ final class StateValidator
         return true;
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     private function validateEntityIntegrity(object $entity): bool
     {
         // Check if entity has an ID method
-        return !($this->strictMode && !method_exists($entity, 'getId') &&
-            !method_exists($entity, 'getIdentifier') &&
-            !method_exists($entity, 'getUuid'));
+        return !($this->strictMode && !method_exists($entity, 'getId')
+            && !method_exists($entity, 'getIdentifier')
+            && !method_exists($entity, 'getUuid'));
     }
 }

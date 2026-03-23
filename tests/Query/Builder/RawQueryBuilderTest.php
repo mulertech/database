@@ -23,7 +23,7 @@ class RawQueryBuilderTest extends TestCase
 
     public function testConstructorWithEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $sql = 'SELECT * FROM users';
         $builder = new RawQueryBuilder($emEngine, $sql);
         

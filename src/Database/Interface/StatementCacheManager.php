@@ -7,12 +7,9 @@ namespace MulerTech\Database\Database\Interface;
 use MulerTech\Database\Core\Cache\CacheConfig;
 use MulerTech\Database\Core\Cache\CacheFactory;
 use MulerTech\Database\Core\Cache\MemoryCache;
-use PDO;
-use PDOException;
-use PDOStatement;
 
 /**
- * Manages prepared statement caching for database connections
+ * Manages prepared statement caching for database connections.
  */
 class StatementCacheManager
 {
@@ -22,10 +19,10 @@ class StatementCacheManager
 
     public function __construct(
         private readonly string $instanceId,
-        ?CacheConfig $cacheConfig = null
+        ?CacheConfig $cacheConfig = null,
     ) {
         $this->statementCache = CacheFactory::createMemoryCache(
-            'prepared_statements_' . $this->instanceId,
+            'prepared_statements_'.$this->instanceId,
             $cacheConfig ?? new CacheConfig(
                 maxSize: 100,
                 ttl: 3600,
@@ -34,19 +31,21 @@ class StatementCacheManager
         );
     }
 
-    public function getCachedStatement(string $cacheKey, PDO $connection): ?PDOStatement
+    public function getCachedStatement(string $cacheKey, \PDO $connection): ?\PDOStatement
     {
         $this->trackUsage($cacheKey);
         $cachedStatement = $this->statementCache?->get($cacheKey);
 
-        if ($cachedStatement instanceof PDOStatement) {
+        if ($cachedStatement instanceof \PDOStatement) {
             try {
                 // Test if connection is still alive
-                $connection->getAttribute(PDO::ATTR_CONNECTION_STATUS);
+                $connection->getAttribute(\PDO::ATTR_CONNECTION_STATUS);
+
                 return $cachedStatement;
-            } catch (PDOException) {
+            } catch (\PDOException) {
                 // Connection lost, invalidate cache
                 $this->statementCache?->delete($cacheKey);
+
                 return null;
             }
         }
@@ -54,7 +53,7 @@ class StatementCacheManager
         return null;
     }
 
-    public function cacheStatement(string $cacheKey, PDOStatement $statement, string $query): void
+    public function cacheStatement(string $cacheKey, \PDOStatement $statement, string $query): void
     {
         $this->statementCache?->set($cacheKey, $statement);
         $this->statementCache?->tag($cacheKey, ['statements', $this->extractTableFromQuery($query)]);
@@ -62,7 +61,7 @@ class StatementCacheManager
 
     public function invalidateTableStatements(string $tableName): void
     {
-        if ($tableName !== 'unknown') {
+        if ('unknown' !== $tableName) {
             $this->statementCache?->invalidateTag($tableName);
         }
     }

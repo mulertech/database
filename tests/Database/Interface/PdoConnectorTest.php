@@ -20,8 +20,13 @@ final class PdoConnectorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockDriver = $this->createMock(DriverInterface::class);
+        $this->mockDriver = $this->createStub(DriverInterface::class);
         $this->connector = new PdoConnector($this->mockDriver);
+    }
+
+    private function createConnectorWithMock(DriverInterface $driver): PdoConnector
+    {
+        return new PdoConnector($driver);
     }
 
     public function testConnectWithValidParameters(): void
@@ -36,18 +41,18 @@ final class PdoConnectorTest extends TestCase
         $username = 'user';
         $password = 'password';
 
-        $this->mockDriver->expects($this->once())
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->expects($this->once())
             ->method('generateDsn')
             ->with($parameters)
             ->willReturn($dsn);
 
-        // We can't easily test the actual PDO connection without a real database,
-        // so we'll test that the method exists and handles parameters correctly
-        // by expecting a PDOException when trying to connect to a non-existent database
+        $connector = $this->createConnectorWithMock($driver);
+
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Connection failed:');
 
-        $this->connector->connect($parameters, $username, $password);
+        $connector->connect($parameters, $username, $password);
     }
 
     public function testConnectWithCustomOptions(): void
@@ -58,15 +63,18 @@ final class PdoConnectorTest extends TestCase
         $password = 'password';
         $options = [PDO::ATTR_TIMEOUT => 10];
 
-        $this->mockDriver->expects($this->once())
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->expects($this->once())
             ->method('generateDsn')
             ->with($parameters)
             ->willReturn($dsn);
 
+        $connector = $this->createConnectorWithMock($driver);
+
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Connection failed:');
 
-        $this->connector->connect($parameters, $username, $password, $options);
+        $connector->connect($parameters, $username, $password, $options);
     }
 
     public function testConnectWithNullOptions(): void
@@ -76,15 +84,18 @@ final class PdoConnectorTest extends TestCase
         $username = 'user';
         $password = 'password';
 
-        $this->mockDriver->expects($this->once())
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->expects($this->once())
             ->method('generateDsn')
             ->with($parameters)
             ->willReturn($dsn);
 
+        $connector = $this->createConnectorWithMock($driver);
+
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Connection failed:');
 
-        $this->connector->connect($parameters, $username, $password, null);
+        $connector->connect($parameters, $username, $password, null);
     }
 
     public function testConnectWrapssPdoException(): void
@@ -94,13 +105,16 @@ final class PdoConnectorTest extends TestCase
         $username = 'user';
         $password = 'password';
 
-        $this->mockDriver->expects($this->once())
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->expects($this->once())
             ->method('generateDsn')
             ->with($parameters)
             ->willReturn($dsn);
 
+        $connector = $this->createConnectorWithMock($driver);
+
         try {
-            $this->connector->connect($parameters, $username, $password);
+            $connector->connect($parameters, $username, $password);
             $this->fail('Expected RuntimeException to be thrown');
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('Connection failed:', $e->getMessage());
@@ -115,15 +129,18 @@ final class PdoConnectorTest extends TestCase
         $username = '';
         $password = '';
 
-        $this->mockDriver->expects($this->once())
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->expects($this->once())
             ->method('generateDsn')
             ->with($parameters)
             ->willReturn($dsn);
 
+        $connector = $this->createConnectorWithMock($driver);
+
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Connection failed:');
 
-        $this->connector->connect($parameters, $username, $password);
+        $connector->connect($parameters, $username, $password);
     }
 
     public function testConnectMergesDefaultOptionsWithCustomOptions(): void
@@ -137,17 +154,20 @@ final class PdoConnectorTest extends TestCase
             PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT  // This should be overridden by default
         ];
 
-        $this->mockDriver->expects($this->once())
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->expects($this->once())
             ->method('generateDsn')
             ->with($parameters)
             ->willReturn($dsn);
+
+        $connector = $this->createConnectorWithMock($driver);
 
         // The method should merge options, with defaults taking precedence
         // We expect an exception because we're using a mock DSN
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Connection failed:');
 
-        $this->connector->connect($parameters, $username, $password, $customOptions);
+        $connector->connect($parameters, $username, $password, $customOptions);
     }
 
     public function testConnectorIsReadonly(): void

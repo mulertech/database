@@ -4,92 +4,59 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Cache;
 
-use Throwable;
-
 /**
- * Class ResultSetCache
- * @package MulerTech\Database
+ * Class ResultSetCache.
+ *
  * @author Sébastien Muler
  */
 readonly class ResultSetCache implements TaggableCacheInterface
 {
-    /**
-     * @var CacheInterface
-     */
     private CacheInterface $cache;
 
-    /**
-     * @var int
-     */
     private int $compressionThreshold;
 
-    /**
-     * @param CacheInterface $cache
-     * @param int $compressionThreshold
-     */
     public function __construct(
         CacheInterface $cache,
-        int $compressionThreshold = 1024
+        int $compressionThreshold = 1024,
     ) {
         $this->cache = $cache;
         $this->compressionThreshold = $compressionThreshold;
     }
 
-    /**
-     * @param string $key
-     * @return mixed
-     */
     public function get(string $key): mixed
     {
         $data = $this->cache->get($key);
 
-        if ($data === null) {
+        if (null === $data) {
             return null;
         }
 
         // Validate data structure before decompressing
-        if (!is_array($data) || !isset($data['compressed'], $data['data']) ||
-            !is_bool($data['compressed']) || !is_string($data['data'])) {
+        if (!is_array($data) || !isset($data['compressed'], $data['data'])
+            || !is_bool($data['compressed']) || !is_string($data['data'])) {
             return null;
         }
 
-        /** @var array{compressed: bool, data: string} $data */
+        /* @var array{compressed: bool, data: string} $data */
         return $this->decompress($data);
     }
 
-    /**
-     * @param string $key
-     * @param mixed $value
-     * @param int $ttl
-     * @return void
-     */
     public function set(string $key, mixed $value, int $ttl = 0): void
     {
         $compressed = $this->compress($value);
         $this->cache->set($key, $compressed, $ttl);
     }
 
-    /**
-     * @param string $key
-     * @return void
-     */
     public function delete(string $key): void
     {
         $this->cache->delete($key);
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
         $this->cache->clear();
     }
 
-    /**
-     * @param string $key
-     * @return bool
-     */
     public function has(string $key): bool
     {
         return $this->cache->has($key);
@@ -97,6 +64,7 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
     /**
      * @param array<string> $keys
+     *
      * @return array<string, mixed>
      */
     public function getMultiple(array $keys): array
@@ -104,25 +72,23 @@ readonly class ResultSetCache implements TaggableCacheInterface
         $compressed = $this->cache->getMultiple($keys);
 
         return array_map(function ($data) {
-            if ($data === null) {
+            if (null === $data) {
                 return null;
             }
 
             // Validate data structure before decompressing
-            if (!is_array($data) || !isset($data['compressed'], $data['data']) ||
-                !is_bool($data['compressed']) || !is_string($data['data'])) {
+            if (!is_array($data) || !isset($data['compressed'], $data['data'])
+                || !is_bool($data['compressed']) || !is_string($data['data'])) {
                 return null;
             }
 
-            /** @var array{compressed: bool, data: string} $data */
+            /* @var array{compressed: bool, data: string} $data */
             return $this->decompress($data);
         }, $compressed);
     }
 
     /**
      * @param array<string, mixed> $values
-     * @param int $ttl
-     * @return void
      */
     public function setMultiple(array $values, int $ttl = 0): void
     {
@@ -135,7 +101,6 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
     /**
      * @param array<string> $keys
-     * @return void
      */
     public function deleteMultiple(array $keys): void
     {
@@ -143,9 +108,7 @@ readonly class ResultSetCache implements TaggableCacheInterface
     }
 
     /**
-     * @param string $key
      * @param array<string> $tags
-     * @return void
      */
     public function tag(string $key, array $tags): void
     {
@@ -154,10 +117,6 @@ readonly class ResultSetCache implements TaggableCacheInterface
         }
     }
 
-    /**
-     * @param string $tag
-     * @return void
-     */
     public function invalidateTag(string $tag): void
     {
         if ($this->cache instanceof TaggableCacheInterface) {
@@ -167,7 +126,6 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
     /**
      * @param array<string> $tags
-     * @return void
      */
     public function invalidateTags(array $tags): void
     {
@@ -176,29 +134,23 @@ readonly class ResultSetCache implements TaggableCacheInterface
         }
     }
 
-    /**
-     * @param string $table
-     * @return void
-     */
     public function invalidateTable(string $table): void
     {
-        $this->invalidateTag('table:' . $table);
+        $this->invalidateTag('table:'.$table);
     }
 
     /**
      * @param array<string> $tables
-     * @return void
      */
     public function invalidateTables(array $tables): void
     {
         $this->invalidateTags(array_map(
-            static fn (string $table) => 'table:' . $table,
+            static fn (string $table) => 'table:'.$table,
             $tables
         ));
     }
 
     /**
-     * @param mixed $data
      * @return array{compressed: bool, data: string}
      */
     private function compress(mixed $data): array
@@ -212,7 +164,7 @@ readonly class ResultSetCache implements TaggableCacheInterface
         $compressed = gzcompress($serialized, 9);
 
         // Handle potential compression failure
-        if ($compressed === false) {
+        if (false === $compressed) {
             return ['compressed' => false, 'data' => $serialized];
         }
 
@@ -226,12 +178,13 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
     /**
      * @param array{compressed: bool, data: string} $data
+     *
      * @return array<int|string, mixed>|bool|float|int|string|null
      */
     private function decompress(array $data): array|bool|float|int|string|null
     {
         $serialized = $this->handleCompression($data);
-        if ($serialized === null) {
+        if (null === $serialized) {
             return null;
         }
 
@@ -240,7 +193,6 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
     /**
      * @param array{compressed: bool, data: string} $data
-     * @return string|null
      */
     private function handleCompression(array $data): ?string
     {
@@ -252,14 +204,14 @@ readonly class ResultSetCache implements TaggableCacheInterface
 
         try {
             $decompressed = @gzuncompress($serialized);
-            return $decompressed === false ? null : $decompressed;
-        } catch (Throwable) {
+
+            return false === $decompressed ? null : $decompressed;
+        } catch (\Throwable) {
             return null;
         }
     }
 
     /**
-     * @param string $serialized
      * @return array<int|string, mixed>|bool|float|int|string|null
      */
     private function deserializeAndValidate(string $serialized): array|bool|float|int|string|null
@@ -267,18 +219,17 @@ readonly class ResultSetCache implements TaggableCacheInterface
         try {
             $result = @unserialize($serialized, ['allowed_classes' => false]);
 
-            if ($result === false && $serialized !== serialize(false)) {
+            if (false === $result && $serialized !== serialize(false)) {
                 return null;
             }
 
             return $this->validateResultType($result);
-        } catch (Throwable) {
+        } catch (\Throwable) {
             return null;
         }
     }
 
     /**
-     * @param mixed $result
      * @return array<int|string, mixed>|bool|float|int|string|null
      */
     private function validateResultType(mixed $result): array|bool|float|int|string|null
@@ -287,8 +238,8 @@ readonly class ResultSetCache implements TaggableCacheInterface
             return null;
         }
 
-        if (is_array($result) || is_bool($result) || is_float($result) ||
-            is_int($result) || is_string($result) || $result === null) {
+        if (is_array($result) || is_bool($result) || is_float($result)
+            || is_int($result) || is_string($result) || null === $result) {
             return $result;
         }
 

@@ -8,11 +8,10 @@ use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Comparator\ValueComparator;
 use MulerTech\Database\ORM\Processor\ValueProcessor;
 use MulerTech\Database\ORM\Validator\ArrayValidator;
-use ReflectionException;
 
 /**
- * Detects changes in entities for ORM tracking
- * @package MulerTech\Database
+ * Detects changes in entities for ORM tracking.
+ *
  * @author Sébastien Muler
  */
 class ChangeDetector
@@ -27,43 +26,37 @@ class ChangeDetector
         $this->metadataRegistry = $metadataRegistry ?? new MetadataRegistry();
     }
 
-    /**
-     * @return ValueProcessor
-     */
     private function getValueProcessor(): ValueProcessor
     {
         if (!isset($this->valueProcessor)) {
             $this->valueProcessor = new ValueProcessor();
         }
+
         return $this->valueProcessor;
     }
 
-    /**
-     * @return ValueComparator
-     */
     private function getValueComparator(): ValueComparator
     {
         if (!isset($this->valueComparator)) {
             $this->valueComparator = new ValueComparator();
         }
+
         return $this->valueComparator;
     }
 
-    /**
-     * @return ArrayValidator
-     */
     private function getArrayValidator(): ArrayValidator
     {
         if (!isset($this->arrayValidator)) {
             $this->arrayValidator = new ArrayValidator();
         }
+
         return $this->arrayValidator;
     }
 
     /**
-     * @param object $entity
      * @return array<string, mixed>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function extractCurrentData(object $entity): array
     {
@@ -81,10 +74,9 @@ class ChangeDetector
     }
 
     /**
-     * @param object $entity
      * @param array<string, mixed> $originalData
-     * @return ChangeSet
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function computeChangeSet(object $entity, array $originalData): ChangeSet
     {
@@ -118,18 +110,13 @@ class ChangeDetector
         return new ChangeSet($entity::class, $changes);
     }
 
-    /**
-     * @param mixed $value1
-     * @param mixed $value2
-     * @return bool
-     */
     private function valuesAreEqual(mixed $value1, mixed $value2): bool
     {
         // Handle null comparisons
-        if ($value1 === null && $value2 === null) {
+        if (null === $value1 && null === $value2) {
             return true;
         }
-        if ($value1 === null || $value2 === null) {
+        if (null === $value1 || null === $value2) {
             return false;
         }
 

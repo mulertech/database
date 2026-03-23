@@ -39,22 +39,9 @@ class FlushOrchestratorTest extends TestCase
         parent::setUp();
         
         // Mock only interfaces and non-final classes
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->stateManager = $this->createMock(StateManagerInterface::class);
-        $this->eventManager = $this->createMock(EventManager::class);
-
-        // Configure StateManager mock to return real enum values instead of trying to mock them
-        $this->stateManager->method('getEntityState')
-            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
-
-        $this->stateManager->method('getScheduledInsertions')
-            ->willReturn([]);
-
-        $this->stateManager->method('getScheduledUpdates')
-            ->willReturn([]);
-
-        $this->stateManager->method('getScheduledDeletions')
-            ->willReturn([]);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
+        $this->stateManager = $this->createStub(StateManagerInterface::class);
+        $this->eventManager = $this->createStub(EventManager::class);
 
         // Create real instances of final classes with their dependencies
         $metadataRegistry = new MetadataRegistry();
@@ -63,11 +50,11 @@ class FlushOrchestratorTest extends TestCase
         $changeDetector = new ChangeDetector($metadataRegistry);
         $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector, $metadataRegistry);
 
-        // EventDispatcher is not final, so we can mock it
-        $this->eventDispatcher = $this->createMock(EventDispatcher::class);
+        // EventDispatcher is not final, so we can stub it
+        $this->eventDispatcher = $this->createStub(EventDispatcher::class);
 
         // Create RelationManager (need to check if it's final)
-        $relationManager = $this->createMock(\MulerTech\Database\ORM\Engine\Relations\RelationManager::class);
+        $relationManager = $this->createStub(\MulerTech\Database\ORM\Engine\Relations\RelationManager::class);
 
         // FlushHandler is final, create real instance
         $this->flushHandler = new FlushHandler(
@@ -105,16 +92,53 @@ class FlushOrchestratorTest extends TestCase
         );
     }
 
+    private function createOrchestratorWithEventDispatcherMock(EventDispatcher $eventDispatcher): FlushOrchestrator
+    {
+        $metadataRegistry = new MetadataRegistry();
+        $identityMap = new IdentityMap($metadataRegistry);
+        $changeDetector = new ChangeDetector($metadataRegistry);
+        $insertionProcessor = new InsertionProcessor($this->entityManager, $metadataRegistry);
+        $updateProcessor = new UpdateProcessor($this->entityManager, $metadataRegistry);
+        $deletionProcessor = new DeletionProcessor($this->entityManager, $metadataRegistry);
+
+        $operationProcessor = new EntityOperationProcessor(
+            $this->stateManager,
+            $this->changeSetManager,
+            $changeDetector,
+            $identityMap,
+            $eventDispatcher,
+            $insertionProcessor,
+            $updateProcessor,
+            $deletionProcessor,
+            $metadataRegistry
+        );
+
+        return new FlushOrchestrator(
+            $this->entityManager,
+            $this->stateManager,
+            $this->changeSetManager,
+            $this->eventManager,
+            $eventDispatcher,
+            $this->flushHandler,
+            $operationProcessor
+        );
+    }
+
     public function testOrchestratFlushWithEmptyCollections(): void
     {
-        $this->eventDispatcher->expects($this->once())
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')->willReturn([]);
+        $this->stateManager->method('getScheduledUpdates')->willReturn([]);
+        $this->stateManager->method('getScheduledDeletions')->willReturn([]);
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
             ->method('resetProcessedEvents');
 
-        // Since we're using real instances, we can't use expects() on them
-        // Instead, we test that the method completes without error
-        $this->orchestrator->performFlush();
+        $orchestrator = $this->createOrchestratorWithEventDispatcherMock($eventDispatcher);
+        $orchestrator->performFlush();
 
-        // Test passes if no exception is thrown
         $this->assertTrue(true);
     }
 
@@ -122,24 +146,22 @@ class FlushOrchestratorTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventDispatcher->expects($this->once())
+
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')
+            ->willReturn([$user]);
+        $this->stateManager->method('getScheduledUpdates')
+            ->willReturn([]);
+        $this->stateManager->method('getScheduledDeletions')
+            ->willReturn([]);
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
             ->method('resetProcessedEvents');
 
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledInsertions')
-            ->willReturn([$user]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledUpdates')
-            ->willReturn([]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledDeletions')
-            ->willReturn([]);
-
-        // Test that flush completes without error
-        $this->orchestrator->performFlush();
+        $orchestrator = $this->createOrchestratorWithEventDispatcherMock($eventDispatcher);
+        $orchestrator->performFlush();
         $this->assertTrue(true);
     }
 
@@ -148,24 +170,22 @@ class FlushOrchestratorTest extends TestCase
         $user = new User();
         $user->setId(123);
         $user->setUsername('John');
-        
-        $this->eventDispatcher->expects($this->once())
+
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')
+            ->willReturn([]);
+        $this->stateManager->method('getScheduledUpdates')
+            ->willReturn([$user]);
+        $this->stateManager->method('getScheduledDeletions')
+            ->willReturn([]);
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
             ->method('resetProcessedEvents');
 
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledInsertions')
-            ->willReturn([]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledUpdates')
-            ->willReturn([$user]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledDeletions')
-            ->willReturn([]);
-
-        // Test that flush completes without error
-        $this->orchestrator->performFlush();
+        $orchestrator = $this->createOrchestratorWithEventDispatcherMock($eventDispatcher);
+        $orchestrator->performFlush();
         $this->assertTrue(true);
     }
 
@@ -174,24 +194,22 @@ class FlushOrchestratorTest extends TestCase
         $user = new User();
         $user->setId(123);
         $user->setUsername('John');
-        
-        $this->eventDispatcher->expects($this->once())
-            ->method('resetProcessedEvents');
 
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledInsertions')
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')
             ->willReturn([]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledUpdates')
+        $this->stateManager->method('getScheduledUpdates')
             ->willReturn([]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledDeletions')
+        $this->stateManager->method('getScheduledDeletions')
             ->willReturn([$user]);
 
-        // Test that flush completes without error
-        $this->orchestrator->performFlush();
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
+            ->method('resetProcessedEvents');
+
+        $orchestrator = $this->createOrchestratorWithEventDispatcherMock($eventDispatcher);
+        $orchestrator->performFlush();
         $this->assertTrue(true);
     }
 
@@ -199,32 +217,30 @@ class FlushOrchestratorTest extends TestCase
     {
         $newUser = new User();
         $newUser->setUsername('John');
-        
+
         $existingUser = new User();
         $existingUser->setId(456);
         $existingUser->setUsername('Jane');
-        
+
         $deletingUser = new User();
         $deletingUser->setId(789);
         $deletingUser->setUsername('Bob');
-        
-        $this->eventDispatcher->expects($this->once())
-            ->method('resetProcessedEvents');
 
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledInsertions')
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')
             ->willReturn([$newUser]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledUpdates')
+        $this->stateManager->method('getScheduledUpdates')
             ->willReturn([$existingUser]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledDeletions')
+        $this->stateManager->method('getScheduledDeletions')
             ->willReturn([$deletingUser]);
 
-        // Test that flush completes without error
-        $this->orchestrator->performFlush();
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
+            ->method('resetProcessedEvents');
+
+        $orchestrator = $this->createOrchestratorWithEventDispatcherMock($eventDispatcher);
+        $orchestrator->performFlush();
         $this->assertTrue(true);
     }
 
@@ -232,33 +248,34 @@ class FlushOrchestratorTest extends TestCase
     {
         $unit = new Unit();
         $unit->setName('TestUnit');
-        
+
         $user = new User();
         $user->setUsername('John');
         $user->setUnit($unit);
-        
-        $this->eventDispatcher->expects($this->once())
+
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')
+            ->willReturn([$user, $unit]);
+        $this->stateManager->method('getScheduledUpdates')
+            ->willReturn([]);
+        $this->stateManager->method('getScheduledDeletions')
+            ->willReturn([]);
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
             ->method('resetProcessedEvents');
 
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledInsertions')
-            ->willReturn([$user, $unit]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledUpdates')
-            ->willReturn([]);
-
-        $this->stateManager->expects($this->any())
-            ->method('getScheduledDeletions')
-            ->willReturn([]);
-
-        // Test that flush completes without error
-        $this->orchestrator->performFlush();
+        $orchestrator = $this->createOrchestratorWithEventDispatcherMock($eventDispatcher);
+        $orchestrator->performFlush();
         $this->assertTrue(true);
     }
 
     public function testProcessInsertion(): void
     {
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+
         $user = new User();
         $user->setUsername('John');
 
@@ -269,6 +286,9 @@ class FlushOrchestratorTest extends TestCase
 
     public function testProcessUpdate(): void
     {
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+
         $user = new User();
         $user->setId(123);
         $user->setUsername('John');
@@ -280,6 +300,9 @@ class FlushOrchestratorTest extends TestCase
 
     public function testProcessDeletion(): void
     {
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+
         $user = new User();
         $user->setId(123);
         $user->setUsername('John');
@@ -291,6 +314,10 @@ class FlushOrchestratorTest extends TestCase
 
     public function testFlushHandlerDoFlush(): void
     {
+        $this->stateManager->method('getScheduledInsertions')->willReturn([]);
+        $this->stateManager->method('getScheduledUpdates')->willReturn([]);
+        $this->stateManager->method('getScheduledDeletions')->willReturn([]);
+
         $insertionProcessor = function($entity) { /* dummy processor */ };
         $updateProcessor = function($entity, $changes) { /* dummy processor */ };
         $deletionProcessor = function($entity) { /* dummy processor */ };
@@ -302,29 +329,54 @@ class FlushOrchestratorTest extends TestCase
 
     public function testEventDispatcherResetProcessedEvents(): void
     {
-        $this->eventDispatcher->expects($this->once())
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
             ->method('resetProcessedEvents');
 
-        $this->eventDispatcher->resetProcessedEvents();
+        $eventDispatcher->resetProcessedEvents();
     }
 
     public function testFlushWithNullEventManager(): void
     {
-        // Create a new orchestrator with null EventManager
+        $this->stateManager->method('getEntityState')
+            ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
+        $this->stateManager->method('getScheduledInsertions')->willReturn([]);
+        $this->stateManager->method('getScheduledUpdates')->willReturn([]);
+        $this->stateManager->method('getScheduledDeletions')->willReturn([]);
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->once())
+            ->method('resetProcessedEvents');
+
+        $metadataRegistry = new MetadataRegistry();
+        $identityMap = new IdentityMap($metadataRegistry);
+        $changeDetector = new ChangeDetector($metadataRegistry);
+        $insertionProcessor = new InsertionProcessor($this->entityManager, $metadataRegistry);
+        $updateProcessor = new UpdateProcessor($this->entityManager, $metadataRegistry);
+        $deletionProcessor = new DeletionProcessor($this->entityManager, $metadataRegistry);
+
+        $operationProcessor = new EntityOperationProcessor(
+            $this->stateManager,
+            $this->changeSetManager,
+            $changeDetector,
+            $identityMap,
+            $eventDispatcher,
+            $insertionProcessor,
+            $updateProcessor,
+            $deletionProcessor,
+            $metadataRegistry
+        );
+
         $orchestratorWithNullEvents = new FlushOrchestrator(
             $this->entityManager,
             $this->stateManager,
             $this->changeSetManager,
-            null, // null EventManager
-            $this->eventDispatcher,
+            null,
+            $eventDispatcher,
             $this->flushHandler,
-            $this->operationProcessor
+            $operationProcessor
         );
 
-        $this->eventDispatcher->expects($this->once())
-            ->method('resetProcessedEvents');
-
-        // Test that flush completes without error even with null EventManager
         $orchestratorWithNullEvents->performFlush();
         $this->assertTrue(true);
     }

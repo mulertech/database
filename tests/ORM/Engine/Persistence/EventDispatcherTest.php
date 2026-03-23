@@ -22,17 +22,26 @@ class EventDispatcherTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
-        $this->eventManager = $this->createMock(EventManager::class);
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+
+        $this->eventManager = $this->createStub(EventManager::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $metadataRegistry = new MetadataRegistry();
         $identityMap = new \MulerTech\Database\ORM\IdentityMap($metadataRegistry);
         $entityRegistry = new \MulerTech\Database\ORM\EntityRegistry();
         $changeDetector = new \MulerTech\Database\ORM\ChangeDetector($metadataRegistry);
         $this->changeSetManager = new ChangeSetManager($identityMap, $entityRegistry, $changeDetector, $metadataRegistry);
-        
+
         $this->eventDispatcher = new EventDispatcher(
             $this->eventManager,
+            $this->entityManager,
+            $this->changeSetManager
+        );
+    }
+
+    private function createEventDispatcherWithMock(EventManager $eventManager): EventDispatcher
+    {
+        return new EventDispatcher(
+            $eventManager,
             $this->entityManager,
             $this->changeSetManager
         );
@@ -76,12 +85,14 @@ class EventDispatcherTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->once())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->once())
             ->method('dispatch');
-        
-        $this->eventDispatcher->callEntityEvent($user, 'prePersist', 1);
-        
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'prePersist', 1);
+
         $this->assertTrue(true);
     }
 
@@ -110,48 +121,56 @@ class EventDispatcherTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->once())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->once())
             ->method('dispatch')
             ->with($this->isInstanceOf('\MulerTech\Database\Event\PreUpdateEvent'));
-        
-        $this->eventDispatcher->callEntityEvent($user, 'preUpdate', 1);
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'preUpdate', 1);
     }
 
     public function testDispatchPostUpdateEvent(): void
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->once())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->once())
             ->method('dispatch')
             ->with($this->isInstanceOf('\MulerTech\Database\Event\PostUpdateEvent'));
-        
-        $this->eventDispatcher->callEntityEvent($user, 'postUpdate', 1);
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'postUpdate', 1);
     }
 
     public function testDispatchPreRemoveEvent(): void
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->once())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->once())
             ->method('dispatch')
             ->with($this->isInstanceOf('\MulerTech\Database\Event\PreRemoveEvent'));
-        
-        $this->eventDispatcher->callEntityEvent($user, 'preRemove', 1);
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'preRemove', 1);
     }
 
     public function testDispatchPostRemoveEvent(): void
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->once())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->once())
             ->method('dispatch')
             ->with($this->isInstanceOf('\MulerTech\Database\Event\PostRemoveEvent'));
-        
-        $this->eventDispatcher->callEntityEvent($user, 'postRemove', 1);
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'postRemove', 1);
     }
 
     public function testProcessPostEventOperationsWithProcessor(): void
@@ -197,12 +216,14 @@ class EventDispatcherTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->never())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->never())
             ->method('dispatch');
-        
-        $this->eventDispatcher->callEntityEvent($user, 'unknownEvent', 1);
-        
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'unknownEvent', 1);
+
         $this->assertTrue(true);
     }
 
@@ -274,12 +295,14 @@ class EventDispatcherTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventManager->expects($this->once())
+
+        $eventManager = $this->createMock(EventManager::class);
+        $eventManager->expects($this->once())
             ->method('dispatch')
             ->with($this->isInstanceOf('\\MulerTech\\Database\\Event\\PostPersistEvent'));
-        
-        $this->eventDispatcher->callEntityEvent($user, 'postPersist', 1);
+
+        $dispatcher = $this->createEventDispatcherWithMock($eventManager);
+        $dispatcher->callEntityEvent($user, 'postPersist', 1);
     }
 
     public function testDispatchGlobalEventWithNullEventManager(): void

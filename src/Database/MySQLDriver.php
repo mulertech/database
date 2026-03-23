@@ -7,9 +7,8 @@ namespace MulerTech\Database\Database;
 use MulerTech\Database\Database\Interface\DriverInterface;
 
 /**
- * Class Driver
+ * Class Driver.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MySQLDriver implements DriverInterface
@@ -24,29 +23,27 @@ class MySQLDriver implements DriverInterface
      *     unix_socket?: string,
      *     charset?: string
      * } $dsnOptions
-     * @return string
      */
     public function generateDsn(array $dsnOptions): string
     {
         $dsn = 'mysql:';
 
         if (isset($dsnOptions['unix_socket'])) {
-            $dsn .= 'unix_socket=' . $dsnOptions['unix_socket'];
+            $dsn .= 'unix_socket='.$dsnOptions['unix_socket'];
         }
 
         if (!isset($dsnOptions['unix_socket'])) {
-            $dsn .= 'host=' . ($dsnOptions['host'] ?? 'localhost');
-            $dsn .= ';port=' . ($dsnOptions['port'] ?? 3306);
+            $dsn .= 'host='.($dsnOptions['host'] ?? 'localhost');
+            $dsn .= ';port='.($dsnOptions['port'] ?? 3306);
         }
 
         if (isset($dsnOptions['dbname'])) {
-            $dsn .= ';dbname=' . $dsnOptions['dbname'];
+            $dsn .= ';dbname='.$dsnOptions['dbname'];
         }
 
         $charset = $dsnOptions['charset'] ?? 'utf8mb4';
-        $dsn .= ';charset=' . $charset;
+        $dsn .= ';charset='.$charset;
 
         return $dsn;
     }
-
 }

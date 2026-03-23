@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace MulerTech\Database\Core\Traits;
 
 use MulerTech\Database\Database\Interface\Statement;
-use PDO;
 
 /**
- * Trait ParameterHandlerTrait
+ * Trait ParameterHandlerTrait.
  *
  * Provides parameter handling functionality for query builders
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 trait ParameterHandlerTrait
@@ -27,21 +25,14 @@ trait ParameterHandlerTrait
      */
     protected array $dynamicParameters = [];
 
-    /**
-     * @var int
-     */
     protected int $parameterCounter = 0;
 
-    /**
-     * @param Statement $statement
-     * @return void
-     */
     protected function bindParameters(Statement $statement): void
     {
         // Bind named parameters
         foreach ($this->namedParameters as $key => $param) {
             if (is_array($param) && isset($param['value'], $param['type'])) {
-                $type = is_int($param['type']) ? $param['type'] : PDO::PARAM_STR;
+                $type = is_int($param['type']) ? $param['type'] : \PDO::PARAM_STR;
                 $statement->bindValue($key, $param['value'], $type);
             }
         }
@@ -68,9 +59,6 @@ trait ParameterHandlerTrait
         return $this->dynamicParameters;
     }
 
-    /**
-     * @return void
-     */
     protected function resetParameters(): void
     {
         $this->namedParameters = [];
@@ -80,35 +68,38 @@ trait ParameterHandlerTrait
 
     /**
      * @param string|int|float|bool|null $value
-     * @return int
      */
     protected function detectParameterType(mixed $value): int
     {
         return match (true) {
-            is_int($value) => PDO::PARAM_INT,
-            is_bool($value) => PDO::PARAM_BOOL,
-            is_null($value) => PDO::PARAM_NULL,
-            default => PDO::PARAM_STR
+            is_int($value) => \PDO::PARAM_INT,
+            is_bool($value) => \PDO::PARAM_BOOL,
+            is_null($value) => \PDO::PARAM_NULL,
+            default => \PDO::PARAM_STR,
         };
     }
 
     /**
      * @param array<string, mixed> $params
+     *
      * @return static
      */
     protected function mergeNamedParameters(array $params): self
     {
         $this->namedParameters = array_merge($this->namedParameters, $params);
+
         return $this;
     }
 
     /**
      * @param array<int, mixed> $params
+     *
      * @return static
      */
     protected function mergeDynamicParameters(array $params): self
     {
         $this->dynamicParameters = array_merge($this->dynamicParameters, $params);
+
         return $this;
     }
 }

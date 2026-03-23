@@ -365,7 +365,7 @@ class MigrationTest extends TestCase
 
         $schemaDifference = new SchemaDifference();
         $schemaDifference->addTableToCreate('empty_table', 'EmptyEntity');
-        $schemaComparer->method('compare')->willReturn($schemaDifference);
+        $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
         $migrationGenerator = new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataRegistry(), $this->migrationsDirectory);
 
@@ -427,7 +427,7 @@ class MigrationTest extends TestCase
             'DELETE_RULE' => FkRule::CASCADE,
             'UPDATE_RULE' => FkRule::RESTRICT
         ]);
-        $schemaComparer->method('compare')->willReturn($schemaDifference);
+        $schemaComparer->expects($this->once())->method('compare')->willReturn($schemaDifference);
 
         $generator = new MigrationGenerator($schemaComparer, $this->entityManager->getMetadataRegistry(), $this->migrationsDirectory);
         $filename = $generator->generateMigration($this->migrationDatetime);

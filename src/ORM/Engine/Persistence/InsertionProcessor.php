@@ -4,41 +4,32 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\InsertBuilder;
 use MulerTech\Database\Query\Builder\QueryBuilder;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Class InsertionProcessor
- * @package MulerTech\Database
+ * Class InsertionProcessor.
+ *
  * @author Sébastien Muler
  */
 readonly class InsertionProcessor
 {
-    /**
-     * @param EntityManagerInterface $entityManager
-     * @param MetadataRegistry $metadataRegistry
-     */
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MetadataRegistry $metadataRegistry
+        private MetadataRegistry $metadataRegistry,
     ) {
     }
 
     /**
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function process(object $entity): void
     {
         // Check if entity already has an ID
         $entityId = $this->getId($entity);
-        if ($entityId !== null) {
+        if (null !== $entityId) {
             // Entity already has an ID, skip insertion
             return;
         }
@@ -49,16 +40,15 @@ readonly class InsertionProcessor
     }
 
     /**
-     * @param object $entity
      * @param array<string, array<int, mixed>> $changes
-     * @return void
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function execute(object $entity, array $changes): void
     {
         // Double-check that entity doesn't have an ID before executing
         $entityId = $this->getId($entity);
-        if ($entityId !== null) {
+        if (null !== $entityId) {
             return;
         }
 
@@ -73,11 +63,10 @@ readonly class InsertionProcessor
     }
 
     /**
-     * @param object $entity
      * @param array<string, array<int, mixed>> $changes
-     * @return InsertBuilder
-     * @throws ReflectionException
-     * @throws Exception
+     *
+     * @throws \ReflectionException
+     * @throws \Exception
      */
     private function buildInsertQuery(object $entity, array $changes): InsertBuilder
     {
@@ -104,42 +93,34 @@ readonly class InsertionProcessor
         return $insertBuilder;
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function setGeneratedId(object $entity): void
     {
         $lastId = $this->entityManager->getPdm()->lastInsertId();
 
         if (!empty($lastId)) {
             if (!method_exists($entity, 'setId')) {
-                throw new RuntimeException(
-                    sprintf('The entity %s must have a setId method', $entity::class)
-                );
+                throw new \RuntimeException(sprintf('The entity %s must have a setId method', $entity::class));
             }
 
-            $entity->setId((int)$lastId);
+            $entity->setId((int) $lastId);
         }
     }
 
     /**
-     * @param object $entity
-     * @param string $property
-     * @return mixed
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function getPropertyValue(object $entity, string $property): mixed
     {
         $metadata = $this->metadataRegistry->getEntityMetadata($entity::class);
         $getter = $metadata->getRequiredGetter($property);
+
         return $entity->$getter();
     }
 
     /**
      * @param class-string $entityName
-     * @return string
-     * @throws Exception
+     *
+     * @throws \Exception
      */
     private function getTableName(string $entityName): string
     {
@@ -148,35 +129,31 @@ readonly class InsertionProcessor
 
     /**
      * @param class-string $entityName
+     *
      * @return array<string, string>
-     * @throws ReflectionException|Exception
+     *
+     * @throws \ReflectionException|\Exception
      */
     private function getPropertiesColumns(string $entityName): array
     {
         return $this->metadataRegistry->getPropertiesColumns($entityName);
     }
 
-    /**
-     * @param object $entity
-     * @return int|null
-     */
     private function getId(object $entity): ?int
     {
         if (!method_exists($entity, 'getId')) {
-            throw new RuntimeException(
-                sprintf('The entity %s must have a getId method', $entity::class)
-            );
+            throw new \RuntimeException(sprintf('The entity %s must have a getId method', $entity::class));
         }
 
         return $entity->getId();
     }
 
     /**
-     * Extract all entity data as changes for insertion
+     * Extract all entity data as changes for insertion.
      *
-     * @param object $entity
      * @return array<string, array<int, mixed>>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function extractEntityData(object $entity): array
     {

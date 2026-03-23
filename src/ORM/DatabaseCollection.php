@@ -7,14 +7,15 @@ namespace MulerTech\Database\ORM;
 use MulerTech\Collections\Collection;
 
 /**
- * Class DatabaseCollection
+ * Class DatabaseCollection.
  *
  * Collection class for database-managed entities with change tracking.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
+ *
  * @template TKey of array-key
  * @template TValue of object
+ *
  * @extends Collection<TKey, TValue>
  */
 class DatabaseCollection extends Collection
@@ -28,14 +29,15 @@ class DatabaseCollection extends Collection
      * @param array<TKey, TValue> $items
      */
     public function __construct(
-        array $items = []
+        array $items = [],
     ) {
         parent::__construct($items);
         $this->saveInitialState();
     }
 
     /**
-     * Gets the entities that were added to the collection since initialization
+     * Gets the entities that were added to the collection since initialization.
+     *
      * @return array<int, object>
      */
     public function getAddedEntities(): array
@@ -49,7 +51,8 @@ class DatabaseCollection extends Collection
     }
 
     /**
-     * Gets the entities that were removed from the collection since initialization
+     * Gets the entities that were removed from the collection since initialization.
+     *
      * @return array<int, object>
      */
     public function getRemovedEntities(): array
@@ -63,8 +66,7 @@ class DatabaseCollection extends Collection
     }
 
     /**
-     * Check if the collection has any changes
-     * @return bool
+     * Check if the collection has any changes.
      */
     public function hasChanges(): bool
     {
@@ -73,8 +75,7 @@ class DatabaseCollection extends Collection
 
     /**
      * Synchronize the initial state after loading from database
-     * This should be called after the collection is populated with data from the database
-     * @return void
+     * This should be called after the collection is populated with data from the database.
      */
     public function synchronizeInitialState(): void
     {
@@ -82,8 +83,7 @@ class DatabaseCollection extends Collection
     }
 
     /**
-     * Saves the initial state of the collection for future comparison
-     * @return void
+     * Saves the initial state of the collection for future comparison.
      */
     private function saveInitialState(): void
     {

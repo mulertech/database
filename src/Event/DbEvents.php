@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\Event;
 
 /**
- * Enum DbEvents
+ * Enum DbEvents.
  *
  * Enumeration of all database-related events.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum DbEvents: string

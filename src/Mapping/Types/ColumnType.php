@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping\Types;
 
 /**
- * Enum representing all available MySQL column types
+ * Enum representing all available MySQL column types.
  */
 enum ColumnType: string
 {
@@ -62,73 +62,63 @@ enum ColumnType: string
     case POLYGON = 'POLYGON';
 
     /**
-     * Determines if the column type can be unsigned
-     *
-     * @return bool
+     * Determines if the column type can be unsigned.
      */
     public function canBeUnsigned(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::INT, self::TINYINT, self::SMALLINT, self::MEDIUMINT, self::BIGINT,
             self::DECIMAL, self::FLOAT, self::DOUBLE => true,
-            default => false
+            default => false,
         };
     }
 
     /**
-     * Determines if the column type requires a length
-     *
-     * @return bool
+     * Determines if the column type requires a length.
      */
     public function isTypeWithLength(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::CHAR, self::VARCHAR, self::BINARY, self::VARBINARY => true,
-            default => false
+            default => false,
         };
     }
 
     /**
-     * Determines if the column type requires precision (for decimal types)
-     *
-     * @return bool
+     * Determines if the column type requires precision (for decimal types).
      */
     public function requiresPrecision(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::DECIMAL, self::FLOAT, self::DOUBLE => true,
-            default => false
+            default => false,
         };
     }
 
     /**
-     * Determines if the column type requires choices (for ENUM and SET types)
-     *
-     * @return bool
+     * Determines if the column type requires choices (for ENUM and SET types).
      */
     public function requiresChoices(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::ENUM, self::SET => true,
-            default => false
+            default => false,
         };
     }
 
-
     /**
-     * Generates SQL representation of the column type with its length if necessary
+     * Generates SQL representation of the column type with its length if necessary.
      *
-     * @param int|null $length Column length
-     * @param int|null $scale Scale for decimal types
-     * @param bool $isUnsigned Whether the type is unsigned
-     * @param array<string> $choices Choices for ENUM or SET types
-     * @return string
+     * @param int|null      $length     Column length
+     * @param int|null      $scale      Scale for decimal types
+     * @param bool          $isUnsigned Whether the type is unsigned
+     * @param array<string> $choices    Choices for ENUM or SET types
      */
     public function toSqlDefinition(
         ?int $length = null,
         ?int $scale = null,
         bool $isUnsigned = false,
-        array $choices = []
+        array $choices = [],
     ): string {
         $sql = $this->value;
 
@@ -138,7 +128,7 @@ enum ColumnType: string
         } elseif (null !== $length && $this->isTypeWithLength()) {
             $sql .= "($length)";
         } elseif (!empty($choices) && $this->requiresChoices()) {
-            $sql .= "('" . implode("','", $choices) . "')";
+            $sql .= "('".implode("','", $choices)."')";
         }
 
         if ($isUnsigned && $this->canBeUnsigned()) {

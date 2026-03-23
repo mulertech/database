@@ -90,41 +90,37 @@ final class MySQLBackupManagerTest extends TestCase
 
     public function testCreateBackupWithNonWritableDirectory(): void
     {
-        // Test covers: echo '!is_writable($backupDir)\n';
-        $nonWritableDir = sys_get_temp_dir() . '/readonly_' . uniqid();
-        $backupPath = $nonWritableDir . '/backup.sql';
-        
-        // Create directory but make it non-writable
-        mkdir($nonWritableDir, 0444, true);
-        
-        try {
-            $this->expectException(RuntimeException::class);
-            $this->expectExceptionMessage('Backup directory is not writable');
-            new MySQLBackupManager()->createBackup('/usr/bin/', $backupPath);
-        } finally {
-            // Clean up - restore permissions and remove directory
-            chmod($nonWritableDir, 0755);
-            rmdir($nonWritableDir);
-        }
+        // /proc/sys/ is mounted read-only - is_writable('/proc/sys/') returns false even for root.
+        // dirname('/proc/sys/backup_test.sql') = '/proc/sys', is_dir = true, is_writable = false
+        $backupPath = '/proc/sys/backup_test.sql';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Backup directory is not writable');
+        new MySQLBackupManager()->createBackup('/usr/bin/', $backupPath);
     }
 
     public function testCreateBackupWithNonWritableBackupFile(): void
     {
-        // Test covers: echo '!is_writable($pathBackup)\n';
-        $backupPath = sys_get_temp_dir() . '/readonly_backup_' . uniqid() . '.sql';
-        
-        // Create file but make it non-writable
-        touch($backupPath);
-        chmod($backupPath, 0444);
-        
+        // Create a symlink in a writable directory pointing to /proc/sys/kernel/hostname.
+        // The directory is writable (passes the directory check),
+        // but the symlink target is on a read-only mount within /proc/sys/,
+        // so file_exists() returns true and is_writable() returns false (even for root).
+        $writableDir = sys_get_temp_dir() . '/writable_backup_' . uniqid();
+        mkdir($writableDir);
+        $backupPath = $writableDir . '/backup.sql';
+        symlink('/proc/sys/kernel/hostname', $backupPath);
+
         try {
             $this->expectException(RuntimeException::class);
             $this->expectExceptionMessage('Backup file is not writable');
             new MySQLBackupManager()->createBackup('/usr/bin/', $backupPath);
         } finally {
-            // Clean up - restore permissions and remove file
-            chmod($backupPath, 0644);
-            unlink($backupPath);
+            if (is_link($backupPath)) {
+                unlink($backupPath);
+            }
+            if (is_dir($writableDir)) {
+                rmdir($writableDir);
+            }
         }
     }
 
@@ -198,30 +194,25 @@ final class MySQLBackupManagerTest extends TestCase
 
     public function testCreateBackupDirectoryCreationFailure(): void
     {
-        // Create a path where directory creation would fail (parent doesn't exist and can't be created)
-        $impossiblePath = '/root/nonexistent/deeply/nested/path/backup.sql';
-        
-        // Only test if we're not running as root (which would actually succeed)
-        if (posix_getuid() !== 0) {
-            $this->expectException(RuntimeException::class);
-            $this->expectExceptionMessage('Unable to create backup directory');
-            new MySQLBackupManager()->createBackup('/usr/bin/', $impossiblePath);
-        } else {
-            $this->markTestSkipped('Cannot test directory creation failure when running as root');
-        }
+        // /proc/sys/ is mounted read-only, so mkdir() under it fails even for root.
+        // is_dir('/proc/sys/nonexistent/deeply/nested/path') = false,
+        // @mkdir() fails, is_dir() still false -> throws "Unable to create backup directory"
+        $impossiblePath = '/proc/sys/nonexistent/deeply/nested/path/backup.sql';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unable to create backup directory');
+        new MySQLBackupManager()->createBackup('/usr/bin/', $impossiblePath);
     }
 
     public function testCreateBackupFileCreationFailure(): void
     {
+        // A filename of 255 'a' chars + '.sql' = 259 bytes, exceeding the 255-byte
+        // filesystem filename limit. fopen() fails regardless of user (even root).
         $longName = sys_get_temp_dir() . '/' . str_repeat('a', 255) . '.sql';
-        
-        if (posix_getuid() !== 0) {
-            $this->expectException(RuntimeException::class);
-            $this->expectExceptionMessage('Cannot create backup file');
-            new MySQLBackupManager()->createBackup('/usr/bin/', $longName);
-        } else {
-            $this->markTestSkipped('Cannot test file creation failure when running as root');
-        }
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Cannot create backup file');
+        new MySQLBackupManager()->createBackup('/usr/bin/', $longName);
     }
 
     public function testRestoreBackupWithValidFile(): void

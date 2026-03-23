@@ -7,39 +7,25 @@ namespace MulerTech\Database\Query\Builder;
 use MulerTech\Database\ORM\EmEngine;
 
 /**
- * Raw SQL query builder for complex queries
+ * Raw SQL query builder for complex queries.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class RawQueryBuilder extends AbstractQueryBuilder
 {
-    /**
-     * @var string
-     */
     private string $sql;
 
-    /**
-     * @param EmEngine|null $emEngine
-     * @param string $sql
-     */
     public function __construct(?EmEngine $emEngine, string $sql)
     {
         parent::__construct($emEngine);
         $this->sql = $sql;
     }
 
-    /**
-     * @return string
-     */
     public function buildSql(): string
     {
         return $this->sql;
     }
 
-    /**
-     * @return string
-     */
     public function getQueryType(): string
     {
         // Extract query type from SQL
@@ -64,29 +50,22 @@ class RawQueryBuilder extends AbstractQueryBuilder
         return 'RAW';
     }
 
-    /**
-     * @param string $sql
-     * @return self
-     */
     public function setSql(string $sql): self
     {
         $this->sql = $sql;
+
         return $this;
     }
 
-    /**
-     * @param string $sql
-     * @return self
-     */
     public function appendSql(string $sql): self
     {
-        $this->sql .= ' ' . $sql;
+        $this->sql .= ' '.$sql;
+
         return $this;
     }
 
     /**
      * @param array<string, mixed> $bindings
-     * @return self
      */
     public function bind(array $bindings): self
     {
@@ -97,35 +76,23 @@ class RawQueryBuilder extends AbstractQueryBuilder
         return $this;
     }
 
-    /**
-     * @return bool
-     */
     public function isSelect(): bool
     {
-        return $this->getQueryType() === 'SELECT';
+        return 'SELECT' === $this->getQueryType();
     }
 
-    /**
-     * @return bool
-     */
     public function isInsert(): bool
     {
-        return $this->getQueryType() === 'INSERT';
+        return 'INSERT' === $this->getQueryType();
     }
 
-    /**
-     * @return bool
-     */
     public function isUpdate(): bool
     {
-        return $this->getQueryType() === 'UPDATE';
+        return 'UPDATE' === $this->getQueryType();
     }
 
-    /**
-     * @return bool
-     */
     public function isDelete(): bool
     {
-        return $this->getQueryType() === 'DELETE';
+        return 'DELETE' === $this->getQueryType();
     }
 }

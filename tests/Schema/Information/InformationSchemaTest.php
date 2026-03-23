@@ -19,7 +19,7 @@ class InformationSchemaTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockEmEngine = $this->createMock(EmEngine::class);
+        $this->mockEmEngine = $this->createStub(EmEngine::class);
         $this->informationSchema = new InformationSchema($this->mockEmEngine);
     }
 

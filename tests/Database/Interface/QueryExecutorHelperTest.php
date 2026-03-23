@@ -24,20 +24,21 @@ final class QueryExecutorHelperTest extends TestCase
     protected function setUp(): void
     {
         $this->executor = new QueryExecutorHelper();
-        $this->mockPdo = $this->createMock(PDO::class);
-        $this->mockStatement = $this->createMock(PDOStatement::class);
+        $this->mockPdo = $this->createStub(PDO::class);
+        $this->mockStatement = $this->createStub(PDOStatement::class);
     }
 
     public function testExecuteQueryWithNullFetchMode(): void
     {
         $query = 'SELECT * FROM users';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query)
             ->willReturn($this->mockStatement);
 
-        $result = $this->executor->executeQuery($this->mockPdo, $query);
+        $result = $this->executor->executeQuery($pdo, $query);
 
         $this->assertInstanceOf(Statement::class, $result);
     }
@@ -48,13 +49,14 @@ final class QueryExecutorHelperTest extends TestCase
         $className = 'User';
         $constructorArgs = ['arg1', 'arg2'];
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_CLASS, $className, $constructorArgs)
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_CLASS,
             $className,
@@ -68,13 +70,14 @@ final class QueryExecutorHelperTest extends TestCase
     {
         $query = 'SELECT * FROM users';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_CLASS, '', [])
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_CLASS,
             123 // Non-string class name
@@ -88,13 +91,14 @@ final class QueryExecutorHelperTest extends TestCase
         $query = 'SELECT * FROM users';
         $className = 'User';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_CLASS, $className, [])
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_CLASS,
             $className,
@@ -109,13 +113,14 @@ final class QueryExecutorHelperTest extends TestCase
         $query = 'SELECT * FROM users';
         $object = new stdClass();
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_INTO, $object)
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_INTO,
             $object
@@ -158,13 +163,14 @@ final class QueryExecutorHelperTest extends TestCase
     {
         $query = 'SELECT * FROM users';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_ASSOC)
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_ASSOC
         );
@@ -176,13 +182,14 @@ final class QueryExecutorHelperTest extends TestCase
     {
         $query = 'SELECT * FROM users';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_NUM)
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_NUM
         );
@@ -194,49 +201,52 @@ final class QueryExecutorHelperTest extends TestCase
     {
         $query = 'INVALID SQL';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query)
             ->willReturn(false);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('errorInfo')
             ->willReturn(['42000', 1064, 'Syntax error in SQL']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Query failed. Error: Syntax error in SQL. Statement: INVALID SQL');
 
-        $this->executor->executeQuery($this->mockPdo, $query);
+        $this->executor->executeQuery($pdo, $query);
     }
 
     public function testExecuteQueryThrowsExceptionWithUnknownError(): void
     {
         $query = 'INVALID SQL';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->willReturn(false);
 
-        $this->mockPdo->expects($this->once())
+        $pdo->expects($this->once())
             ->method('errorInfo')
             ->willReturn(['42000', 1064, null]);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Query failed. Error: Unknown error. Statement: INVALID SQL');
 
-        $this->executor->executeQuery($this->mockPdo, $query);
+        $this->executor->executeQuery($pdo, $query);
     }
 
     public function testExecuteQueryWithEmptyQuery(): void
     {
         $query = '';
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query)
             ->willReturn($this->mockStatement);
 
-        $result = $this->executor->executeQuery($this->mockPdo, $query);
+        $result = $this->executor->executeQuery($pdo, $query);
 
         $this->assertInstanceOf(Statement::class, $result);
     }
@@ -249,13 +259,14 @@ final class QueryExecutorHelperTest extends TestCase
             public int $age = 25;
         };
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_INTO, $complexObject)
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_INTO,
             $complexObject
@@ -270,13 +281,14 @@ final class QueryExecutorHelperTest extends TestCase
         $className = 'User';
         $constructorArgs = ['param1', 'param2'];
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('query')
             ->with($query, PDO::FETCH_CLASS, $className, $constructorArgs)
             ->willReturn($this->mockStatement);
 
         $result = $this->executor->executeQuery(
-            $this->mockPdo,
+            $pdo,
             $query,
             PDO::FETCH_CLASS,
             $className,

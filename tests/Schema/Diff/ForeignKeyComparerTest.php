@@ -20,6 +20,7 @@ class ForeignKeyComparerTest extends TestCase
 {
     private ForeignKeyComparer $comparer;
     private MetadataRegistry $metadataRegistry;
+    private SchemaDifference $diff;
 
     protected function setUp(): void
     {

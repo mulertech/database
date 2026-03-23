@@ -27,8 +27,8 @@ class FlushHandlerTest extends TestCase
     {
         parent::setUp();
         
-        $this->stateManager = $this->createMock(StateManagerInterface::class);
-        $this->relationManager = $this->createMock(RelationManager::class);
+        $this->stateManager = $this->createStub(StateManagerInterface::class);
+        $this->relationManager = $this->createStub(RelationManager::class);
         
         $metadataRegistry = new MetadataRegistry();
         $identityMap = new IdentityMap($metadataRegistry);

@@ -6,14 +6,12 @@ namespace MulerTech\Database\Schema\Information;
 
 use MulerTech\Database\ORM\EmEngine;
 use MulerTech\Database\Query\Builder\QueryBuilder;
-use PDO;
 
 /**
- * Class InformationSchema
+ * Class InformationSchema.
  *
  * Provides access to database metadata through the information_schema.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class InformationSchema
@@ -52,15 +50,11 @@ class InformationSchema
      */
     public array $foreignKeys;
 
-    /**
-     * @param EmEngine $emEngine
-     */
     public function __construct(private readonly EmEngine $emEngine)
     {
     }
 
     /**
-     * @param string $database
      * @return array<int, array{TABLE_NAME: string, AUTO_INCREMENT: int|null}>
      */
     public function getTables(string $database): array
@@ -73,7 +67,6 @@ class InformationSchema
     }
 
     /**
-     * @param string $database
      * @return array<int, array{
      *      TABLE_NAME: string,
      *      COLUMN_NAME: string,
@@ -94,7 +87,6 @@ class InformationSchema
     }
 
     /**
-     * @param string $database
      * @return array<int, array{
      *      TABLE_NAME: string,
      *      CONSTRAINT_NAME: string,
@@ -115,15 +107,11 @@ class InformationSchema
         return $this->foreignKeys;
     }
 
-    /**
-     * @param string $database
-     * @return void
-     */
     private function populateTables(string $database): void
     {
         $queryBuilder = new QueryBuilder($this->emEngine)
             ->select('TABLE_NAME', 'AUTO_INCREMENT')
-            ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::TABLES->value)
+            ->from(self::INFORMATION_SCHEMA.'.'.InformationSchemaTables::TABLES->value)
             ->where('TABLE_SCHEMA', $database);
 
         $pdoStatement = $queryBuilder->getResult();
@@ -131,14 +119,10 @@ class InformationSchema
         /**
          * @var array<int, array{TABLE_NAME: string, AUTO_INCREMENT: int|null}> $result
          */
-        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoStatement->fetchAll(\PDO::FETCH_ASSOC);
         $this->tables = $result;
     }
 
-    /**
-     * @param string $database
-     * @return void
-     */
     private function populateColumns(string $database): void
     {
         $queryBuilder = new QueryBuilder($this->emEngine)
@@ -151,7 +135,7 @@ class InformationSchema
                 'COLUMN_DEFAULT',
                 'COLUMN_KEY'
             )
-            ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::COLUMNS->value)
+            ->from(self::INFORMATION_SCHEMA.'.'.InformationSchemaTables::COLUMNS->value)
             ->where('TABLE_SCHEMA', $database);
 
         $pdoStatement = $queryBuilder->getResult();
@@ -167,14 +151,10 @@ class InformationSchema
          *     COLUMN_KEY: string|null
          * }> $result
          */
-        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoStatement->fetchAll(\PDO::FETCH_ASSOC);
         $this->columns = $result;
     }
 
-    /**
-     * @param string $database
-     * @return void
-     */
     private function populateForeignKeys(string $database): void
     {
         $queryBuilder = new QueryBuilder($this->emEngine)
@@ -188,9 +168,9 @@ class InformationSchema
                 'r.DELETE_RULE',
                 'r.UPDATE_RULE'
             )
-            ->from(self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::KEY_COLUMN_USAGE->value, 'k')
+            ->from(self::INFORMATION_SCHEMA.'.'.InformationSchemaTables::KEY_COLUMN_USAGE->value, 'k')
             ->leftJoin(
-                self::INFORMATION_SCHEMA . '.' . InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value,
+                self::INFORMATION_SCHEMA.'.'.InformationSchemaTables::REFERENTIAL_CONSTRAINTS->value,
                 'k.CONSTRAINT_NAME',
                 'r.CONSTRAINT_NAME',
                 'r'
@@ -214,7 +194,7 @@ class InformationSchema
          *       UPDATE_RULE: string|null
          *   }> $result
          */
-        $result = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoStatement->fetchAll(\PDO::FETCH_ASSOC);
         $this->foreignKeys = $result;
     }
 }

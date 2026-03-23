@@ -27,7 +27,7 @@ class MigrationGeneratorTest extends TestCase
         $this->tempMigrationsDir = sys_get_temp_dir() . '/migrations_test_' . uniqid();
         mkdir($this->tempMigrationsDir);
 
-        $this->mockSchemaComparer = $this->createMock(SchemaComparer::class);
+        $this->mockSchemaComparer = $this->createStub(SchemaComparer::class);
         
         // Create a real MetadataRegistry instance since it's final and cannot be mocked
         $this->metadataRegistry = new MetadataRegistry();
@@ -76,7 +76,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGenerateMigrationWithNoDifferences(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(false);
 
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
@@ -88,7 +88,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGenerateMigrationWithDifferences(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
 
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
@@ -102,7 +102,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGenerateMigrationWithAutoDateTime(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
 
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
@@ -121,7 +121,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGeneratedMigrationFileContent(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
 
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
@@ -142,7 +142,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGeneratedMigrationWithUpCode(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $mockDiff->method('getTablesToCreate')->willReturn([]); // Empty to avoid entity lookup
         $mockDiff->method('getForeignKeysToDrop')->willReturn([]);
@@ -166,7 +166,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGeneratedMigrationWithDownCode(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $mockDiff->method('getTablesToCreate')->willReturn([]); // Empty to avoid entity lookup
         $mockDiff->method('getForeignKeysToAdd')->willReturn([]);
@@ -187,7 +187,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testGeneratedMigrationWithEmptyDownCode(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $mockDiff->method('getForeignKeysToAdd')->willReturn([]);
         $mockDiff->method('getTablesToCreate')->willReturn([]);
@@ -215,7 +215,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testValidDateTimeFormats(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
 
@@ -262,7 +262,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testMigrationFileLocation(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
 
@@ -275,7 +275,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testMultipleMigrationGeneration(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
 
@@ -292,7 +292,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testMigrationTemplateStructure(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
 
@@ -312,7 +312,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testFileWriteSuccess(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
 
@@ -329,7 +329,7 @@ class MigrationGeneratorTest extends TestCase
 
     public function testConsecutiveMigrationCallsWithSameDateTime(): void
     {
-        $mockDiff = $this->createMock(SchemaDifference::class);
+        $mockDiff = $this->createStub(SchemaDifference::class);
         $mockDiff->method('hasDifferences')->willReturn(true);
         $this->mockSchemaComparer->method('compare')->willReturn($mockDiff);
 

@@ -10,15 +10,12 @@ use MulerTech\Database\Query\Types\ComparisonOperator;
 use MulerTech\Database\Query\Types\JoinType;
 use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;
-use InvalidArgumentException;
-use RuntimeException;
 
 /**
- * Class JoinClauseBuilder
+ * Class JoinClauseBuilder.
  *
  * Centralized JOIN clause building functionality
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class JoinClauseBuilder
@@ -40,25 +37,13 @@ class JoinClauseBuilder
      */
     private array $joins = [];
 
-    /**
-     * @var QueryParameterBag
-     */
     private QueryParameterBag $parameterBag;
 
-    /**
-     * @param QueryParameterBag $parameterBag
-     */
     public function __construct(QueryParameterBag $parameterBag)
     {
         $this->parameterBag = $parameterBag;
     }
 
-    /**
-     * @param JoinType $type
-     * @param string $table
-     * @param string|null $alias
-     * @return JoinConditionBuilder
-     */
     public function add(JoinType $type, string $table, ?string $alias = null): JoinConditionBuilder
     {
         $index = count($this->joins);
@@ -72,71 +57,47 @@ class JoinClauseBuilder
         return new JoinConditionBuilder($this, $index);
     }
 
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return JoinConditionBuilder
-     */
     public function inner(string $table, ?string $alias = null): JoinConditionBuilder
     {
         return $this->add(JoinType::INNER, $table, $alias);
     }
 
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return JoinConditionBuilder
-     */
     public function left(string $table, ?string $alias = null): JoinConditionBuilder
     {
         return $this->add(JoinType::LEFT, $table, $alias);
     }
 
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return JoinConditionBuilder
-     */
     public function right(string $table, ?string $alias = null): JoinConditionBuilder
     {
         return $this->add(JoinType::RIGHT, $table, $alias);
     }
 
-    /**
-     * @param string $table
-     * @param string|null $alias
-     * @return JoinConditionBuilder
-     */
     public function cross(string $table, ?string $alias = null): JoinConditionBuilder
     {
         return $this->add(JoinType::CROSS, $table, $alias);
     }
 
     /**
-     * @param int $index
-     * @param string $leftColumn
      * @param ComparisonOperator $operator
-     * @param string|mixed $rightColumn
-     * @param LinkOperator $link
-     * @return void
+     * @param string|mixed       $rightColumn
      */
     public function addCondition(
         int $index,
         string $leftColumn,
         ComparisonOperator|SqlOperator $operator,
         mixed $rightColumn,
-        LinkOperator $link = LinkOperator::AND
+        LinkOperator $link = LinkOperator::AND,
     ): void {
         if (!isset($this->joins[$index])) {
-            throw new RuntimeException('Invalid join index: ' . $index);
+            throw new \RuntimeException('Invalid join index: '.$index);
         }
 
         // Ensure right column is a string
         $rightColumnStr = match (true) {
             is_string($rightColumn) => $rightColumn,
             is_null($rightColumn) => '',
-            is_scalar($rightColumn) => (string)$rightColumn,
-            default => throw new InvalidArgumentException('Right column must be a string or scalar value')
+            is_scalar($rightColumn) => (string) $rightColumn,
+            default => throw new \InvalidArgumentException('Right column must be a string or scalar value'),
         };
 
         $this->joins[$index]['conditions'][] = [
@@ -147,9 +108,6 @@ class JoinClauseBuilder
         ];
     }
 
-    /**
-     * @return string
-     */
     public function toSql(): string
     {
         if (empty($this->joins)) {
@@ -159,11 +117,11 @@ class JoinClauseBuilder
         $sql = [];
 
         foreach ($this->joins as $join) {
-            $joinSql = $join['type']->value . ' JOIN ';
+            $joinSql = $join['type']->value.' JOIN ';
             $joinSql .= $this->formatTable($join['table'], $join['alias']);
 
             if (!empty($join['conditions'])) {
-                $joinSql .= ' ON ' . $this->buildConditions($join['conditions']);
+                $joinSql .= ' ON '.$this->buildConditions($join['conditions']);
             }
 
             $sql[] = $joinSql;
@@ -178,7 +136,6 @@ class JoinClauseBuilder
      *     operator: SqlOperator|ComparisonOperator,
      *     right: string|mixed,
      *     link: LinkOperator}> $conditions
-     * @return string
      */
     private function buildConditions(array $conditions): string
     {
@@ -186,7 +143,7 @@ class JoinClauseBuilder
 
         foreach ($conditions as $index => $condition) {
             if ($index > 0) {
-                $sql .= ' ' . $condition['link']->value . ' ';
+                $sql .= ' '.$condition['link']->value.' ';
             }
 
             $left = $this->formatIdentifier($condition['left']);
@@ -196,46 +153,34 @@ class JoinClauseBuilder
                 ? $this->formatIdentifier($condition['right'])
                 : $this->parameterBag->add($condition['right']);
 
-            $sql .= $left . ' ' . $condition['operator']->value . ' ' . $right;
+            $sql .= $left.' '.$condition['operator']->value.' '.$right;
         }
 
         return $sql;
     }
 
-    /**
-     * @param string $value
-     * @return bool
-     */
     private function isColumnReference(string $value): bool
     {
         // Check if value looks like a column reference (table.column or just column name)
-        return preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $value) === 1
+        return 1 === preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $value)
             && !is_numeric($value)
             && !in_array(strtoupper($value), ['TRUE', 'FALSE', 'NULL'], true);
     }
 
-    /**
-     * @return bool
-     */
     public function isEmpty(): bool
     {
         return empty($this->joins);
     }
 
-    /**
-     * @return int
-     */
     public function count(): int
     {
         return count($this->joins);
     }
 
-    /**
-     * @return self
-     */
     public function clear(): self
     {
         $this->joins = [];
+
         return $this;
     }
 

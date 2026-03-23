@@ -7,29 +7,30 @@ namespace MulerTech\Database\Mapping;
 use MulerTech\Database\Mapping\Attributes\MtColumn;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\FileManipulation\FileType\Php;
-use ReflectionException;
 
 /**
- * Handles column-related mapping operations
+ * Handles column-related mapping operations.
  */
 class ColumnMapping
 {
     /**
      * @param class-string $entityName
+     *
      * @return array<string, MtColumn>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getMtColumns(string $entityName): array
     {
         $columns = Php::getInstanceOfPropertiesAttributesNamed($entityName, MtColumn::class);
+
         return array_filter($columns, static fn ($column) => $column instanceof MtColumn);
     }
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return ColumnType|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getColumnType(string $entityName, string $property): ?ColumnType
     {
@@ -38,9 +39,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return int|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getColumnLength(string $entityName, string $property): ?int
     {
@@ -49,9 +49,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getColumnTypeDefinition(string $entityName, string $property): ?string
     {
@@ -71,9 +70,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return bool|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function isNullable(string $entityName, string $property): ?bool
     {
@@ -82,9 +80,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getExtra(string $entityName, string $property): ?string
     {
@@ -93,9 +90,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getColumnDefault(string $entityName, string $property): ?string
     {
@@ -104,9 +100,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getColumnKey(string $entityName, string $property): ?string
     {
@@ -115,9 +110,8 @@ class ColumnMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return bool
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function isUnsigned(string $entityName, string $property): bool
     {

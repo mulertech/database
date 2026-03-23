@@ -4,59 +4,44 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use DateTimeImmutable;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 
 /**
- * Runtime state for entities in the ORM
- * @package MulerTech\Database
+ * Runtime state for entities in the ORM.
+ *
  * @author Sébastien Muler
  */
 final readonly class EntityState
 {
     /**
-     * @param class-string $className
-     * @param EntityLifecycleState $state
+     * @param class-string         $className
      * @param array<string, mixed> $originalData
-     * @param DateTimeImmutable $lastModified
      */
     public function __construct(
         public string $className,
         public EntityLifecycleState $state,
         public array $originalData,
-        public DateTimeImmutable $lastModified
+        public \DateTimeImmutable $lastModified,
     ) {
     }
 
-    /**
-     * @return bool
-     */
     public function isManaged(): bool
     {
-        return $this->state === EntityLifecycleState::MANAGED;
+        return EntityLifecycleState::MANAGED === $this->state;
     }
 
-    /**
-     * @return bool
-     */
     public function isNew(): bool
     {
-        return $this->state === EntityLifecycleState::NEW;
+        return EntityLifecycleState::NEW === $this->state;
     }
 
-    /**
-     * @return bool
-     */
     public function isRemoved(): bool
     {
-        return $this->state === EntityLifecycleState::REMOVED;
+        return EntityLifecycleState::REMOVED === $this->state;
     }
 
-    /**
-     * @return bool
-     */
     public function isDetached(): bool
     {
-        return $this->state === EntityLifecycleState::DETACHED;
+        return EntityLifecycleState::DETACHED === $this->state;
     }
 }

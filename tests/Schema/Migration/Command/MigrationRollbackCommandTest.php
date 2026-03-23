@@ -28,7 +28,7 @@ class MigrationRollbackCommandTest extends TestCase
 
     public function testExecuteSuccessfulRollback(): void
     {
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
         
         $this->migrationManager->expects($this->once())
             ->method('getMigrations')
@@ -72,7 +72,7 @@ class MigrationRollbackCommandTest extends TestCase
     
     public function testExecuteNoExecutedMigrations(): void
     {
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
 
         $migration->method('getVersion')
             ->willReturn('202301010000');
@@ -94,7 +94,7 @@ class MigrationRollbackCommandTest extends TestCase
     
     public function testExecuteDryRun(): void
     {
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
         
         $this->migrationManager->expects($this->once())
             ->method('getMigrations')
@@ -113,7 +113,7 @@ class MigrationRollbackCommandTest extends TestCase
     
     public function testExecuteUserCancelled(): void
     {
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
         
         $this->migrationManager->expects($this->once())
             ->method('getMigrations')
@@ -137,7 +137,7 @@ class MigrationRollbackCommandTest extends TestCase
     
     public function testExecuteRollbackNoChanges(): void
     {
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
         
         $this->migrationManager->expects($this->once())
             ->method('getMigrations')

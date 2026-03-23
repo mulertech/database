@@ -8,19 +8,19 @@ use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PostUpdateEvent;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
 #[CoversClass(PostUpdateEvent::class)]
 class PostUpdateEventTest extends TestCase
 {
-    private EntityManagerInterface&MockObject $entityManager;
+    private EntityManagerInterface&Stub $entityManager;
     private object $entity;
 
     protected function setUp(): void
     {
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->entity = new stdClass();
     }
 
@@ -68,8 +68,8 @@ class PostUpdateEventTest extends TestCase
 
     public function testConstructorWithDifferentEntityManagers(): void
     {
-        $entityManager1 = $this->createMock(EntityManagerInterface::class);
-        $entityManager2 = $this->createMock(EntityManagerInterface::class);
+        $entityManager1 = $this->createStub(EntityManagerInterface::class);
+        $entityManager2 = $this->createStub(EntityManagerInterface::class);
         
         $event1 = new PostUpdateEvent($this->entity, $entityManager1);
         $event2 = new PostUpdateEvent($this->entity, $entityManager2);
@@ -82,7 +82,7 @@ class PostUpdateEventTest extends TestCase
     public function testEventNameIsAlwaysPostUpdate(): void
     {
         $event1 = new PostUpdateEvent($this->entity, $this->entityManager);
-        $event2 = new PostUpdateEvent(new stdClass(), $this->createMock(EntityManagerInterface::class));
+        $event2 = new PostUpdateEvent(new stdClass(), $this->createStub(EntityManagerInterface::class));
         
         $this->assertEquals('postUpdate', $event1->getName());
         $this->assertEquals('postUpdate', $event2->getName());

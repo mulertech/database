@@ -710,8 +710,8 @@ class EmEngineTest extends TestCase
     public function testGetQueryBuilderObjectResultWithNonArrayFetch(): void
     {
         // Create a mock query builder that returns non-array data
-        $queryBuilder = $this->createMock(SelectBuilder::class);
-        $pdoStatement = $this->createMock(\PDOStatement::class);
+        $queryBuilder = $this->createStub(SelectBuilder::class);
+        $pdoStatement = $this->createStub(\PDOStatement::class);
         $statement = new Statement($pdoStatement);
         
         $queryBuilder->method('getResult')->willReturn($statement);

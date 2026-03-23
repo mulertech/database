@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping;
 
-use Exception;
-use ReflectionException;
-
 /**
  * Simple registry for EntityMetadata instances
- * Acts as an immutable cache using EntityMetadata objects
+ * Acts as an immutable cache using EntityMetadata objects.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class MetadataRegistry
@@ -25,23 +21,23 @@ final class MetadataRegistry
 
     /**
      * @param string|null $entitiesPath Automatic loading of entities from this path
-     * @throws Exception
+     *
+     * @throws \Exception
      */
     public function __construct(?string $entitiesPath = null)
     {
         $this->entityProcessor = new EntityProcessor();
 
         // Automatically load entities if path is provided
-        if ($entitiesPath !== null) {
+        if (null !== $entitiesPath) {
             $this->loadEntitiesFromPath($entitiesPath);
         }
     }
 
     /**
-     * Load entities from a directory path and register their metadata
-     * @param string $entitiesPath
-     * @return void
-     * @throws Exception
+     * Load entities from a directory path and register their metadata.
+     *
+     * @throws \Exception
      */
     public function loadEntitiesFromPath(string $entitiesPath): void
     {
@@ -56,10 +52,11 @@ final class MetadataRegistry
     }
 
     /**
-     * Get EntityMetadata for a class, loading it if not already registered
+     * Get EntityMetadata for a class, loading it if not already registered.
+     *
      * @param class-string $className
-     * @return EntityMetadata
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getEntityMetadata(string $className): EntityMetadata
     {
@@ -67,9 +64,9 @@ final class MetadataRegistry
     }
 
     /**
-     * Check if metadata is registered for a class
+     * Check if metadata is registered for a class.
+     *
      * @param class-string $className
-     * @return bool
      */
     public function hasMetadata(string $className): bool
     {
@@ -77,10 +74,9 @@ final class MetadataRegistry
     }
 
     /**
-     * Register metadata manually (useful for tests)
+     * Register metadata manually (useful for tests).
+     *
      * @param class-string $className
-     * @param EntityMetadata $metadata
-     * @return void
      */
     public function registerMetadata(string $className, EntityMetadata $metadata): void
     {
@@ -88,7 +84,8 @@ final class MetadataRegistry
     }
 
     /**
-     * Get all registered class names
+     * Get all registered class names.
+     *
      * @return array<class-string>
      */
     public function getRegisteredClasses(): array
@@ -97,7 +94,8 @@ final class MetadataRegistry
     }
 
     /**
-     * Get metadata for all registered entities
+     * Get metadata for all registered entities.
+     *
      * @return array<class-string, EntityMetadata>
      */
     public function getAllMetadata(): array
@@ -106,8 +104,7 @@ final class MetadataRegistry
     }
 
     /**
-     * Clear all registered metadata
-     * @return void
+     * Clear all registered metadata.
      */
     public function clear(): void
     {
@@ -115,8 +112,7 @@ final class MetadataRegistry
     }
 
     /**
-     * Get total number of registered entities
-     * @return int
+     * Get total number of registered entities.
      */
     public function count(): int
     {
@@ -129,8 +125,8 @@ final class MetadataRegistry
 
     /**
      * @param class-string $entityClass
-     * @return string
-     * @throws Exception
+     *
+     * @throws \Exception
      */
     public function getTableName(string $entityClass): string
     {
@@ -139,21 +135,22 @@ final class MetadataRegistry
 
     /**
      * @param class-string $entityClass
-     * @param string $property
-     * @return mixed
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getPropertyMetadata(string $entityClass, string $property): mixed
     {
         $metadata = $this->getEntityMetadata($entityClass);
+
         return $metadata->getColumn($property);
     }
 
     /**
      * @param class-string $entityClass
-     * @param bool $withoutId
+     *
      * @return array<string, string>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getPropertiesColumns(string $entityClass, bool $withoutId = true): array
     {
@@ -168,13 +165,15 @@ final class MetadataRegistry
     }
 
     /**
-     * Get all loaded entities
+     * Get all loaded entities.
+     *
      * @return array<class-string>
      */
     public function getLoadedEntities(): array
     {
         $entities = array_keys($this->metadata);
         sort($entities);
+
         return $entities;
     }
 }

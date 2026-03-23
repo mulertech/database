@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\Database\Interface;
 
 /**
- * Interface DriverInterface
+ * Interface DriverInterface.
  *
  * Interface for database drivers to generate DSN strings.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 interface DriverInterface
@@ -22,7 +21,6 @@ interface DriverInterface
      *     unix_socket?: string,
      *     charset?: string
      * } $dsnOptions
-     * @return string
      */
     public function generateDsn(array $dsnOptions): string;
 }

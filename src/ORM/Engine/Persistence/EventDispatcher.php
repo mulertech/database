@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use Closure;
 use MulerTech\Database\Event\PostPersistEvent;
 use MulerTech\Database\Event\PostRemoveEvent;
 use MulerTech\Database\Event\PostUpdateEvent;
@@ -16,8 +15,8 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\EventManager\EventManager;
 
 /**
- * Handles event dispatching for persistence operations
- * @package MulerTech\Database
+ * Handles event dispatching for persistence operations.
+ *
  * @author Sébastien Muler
  */
 class EventDispatcher
@@ -25,35 +24,24 @@ class EventDispatcher
     /** @var array<string> */
     private array $processedEvents = [];
 
-    /** @var Closure|null */
-    private ?Closure $postEventProcessor = null;
+    private ?\Closure $postEventProcessor = null;
 
     public function __construct(
         private readonly ?EventManager $eventManager,
         private readonly EntityManagerInterface $entityManager,
-        private readonly ChangeSetManager $changeSetManager
+        private readonly ChangeSetManager $changeSetManager,
     ) {
     }
 
-    /**
-     * @param Closure $processor
-     * @return void
-     */
-    public function setPostEventProcessor(Closure $processor): void
+    public function setPostEventProcessor(\Closure $processor): void
     {
         $this->postEventProcessor = $processor;
     }
 
-    /**
-     * @param object $entity
-     * @param string $eventName
-     * @param int $flushDepth
-     * @return void
-     */
     public function callEntityEvent(object $entity, string $eventName, int $flushDepth): void
     {
         $entityId = spl_object_id($entity);
-        $eventKey = $entityId . '_' . $eventName . '_' . $flushDepth;
+        $eventKey = $entityId.'_'.$eventName.'_'.$flushDepth;
 
         if (in_array($eventKey, $this->processedEvents, true)) {
             return;
@@ -67,21 +55,18 @@ class EventDispatcher
         }
 
         // Dispatch global events if event manager is available
-        if ($this->eventManager !== null) {
+        if (null !== $this->eventManager) {
             $this->dispatchGlobalEvent($entity, $eventName);
         }
     }
 
     /**
-     * Dispatch global event - only called when eventManager is not null
-     * @param object $entity
-     * @param string $eventName
-     * @return void
+     * Dispatch global event - only called when eventManager is not null.
      */
     private function dispatchGlobalEvent(object $entity, string $eventName): void
     {
         assert(
-            $this->eventManager !== null,
+            null !== $this->eventManager,
             'EventManager must not be null when dispatching global events'
         );
 
@@ -92,18 +77,14 @@ class EventDispatcher
             'postUpdate' => $this->dispatchPostUpdateEvent($entity),
             'preRemove' => $this->dispatchPreRemoveEvent($entity),
             'postRemove' => $this->dispatchPostRemoveEvent($entity),
-            default => null
+            default => null,
         };
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function dispatchPreUpdateEvent(object $entity): void
     {
         assert(
-            $this->eventManager !== null,
+            null !== $this->eventManager,
             'EventManager must not be null when dispatching events'
         );
 
@@ -111,14 +92,10 @@ class EventDispatcher
         $this->eventManager->dispatch(new PreUpdateEvent($entity, $this->entityManager, $changeSet));
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function dispatchPostUpdateEvent(object $entity): void
     {
         assert(
-            $this->eventManager !== null,
+            null !== $this->eventManager,
             'EventManager must not be null when dispatching events'
         );
 
@@ -126,14 +103,10 @@ class EventDispatcher
         $this->processPostEventOperations();
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function dispatchPreRemoveEvent(object $entity): void
     {
         assert(
-            $this->eventManager !== null,
+            null !== $this->eventManager,
             'EventManager must not be null when dispatching events'
         );
 
@@ -141,14 +114,10 @@ class EventDispatcher
         $this->processPostEventOperations();
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function dispatchPostRemoveEvent(object $entity): void
     {
         assert(
-            $this->eventManager !== null,
+            null !== $this->eventManager,
             'EventManager must not be null when dispatching events'
         );
 
@@ -156,16 +125,13 @@ class EventDispatcher
         $this->processPostEventOperations();
     }
 
-    /**
-     * @return void
-     */
     private function processPostEventOperations(): void
     {
         // First compute any new change sets
         $this->changeSetManager->computeChangeSets();
 
         // If we have a post-event processor, use it to handle the operations
-        if ($this->postEventProcessor !== null) {
+        if (null !== $this->postEventProcessor) {
             ($this->postEventProcessor)();
         }
 

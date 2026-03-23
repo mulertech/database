@@ -22,7 +22,7 @@ class ManyToManyProcessorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
         $entityManager->method('getMetadataRegistry')
             ->willReturn($this->metadataRegistry);

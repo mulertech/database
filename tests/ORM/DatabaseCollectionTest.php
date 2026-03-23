@@ -14,12 +14,16 @@ use InvalidArgumentException;
 
 class DatabaseCollectionTest extends TestCase
 {
+    private EntityManagerInterface $entityManager;
     private array $testEntities;
+    private MtOneToMany $oneToManyMapping;
+    private MtManyToMany $manyToManyMappingWithMappedBy;
+    private MtManyToMany $manyToManyMappingWithJoinTable;
 
     protected function setUp(): void
     {
         // Create mock objects for dependencies
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         
         // Create test entities (simple stdClass objects for testing)
         $this->testEntities = [

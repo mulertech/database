@@ -31,7 +31,7 @@ class InsertBuilderTest extends TestCase
 
     public function testConstructorWithEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $builder = new InsertBuilder($emEngine);
         $this->assertInstanceOf(InsertBuilder::class, $builder);
     }

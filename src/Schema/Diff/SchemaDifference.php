@@ -7,11 +7,10 @@ namespace MulerTech\Database\Schema\Diff;
 use MulerTech\Database\Mapping\Types\FkRule;
 
 /**
- * Class SchemaDifference
+ * Class SchemaDifference.
  *
  * Holds differences between database schema and entity mappings
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SchemaDifference
@@ -69,35 +68,34 @@ class SchemaDifference
     private array $foreignKeysToDrop = [];
 
     /**
-     * Add a table to be created
+     * Add a table to be created.
      *
-     * @param string $tableName
      * @param class-string $entityClass
+     *
      * @return $this
      */
     public function addTableToCreate(string $tableName, string $entityClass): self
     {
         $this->tablesToCreate[$tableName] = $entityClass;
+
         return $this;
     }
 
     /**
-     * Add a table to be dropped
+     * Add a table to be dropped.
      *
-     * @param string $tableName
      * @return $this
      */
     public function addTableToDrop(string $tableName): self
     {
         $this->tablesToDrop[] = $tableName;
+
         return $this;
     }
 
     /**
-     * Add a column to be added
+     * Add a column to be added.
      *
-     * @param string $tableName
-     * @param string $columnName
      * @param array{
      *        COLUMN_TYPE: string,
      *        IS_NULLABLE: 'YES'|'NO',
@@ -105,6 +103,7 @@ class SchemaDifference
      *        EXTRA: string|null,
      *        COLUMN_KEY: string|null
      *        } $columnDefinition
+     *
      * @return $this
      */
     public function addColumnToAdd(string $tableName, string $columnName, array $columnDefinition): self
@@ -114,19 +113,19 @@ class SchemaDifference
         }
 
         $this->columnsToAdd[$tableName][$columnName] = $columnDefinition;
+
         return $this;
     }
 
     /**
-     * Add a column to be modified
+     * Add a column to be modified.
      *
-     * @param string $tableName
-     * @param string $columnName
      * @param array{
      *     COLUMN_TYPE?: array{from: string, to: string},
      *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
      *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
      *     } $differences
+     *
      * @return $this
      */
     public function addColumnToModify(string $tableName, string $columnName, array $differences): self
@@ -136,14 +135,13 @@ class SchemaDifference
         }
 
         $this->columnsToModify[$tableName][$columnName] = $differences;
+
         return $this;
     }
 
     /**
-     * Add a column to be dropped
+     * Add a column to be dropped.
      *
-     * @param string $tableName
-     * @param string $columnName
      * @return $this
      */
     public function addColumnToDrop(string $tableName, string $columnName): self
@@ -153,14 +151,13 @@ class SchemaDifference
         }
 
         $this->columnsToDrop[$tableName][] = $columnName;
+
         return $this;
     }
 
     /**
-     * Add a foreign key to be added
+     * Add a foreign key to be added.
      *
-     * @param string $tableName
-     * @param string $constraintName
      * @param array{
      *        COLUMN_NAME: string,
      *        REFERENCED_TABLE_NAME: string,
@@ -168,6 +165,7 @@ class SchemaDifference
      *        DELETE_RULE: FkRule,
      *        UPDATE_RULE: FkRule
      *        } $foreignKeyDefinition
+     *
      * @return $this
      */
     public function addForeignKeyToAdd(string $tableName, string $constraintName, array $foreignKeyDefinition): self
@@ -177,14 +175,13 @@ class SchemaDifference
         }
 
         $this->foreignKeysToAdd[$tableName][$constraintName] = $foreignKeyDefinition;
+
         return $this;
     }
 
     /**
-     * Add a foreign key to be dropped
+     * Add a foreign key to be dropped.
      *
-     * @param string $tableName
-     * @param string $constraintName
      * @return $this
      */
     public function addForeignKeyToDrop(string $tableName, string $constraintName): self
@@ -194,11 +191,12 @@ class SchemaDifference
         }
 
         $this->foreignKeysToDrop[$tableName][] = $constraintName;
+
         return $this;
     }
 
     /**
-     * Get tables to create
+     * Get tables to create.
      *
      * @return array<string, string>
      */
@@ -208,7 +206,7 @@ class SchemaDifference
     }
 
     /**
-     * Get tables to drop
+     * Get tables to drop.
      *
      * @return array<string>
      */
@@ -218,7 +216,7 @@ class SchemaDifference
     }
 
     /**
-     * Get columns to add
+     * Get columns to add.
      *
      * @return array<string, array<string, array{
      *        COLUMN_TYPE: string,
@@ -234,7 +232,7 @@ class SchemaDifference
     }
 
     /**
-     * Get columns to modify
+     * Get columns to modify.
      *
      * @return array<string, array<string, array{
      *       COLUMN_TYPE?: array{from: string, to: string},
@@ -249,7 +247,7 @@ class SchemaDifference
     }
 
     /**
-     * Get columns to drop
+     * Get columns to drop.
      *
      * @return array<string, array<string>>
      */
@@ -259,7 +257,7 @@ class SchemaDifference
     }
 
     /**
-     * Get foreign keys to add
+     * Get foreign keys to add.
      *
      * @return array<string, array<string, array{
      *         COLUMN_NAME: string,
@@ -275,7 +273,7 @@ class SchemaDifference
     }
 
     /**
-     * Get foreign keys to drop
+     * Get foreign keys to drop.
      *
      * @return array<string, array<string>>
      */
@@ -285,18 +283,16 @@ class SchemaDifference
     }
 
     /**
-     * Check if there are any differences
-     *
-     * @return bool
+     * Check if there are any differences.
      */
     public function hasDifferences(): bool
     {
-        return !empty($this->tablesToCreate) ||
-               !empty($this->tablesToDrop) ||
-               !empty($this->columnsToAdd) ||
-               !empty($this->columnsToModify) ||
-               !empty($this->columnsToDrop) ||
-               !empty($this->foreignKeysToAdd) ||
-               !empty($this->foreignKeysToDrop);
+        return !empty($this->tablesToCreate)
+               || !empty($this->tablesToDrop)
+               || !empty($this->columnsToAdd)
+               || !empty($this->columnsToModify)
+               || !empty($this->columnsToDrop)
+               || !empty($this->foreignKeysToAdd)
+               || !empty($this->foreignKeysToDrop);
     }
 }

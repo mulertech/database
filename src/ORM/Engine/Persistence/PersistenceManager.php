@@ -11,11 +11,10 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\State\StateManagerInterface;
 use MulerTech\EventManager\EventManager;
-use ReflectionException;
 
 /**
- * Class PersistenceManager
- * @package MulerTech\Database
+ * Class PersistenceManager.
+ *
  * @author Sébastien Muler
  */
 class PersistenceManager
@@ -84,36 +83,23 @@ class PersistenceManager
         );
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function persist(object $entity): void
     {
         $this->stateManager->scheduleForInsertion($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function remove(object $entity): void
     {
         $this->stateManager->scheduleForDeletion($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function detach(object $entity): void
     {
         $this->changeSetManager->detach($entity);
     }
 
     /**
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function flush(): void
     {
@@ -132,9 +118,6 @@ class PersistenceManager
         }
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
         $this->changeSetManager->clear();

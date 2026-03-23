@@ -4,26 +4,23 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Cache;
 
-use ReflectionClass;
-use ReflectionIntersectionType;
-use ReflectionNamedType;
-use ReflectionUnionType;
-
 /**
- * Helper class for reflection-related metadata operations
+ * Helper class for reflection-related metadata operations.
  */
 final class MetadataReflectionHelper
 {
     /**
-     * Get constructor parameters metadata
-     * @param ReflectionClass<object> $reflection
+     * Get constructor parameters metadata.
+     *
+     * @param \ReflectionClass<object> $reflection
+     *
      * @return array<int, array<string, mixed>>
      */
-    public function getConstructorParams(ReflectionClass $reflection): array
+    public function getConstructorParams(\ReflectionClass $reflection): array
     {
         $constructorParams = [];
 
-        if ($reflection->getConstructor() !== null) {
+        if (null !== $reflection->getConstructor()) {
             foreach ($reflection->getConstructor()->getParameters() as $param) {
                 $constructorParams[] = [
                     'name' => $param->getName(),
@@ -38,11 +35,13 @@ final class MetadataReflectionHelper
     }
 
     /**
-     * Get properties metadata from reflection
-     * @param ReflectionClass<object> $reflection
+     * Get properties metadata from reflection.
+     *
+     * @param \ReflectionClass<object> $reflection
+     *
      * @return array<string, array<string, mixed>>
      */
-    public function getPropertiesMetadata(ReflectionClass $reflection): array
+    public function getPropertiesMetadata(\ReflectionClass $reflection): array
     {
         $properties = [];
 
@@ -61,29 +60,27 @@ final class MetadataReflectionHelper
     }
 
     /**
-     * Get property type name from reflection type
-     * @param \ReflectionType|null $type
-     * @return string|null
+     * Get property type name from reflection type.
      */
     public function getPropertyTypeName(?\ReflectionType $type): ?string
     {
-        if ($type === null) {
+        if (null === $type) {
             return null;
         }
 
-        if ($type instanceof ReflectionNamedType) {
+        if ($type instanceof \ReflectionNamedType) {
             return $type->getName();
         }
 
-        if ($type instanceof ReflectionUnionType) {
+        if ($type instanceof \ReflectionUnionType) {
             return implode('|', array_map(static function ($reflectionType) {
-                return $reflectionType instanceof ReflectionNamedType ? $reflectionType->getName() : (string)$reflectionType;
+                return $reflectionType instanceof \ReflectionNamedType ? $reflectionType->getName() : (string) $reflectionType;
             }, $type->getTypes()));
         }
 
-        if ($type instanceof ReflectionIntersectionType) {
+        if ($type instanceof \ReflectionIntersectionType) {
             return implode('&', array_map(function ($reflectionType) {
-                return $reflectionType instanceof ReflectionNamedType ? $reflectionType->getName() : (string)$reflectionType;
+                return $reflectionType instanceof \ReflectionNamedType ? $reflectionType->getName() : (string) $reflectionType;
             }, $type->getTypes()));
         }
 
@@ -91,15 +88,17 @@ final class MetadataReflectionHelper
     }
 
     /**
-     * Build complete reflection metadata for an entity
-     * @param ReflectionClass<object> $reflection
+     * Build complete reflection metadata for an entity.
+     *
+     * @param \ReflectionClass<object> $reflection
+     *
      * @return array<string, mixed>
      */
-    public function buildReflectionData(ReflectionClass $reflection): array
+    public function buildReflectionData(\ReflectionClass $reflection): array
     {
         return [
             'isInstantiable' => $reflection->isInstantiable(),
-            'hasConstructor' => $reflection->getConstructor() !== null,
+            'hasConstructor' => null !== $reflection->getConstructor(),
             'constructorParams' => $this->getConstructorParams($reflection),
             'properties' => $this->getPropertiesMetadata($reflection),
         ];

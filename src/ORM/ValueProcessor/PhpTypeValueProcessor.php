@@ -4,38 +4,19 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\ValueProcessor;
 
-use Closure;
-use DateMalformedStringException;
-use DateTime;
-use DateTimeImmutable;
-use DateTimeInterface;
-use Exception;
-use InvalidArgumentException;
-use JsonException;
-use stdClass;
-use TypeError;
-
 /**
- * Processes values based on PHP types
- * @package MulerTech\Database
+ * Processes values based on PHP types.
+ *
  * @author Sébastien Muler
  */
 readonly class PhpTypeValueProcessor implements ValueProcessorInterface
 {
-    /**
-     * @param string|null $className
-     * @param Closure|null $hydrateCallback
-     */
     public function __construct(
         private ?string $className = null,
-        private ?Closure $hydrateCallback = null
+        private ?\Closure $hydrateCallback = null,
     ) {
     }
 
-    /**
-     * @param mixed $typeInfo
-     * @return bool
-     */
     public function canProcess(mixed $typeInfo): bool
     {
         if (!is_string($typeInfo)) {
@@ -52,17 +33,15 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
     }
 
     /**
-     * @param mixed $value
-     * @return mixed
-     * @throws JsonException|DateMalformedStringException
+     * @throws \JsonException|\DateMalformedStringException
      */
     public function process(mixed $value): mixed
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
-        if ($this->className === null) {
+        if (null === $this->className) {
             return $this->processBasicPhpType($value);
         }
 
@@ -73,21 +52,18 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             'bool', 'boolean' => $this->processBool($value),
             'array' => $this->processArray($value),
             'object' => $this->processObject($value),
-            DateTime::class => $this->processDateTime($value),
-            DateTimeImmutable::class => $this->processDateTimeImmutable($value),
+            \DateTime::class => $this->processDateTime($value),
+            \DateTimeImmutable::class => $this->processDateTimeImmutable($value),
             default => $this->processCustomClass($value),
         };
     }
 
     /**
-     * @param mixed $value
-     * @param string $type
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     public function convertToColumnValue(mixed $value, string $type): mixed
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
@@ -99,7 +75,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             return $value ? 1 : 0;
         }
 
-        if ($value instanceof DateTimeInterface) {
+        if ($value instanceof \DateTimeInterface) {
             return $value->format('Y-m-d H:i:s');
         }
 
@@ -107,15 +83,12 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
     }
 
     /**
-     * @param mixed $value
-     * @param string $type
-     * @return mixed
-     * @throws JsonException
-     * @throws DateMalformedStringException
+     * @throws \JsonException
+     * @throws \DateMalformedStringException
      */
     public function convertToPhpValue(mixed $value, string $type): mixed
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
@@ -132,10 +105,6 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         };
     }
 
-    /**
-     * @param string $type
-     * @return bool
-     */
     public function isValidType(string $type): bool
     {
         return in_array($type, $this->getSupportedTypes(), true);
@@ -149,30 +118,22 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         return [
             'string', 'int', 'integer', 'float', 'double', 'bool', 'boolean',
             'array', 'object', 'datetime', 'datetime_immutable',
-            DateTime::class, DateTimeImmutable::class,
+            \DateTime::class, \DateTimeImmutable::class,
         ];
     }
 
-    /**
-     * @param string $type
-     * @return string
-     */
     public function normalizeType(string $type): string
     {
         return match (strtolower($type)) {
             'integer' => 'int',
             'double' => 'float',
             'boolean' => 'bool',
-            'datetime' => DateTime::class,
+            'datetime' => \DateTime::class,
             'stdclass' => 'object',
             default => $type,
         };
     }
 
-    /**
-     * @param string $type
-     * @return mixed
-     */
     public function getDefaultValue(string $type): mixed
     {
         return match (strtolower($type)) {
@@ -181,17 +142,15 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             'float', 'double' => 0.0,
             'bool', 'boolean' => false,
             'array' => [],
-            'object' => new stdClass(),
-            'datetime' => new DateTime(),
-            'datetime_immutable' => new DateTimeImmutable(),
+            'object' => new \stdClass(),
+            'datetime' => new \DateTime(),
+            'datetime_immutable' => new \DateTimeImmutable(),
             default => null,
         };
     }
 
     /**
-     * @param mixed $value
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     private function processBasicPhpType(mixed $value): mixed
     {
@@ -206,9 +165,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
     }
 
     /**
-     * @param mixed $value
-     * @return string
-     * @throws JsonException
+     * @throws \JsonException
      */
     private function processString(mixed $value): string
     {
@@ -225,13 +182,10 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         if (is_array($value)) {
             return json_encode($value, JSON_THROW_ON_ERROR);
         }
+
         return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
-    /**
-     * @param mixed $value
-     * @return int
-     */
     private function processInt(mixed $value): int
     {
         if (is_int($value)) {
@@ -249,10 +203,6 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         return is_string($value) ? (int) filter_var($value, FILTER_SANITIZE_NUMBER_INT) : 0;
     }
 
-    /**
-     * @param mixed $value
-     * @return float
-     */
     private function processFloat(mixed $value): float
     {
         if (is_float($value)) {
@@ -268,10 +218,6 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             : 0.0;
     }
 
-    /**
-     * @param mixed $value
-     * @return bool
-     */
     private function processBool(mixed $value): bool
     {
         if (is_bool($value)) {
@@ -279,7 +225,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         }
 
         if (is_numeric($value)) {
-            return $value != 0;
+            return 0 != $value;
         }
 
         if (is_string($value)) {
@@ -287,6 +233,7 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             if (in_array($normalized, ['0', 'false', 'no', 'off', ''], true)) {
                 return false;
             }
+
             return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
         }
 
@@ -294,9 +241,9 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
     }
 
     /**
-     * @param mixed $value
      * @return array<mixed>
-     * @throws InvalidArgumentException
+     *
+     * @throws \InvalidArgumentException
      */
     private function processArray(mixed $value): array
     {
@@ -310,9 +257,10 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
             }
             try {
                 $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+
                 return is_array($decoded) ? $decoded : [$decoded];
-            } catch (JsonException) {
-                throw new InvalidArgumentException('Invalid JSON string');
+            } catch (\JsonException) {
+                throw new \InvalidArgumentException('Invalid JSON string');
             }
         }
 
@@ -323,10 +271,6 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         return [$value];
     }
 
-    /**
-     * @param mixed $value
-     * @return object
-     */
     private function processObject(mixed $value): object
     {
         if (is_object($value)) {
@@ -340,8 +284,9 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
         if (is_string($value)) {
             try {
                 $decoded = json_decode($value, false, 512, JSON_THROW_ON_ERROR);
+
                 return is_object($decoded) ? $decoded : (object) $decoded;
-            } catch (JsonException) {
+            } catch (\JsonException) {
                 return (object) ['value' => $value];
             }
         }
@@ -350,18 +295,16 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
     }
 
     /**
-     * @param mixed $value
-     * @return DateTime
-     * @throws DateMalformedStringException
+     * @throws \DateMalformedStringException
      */
-    private function processDateTime(mixed $value): DateTime
+    private function processDateTime(mixed $value): \DateTime
     {
-        if ($value instanceof DateTime) {
+        if ($value instanceof \DateTime) {
             return $value;
         }
 
-        if ($value instanceof DateTimeInterface) {
-            return new DateTime($value->format('Y-m-d H:i:s'));
+        if ($value instanceof \DateTimeInterface) {
+            return new \DateTime($value->format('Y-m-d H:i:s'));
         }
 
         try {
@@ -369,28 +312,26 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
                 is_string($value) => $value,
                 is_null($value) => 'now',
                 is_scalar($value) => (string) $value,
-                default => throw new TypeError('Value cannot be converted to date string')
+                default => throw new \TypeError('Value cannot be converted to date string'),
             };
 
-            return new DateTime($dateString);
-        } catch (Exception) {
-            throw new InvalidArgumentException('Invalid date format');
+            return new \DateTime($dateString);
+        } catch (\Exception) {
+            throw new \InvalidArgumentException('Invalid date format');
         }
     }
 
     /**
-     * @param mixed $value
-     * @return DateTimeImmutable
-     * @throws DateMalformedStringException
+     * @throws \DateMalformedStringException
      */
-    private function processDateTimeImmutable(mixed $value): DateTimeImmutable
+    private function processDateTimeImmutable(mixed $value): \DateTimeImmutable
     {
-        if ($value instanceof DateTimeImmutable) {
+        if ($value instanceof \DateTimeImmutable) {
             return $value;
         }
 
-        if ($value instanceof DateTimeInterface) {
-            return new DateTimeImmutable($value->format('Y-m-d H:i:s'));
+        if ($value instanceof \DateTimeInterface) {
+            return new \DateTimeImmutable($value->format('Y-m-d H:i:s'));
         }
 
         try {
@@ -398,38 +339,34 @@ readonly class PhpTypeValueProcessor implements ValueProcessorInterface
                 is_string($value) => $value,
                 is_null($value) => 'now',
                 is_scalar($value) => (string) $value,
-                default => throw new TypeError('Value cannot be converted to date string')
+                default => throw new \TypeError('Value cannot be converted to date string'),
             };
 
-            return new DateTimeImmutable($dateString);
-        } catch (Exception) {
-            throw new InvalidArgumentException('Invalid date format');
+            return new \DateTimeImmutable($dateString);
+        } catch (\Exception) {
+            throw new \InvalidArgumentException('Invalid date format');
         }
     }
 
-    /**
-     * @param mixed $value
-     * @return object
-     */
     private function processCustomClass(mixed $value): object
     {
-        if ($this->className === null) {
-            return new stdClass();
+        if (null === $this->className) {
+            return new \stdClass();
         }
 
         if ($value instanceof $this->className) {
             return $value;
         }
 
-        if (is_array($value) && $this->hydrateCallback !== null) {
+        if (is_array($value) && null !== $this->hydrateCallback) {
             return ($this->hydrateCallback)($value, $this->className);
         }
 
         // Try to create new instance
         try {
             return new $this->className();
-        } catch (Exception) {
-            return new stdClass();
+        } catch (\Exception) {
+            return new \stdClass();
         }
     }
 }

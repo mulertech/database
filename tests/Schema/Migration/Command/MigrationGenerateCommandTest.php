@@ -21,13 +21,14 @@ class MigrationGenerateCommandTest extends TestCase
     private Terminal $terminal;
     private EntityManager $entityManager;
     private string $migrationsDirectory;
+    private MigrationGenerateCommand $command;
 
     /**
      * @throws Exception
      */
     protected function setUp(): void
     {
-        $this->terminal = $this->createMock(Terminal::class);
+        $this->terminal = $this->createStub(Terminal::class);
         // Create MetadataRegistry with automatic entity loading from test directory
         $entitiesPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity';
         $metadataRegistry = new MetadataRegistry($entitiesPath);
@@ -63,7 +64,7 @@ class MigrationGenerateCommandTest extends TestCase
     public function testExecuteSuccessfulMigrationGeneration(): void
     {
         // Créer un mock frais pour isoler ce test
-        $terminal = $this->createMock(Terminal::class);
+        $terminal = $this->createStub(Terminal::class);
 
         $migrationGenerateCommand = new MigrationGenerateCommand(
             $terminal,
@@ -87,19 +88,20 @@ class MigrationGenerateCommandTest extends TestCase
     public function testExecuteNoChangesDetected(): void
     {
         // Créer un mock frais pour isoler ce test
-        $terminal = $this->createMock(Terminal::class);
+        $terminal = $this->createStub(Terminal::class);
 
         // Créer un mock pour SchemaComparer qui indique qu'il n'y a pas de différences
-        $schemaComparer = $this->createMock(SchemaComparer::class);
+        $schemaComparer = $this->createStub(SchemaComparer::class);
         $schemaComparer->method('compare')->willReturn(
             new SchemaDifference([], [], [], [], [], [], [], [])
         );
 
-        // Créer un mock pour MigrationGenerator qui utilise notre SchemaComparer mocké
+        // Créer un stub pour MigrationGenerator qui utilise notre SchemaComparer mocké
         $migrationGenerator = $this->getMockBuilder(MigrationGenerator::class)
             ->setConstructorArgs([$schemaComparer, $this->entityManager->getMetadataRegistry(), $this->migrationsDirectory])
+            ->disableOriginalConstructor()
             ->getMock();
-        $migrationGenerator->method('generateMigration')->willReturn(null);
+        $migrationGenerator->expects($this->once())->method('generateMigration')->willReturn(null);
 
         // Utiliser la reflexion pour injecter notre mock dans la commande
         $command = new class($terminal, $this->entityManager, $this->migrationsDirectory, $migrationGenerator) extends MigrationGenerateCommand {
@@ -134,7 +136,7 @@ class MigrationGenerateCommandTest extends TestCase
     public function testExecuteWithError(): void
     {
         // Créer un mock frais pour isoler ce test
-        $terminal = $this->createMock(Terminal::class);
+        $terminal = $this->createStub(Terminal::class);
 
         // Créer un répertoire de migrations inexistant pour provoquer une erreur
         $invalidDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'invalid_migrations_dir';
@@ -167,7 +169,7 @@ class MigrationGenerateCommandTest extends TestCase
     public function testExecuteWithInvalidDateFormat(): void
     {
         // Créer un mock frais pour isoler ce test
-        $terminal = $this->createMock(Terminal::class);
+        $terminal = $this->createStub(Terminal::class);
 
         $command = new MigrationGenerateCommand(
             $terminal,
@@ -215,7 +217,7 @@ class MigrationGenerateCommandTest extends TestCase
     public function testExecuteWithoutProvidedDate(): void
     {
         // Créer un mock frais pour isoler ce test
-        $terminal = $this->createMock(Terminal::class);
+        $terminal = $this->createStub(Terminal::class);
 
         $command = new MigrationGenerateCommand(
             $terminal,
@@ -241,13 +243,13 @@ class MigrationGenerateCommandTest extends TestCase
     public function testExecuteWithRuntimeExceptionFromGenerator(): void
     {
         // Créer un mock frais pour isoler ce test
-        $terminal = $this->createMock(Terminal::class);
+        $terminal = $this->createStub(Terminal::class);
 
         // Créer un mock de MigrationGenerator qui lance une exception
         $migrationGenerator = $this->getMockBuilder(MigrationGenerator::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $migrationGenerator->method('generateMigration')
+        $migrationGenerator->expects($this->once())->method('generateMigration')
             ->willThrowException(new RuntimeException('Test exception'));
 
         // Utiliser la reflexion pour injecter notre mock dans la commande
@@ -292,7 +294,7 @@ class MigrationGenerateCommandTest extends TestCase
             }
         };
 
-        $schemaComparer = $this->createMock(SchemaComparer::class);
+        $schemaComparer = $this->createStub(SchemaComparer::class);
         $result = $command->exposedCreateMigrationGenerator($schemaComparer, $this->migrationsDirectory);
 
         $this->assertInstanceOf(MigrationGenerator::class, $result);

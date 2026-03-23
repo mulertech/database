@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Database\Interface;
 
-use RuntimeException;
-
 /**
- * Handles parsing of database connection parameters from various sources
+ * Handles parsing of database connection parameters from various sources.
  */
 class DatabaseParameterParser implements DatabaseParameterParserInterface
 {
@@ -15,6 +13,7 @@ class DatabaseParameterParser implements DatabaseParameterParserInterface
 
     /**
      * @param array<string, mixed> $parameters
+     *
      * @return array<string, mixed>
      */
     public function parseParameters(array $parameters = []): array
@@ -32,12 +31,12 @@ class DatabaseParameterParser implements DatabaseParameterParserInterface
     private function parseDatabaseUrl(mixed $url): array
     {
         if (!is_string($url)) {
-            throw new RuntimeException('DATABASE_URL must be a string');
+            throw new \RuntimeException('DATABASE_URL must be a string');
         }
 
         $parsedUrl = parse_url($url);
-        if ($parsedUrl === false) {
-            throw new RuntimeException('Invalid DATABASE_URL format.');
+        if (false === $parsedUrl) {
+            throw new \RuntimeException('Invalid DATABASE_URL format.');
         }
 
         // Decode URL components
@@ -50,11 +49,11 @@ class DatabaseParameterParser implements DatabaseParameterParserInterface
         $parsedParams = $parsedUrl;
 
         if (isset($parsedParams['path'])) {
-            $parsedParams['dbname'] = substr((string)$parsedParams['path'], 1);
+            $parsedParams['dbname'] = substr((string) $parsedParams['path'], 1);
         }
 
         if (isset($parsedParams['query'])) {
-            parse_str((string)$parsedParams['query'], $parsedQuery);
+            parse_str((string) $parsedParams['query'], $parsedQuery);
             $parsedParams = array_merge($parsedParams, $parsedQuery);
         }
 
@@ -66,6 +65,7 @@ class DatabaseParameterParser implements DatabaseParameterParserInterface
 
     /**
      * @param array<string, mixed> $parameters
+     *
      * @return array<string, mixed>
      */
     private function parseEnvironmentVariables(array $parameters = []): array
@@ -83,8 +83,8 @@ class DatabaseParameterParser implements DatabaseParameterParserInterface
 
         foreach ($envMappings as $envKey => $paramKey) {
             $value = getenv($envKey);
-            if ($value !== false) {
-                $parameters[$paramKey] = ($paramKey === 'port') ? (int)$value : $value;
+            if (false !== $value) {
+                $parameters[$paramKey] = ('port' === $paramKey) ? (int) $value : $value;
             }
         }
 
@@ -93,21 +93,22 @@ class DatabaseParameterParser implements DatabaseParameterParserInterface
 
     /**
      * @param array<string, mixed> $parameters
+     *
      * @return array<string, mixed>
      */
     private function processSpecialParameters(array $parameters): array
     {
         // Special handling for database name from path
         if (isset($parameters['path']) && (is_string($parameters['path']) || is_numeric($parameters['path']))) {
-            $parameters['dbname'] = substr((string)$parameters['path'], 1);
+            $parameters['dbname'] = substr((string) $parameters['path'], 1);
         }
 
         // Parse query string
         if (isset($parameters['query']) && (is_string($parameters['query']) || is_numeric($parameters['query']))) {
-            parse_str((string)$parameters['query'], $parsedQuery);
+            parse_str((string) $parameters['query'], $parsedQuery);
             // Ensure all keys are strings
             foreach ($parsedQuery as $key => $value) {
-                $parameters[(string)$key] = $value;
+                $parameters[(string) $key] = $value;
             }
         }
 

@@ -44,7 +44,7 @@ class PersistenceManagerTest extends TestCase
         $this->identityMap = $this->entityManager->getEmEngine()->getIdentityMap();
         
         // Create all dependencies needed by PersistenceManager constructor
-        $stateManager = $this->createMock(StateManagerInterface::class);
+        $stateManager = $this->createStub(StateManagerInterface::class);
         $stateManager->method('getEntityState')
             ->willReturn(EntityLifecycleState::MANAGED);
         $stateManager->method('getScheduledInsertions')->willReturn([]);
@@ -52,7 +52,7 @@ class PersistenceManagerTest extends TestCase
         $stateManager->method('getScheduledDeletions')->willReturn([]);
 
         $changeDetector = new \MulerTech\Database\ORM\ChangeDetector($metadataRegistry);
-        $relationManager = $this->createMock(\MulerTech\Database\ORM\Engine\Relations\RelationManager::class);
+        $relationManager = $this->createStub(\MulerTech\Database\ORM\Engine\Relations\RelationManager::class);
 
         // Create processors
         $insertionProcessor = new \MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor(

@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\ColumnMapping;
+use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\FkRule;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Class MigrationStatementGenerator
+ * Class MigrationStatementGenerator.
  *
  * Generates individual migration statements
- *
- * @package MulerTech\Database\Schema\Migration
  */
 class MigrationStatementGenerator
 {
@@ -25,13 +21,11 @@ class MigrationStatementGenerator
     {
         $this->columnMapping = new ColumnMapping();
     }
+
     /**
-     * Generate code to create a table with all its columns
+     * Generate code to create a table with all its columns.
      *
-     * @param string $tableName
-     * @param MetadataRegistry $metadataRegistry
-     * @return string
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function generateCreateTableStatement(string $tableName, MetadataRegistry $metadataRegistry): string
     {
@@ -39,7 +33,7 @@ class MigrationStatementGenerator
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->createTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition = $schema->createTable("'.$tableName.'");';
 
         $this->addColumnDefinitions($code, $entityClass, $metadataRegistry);
         $this->addTableConfiguration($code);
@@ -48,16 +42,6 @@ class MigrationStatementGenerator
         return implode("\n", $code);
     }
 
-    /**
-     * @param string $tableName
-     * @param string|null $columnType
-     * @param string $columnName
-     * @param bool $isNullable
-     * @param string|null $columnDefault
-     * @param string|null $columnExtra
-     * @param SqlTypeConverter $typeConverter
-     * @return string
-     */
     public function generateAlterTableStatement(
         string $tableName,
         ?string $columnType,
@@ -65,11 +49,11 @@ class MigrationStatementGenerator
         bool $isNullable,
         ?string $columnDefault,
         ?string $columnExtra,
-        SqlTypeConverter $typeConverter
+        SqlTypeConverter $typeConverter,
     ): string {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition = $schema->alterTable("'.$tableName.'");';
 
         $columnDefinitionCode = $this->generateColumnDefinitionFromType(
             $columnType,
@@ -80,7 +64,7 @@ class MigrationStatementGenerator
             $typeConverter
         );
 
-        $code[] = '        ' . $columnDefinitionCode;
+        $code[] = '        '.$columnDefinitionCode;
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -88,22 +72,20 @@ class MigrationStatementGenerator
     }
 
     /**
-     * Generate code to modify a column
-     * @param string $tableName
-     * @param string $columnName
+     * Generate code to modify a column.
+     *
      * @param array{
      *        COLUMN_TYPE?: array{from: string, to: string},
      *        IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
      *        COLUMN_DEFAULT?: array{from: string|null, to: string|null},
      *        EXTRA?: array{from: string|null, to: string|null}
      *        } $differences
-     * * @return string
      */
     public function generateModifyColumnStatement(string $tableName, string $columnName, array $differences): string
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition = $schema->alterTable("'.$tableName.'");';
 
         // Get the new values from differences
         $newColumnType = $differences['COLUMN_TYPE']['to'] ?? null;
@@ -120,7 +102,7 @@ class MigrationStatementGenerator
             new SqlTypeConverter()
         );
 
-        $code[] = '        $tableDefinition->modifyColumn(' . rtrim($columnDefinitionCode, ';') . ');';
+        $code[] = '        $tableDefinition->modifyColumn('.rtrim($columnDefinitionCode, ';').');';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -128,23 +110,20 @@ class MigrationStatementGenerator
     }
 
     /**
-     * Generate code to restore a column to its previous state
+     * Generate code to restore a column to its previous state.
      *
-     * @param string $tableName
-     * @param string $columnName
      * @param array{
      *        COLUMN_TYPE?: array{from: string, to: string},
      *        IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
      *        COLUMN_DEFAULT?: array{from: string|null, to: string|null},
      *        EXTRA?: array{from: string|null, to: string|null}
      *        } $differences
-     * * @return string
      */
     public function generateRestoreColumnStatement(string $tableName, string $columnName, array $differences): string
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
+        $code[] = '        $tableDefinition = $schema->alterTable("'.$tableName.'");';
 
         // Get the original values from differences
         $originalColumnType = $differences['COLUMN_TYPE']['from'] ?? null;
@@ -161,7 +140,7 @@ class MigrationStatementGenerator
             new SqlTypeConverter()
         );
 
-        $code[] = '        $tableDefinition->modifyColumn(' . rtrim($columnDefinitionCode, ';') . ');';
+        $code[] = '        $tableDefinition->modifyColumn('.rtrim($columnDefinitionCode, ';').');';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -169,32 +148,27 @@ class MigrationStatementGenerator
     }
 
     /**
-     * Generate drop table statement
-     * @param string $tableName
-     * @return string
+     * Generate drop table statement.
      */
     public function generateDropTableStatement(string $tableName): string
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $sql = $schema->dropTable("' . $tableName . '");';
+        $code[] = '        $sql = $schema->dropTable("'.$tableName.'");';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
         return implode("\n", $code);
     }
 
     /**
-     * Generate drop column statement
-     * @param string $tableName
-     * @param string $columnName
-     * @return string
+     * Generate drop column statement.
      */
     public function generateDropColumnStatement(string $tableName, string $columnName): string
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
-        $code[] = '        $tableDefinition->dropColumn("' . $columnName . '");';
+        $code[] = '        $tableDefinition = $schema->alterTable("'.$tableName.'");';
+        $code[] = '        $tableDefinition->dropColumn("'.$columnName.'");';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -202,9 +176,8 @@ class MigrationStatementGenerator
     }
 
     /**
-     * Generate add foreign key statement
-     * @param string $tableName
-     * @param string $constraintName
+     * Generate add foreign key statement.
+     *
      * @param array{
      *          COLUMN_NAME: string,
      *          REFERENCED_TABLE_NAME: string,
@@ -212,12 +185,11 @@ class MigrationStatementGenerator
      *          DELETE_RULE: FkRule,
      *          UPDATE_RULE: FkRule
      *          } $foreignKeyInfo
-     * * @return string
      */
     public function generateAddForeignKeyStatement(
         string $tableName,
         string $constraintName,
-        array $foreignKeyInfo
+        array $foreignKeyInfo,
     ): string {
         $columnName = $foreignKeyInfo['COLUMN_NAME'];
         $referencedTable = $foreignKeyInfo['REFERENCED_TABLE_NAME'];
@@ -227,12 +199,12 @@ class MigrationStatementGenerator
 
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
-        $code[] = '        $tableDefinition->foreignKey("' . $constraintName . '")';
-        $code[] = '            ->column("' . $columnName . '")';
-        $code[] = '            ->references("' . $referencedTable . '", "' . $referencedColumn . '")';
-        $code[] = '            ->onUpdate(' . $updateRule->toEnumCallString() . ')';
-        $code[] = '            ->onDelete(' . $deleteRule->toEnumCallString() . ');';
+        $code[] = '        $tableDefinition = $schema->alterTable("'.$tableName.'");';
+        $code[] = '        $tableDefinition->foreignKey("'.$constraintName.'")';
+        $code[] = '            ->column("'.$columnName.'")';
+        $code[] = '            ->references("'.$referencedTable.'", "'.$referencedColumn.'")';
+        $code[] = '            ->onUpdate('.$updateRule->toEnumCallString().')';
+        $code[] = '            ->onDelete('.$deleteRule->toEnumCallString().');';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -240,17 +212,14 @@ class MigrationStatementGenerator
     }
 
     /**
-     * Generate drop foreign key statement
-     * @param string $tableName
-     * @param string $constraintName
-     * @return string
+     * Generate drop foreign key statement.
      */
     public function generateDropForeignKeyStatement(string $tableName, string $constraintName): string
     {
         $code = [];
         $code[] = '$schema = new SchemaBuilder();';
-        $code[] = '        $tableDefinition = $schema->alterTable("' . $tableName . '");';
-        $code[] = '        $tableDefinition->dropForeignKey("' . $constraintName . '");';
+        $code[] = '        $tableDefinition = $schema->alterTable("'.$tableName.'");';
+        $code[] = '        $tableDefinition->dropForeignKey("'.$constraintName.'");';
         $code[] = '        $sql = $tableDefinition->toSql();';
         $code[] = '        $this->entityManager->getPdm()->exec($sql);';
 
@@ -258,10 +227,9 @@ class MigrationStatementGenerator
     }
 
     /**
-     * @param string $tableName
-     * @param MetadataRegistry $metadataRegistry
      * @return class-string
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function findEntityClassForTable(string $tableName, MetadataRegistry $metadataRegistry): string
     {
@@ -270,15 +238,14 @@ class MigrationStatementGenerator
                 return $entity;
             }
         }
-        throw new RuntimeException("Could not find entity class for table '$tableName'");
+        throw new \RuntimeException("Could not find entity class for table '$tableName'");
     }
 
     /**
      * @param array<string> &$code
-     * @param class-string $entityClass
-     * @param MetadataRegistry $metadataRegistry
-     * @return void
-     * @throws ReflectionException
+     * @param class-string  $entityClass
+     *
+     * @throws \ReflectionException
      */
     private function addColumnDefinitions(array &$code, string $entityClass, MetadataRegistry $metadataRegistry): void
     {
@@ -290,17 +257,16 @@ class MigrationStatementGenerator
                 $columnName,
                 $metadataRegistry
             );
-            $code[] = '        ' . $columnDefinitionCode;
+            $code[] = '        '.$columnDefinitionCode;
 
-            if ($this->columnMapping->getColumnKey($entityClass, $property) === 'PRI') {
-                $code[] = '        $tableDefinition->primaryKey("' . $columnName . '");';
+            if ('PRI' === $this->columnMapping->getColumnKey($entityClass, $property)) {
+                $code[] = '        $tableDefinition->primaryKey("'.$columnName.'");';
             }
         }
     }
 
     /**
      * @param array<string> &$code
-     * @return void
      */
     private function addTableConfiguration(array &$code): void
     {
@@ -311,7 +277,6 @@ class MigrationStatementGenerator
 
     /**
      * @param array<string> &$code
-     * @return void
      */
     private function addExecutionCode(array &$code): void
     {
@@ -321,19 +286,16 @@ class MigrationStatementGenerator
 
     /**
      * @param class-string $entityClass
-     * @param string $property
-     * @param string $columnName
-     * @param MetadataRegistry $metadataRegistry
-     * @return string
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function generateColumnDefinitionFromMapping(
         string $entityClass,
         string $property,
         string $columnName,
-        MetadataRegistry $metadataRegistry
+        MetadataRegistry $metadataRegistry,
     ): string {
-        $code = '$tableDefinition->column("' . $columnName . '")';
+        $code = '$tableDefinition->column("'.$columnName.'")';
 
         $columnTypeDefinition = $this->columnMapping->getColumnTypeDefinition($entityClass, $property);
         $code .= $columnTypeDefinition
@@ -342,31 +304,29 @@ class MigrationStatementGenerator
 
         $this->addColumnConstraints($code, $entityClass, $property, $metadataRegistry);
 
-        return $code . ';';
+        return $code.';';
     }
 
     /**
-     * Add constraints to the column definition
-     * @param string &$code
+     * Add constraints to the column definition.
+     *
      * @param class-string $entityClass
-     * @param string $property
-     * @param MetadataRegistry $metadataRegistry
-     * @return void
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function addColumnConstraints(
         string &$code,
         string $entityClass,
         string $property,
-        MetadataRegistry $metadataRegistry
+        MetadataRegistry $metadataRegistry,
     ): void {
-        if ($this->columnMapping->isNullable($entityClass, $property) === false) {
+        if (false === $this->columnMapping->isNullable($entityClass, $property)) {
             $code .= '->notNull()';
         }
 
         $columnDefault = $this->columnMapping->getColumnDefault($entityClass, $property);
-        if ($columnDefault !== null && $columnDefault !== '') {
-            $code .= '->default("' . addslashes($columnDefault) . '")';
+        if (null !== $columnDefault && '' !== $columnDefault) {
+            $code .= '->default("'.addslashes($columnDefault).'")';
         }
 
         $columnExtra = $this->columnMapping->getExtra($entityClass, $property);
@@ -375,24 +335,15 @@ class MigrationStatementGenerator
         }
     }
 
-    /**
-     * @param string|null $columnType
-     * @param string $columnName
-     * @param bool $isNullable
-     * @param string|null $columnDefault
-     * @param string|null $columnExtra
-     * @param SqlTypeConverter $typeConverter
-     * @return string
-     */
     public function generateColumnDefinitionFromType(
         ?string $columnType,
         string $columnName,
         bool $isNullable,
         ?string $columnDefault,
         ?string $columnExtra,
-        SqlTypeConverter $typeConverter
+        SqlTypeConverter $typeConverter,
     ): string {
-        $code = '$tableDefinition->column("' . $columnName . '")';
+        $code = '$tableDefinition->column("'.$columnName.'")';
 
         if ($columnType) {
             $code .= $typeConverter->convertToBuilderMethod($columnType);
@@ -404,14 +355,14 @@ class MigrationStatementGenerator
             $code .= '->notNull()';
         }
 
-        if ($columnDefault !== null && $columnDefault !== '') {
-            $code .= '->default("' . addslashes($columnDefault) . '")';
+        if (null !== $columnDefault && '' !== $columnDefault) {
+            $code .= '->default("'.addslashes($columnDefault).'")';
         }
 
         if ($columnExtra && str_contains($columnExtra, 'auto_increment')) {
             $code .= '->autoIncrement()';
         }
 
-        return $code . ';';
+        return $code.';';
     }
 }

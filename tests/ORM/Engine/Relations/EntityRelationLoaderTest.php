@@ -28,8 +28,8 @@ class EntityRelationLoaderTest extends TestCase
         // Create a real MetadataRegistry instance since it's final and cannot be mocked
         $this->metadataRegistry = new MetadataRegistry();
 
-        // Create mocked EntityManager
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        // Create stubbed EntityManager
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->entityManager->method('getMetadataRegistry')
             ->willReturn($this->metadataRegistry);
 
@@ -233,7 +233,7 @@ class EntityRelationLoaderTest extends TestCase
         ];
 
         // Mock EntityManager methods that are called during relation loading
-        $mockEmEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
+        $mockEmEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEmEngine);
         

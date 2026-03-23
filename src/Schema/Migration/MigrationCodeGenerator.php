@@ -7,24 +7,15 @@ namespace MulerTech\Database\Schema\Migration;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\Database\Schema\Diff\SchemaDifference;
-use ReflectionException;
 
 /**
- * Class MigrationCodeGenerator
+ * Class MigrationCodeGenerator.
  *
  * Generates migration code for up() and down() methods
- *
- * @package MulerTech\Database\Schema\Migration
  */
 readonly class MigrationCodeGenerator
 {
-    /**
-     * @var SqlTypeConverter $typeConverter
-     */
     private SqlTypeConverter $typeConverter;
-    /**
-     * @var MigrationStatementGenerator $statementGenerator
-     */
     private MigrationStatementGenerator $statementGenerator;
 
     public function __construct(private MetadataRegistry $metadataRegistry)
@@ -34,11 +25,9 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Generate code for the up() method
+     * Generate code for the up() method.
      *
-     * @param SchemaDifference $diff
-     * @return string
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function generateUpCode(SchemaDifference $diff): string
     {
@@ -56,10 +45,7 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Generate code for the down() method
-     *
-     * @param SchemaDifference $diff
-     * @return string
+     * Generate code for the down() method.
      */
     public function generateDownCode(SchemaDifference $diff): string
     {
@@ -107,7 +93,8 @@ readonly class MigrationCodeGenerator
 
     /**
      * @param array<string> $code
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function addCreateTablesCode(SchemaDifference $diff, array &$code): void
     {
@@ -131,7 +118,7 @@ readonly class MigrationCodeGenerator
             fn (
                 $tableName,
                 $columnName,
-                $columnDefinition
+                $columnDefinition,
             ) => is_array($columnDefinition)
                 ? $this->generateAddColumnStatement($tableName, $columnName, $columnDefinition)
                 : null
@@ -149,7 +136,8 @@ readonly class MigrationCodeGenerator
                 if (!is_array($differences)) {
                     return null;
                 }
-                /** @phpstan-var array{
+
+                /* @phpstan-var array{
                  *     COLUMN_TYPE?: array{from: string, to: string},
                  *     IS_NULLABLE?: array{from: 'NO'|'YES', to: 'NO'|'YES'},
                  *     COLUMN_DEFAULT?: array{from: string|null, to: string|null},
@@ -173,18 +161,14 @@ readonly class MigrationCodeGenerator
                 if (!is_array($foreignKeyInfo)) {
                     return null;
                 }
-                /** @phpstan-var array{
-                 *     COLUMN_NAME: string,
-                 *     REFERENCED_TABLE_NAME: string,
-                 *     REFERENCED_COLUMN_NAME: string,
-                 *     DELETE_RULE: FkRule,
-                 *     UPDATE_RULE: FkRule
-                 * } $foreignKeyInfo
-                 */
+
+                /** @var array{COLUMN_NAME: string, REFERENCED_TABLE_NAME: string, REFERENCED_COLUMN_NAME: string, DELETE_RULE: FkRule, UPDATE_RULE: FkRule} $typedForeignKeyInfo */
+                $typedForeignKeyInfo = $foreignKeyInfo;
+
                 return $this->statementGenerator->generateAddForeignKeyStatement(
                     $tableName,
                     $constraintName,
-                    $foreignKeyInfo
+                    $typedForeignKeyInfo
                 );
             },
             $code
@@ -263,6 +247,7 @@ readonly class MigrationCodeGenerator
                 if (!$this->shouldRestoreColumn($differences)) {
                     return null;
                 }
+
                 return $this->statementGenerator->generateRestoreColumnStatement($tableName, $columnName, $differences);
             },
             $code
@@ -270,17 +255,18 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Process nested array items with a callback
-     * @param array<string, array<string, mixed>> $nestedArray
+     * Process nested array items with a callback.
+     *
+     * @param array<string, array<string, mixed>>      $nestedArray
      * @param callable(string, string, mixed): ?string $callback
-     * @param array<string> &$code
+     * @param array<string>                            &$code
      */
     private function processNestedItems(array $nestedArray, callable $callback, array &$code): void
     {
         foreach ($nestedArray as $tableName => $items) {
             foreach ($items as $itemName => $itemData) {
                 $statement = $callback($tableName, $itemName, $itemData);
-                if ($statement !== null) {
+                if (null !== $statement) {
                     $code[] = $statement;
                 }
             }
@@ -288,7 +274,8 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Check if column should be restored
+     * Check if column should be restored.
+     *
      * @param array{
      *     COLUMN_TYPE?: array{from: string, to: string},
      *     IS_NULLABLE?: array{from: 'YES'|'NO', to: 'YES'|'NO'},
@@ -304,11 +291,12 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Process columns with table filtering
+     * Process columns with table filtering.
+     *
      * @param array<string, array<string, array<string, string|null>>> $columns
-     * @param array<int, string> $tablesToSkip
-     * @param array<string> $code
-     * @param callable(string, string, mixed): ?string $callback
+     * @param array<int, string>                                       $tablesToSkip
+     * @param array<string>                                            $code
+     * @param callable(string, string, mixed): ?string                 $callback
      */
     private function processFilteredColumns(array $columns, array $tablesToSkip, array &$code, callable $callback): void
     {
@@ -319,7 +307,7 @@ readonly class MigrationCodeGenerator
 
             foreach ($columnData as $columnName => $definition) {
                 $statement = $callback($tableName, $columnName, $definition);
-                if ($statement !== null) {
+                if (null !== $statement) {
                     $code[] = $statement;
                 }
             }
@@ -327,7 +315,8 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Generate add column statement
+     * Generate add column statement.
+     *
      * @param array<int|string, mixed> $columnDefinition
      */
     private function generateAddColumnStatement(string $tableName, string $columnName, array $columnDefinition): string
@@ -342,7 +331,7 @@ readonly class MigrationCodeGenerator
             $tableName,
             is_string($columnType) ? $columnType : null,
             $columnName,
-            $columnDefinition['IS_NULLABLE'] === 'YES',
+            'YES' === $columnDefinition['IS_NULLABLE'],
             is_string($columnDefault) ? $columnDefault : null,
             $columnExtra,
             $this->typeConverter
@@ -350,17 +339,18 @@ readonly class MigrationCodeGenerator
     }
 
     /**
-     * Process simple nested arrays (array<string, array<string>>)
+     * Process simple nested arrays (array<string, array<string>>).
+     *
      * @param array<string, array<int, string>> $nestedArray
      * @param callable(string, string): ?string $callback
-     * @param array<string> $code
+     * @param array<string>                     $code
      */
     private function processSimpleNestedItems(array $nestedArray, callable $callback, array &$code): void
     {
         foreach ($nestedArray as $tableName => $items) {
             foreach ($items as $itemName) {
                 $statement = $callback($tableName, $itemName);
-                if ($statement !== null) {
+                if (null !== $statement) {
                     $code[] = $statement;
                 }
             }

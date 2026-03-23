@@ -4,99 +4,87 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Diff;
 
-use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Schema\Information\InformationSchema;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Compare database schema with entity mappings
+ * Compare database schema with entity mappings.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SchemaComparer
 {
     /**
-     * Cache for entity properties columns by entity class
+     * Cache for entity properties columns by entity class.
+     *
      * @var array<class-string, array<string, string>>
      */
     private array $propertiesColumnsCache = [];
 
     /**
-     * Cache for entity table names by entity class
+     * Cache for entity table names by entity class.
+     *
      * @var array<class-string, string|null>
      */
     private array $tableNameCache = [];
 
-    /**
-     * @var ColumnComparer $columnComparer
-     */
     private readonly ColumnComparer $columnComparer;
-    /**
-     * @var ForeignKeyComparer $foreignKeyComparer
-     */
     private readonly ForeignKeyComparer $foreignKeyComparer;
 
-    /**
-     * @param InformationSchema $informationSchema
-     * @param MetadataRegistry $metadataRegistry
-     * @param string $databaseName
-     */
     public function __construct(
         private readonly InformationSchema $informationSchema,
         private readonly MetadataRegistry $metadataRegistry,
-        private readonly string $databaseName
+        private readonly string $databaseName,
     ) {
         $this->columnComparer = new ColumnComparer();
         $this->foreignKeyComparer = new ForeignKeyComparer($metadataRegistry);
     }
 
     /**
-     * Get cached properties columns for entity class
+     * Get cached properties columns for entity class.
+     *
      * @param class-string $entityClass
+     *
      * @return array<string, string>
-     * @throws ReflectionException|Exception
+     *
+     * @throws \ReflectionException|\Exception
      */
     private function getCachedPropertiesColumns(string $entityClass): array
     {
         if (!isset($this->propertiesColumnsCache[$entityClass])) {
             $this->propertiesColumnsCache[$entityClass] = $this->metadataRegistry->getEntityMetadata($entityClass)->getPropertiesColumns();
         }
+
         return $this->propertiesColumnsCache[$entityClass];
     }
 
     /**
-     * Check if a table should be ignored during schema comparison
-     *
-     * @param string $tableName
-     * @return bool
+     * Check if a table should be ignored during schema comparison.
      */
     private function shouldIgnoreTable(string $tableName): bool
     {
-        return $tableName === 'migration_history';
+        return 'migration_history' === $tableName;
     }
 
     /**
-     * Get cached table name for entity class
+     * Get cached table name for entity class.
+     *
      * @param class-string $entityClass
-     * @return string
-     * @throws ReflectionException|Exception
+     *
+     * @throws \ReflectionException|\Exception
      */
     private function getCachedTableName(string $entityClass): string
     {
         if (!isset($this->tableNameCache[$entityClass])) {
             $this->tableNameCache[$entityClass] = $this->metadataRegistry->getEntityMetadata($entityClass)->tableName;
         }
+
         return $this->tableNameCache[$entityClass];
     }
 
-
     /**
-     * Get database table info by table name
+     * Get database table info by table name.
      *
-     * @param string $tableName
      * @return array{TABLE_NAME: string, AUTO_INCREMENT: int|null}|null
      */
     private function getTableInfo(string $tableName): ?array
@@ -108,9 +96,8 @@ class SchemaComparer
     }
 
     /**
-     * Get columns for a specific table
+     * Get columns for a specific table.
      *
-     * @param string $tableName
      * @return array<string, array{
      *       TABLE_NAME: string,
      *       COLUMN_NAME: string,
@@ -134,9 +121,8 @@ class SchemaComparer
     }
 
     /**
-     * Get foreign keys for a specific table
+     * Get foreign keys for a specific table.
      *
-     * @param string $tableName
      * @return array<string, array{
      *       TABLE_NAME: string,
      *       CONSTRAINT_NAME: string,
@@ -162,11 +148,10 @@ class SchemaComparer
     }
 
     /**
-     * Compare database schema with entity mappings
+     * Compare database schema with entity mappings.
      *
-     * @return SchemaDifference
-     * @throws ReflectionException
-     * @throws Exception
+     * @throws \ReflectionException
+     * @throws \Exception
      */
     public function compare(): SchemaDifference
     {

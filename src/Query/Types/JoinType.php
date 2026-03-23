@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace MulerTech\Database\Query\Types;
 
 /**
- * Enum JoinType
+ * Enum JoinType.
  *
  * SQL join types enumeration
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum JoinType: string

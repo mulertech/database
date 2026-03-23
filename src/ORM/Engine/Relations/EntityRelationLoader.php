@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Relations;
 
-use Exception;
 use MulerTech\Collections\Collection;
 use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
@@ -14,17 +13,14 @@ use MulerTech\Database\ORM\DatabaseCollection;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use PDO;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Loader for ORM entity relations
+ * Loader for ORM entity relations.
  *
  * This class handles loading related entities based on the defined relations
  * in the entity metadata. It supports OneToOne, OneToMany, ManyToOne, and
  * ManyToMany relations.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class EntityRelationLoader
@@ -37,10 +33,11 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * @param object $entity
      * @param array<string, mixed> $entityData
+     *
      * @return array<int, object|Collection<int, object>|null>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function loadRelations(object $entity, array $entityData): array
     {
@@ -54,7 +51,7 @@ readonly class EntityRelationLoader
                 // Convert Mt object to array format for existing methods
                 $oneToOneArray = $this->convertOneToOneToArray($oneToOne);
                 $result = $this->loadSingleRelation($entity, $oneToOneArray, $property, $entityData);
-                if ($result !== null) {
+                if (null !== $result) {
                     $entitiesToLoad[] = $result;
                 }
             }
@@ -76,7 +73,7 @@ readonly class EntityRelationLoader
                 // Convert Mt object to array format for existing methods
                 $manyToOneArray = $this->convertManyToOneToArray($manyToOne);
                 $result = $this->loadSingleRelation($entity, $manyToOneArray, $property, $entityData);
-                if ($result !== null) {
+                if (null !== $result) {
                     $entitiesToLoad[] = $result;
                 }
             }
@@ -97,18 +94,16 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * @param object $entity
      * @param array<string, mixed> $relation
-     * @param string $property
      * @param array<string, mixed> $entityData
-     * @return object|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function loadSingleRelation(
         object $entity,
         array $relation,
         string $property,
-        array $entityData
+        array $entityData,
     ): ?object {
         // Always reload relations for fresh data, don't check if already set
         // This is important for cases where foreign keys might have been updated
@@ -132,7 +127,7 @@ readonly class EntityRelationLoader
                     $relatedEntity = $foundEntity;
                     $this->validator->setRelationValue($entity, $property, $relatedEntity);
                 }
-            } catch (Exception) {
+            } catch (\Exception) {
                 // If loading fails, try to set to null
                 $this->validator->setRelationValue($entity, $property, null);
             }
@@ -147,19 +142,20 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * @param object $entity
      * @param array<string, mixed> $oneToMany
-     * @param string $property
+     *
      * @return Collection<int, object>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function loadOneToMany(object $entity, array $oneToMany, string $property): Collection
     {
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
-        if ($entityId === null) {
+        if (null === $entityId) {
             // If entity has no ID, it cannot have related OneToMany entities from DB
             // Set an empty collection if setter exists
             $this->validator->setRelationValue($entity, $property, new DatabaseCollection());
+
             return new DatabaseCollection();
         }
 
@@ -181,7 +177,7 @@ readonly class EntityRelationLoader
         $result = $this->entityManager->getEmEngine()->getQueryBuilderListResult($queryBuilder, $targetEntity);
 
         $collection = new DatabaseCollection();
-        if ($result !== null) {
+        if (null !== $result) {
             $collection = new DatabaseCollection($result);
         }
 
@@ -191,20 +187,21 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * @param object $entity
      * @param array<string, mixed> $relation
-     * @param string $property
+     *
      * @return Collection<int, object>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function loadManyToMany(object $entity, array $relation, string $property): Collection
     {
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
-        if ($entityId === null) {
+        if (null === $entityId) {
             // Set empty collection if no ID
             $collection = new DatabaseCollection();
             $collection->synchronizeInitialState();
             $this->validator->setRelationValue($entity, $property, $collection);
+
             return new DatabaseCollection();
         }
 
@@ -242,7 +239,7 @@ readonly class EntityRelationLoader
 
         $statement = $pdo->prepare($sql);
         $statement->execute([$entityId]);
-        $results = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $results = $statement->fetchAll(\PDO::FETCH_ASSOC);
         $statement->closeCursor();
 
         $entities = [];
@@ -254,7 +251,7 @@ readonly class EntityRelationLoader
                     $entityId = $entityData['id'];
                     if (is_int($entityId) || is_string($entityId)) {
                         $managedEntity = $this->entityManager->getEmEngine()->getIdentityMap()->get($targetEntity, $entityId);
-                        if ($managedEntity !== null) {
+                        if (null !== $managedEntity) {
                             $entities[] = $managedEntity;
                             continue;
                         }
@@ -284,8 +281,9 @@ readonly class EntityRelationLoader
 
     /**
      * @param class-string $entityName
-     * @throws ReflectionException
-     * @throws Exception
+     *
+     * @throws \ReflectionException
+     * @throws \Exception
      */
     private function getTableName(string $entityName): string
     {
@@ -294,27 +292,22 @@ readonly class EntityRelationLoader
 
     /**
      * @param class-string $entityName
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function getColumnName(string $entityName, string $property): string
     {
         $metadata = $this->entityManager->getMetadataRegistry()->getEntityMetadata($entityName);
         if (null === $columnName = $metadata->getColumnName($property)) {
-            throw new RuntimeException(
-                sprintf(
-                    'Column name is not defined for the class "%s" and property "%s". Please check the mapping configuration.',
-                    $entityName,
-                    $property
-                )
-            );
+            throw new \RuntimeException(sprintf('Column name is not defined for the class "%s" and property "%s". Please check the mapping configuration.', $entityName, $property));
         }
 
         return $columnName;
     }
 
     /**
-     * Convert MtOneToOne object to array format expected by existing relation loading methods
-     * @param MtOneToOne $relation
+     * Convert MtOneToOne object to array format expected by existing relation loading methods.
+     *
      * @return array<string, mixed>
      */
     private function convertOneToOneToArray(MtOneToOne $relation): array
@@ -325,8 +318,8 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * Convert MtOneToMany object to array format expected by existing relation loading methods
-     * @param MtOneToMany $relation
+     * Convert MtOneToMany object to array format expected by existing relation loading methods.
+     *
      * @return array<string, mixed>
      */
     private function convertOneToManyToArray(MtOneToMany $relation): array
@@ -338,8 +331,8 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * Convert MtManyToOne object to array format expected by existing relation loading methods
-     * @param MtManyToOne $relation
+     * Convert MtManyToOne object to array format expected by existing relation loading methods.
+     *
      * @return array<string, mixed>
      */
     private function convertManyToOneToArray(MtManyToOne $relation): array
@@ -350,8 +343,8 @@ readonly class EntityRelationLoader
     }
 
     /**
-     * Convert MtManyToMany object to array format expected by existing relation loading methods
-     * @param MtManyToMany $relation
+     * Convert MtManyToMany object to array format expected by existing relation loading methods.
+     *
      * @return array<string, mixed>
      */
     private function convertManyToManyToArray(MtManyToMany $relation): array

@@ -6,15 +6,12 @@ namespace MulerTech\Database\Query\Builder;
 
 use MulerTech\Database\Query\Builder\Traits\QueryOptionsTrait;
 use MulerTech\Database\Query\Builder\Traits\ValidationTrait;
-use PDO;
-use RuntimeException;
 
 /**
- * Class InsertBuilder
+ * Class InsertBuilder.
  *
  * INSERT query builder with batch operation support
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class InsertBuilder extends AbstractQueryBuilder
@@ -22,9 +19,6 @@ class InsertBuilder extends AbstractQueryBuilder
     use QueryOptionsTrait;
     use ValidationTrait;
 
-    /**
-     * @var string
-     */
     private string $table = '';
 
     /**
@@ -37,9 +31,6 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     private array $batchValues = [];
 
-    /**
-     * @var bool
-     */
     private bool $replace = false;
 
     /**
@@ -47,46 +38,35 @@ class InsertBuilder extends AbstractQueryBuilder
      */
     private array $onDuplicateUpdate = [];
 
-    /**
-     * @var SelectBuilder|null
-     */
     private ?SelectBuilder $selectQuery = null;
 
-    /**
-     * @param string $table
-     * @return self
-     */
     public function into(string $table): self
     {
         $this->validateTableName($table);
         $this->table = $table;
         $this->isDirty = true;
+
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param int|null $type
-     * @return self
-     */
-    public function set(string $column, mixed $value, ?int $type = PDO::PARAM_STR): self
+    public function set(string $column, mixed $value, ?int $type = \PDO::PARAM_STR): self
     {
         $this->validateColumnName($column);
 
         if ($value instanceof Raw) {
             $this->values[$column] = $value->getValue();
+
             return $this;
         }
 
         $this->values[$column] = $this->parameterBag->add($value, $type);
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
      * @param array<int, array<string, mixed>> $batchData
-     * @return self
      */
     public function batchValues(array $batchData): self
     {
@@ -94,47 +74,46 @@ class InsertBuilder extends AbstractQueryBuilder
 
         $this->batchValues = $this->normalizeBatchData($batchData);
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * Enable REPLACE option
-     * @return self
+     * Enable REPLACE option.
      */
     public function replace(): self
     {
         $this->replace = true;
         $this->ignore = false; // Cannot use both IGNORE and REPLACE
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * Disable REPLACE option
-     * @return self
+     * Disable REPLACE option.
      */
     public function withoutReplace(): self
     {
         $this->replace = false;
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
      * @param array<string, mixed> $updates
-     * @return self
      */
     public function onDuplicateKeyUpdate(array $updates): self
     {
         $this->onDuplicateUpdate = $updates;
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * @param SelectBuilder $selectQuery
      * @param array<string> $columns
-     * @return self
      */
     public function fromSelect(SelectBuilder $selectQuery, array $columns = []): self
     {
@@ -144,6 +123,7 @@ class InsertBuilder extends AbstractQueryBuilder
             $this->values = array_fill_keys($columns, null);
         }
         $this->isDirty = true;
+
         return $this;
     }
 
@@ -151,9 +131,9 @@ class InsertBuilder extends AbstractQueryBuilder
     {
         $this->validateNotEmpty($this->table, 'Table name');
 
-        $sql = $this->getInsertKeyword() . ' INTO ' . $this->formatIdentifier($this->table);
+        $sql = $this->getInsertKeyword().' INTO '.$this->formatIdentifier($this->table);
 
-        if ($this->selectQuery !== null) {
+        if (null !== $this->selectQuery) {
             return $this->buildInsertFromSelect($sql);
         }
 
@@ -165,20 +145,19 @@ class InsertBuilder extends AbstractQueryBuilder
             return $this->buildSingleInsert($sql);
         }
 
-        throw new RuntimeException('No values specified for INSERT');
+        throw new \RuntimeException('No values specified for INSERT');
     }
 
-    /**
-     * @return string
-     */
     public function getQueryType(): string
     {
         return $this->replace ? 'REPLACE' : 'INSERT';
     }
 
     /**
-     * Normalize batch data to ensure all rows have the same columns
+     * Normalize batch data to ensure all rows have the same columns.
+     *
      * @param array<int, array<string, mixed>> $batchData
+     *
      * @return array<int, array<string, mixed>>
      */
     private function normalizeBatchData(array $batchData): array
@@ -191,13 +170,16 @@ class InsertBuilder extends AbstractQueryBuilder
                 $value = $row[$col] ?? null;
                 $normalizedRow[$col] = $value instanceof Raw ? $value->getValue() : $value;
             }
+
             return $normalizedRow;
         }, $batchData);
     }
 
     /**
-     * Extract all unique columns from batch data
+     * Extract all unique columns from batch data.
+     *
      * @param array<int, array<string, mixed>> $batchData
+     *
      * @return array<string>
      */
     private function extractAllColumns(array $batchData): array
@@ -205,9 +187,6 @@ class InsertBuilder extends AbstractQueryBuilder
         return array_unique(array_merge(...array_map('array_keys', $batchData)));
     }
 
-    /**
-     * @return string
-     */
     private function getInsertKeyword(): string
     {
         if ($this->replace) {
@@ -218,42 +197,34 @@ class InsertBuilder extends AbstractQueryBuilder
         $modifiers = $this->buildQueryModifiers();
 
         if (!empty($modifiers)) {
-            $keyword .= ' ' . implode(' ', $modifiers);
+            $keyword .= ' '.implode(' ', $modifiers);
         }
 
         return $keyword;
     }
 
-    /**
-     * @param string $sql
-     * @return string
-     */
     private function buildSingleInsert(string $sql): string
     {
         $columns = array_keys($this->values);
-        $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
-        $sql .= ' VALUES (' . implode(', ', array_values($this->values)) . ')';
+        $sql .= ' ('.implode(', ', array_map([$this, 'formatIdentifier'], $columns)).')';
+        $sql .= ' VALUES ('.implode(', ', array_values($this->values)).')';
 
         return $this->addOnDuplicateKeyUpdate($sql);
     }
 
-    /**
-     * @param string $sql
-     * @return string
-     */
     private function buildBatchInsert(string $sql): string
     {
         $columns = array_keys($this->batchValues[0]);
-        $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
-        $sql .= ' VALUES ' . $this->buildBatchValues($columns);
+        $sql .= ' ('.implode(', ', array_map([$this, 'formatIdentifier'], $columns)).')';
+        $sql .= ' VALUES '.$this->buildBatchValues($columns);
 
         return $this->addOnDuplicateKeyUpdate($sql);
     }
 
     /**
-     * Build batch values string
+     * Build batch values string.
+     *
      * @param array<string> $columns
-     * @return string
      */
     private function buildBatchValues(array $columns): string
     {
@@ -263,34 +234,27 @@ class InsertBuilder extends AbstractQueryBuilder
             foreach ($columns as $column) {
                 $valueParts[] = $this->parameterBag->add($row[$column]);
             }
-            $valueGroups[] = '(' . implode(', ', $valueParts) . ')';
+            $valueGroups[] = '('.implode(', ', $valueParts).')';
         }
+
         return implode(', ', $valueGroups);
     }
 
-    /**
-     * @param string $sql
-     * @return string
-     */
     private function buildInsertFromSelect(string $sql): string
     {
         if (!empty($this->values)) {
             $columns = array_keys($this->values);
-            $sql .= ' (' . implode(', ', array_map([$this, 'formatIdentifier'], $columns)) . ')';
+            $sql .= ' ('.implode(', ', array_map([$this, 'formatIdentifier'], $columns)).')';
         }
 
         if ($this->selectQuery instanceof SelectBuilder) {
             $this->selectQuery->setParameterBag($this->parameterBag);
-            $sql .= ' ' . $this->selectQuery->toSql();
+            $sql .= ' '.$this->selectQuery->toSql();
         }
 
         return $this->addOnDuplicateKeyUpdate($sql);
     }
 
-    /**
-     * @param string $sql
-     * @return string
-     */
     private function addOnDuplicateKeyUpdate(string $sql): string
     {
         if (empty($this->onDuplicateUpdate) || $this->replace) {
@@ -304,27 +268,24 @@ class InsertBuilder extends AbstractQueryBuilder
             $updateParts[] = $this->buildUpdatePart($column, $value);
         }
 
-        return $sql . implode(', ', $updateParts);
+        return $sql.implode(', ', $updateParts);
     }
 
     /**
-     * Build individual update part for ON DUPLICATE KEY UPDATE
-     * @param string $column
-     * @param mixed $value
-     * @return string
+     * Build individual update part for ON DUPLICATE KEY UPDATE.
      */
     private function buildUpdatePart(string $column, mixed $value): string
     {
         $escapedColumn = $this->formatIdentifier($column);
 
-        if ($value === 'VALUES') {
+        if ('VALUES' === $value) {
             return "$escapedColumn = VALUES($escapedColumn)";
         }
 
         if ($value instanceof Raw) {
-            return "$escapedColumn = " . $value->getValue();
+            return "$escapedColumn = ".$value->getValue();
         }
 
-        return "$escapedColumn = " . $this->parameterBag->add($value);
+        return "$escapedColumn = ".$this->parameterBag->add($value);
     }
 }

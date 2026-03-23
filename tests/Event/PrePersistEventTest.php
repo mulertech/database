@@ -8,19 +8,19 @@ use MulerTech\Database\Event\DbEvents;
 use MulerTech\Database\Event\PrePersistEvent;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
 #[CoversClass(PrePersistEvent::class)]
 class PrePersistEventTest extends TestCase
 {
-    private EntityManagerInterface&MockObject $entityManager;
+    private EntityManagerInterface&Stub $entityManager;
     private object $entity;
 
     protected function setUp(): void
     {
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->entity = new stdClass();
     }
 
@@ -68,8 +68,8 @@ class PrePersistEventTest extends TestCase
 
     public function testConstructorWithDifferentEntityManagers(): void
     {
-        $entityManager1 = $this->createMock(EntityManagerInterface::class);
-        $entityManager2 = $this->createMock(EntityManagerInterface::class);
+        $entityManager1 = $this->createStub(EntityManagerInterface::class);
+        $entityManager2 = $this->createStub(EntityManagerInterface::class);
         
         $event1 = new PrePersistEvent($this->entity, $entityManager1);
         $event2 = new PrePersistEvent($this->entity, $entityManager2);
@@ -82,7 +82,7 @@ class PrePersistEventTest extends TestCase
     public function testEventNameIsAlwaysPrePersist(): void
     {
         $event1 = new PrePersistEvent($this->entity, $this->entityManager);
-        $event2 = new PrePersistEvent(new stdClass(), $this->createMock(EntityManagerInterface::class));
+        $event2 = new PrePersistEvent(new stdClass(), $this->createStub(EntityManagerInterface::class));
         
         $this->assertEquals('prePersist', $event1->getName());
         $this->assertEquals('prePersist', $event2->getName());

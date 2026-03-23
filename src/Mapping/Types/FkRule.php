@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping\Types;
 
 /**
- * Enum FkRule
- * @package MulerTech\Database
+ * Enum FkRule.
+ *
  * @author Sébastien Muler
  */
 enum FkRule: string
@@ -18,8 +18,7 @@ enum FkRule: string
     case SET_DEFAULT = 'SET DEFAULT';
 
     /**
-     * Convert to enum call string for code generation
-     * @return string
+     * Convert to enum call string for code generation.
      */
     public function toEnumCallString(): string
     {

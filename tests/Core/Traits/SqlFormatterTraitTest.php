@@ -6,10 +6,10 @@ namespace MulerTech\Database\Tests\Core\Traits;
 
 use MulerTech\Database\Core\Traits\SqlFormatterTrait;
 use MulerTech\Database\Tests\Files\Traits\TestClassWithSqlFormatterTrait;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
 
-#[CoversClass(SqlFormatterTrait::class)]
+#[CoversTrait(SqlFormatterTrait::class)]
 final class SqlFormatterTraitTest extends TestCase
 {
     private TestClassWithSqlFormatterTrait $formatter;

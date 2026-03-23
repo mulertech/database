@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM;
 
 /**
- * Class ChangeSet
- * @package MulerTech\Database
+ * Class ChangeSet.
+ *
  * @author Sébastien Muler
  */
 final readonly class ChangeSet
 {
     /**
-     * @param class-string $entityClass
+     * @param class-string                  $entityClass
      * @param array<string, PropertyChange> $changes
      */
     public function __construct(
         public string $entityClass,
-        public array $changes
+        public array $changes,
     ) {
     }
 
@@ -29,18 +29,11 @@ final readonly class ChangeSet
         return $this->changes;
     }
 
-    /**
-     * @return bool
-     */
     public function isEmpty(): bool
     {
         return empty($this->changes);
     }
 
-    /**
-     * @param string $field
-     * @return PropertyChange|null
-     */
     public function getFieldChange(string $field): ?PropertyChange
     {
         return $this->changes[$field] ?? null;
@@ -48,11 +41,11 @@ final readonly class ChangeSet
 
     /**
      * @param callable(PropertyChange): bool $callback
-     * @return ChangeSet
      */
     public function filter(callable $callback): self
     {
         $filteredChanges = array_filter($this->changes, $callback);
+
         return new self($this->entityClass, $filteredChanges);
     }
 }

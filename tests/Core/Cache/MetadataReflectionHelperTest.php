@@ -101,9 +101,9 @@ final class MetadataReflectionHelperTest extends TestCase
 
     public function testGetPropertyTypeNameWithNamedType(): void
     {
-        $namedType = $this->createMock(ReflectionNamedType::class);
+        $namedType = $this->createStub(ReflectionNamedType::class);
         $namedType->method('getName')->willReturn('string');
-        
+
         $result = $this->helper->getPropertyTypeName($namedType);
         
         $this->assertEquals('string', $result);
@@ -112,13 +112,13 @@ final class MetadataReflectionHelperTest extends TestCase
     public function testGetPropertyTypeNameWithUnionType(): void
     {
         // Create mock union type
-        $namedType1 = $this->createMock(ReflectionNamedType::class);
+        $namedType1 = $this->createStub(ReflectionNamedType::class);
         $namedType1->method('getName')->willReturn('string');
-        
-        $namedType2 = $this->createMock(ReflectionNamedType::class);
+
+        $namedType2 = $this->createStub(ReflectionNamedType::class);
         $namedType2->method('getName')->willReturn('int');
-        
-        $unionType = $this->createMock(ReflectionUnionType::class);
+
+        $unionType = $this->createStub(ReflectionUnionType::class);
         $unionType->method('getTypes')->willReturn([$namedType1, $namedType2]);
         
         $result = $this->helper->getPropertyTypeName($unionType);
@@ -129,13 +129,13 @@ final class MetadataReflectionHelperTest extends TestCase
     public function testGetPropertyTypeNameWithIntersectionType(): void
     {
         // Create mock intersection type
-        $namedType1 = $this->createMock(ReflectionNamedType::class);
+        $namedType1 = $this->createStub(ReflectionNamedType::class);
         $namedType1->method('getName')->willReturn('Interface1');
-        
-        $namedType2 = $this->createMock(ReflectionNamedType::class);
+
+        $namedType2 = $this->createStub(ReflectionNamedType::class);
         $namedType2->method('getName')->willReturn('Interface2');
-        
-        $intersectionType = $this->createMock(ReflectionIntersectionType::class);
+
+        $intersectionType = $this->createStub(ReflectionIntersectionType::class);
         $intersectionType->method('getTypes')->willReturn([$namedType1, $namedType2]);
         
         $result = $this->helper->getPropertyTypeName($intersectionType);
@@ -145,7 +145,7 @@ final class MetadataReflectionHelperTest extends TestCase
 
     public function testGetPropertyTypeNameWithUnknownType(): void
     {
-        $unknownType = $this->createMock(ReflectionType::class);
+        $unknownType = $this->createStub(ReflectionType::class);
         
         $result = $this->helper->getPropertyTypeName($unknownType);
         
@@ -197,12 +197,12 @@ final class MetadataReflectionHelperTest extends TestCase
     public function testGetPropertyTypeNameHandlesComplexUnionTypes(): void
     {
         // Test with non-named types in union
-        $namedType = $this->createMock(ReflectionNamedType::class);
+        $namedType = $this->createStub(ReflectionNamedType::class);
         $namedType->method('getName')->willReturn('string');
-        
-        $otherType = $this->createMock(ReflectionType::class);
-        
-        $unionType = $this->createMock(ReflectionUnionType::class);
+
+        $otherType = $this->createStub(ReflectionType::class);
+
+        $unionType = $this->createStub(ReflectionUnionType::class);
         $unionType->method('getTypes')->willReturn([$namedType, $otherType]);
         
         $result = $this->helper->getPropertyTypeName($unionType);
@@ -214,12 +214,12 @@ final class MetadataReflectionHelperTest extends TestCase
     public function testGetPropertyTypeNameHandlesComplexIntersectionTypes(): void
     {
         // Test with non-named types in intersection
-        $namedType = $this->createMock(ReflectionNamedType::class);
+        $namedType = $this->createStub(ReflectionNamedType::class);
         $namedType->method('getName')->willReturn('Interface1');
-        
-        $otherType = $this->createMock(ReflectionType::class);
-        
-        $intersectionType = $this->createMock(ReflectionIntersectionType::class);
+
+        $otherType = $this->createStub(ReflectionType::class);
+
+        $intersectionType = $this->createStub(ReflectionIntersectionType::class);
         $intersectionType->method('getTypes')->willReturn([$namedType, $otherType]);
         
         $result = $this->helper->getPropertyTypeName($intersectionType);

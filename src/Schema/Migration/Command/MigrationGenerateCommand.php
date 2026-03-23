@@ -11,28 +11,20 @@ use MulerTech\Database\Schema\Information\InformationSchema;
 use MulerTech\Database\Schema\Migration\MigrationGenerator;
 use MulerTech\MTerm\Command\AbstractCommand;
 use MulerTech\MTerm\Core\Terminal;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Class MigrationGenerateCommand
+ * Class MigrationGenerateCommand.
  *
  * Command to generate a migration from entity definitions
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationGenerateCommand extends AbstractCommand
 {
-    /**
-     * @param Terminal $terminal
-     * @param EntityManagerInterface $entityManager
-     * @param string $migrationsDirectory
-     */
     public function __construct(
         Terminal $terminal,
         private readonly EntityManagerInterface $entityManager,
-        private readonly string $migrationsDirectory
+        private readonly string $migrationsDirectory,
     ) {
         parent::__construct($terminal);
         $this->name = 'migration:generate';
@@ -40,11 +32,13 @@ class MigrationGenerateCommand extends AbstractCommand
     }
 
     /**
-     * Executes the command
+     * Executes the command.
      *
      * @param array<int, string> $args Command arguments
+     *
      * @return int Return code
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function execute(array $args = []): int
     {
@@ -60,7 +54,7 @@ class MigrationGenerateCommand extends AbstractCommand
             // Ensure dbname is a string
             $databaseName = $dbParameters['dbname'] ?? '';
             if (!is_string($databaseName)) {
-                throw new RuntimeException('Database name must be a string');
+                throw new \RuntimeException('Database name must be a string');
             }
 
             $schemaComparer = new SchemaComparer($informationSchema, $this->entityManager->getMetadataRegistry(), $databaseName);
@@ -69,25 +63,24 @@ class MigrationGenerateCommand extends AbstractCommand
             // Generating the migration
             $migrationFile = $migrationGenerator->generateMigration($date);
 
-            if ($migrationFile === null) {
+            if (null === $migrationFile) {
                 $this->terminal->writeLine('No schema changes detected, no migration generated.', 'yellow');
+
                 return 0;
             }
 
-            $this->terminal->writeLine('Migration successfully generated: ' . basename($migrationFile), 'green');
+            $this->terminal->writeLine('Migration successfully generated: '.basename($migrationFile), 'green');
+
             return 0;
-        } catch (RuntimeException $e) {
-            $this->terminal->writeLine('Error: ' . $e->getMessage(), 'red');
+        } catch (\RuntimeException $e) {
+            $this->terminal->writeLine('Error: '.$e->getMessage(), 'red');
+
             return 1;
         }
     }
 
     /**
-     * Creates a MigrationGenerator instance
-     *
-     * @param SchemaComparer $schemaComparer
-     * @param string $migrationsDirectory
-     * @return MigrationGenerator
+     * Creates a MigrationGenerator instance.
      */
     protected function createMigrationGenerator(SchemaComparer $schemaComparer, string $migrationsDirectory): MigrationGenerator
     {

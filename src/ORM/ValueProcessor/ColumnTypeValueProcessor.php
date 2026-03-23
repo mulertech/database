@@ -4,47 +4,31 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\ValueProcessor;
 
-use DateTime;
-use DateTimeInterface;
-use InvalidArgumentException;
-use JsonException;
 use MulerTech\Database\Mapping\Types\ColumnType;
-use TypeError;
 
 /**
- * Processes values based on database column types
- * @package MulerTech\Database
+ * Processes values based on database column types.
+ *
  * @author Sébastien Muler
  */
 class ColumnTypeValueProcessor implements ValueProcessorInterface
 {
-    /**
-     * @param ColumnType|null $columnType
-     */
     public function __construct(private ?ColumnType $columnType = null)
     {
     }
 
-    /**
-     * @param mixed $typeInfo
-     * @return bool
-     */
     public function canProcess(mixed $typeInfo): bool
     {
         return $typeInfo instanceof ColumnType;
     }
 
-    /**
-     * @param mixed $value
-     * @return mixed
-     */
     public function process(mixed $value): mixed
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
-        if ($this->columnType === null) {
+        if (null === $this->columnType) {
             return $value;
         }
 
@@ -60,10 +44,12 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             ColumnType::DATE, ColumnType::DATETIME, ColumnType::TIMESTAMP => $this->convertToDateString($value),
             ColumnType::JSON => is_array($value) ? $value : (function () use ($value) {
                 $jsonString = is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value));
-                if ($jsonString !== false) {
+                if (false !== $jsonString) {
                     $decoded = json_decode($jsonString, true);
-                    return $decoded !== null ? $decoded : [];
+
+                    return null !== $decoded ? $decoded : [];
                 }
+
                 return [];
             })(),
             ColumnType::BINARY, ColumnType::VARBINARY, ColumnType::BLOB,
@@ -74,14 +60,11 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
     }
 
     /**
-     * @param mixed $value
-     * @param string $type
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     public function convertToColumnValue(mixed $value, string $type): mixed
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
@@ -95,19 +78,16 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             'json' => $this->convertToJsonString($value),
             'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob',
             'longblob' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
-            default => throw new InvalidArgumentException("Unsupported column type: $type"),
+            default => throw new \InvalidArgumentException("Unsupported column type: $type"),
         };
     }
 
     /**
-     * @param mixed $value
-     * @param string $type
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     public function convertToPhpValue(mixed $value, string $type): mixed
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
@@ -122,14 +102,10 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             'json' => $this->convertToJsonString($value),
             'binary', 'varbinary', 'blob', 'tinyblob', 'mediumblob',
             'longblob' => is_string($value) ? $value : (is_scalar($value) ? (string) $value : json_encode($value)),
-            default => throw new InvalidArgumentException("Unsupported column type: $type"),
+            default => throw new \InvalidArgumentException("Unsupported column type: $type"),
         };
     }
 
-    /**
-     * @param string $type
-     * @return mixed
-     */
     public function getDefaultValue(string $type): mixed
     {
         return match (strtolower($type)) {
@@ -146,10 +122,6 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         };
     }
 
-    /**
-     * @param string $type
-     * @return bool
-     */
     public function isValidType(string $type): bool
     {
         return in_array($type, $this->getSupportedTypes(), true);
@@ -171,10 +143,6 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         ];
     }
 
-    /**
-     * @param mixed $value
-     * @return int
-     */
     private function convertToInt(mixed $value): int
     {
         if (is_int($value)) {
@@ -187,21 +155,19 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
             return $value ? 1 : 0;
         }
         if (is_string($value)) {
-            if (strtolower($value) === 'true') {
+            if ('true' === strtolower($value)) {
                 return 1;
             }
-            if (strtolower($value) === 'false') {
+            if ('false' === strtolower($value)) {
                 return 0;
             }
+
             return (int) filter_var($value, FILTER_SANITIZE_NUMBER_INT);
         }
+
         return 0;
     }
 
-    /**
-     * @param mixed $value
-     * @return float
-     */
     private function convertToFloat(mixed $value): float
     {
         if (is_float($value)) {
@@ -210,41 +176,38 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         if (is_numeric($value)) {
             return (float) $value;
         }
+
         return 0.0;
     }
 
-    /**
-     * @param mixed $value
-     * @return bool
-     */
     private function convertToBool(mixed $value): bool
     {
         if (is_bool($value)) {
             return $value;
         }
         if (is_numeric($value)) {
-            return $value != 0;
+            return 0 != $value;
         }
         if (is_string($value)) {
             $normalized = strtolower(trim($value));
             if (in_array($normalized, ['0', 'false', 'no', 'off', ''], true)) {
                 return false;
             }
+
             return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
         }
+
         return (bool) $value;
     }
 
     /**
-     * @param mixed $value
-     * @return string
-     * @throws InvalidArgumentException
-     * @throws JsonException
+     * @throws \InvalidArgumentException
+     * @throws \JsonException
      */
     private function convertToJsonString(mixed $value): string
     {
         if (is_resource($value)) {
-            throw new InvalidArgumentException('Invalid JSON data');
+            throw new \InvalidArgumentException('Invalid JSON data');
         }
 
         if (is_array($value) || is_object($value)) {
@@ -257,25 +220,18 @@ class ColumnTypeValueProcessor implements ValueProcessorInterface
         return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
-    /**
-     * @param mixed $value
-     * @return string
-     */
     private function convertToDateString(mixed $value): string
     {
-        if ($value instanceof DateTimeInterface) {
+        if ($value instanceof \DateTimeInterface) {
             return $value->format('Y-m-d H:i:s');
         }
         if (is_string($value)) {
             return $value;
         }
-        return new DateTime()->format('Y-m-d H:i:s');
+
+        return new \DateTime()->format('Y-m-d H:i:s');
     }
 
-    /**
-     * @param string $type
-     * @return string
-     */
     public function normalizeType(string $type): string
     {
         return match (strtolower($type)) {

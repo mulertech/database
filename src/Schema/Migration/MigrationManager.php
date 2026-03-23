@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Schema\Migration;
 
-use Exception;
 use MulerTech\Database\Database\Interface\DatabaseParameterParser;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Schema\Information\InformationSchema;
 use MulerTech\Database\Schema\Migration\Entity\MigrationHistory;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Class MigrationManager
+ * Class MigrationManager.
  *
  * Migration manager for executing and tracking migrations
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class MigrationManager
@@ -34,23 +30,22 @@ class MigrationManager
     private array $executedMigrations = [];
 
     /**
-     * @param EntityManagerInterface $entityManager
      * @param class-string $migrationHistory
-     * @throws ReflectionException|Exception
+     *
+     * @throws \ReflectionException|\Exception
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly string $migrationHistory = MigrationHistory::class
+        private readonly string $migrationHistory = MigrationHistory::class,
     ) {
         $this->initializeMigrationTable();
         $this->loadExecutedMigrations();
     }
 
     /**
-     * Ensure migration history table exists
+     * Ensure migration history table exists.
      *
-     * @return void
-     * @throws Exception
+     * @throws \Exception
      */
     private function initializeMigrationTable(): void
     {
@@ -65,7 +60,7 @@ class MigrationManager
         $informationSchema = new InformationSchema($emEngine);
         $dbParameters = new DatabaseParameterParser()->parseParameters();
         if (!is_string($dbParameters['dbname'])) {
-            throw new RuntimeException('Database name must be a string');
+            throw new \RuntimeException('Database name must be a string');
         }
         $tables = $informationSchema->getTables($dbParameters['dbname']);
         $tableExists = false;
@@ -83,9 +78,7 @@ class MigrationManager
     }
 
     /**
-     * Create migration history table
-     * @param string $tableName
-     * @return void
+     * Create migration history table.
      */
     private function createMigrationHistoryTable(string $tableName): void
     {
@@ -102,10 +95,9 @@ class MigrationManager
     }
 
     /**
-     * Load executed migrations from database
+     * Load executed migrations from database.
      *
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function loadExecutedMigrations(): void
     {
@@ -125,12 +117,13 @@ class MigrationManager
             foreach ($results as $row) {
                 if (method_exists($row, 'getVersion')) {
                     $version = $row->getVersion();
-                    if (is_string($version) && $version !== '') {
+                    if (is_string($version) && '' !== $version) {
                         $versions[] = $version;
                     }
                 }
             }
             $this->executedMigrations = $versions;
+
             return;
         }
 
@@ -138,9 +131,8 @@ class MigrationManager
     }
 
     /**
-     * Register a migration with the manager
+     * Register a migration with the manager.
      *
-     * @param Migration $migration
      * @return $this
      */
     public function registerMigration(Migration $migration): self
@@ -149,29 +141,30 @@ class MigrationManager
 
         // Check for duplicate version
         if (isset($this->migrations[$version])) {
-            throw new RuntimeException(
-                "Migration with version $version is already registered. Each migration must have a unique version."
-            );
+            throw new \RuntimeException("Migration with version $version is already registered. Each migration must have a unique version.");
         }
 
         $this->migrations[$version] = $migration;
+
         return $this;
     }
 
     /**
-     * Register migrations from a directory
+     * Register migrations from a directory.
      *
      * @param string $directory Path to migrations directory
+     *
      * @return $this
-     * @throws RuntimeException If directory does not exist
+     *
+     * @throws \RuntimeException If directory does not exist
      */
     public function registerMigrations(string $directory): self
     {
         if (!is_dir($directory)) {
-            throw new RuntimeException("Migration directory does not exist: $directory");
+            throw new \RuntimeException("Migration directory does not exist: $directory");
         }
 
-        $files = glob($directory . DIRECTORY_SEPARATOR . 'Migration*.php') ?: [];
+        $files = glob($directory.DIRECTORY_SEPARATOR.'Migration*.php') ?: [];
 
         foreach ($files as $file) {
             $className = pathinfo($file, PATHINFO_FILENAME);
@@ -195,10 +188,7 @@ class MigrationManager
     }
 
     /**
-     * Check if a migration has been executed
-     *
-     * @param Migration $migration
-     * @return bool
+     * Check if a migration has been executed.
      */
     public function isMigrationExecuted(Migration $migration): bool
     {
@@ -206,7 +196,7 @@ class MigrationManager
     }
 
     /**
-     * Get all migrations
+     * Get all migrations.
      *
      * @return array<string, Migration>
      */
@@ -214,11 +204,12 @@ class MigrationManager
     {
         $migrations = $this->migrations;
         ksort($migrations); // Sort by version
+
         return $migrations;
     }
 
     /**
-     * Get pending migrations (not yet executed)
+     * Get pending migrations (not yet executed).
      *
      * @return Migration[]
      */
@@ -230,7 +221,7 @@ class MigrationManager
     }
 
     /**
-     * Execute all pending migrations
+     * Execute all pending migrations.
      *
      * @return int Number of executed migrations
      */
@@ -240,22 +231,19 @@ class MigrationManager
 
         foreach ($this->getPendingMigrations() as $migration) {
             $this->executeMigration($migration);
-            $executed++;
+            ++$executed;
         }
 
         return $executed;
     }
 
     /**
-     * Execute a specific migration
-     *
-     * @param Migration $migration
-     * @return void
+     * Execute a specific migration.
      */
     public function executeMigration(Migration $migration): void
     {
         if ($this->isMigrationExecuted($migration)) {
-            throw new RuntimeException("Migration {$migration->getVersion()} has already been executed.");
+            throw new \RuntimeException("Migration {$migration->getVersion()} has already been executed.");
         }
 
         $startTime = microtime(true);
@@ -278,22 +266,19 @@ class MigrationManager
 
             // Update executed migrations cache
             $this->executedMigrations[] = $migration->getVersion();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if ($this->entityManager->getPdm()->inTransaction()) {
                 $this->entityManager->getPdm()->rollBack();
             }
 
-            throw new RuntimeException("Migration {$migration->getVersion()} failed: " . $e->getMessage(), 0, $e);
+            throw new \RuntimeException("Migration {$migration->getVersion()} failed: ".$e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Record migration execution in database
+     * Record migration execution in database.
      *
-     * @param Migration $migration
-     * @param float $executionTime
-     * @return void
-     * @throws ReflectionException|Exception
+     * @throws \ReflectionException|\Exception
      */
     private function recordMigrationExecution(Migration $migration, float $executionTime): void
     {
@@ -303,13 +288,13 @@ class MigrationManager
             ->insert($tableName)
             ->set('version', $migration->getVersion())
             ->set('executed_at', date('Y-m-d H:i:s'))
-            ->set('execution_time', (int)($executionTime * 1000)); // Convert to milliseconds
+            ->set('execution_time', (int) ($executionTime * 1000)); // Convert to milliseconds
 
         $queryBuilder->execute();
     }
 
     /**
-     * Roll back the last executed migration
+     * Roll back the last executed migration.
      *
      * @return bool Whether a migration was rolled back
      */
@@ -318,8 +303,8 @@ class MigrationManager
         $lastVersion = end($this->executedMigrations);
 
         // Find the migration
-        $migration = $lastVersion !== false ? $this->migrations[$lastVersion] ?? null : null;
-        if ($lastVersion === false || $migration === null) {
+        $migration = false !== $lastVersion ? $this->migrations[$lastVersion] ?? null : null;
+        if (false === $lastVersion || null === $migration) {
             return false;
         }
 
@@ -340,20 +325,17 @@ class MigrationManager
             array_pop($this->executedMigrations);
 
             return true;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if ($this->entityManager->getPdm()->inTransaction()) {
                 $this->entityManager->getPdm()->rollBack();
             }
 
-            throw new RuntimeException("Migration rollback $lastVersion failed: " . $e->getMessage(), 0, $e);
+            throw new \RuntimeException("Migration rollback $lastVersion failed: ".$e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Remove migration record from database
-     *
-     * @param string $version
-     * @return void
+     * Remove migration record from database.
      */
     protected function removeMigrationRecord(string $version): void
     {

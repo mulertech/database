@@ -1,11 +1,7 @@
-.claude
 .idea
 .phpunit.cache
-.vscode
 vendor
 .php-cs-fixer.cache
 clover.xml
 composer.lock
-
-# Docker development environment
 .mtdocker/

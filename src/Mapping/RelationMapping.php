@@ -8,24 +8,23 @@ use MulerTech\Database\Mapping\Attributes\MtManyToMany;
 use MulerTech\Database\Mapping\Attributes\MtManyToOne;
 use MulerTech\Database\Mapping\Attributes\MtOneToMany;
 use MulerTech\Database\Mapping\Attributes\MtOneToOne;
-use ReflectionClass;
-use ReflectionException;
 
 /**
- * Handles entity relationship mapping operations
+ * Handles entity relationship mapping operations.
  */
 class RelationMapping
 {
     /**
-     * Get OneToOne relations for an entity
+     * Get OneToOne relations for an entity.
      *
      * @param class-string $entityName
+     *
      * @return array<string, MtOneToOne>
      */
     public function getOneToOne(string $entityName): array
     {
         try {
-            $reflection = new ReflectionClass($entityName);
+            $reflection = new \ReflectionClass($entityName);
             $relations = [];
 
             foreach ($reflection->getProperties() as $property) {
@@ -36,21 +35,22 @@ class RelationMapping
             }
 
             return $relations;
-        } catch (ReflectionException) {
+        } catch (\ReflectionException) {
             return [];
         }
     }
 
     /**
-     * Get ManyToOne relations for an entity
+     * Get ManyToOne relations for an entity.
      *
      * @param class-string $entityName
+     *
      * @return array<string, MtManyToOne>
      */
     public function getManyToOne(string $entityName): array
     {
         try {
-            $reflection = new ReflectionClass($entityName);
+            $reflection = new \ReflectionClass($entityName);
             $relations = [];
 
             foreach ($reflection->getProperties() as $property) {
@@ -61,21 +61,22 @@ class RelationMapping
             }
 
             return $relations;
-        } catch (ReflectionException) {
+        } catch (\ReflectionException) {
             return [];
         }
     }
 
     /**
-     * Get OneToMany relations for an entity
+     * Get OneToMany relations for an entity.
      *
      * @param class-string $entityName
+     *
      * @return array<string, MtOneToMany>
      */
     public function getOneToMany(string $entityName): array
     {
         try {
-            $reflection = new ReflectionClass($entityName);
+            $reflection = new \ReflectionClass($entityName);
             $relations = [];
 
             foreach ($reflection->getProperties() as $property) {
@@ -86,21 +87,22 @@ class RelationMapping
             }
 
             return $relations;
-        } catch (ReflectionException) {
+        } catch (\ReflectionException) {
             return [];
         }
     }
 
     /**
-     * Get ManyToMany relations for an entity
+     * Get ManyToMany relations for an entity.
      *
      * @param class-string $entityName
+     *
      * @return array<string, MtManyToMany>
      */
     public function getManyToMany(string $entityName): array
     {
         try {
-            $reflection = new ReflectionClass($entityName);
+            $reflection = new \ReflectionClass($entityName);
             $relations = [];
 
             foreach ($reflection->getProperties() as $property) {
@@ -111,20 +113,19 @@ class RelationMapping
             }
 
             return $relations;
-        } catch (ReflectionException) {
+        } catch (\ReflectionException) {
             return [];
         }
     }
 
     /**
-     * Get foreign key column name for relation properties
-     * @param string $property
+     * Get foreign key column name for relation properties.
+     *
      * @param array<string, string> $columns
-     * @return string
      */
     public function getRelationColumnName(string $property, array $columns): string
     {
-        $fkColumn = $property . '_id';
+        $fkColumn = $property.'_id';
 
         // Check if this column exists in the mapped columns
         foreach ($columns as $col) {

@@ -8,18 +8,11 @@ use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\EventManager\Event;
 
 /**
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 abstract class AbstractEntityEvent extends Event
 {
-    /**
-     * @var object
-     */
     protected object $entity;
-    /**
-     * @var EntityManagerInterface
-     */
     protected EntityManagerInterface $entityManager;
 
     public function __construct(object $entity, EntityManagerInterface $entityManager, DbEvents $eventName)

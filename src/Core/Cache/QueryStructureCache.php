@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Core\Cache;
 
-use DateTimeInterface;
 use MulerTech\Database\Query\Builder\AbstractQueryBuilder;
-use ReflectionClass;
 
 /**
- * Class QueryStructureCache
+ * Class QueryStructureCache.
  *
  * Cache for compiled query structures to avoid recompilation
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class QueryStructureCache
@@ -28,23 +25,13 @@ class QueryStructureCache
      */
     private array $structureHashes = [];
 
-    /**
-     * @var int
-     */
     private int $maxCacheSize;
 
-    /**
-     * @var int
-     */
     private int $ttl;
 
-    /**
-     * @var bool
-     */
     private bool $enabled = true;
 
     /**
-     * @param int $maxCacheSize
      * @param int $ttl Time to live in seconds
      */
     public function __construct(int $maxCacheSize = 1000, int $ttl = 3600)
@@ -53,10 +40,6 @@ class QueryStructureCache
         $this->ttl = $ttl;
     }
 
-    /**
-     * @param AbstractQueryBuilder $builder
-     * @return string|null
-     */
     public function get(AbstractQueryBuilder $builder): ?string
     {
         if (!$this->enabled) {
@@ -74,6 +57,7 @@ class QueryStructureCache
         // Check TTL
         if (time() - $entry['timestamp'] > $this->ttl) {
             unset($this->cache[$key]);
+
             return null;
         }
 
@@ -84,11 +68,6 @@ class QueryStructureCache
         return $entry['sql'];
     }
 
-    /**
-     * @param AbstractQueryBuilder $builder
-     * @param string $sql
-     * @return void
-     */
     public function set(AbstractQueryBuilder $builder, string $sql): void
     {
         if (!$this->enabled) {
@@ -101,7 +80,7 @@ class QueryStructureCache
         if (count($this->cache) >= $this->maxCacheSize) {
             reset($this->cache);
             $oldestKey = key($this->cache);
-            if ($oldestKey !== null) {
+            if (null !== $oldestKey) {
                 unset($this->cache[$oldestKey]);
             }
         }
@@ -113,15 +92,12 @@ class QueryStructureCache
         ];
     }
 
-    /**
-     * @param string|null $prefix
-     * @return void
-     */
     public function clear(?string $prefix = null): void
     {
-        if ($prefix === null) {
+        if (null === $prefix) {
             $this->cache = [];
             $this->structureHashes = [];
+
             return;
         }
 
@@ -132,10 +108,6 @@ class QueryStructureCache
         }
     }
 
-    /**
-     * @param bool $enabled
-     * @return void
-     */
     public function setEnabled(bool $enabled): void
     {
         $this->enabled = $enabled;
@@ -144,9 +116,6 @@ class QueryStructureCache
         }
     }
 
-    /**
-     * @return int
-     */
     public function size(): int
     {
         return count($this->cache);
@@ -169,10 +138,6 @@ class QueryStructureCache
         ];
     }
 
-    /**
-     * @param AbstractQueryBuilder $builder
-     * @return string
-     */
     private function generateKey(AbstractQueryBuilder $builder): string
     {
         $builderHash = spl_object_hash($builder);
@@ -182,16 +147,15 @@ class QueryStructureCache
             $this->structureHashes[$builderHash] = md5(serialize($structure));
         }
 
-        return get_class($builder) . ':' . $this->structureHashes[$builderHash];
+        return get_class($builder).':'.$this->structureHashes[$builderHash];
     }
 
     /**
-     * @param AbstractQueryBuilder $builder
      * @return array<string, mixed>
      */
     private function extractStructure(AbstractQueryBuilder $builder): array
     {
-        $reflection = new ReflectionClass($builder);
+        $reflection = new \ReflectionClass($builder);
         $structure = [
             'type' => $builder->getQueryType(),
             'class' => get_class($builder),
@@ -208,7 +172,7 @@ class QueryStructureCache
             // Extract structural information
             if (is_array($value)) {
                 $structure[$property->getName()] = $this->extractArrayStructure($value);
-            } elseif (is_object($value) && !$value instanceof DateTimeInterface) {
+            } elseif (is_object($value) && !$value instanceof \DateTimeInterface) {
                 $structure[$property->getName()] = get_class($value);
             } elseif (!is_resource($value)) {
                 $structure[$property->getName()] = $value;
@@ -220,6 +184,7 @@ class QueryStructureCache
 
     /**
      * @param array<mixed, mixed> $array
+     *
      * @return array<mixed, mixed>
      */
     private function extractArrayStructure(array $array): array
@@ -239,9 +204,6 @@ class QueryStructureCache
         return $structure;
     }
 
-    /**
-     * @return void
-     */
     public function purgeExpired(): void
     {
         $now = time();

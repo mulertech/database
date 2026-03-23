@@ -38,7 +38,7 @@ class AbstractQueryBuilderTest extends TestCase
 
     public function testConstructorWithEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $builder = new TestableQueryBuilder($emEngine);
         $this->assertInstanceOf(AbstractQueryBuilder::class, $builder);
     }
@@ -61,25 +61,25 @@ class AbstractQueryBuilderTest extends TestCase
 
     public function testGetResultWithEmEngine(): void
     {
-        $stmt = $this->createMock(Statement::class);
+        $stmt = $this->createStub(Statement::class);
         $pdm = $this->createMock(PhpDatabaseManager::class);
         $pdm->expects($this->once())
            ->method('prepare')
            ->willReturn($stmt);
-           
+
         $entityManager = $this->createMock(EntityManager::class);
         $entityManager->expects($this->once())
                      ->method('getPdm')
                      ->willReturn($pdm);
-                     
+
         $emEngine = $this->createMock(EmEngine::class);
         $emEngine->expects($this->once())
                 ->method('getEntityManager')
                 ->willReturn($entityManager);
-        
+
         $builder = new TestableQueryBuilder($emEngine);
         $builder->setSql('SELECT * FROM test');
-        
+
         $result = $builder->getResult();
         $this->assertInstanceOf(Statement::class, $result);
     }

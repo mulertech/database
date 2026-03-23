@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use DateTimeImmutable;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\EntityStateManager;
 
 /**
- * Class ChangeSetOperationHandler
+ * Class ChangeSetOperationHandler.
  *
  * Handles complex operations for ChangeSetManager
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final readonly class ChangeSetOperationHandler
@@ -24,22 +22,15 @@ final readonly class ChangeSetOperationHandler
         private IdentityMap $identityMap,
         private EntityRegistry $registry,
         private ChangeDetector $changeDetector,
-        private ChangeSetValidator $validator
+        private ChangeSetValidator $validator,
     ) {
     }
 
-    /**
-     * @param object $entity
-     * @param EntityScheduler $scheduler
-     * @param EntityStateManager $stateManager
-     * @param EntityProcessor $entityProcessor
-     * @return void
-     */
     public function handleInsertionScheduling(
         object $entity,
         EntityScheduler $scheduler,
         EntityStateManager $stateManager,
-        EntityProcessor $entityProcessor
+        EntityProcessor $entityProcessor,
     ): void {
         if ($scheduler->isScheduledForInsertion($entity)) {
             return;
@@ -48,16 +39,17 @@ final readonly class ChangeSetOperationHandler
         $metadata = $this->identityMap->getMetadata($entity);
         $entityId = $entityProcessor->extractEntityId($entity);
 
-        if ($entityId !== null && $metadata === null) {
+        if (null !== $entityId && null === $metadata) {
             $currentData = $this->changeDetector->extractCurrentData($entity);
             $entityState = new EntityState(
                 $entity::class,
                 EntityLifecycleState::MANAGED,
                 $currentData,
-                new DateTimeImmutable()
+                new \DateTimeImmutable()
             );
             $this->identityMap->add($entity, $entityId, $entityState);
             $this->registry->register($entity);
+
             return;
         }
 
@@ -73,11 +65,6 @@ final readonly class ChangeSetOperationHandler
         $scheduler->removeFromSchedule($entity, 'deletions');
     }
 
-    /**
-     * @param object $entity
-     * @param EntityScheduler $scheduler
-     * @return void
-     */
     public function handleUpdateScheduling(object $entity, EntityScheduler $scheduler): void
     {
         if (!$this->validator->canScheduleUpdate($entity, $scheduler)) {
@@ -88,16 +75,10 @@ final readonly class ChangeSetOperationHandler
         $this->registry->register($entity);
     }
 
-    /**
-     * @param object $entity
-     * @param EntityScheduler $scheduler
-     * @param EntityStateManager $stateManager
-     * @return void
-     */
     public function handleDeletionScheduling(
         object $entity,
         EntityScheduler $scheduler,
-        EntityStateManager $stateManager
+        EntityStateManager $stateManager,
     ): void {
         if ($scheduler->isScheduledForDeletion($entity)) {
             return;
@@ -111,9 +92,9 @@ final readonly class ChangeSetOperationHandler
 
         // Handle state transition
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata !== null
-            && $metadata->state !== EntityLifecycleState::REMOVED
-            && $metadata->state !== EntityLifecycleState::NEW
+        if (null !== $metadata
+            && EntityLifecycleState::REMOVED !== $metadata->state
+            && EntityLifecycleState::NEW !== $metadata->state
         ) {
             $stateManager->transitionToRemoved($entity);
         }
@@ -122,39 +103,28 @@ final readonly class ChangeSetOperationHandler
         $scheduler->removeFromSchedule($entity, 'updates');
     }
 
-    /**
-     * @param object $entity
-     * @param EntityScheduler $scheduler
-     * @param EntityStateManager $stateManager
-     * @return void
-     */
     public function handleDetachment(
         object $entity,
         EntityScheduler $scheduler,
-        EntityStateManager $stateManager
+        EntityStateManager $stateManager,
     ): void {
         $scheduler->removeFromAllSchedules($entity);
         $stateManager->transitionToDetached($entity);
         $this->registry->unregister($entity);
     }
 
-    /**
-     * @param object $entity
-     * @param ?EntityState $metadata
-     * @param EntityStateManager $stateManager
-     * @return void
-     */
     private function handleEntityLifecycleStateForInsertion(
         object $entity,
         ?EntityState $metadata,
-        EntityStateManager $stateManager
+        EntityStateManager $stateManager,
     ): void {
-        if ($metadata === null) {
+        if (null === $metadata) {
             $this->identityMap->add($entity);
+
             return;
         }
 
-        if ($metadata->state !== EntityLifecycleState::NEW) {
+        if (EntityLifecycleState::NEW !== $metadata->state) {
             $stateManager->transitionToNew($entity);
         }
     }

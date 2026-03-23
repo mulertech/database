@@ -33,13 +33,13 @@ class RelationManagerTest extends TestCase
             dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Entity'
         );
         
-        // Create mocked EntityManager
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        // Create stubbed EntityManager
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->entityManager->method('getMetadataRegistry')
             ->willReturn($this->metadataRegistry);
 
-        // Create mocked StateManager
-        $this->stateManager = $this->createMock(StateManagerInterface::class);
+        // Create stubbed StateManager
+        $this->stateManager = $this->createStub(StateManagerInterface::class);
 
         $this->relationManager = new RelationManager(
             $this->entityManager,

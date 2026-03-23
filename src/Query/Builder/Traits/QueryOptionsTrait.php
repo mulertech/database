@@ -5,71 +5,65 @@ declare(strict_types=1);
 namespace MulerTech\Database\Query\Builder\Traits;
 
 /**
- * Trait QueryOptionsTrait
+ * Trait QueryOptionsTrait.
  *
  * Provides common query options (IGNORE, LOW_PRIORITY, etc.) for query builders
  *
- * @package MulerTech\Database\Query\Builder\Traits
  * @author Sébastien Muler
  */
 trait QueryOptionsTrait
 {
-    /**
-     * @var bool
-     */
     protected bool $ignore = false;
 
-    /**
-     * @var bool
-     */
     protected bool $lowPriority = false;
 
     /**
-     * Enable IGNORE option
-     * @return self
+     * Enable IGNORE option.
      */
     public function ignore(): self
     {
         $this->ignore = true;
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * Disable IGNORE option
-     * @return self
+     * Disable IGNORE option.
      */
     public function withoutIgnore(): self
     {
         $this->ignore = false;
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * Enable LOW_PRIORITY option
-     * @return self
+     * Enable LOW_PRIORITY option.
      */
     public function lowPriority(): self
     {
         $this->lowPriority = true;
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * Disable LOW_PRIORITY option
-     * @return self
+     * Disable LOW_PRIORITY option.
      */
     public function withoutLowPriority(): self
     {
         $this->lowPriority = false;
         $this->isDirty = true;
+
         return $this;
     }
 
     /**
-     * Build query modifiers for SQL
+     * Build query modifiers for SQL.
+     *
      * @return array<string>
      */
     protected function buildQueryModifiers(): array

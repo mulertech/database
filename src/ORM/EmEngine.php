@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use DateTimeImmutable;
-use Exception;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Engine\Persistence\DeletionProcessor;
 use MulerTech\Database\ORM\Engine\Persistence\InsertionProcessor;
@@ -19,73 +17,39 @@ use MulerTech\Database\ORM\State\StateTransitionManager;
 use MulerTech\Database\ORM\State\StateValidator;
 use MulerTech\Database\Query\Builder\QueryBuilder;
 use MulerTech\Database\Query\Builder\SelectBuilder;
-use PDO;
-use ReflectionException;
 
 /**
- * Class EmEngine
+ * Class EmEngine.
  *
  * Core engine for entity management and ORM operations.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EmEngine
 {
-    /**
-     * @var StateManagerInterface
-     */
     private StateManagerInterface $stateManager;
 
-    /**
-     * @var IdentityMap
-     */
     private IdentityMap $identityMap;
 
-    /**
-     * @var ChangeDetector
-     */
     private ChangeDetector $changeDetector;
 
-    /**
-     * @var ChangeSetManager
-     */
     private ChangeSetManager $changeSetManager;
 
-    /**
-     * @var EntityHydrator
-     */
     private EntityHydrator $hydrator;
 
-    /**
-     * @var EntityRegistry
-     */
     private EntityRegistry $entityRegistry;
 
-    /**
-     * @var PersistenceManager
-     */
     private PersistenceManager $persistenceManager;
 
-    /**
-     * @var RelationManager
-     */
     private RelationManager $relationManager;
 
-    /**
-     * @param EntityManagerInterface $entityManager
-     * @param MetadataRegistry $metadataRegistry
-     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly MetadataRegistry $metadataRegistry
+        private readonly MetadataRegistry $metadataRegistry,
     ) {
         $this->initializeComponents();
     }
 
-    /**
-     * @return EntityManagerInterface
-     */
     public function getEntityManager(): EntityManagerInterface
     {
         return $this->entityManager;
@@ -93,9 +57,8 @@ class EmEngine
 
     /**
      * @param class-string $entityName
-     * @param int|string $idOrWhere
-     * @return object|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function find(string $entityName, int|string $idOrWhere): ?object
     {
@@ -111,7 +74,7 @@ class EmEngine
 
         // Check identity map first for numeric IDs
         $managed = $this->identityMap->get($entityName, $idOrWhere);
-        if ($managed !== null) {
+        if (null !== $managed) {
             return $managed;
         }
 
@@ -124,21 +87,19 @@ class EmEngine
     }
 
     /**
-     * @param SelectBuilder $queryBuilder
      * @param class-string $entityName
-     * @param bool $loadRelations
-     * @return object|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getQueryBuilderObjectResult(
         SelectBuilder $queryBuilder,
         string $entityName,
-        bool $loadRelations = true
+        bool $loadRelations = true,
     ): ?object {
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
-        $fetch = $pdoStatement->fetch(PDO::FETCH_ASSOC);
+        $fetch = $pdoStatement->fetch(\PDO::FETCH_ASSOC);
         $pdoStatement->closeCursor();
 
         if (empty($fetch)) {
@@ -150,10 +111,11 @@ class EmEngine
             $entityId = $fetch['id'];
             if (is_int($entityId) || is_string($entityId)) {
                 $managed = $this->identityMap->get($entityName, $entityId);
-                if ($managed !== null) {
+                if (null !== $managed) {
                     // For managed entities, only update scalar properties, NOT relations
                     // This prevents overwriting relation changes that haven't been flushed yet
                     $this->updateManagedEntityScalarPropertiesOnly($managed, $fetch);
+
                     return $managed;
                 }
             }
@@ -162,9 +124,10 @@ class EmEngine
         if (is_array($fetch)) {
             $entityData = [];
             foreach ($fetch as $key => $value) {
-                $stringKey = (string)$key;
+                $stringKey = (string) $key;
                 $entityData[$stringKey] = is_scalar($value) ? $value : null;
             }
+
             return $this->createManagedEntity($entityData, $entityName, $loadRelations);
         }
 
@@ -172,24 +135,24 @@ class EmEngine
     }
 
     /**
-     * @param SelectBuilder $queryBuilder
      * @param class-string $entityName
-     * @param bool $loadRelations
+     *
      * @return array<object>|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getQueryBuilderListResult(
         SelectBuilder $queryBuilder,
         string $entityName,
-        bool $loadRelations = true
+        bool $loadRelations = true,
     ): ?array {
         $pdoStatement = $queryBuilder->getResult();
         $pdoStatement->execute();
 
-        $fetchAll = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        $fetchAll = $pdoStatement->fetchAll(\PDO::FETCH_ASSOC);
         $pdoStatement->closeCursor();
 
-        if ($fetchAll === []) {
+        if ([] === $fetchAll) {
             return null;
         }
 
@@ -198,7 +161,7 @@ class EmEngine
             if (is_array($entityData)) {
                 $validatedEntityData = [];
                 foreach ($entityData as $key => $value) {
-                    $stringKey = (string)$key;
+                    $stringKey = (string) $key;
                     $validatedEntityData[$stringKey] = is_scalar($value) ? $value : null;
                 }
                 $validatedFetchAll[] = $validatedEntityData;
@@ -208,10 +171,6 @@ class EmEngine
         return $this->hydrateEntityList($validatedFetchAll, $entityName, $loadRelations);
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function persist(object $entity): void
     {
         // Check if entity is already managed and has an ID
@@ -219,12 +178,13 @@ class EmEngine
         $isManaged = $this->identityMap->isManaged($entity);
 
         // If entity already has an ID, it's already persisted
-        if ($entityId !== null) {
+        if (null !== $entityId) {
             // Just ensure it's in the identity map and marked as managed
             if (!$isManaged) {
                 $this->identityMap->add($entity);
                 $this->getStateManager()->manage($entity);
             }
+
             return;
         }
 
@@ -238,7 +198,7 @@ class EmEngine
                 $entity::class,
                 EntityLifecycleState::NEW,
                 $originalData,
-                new DateTimeImmutable()
+                new \DateTimeImmutable()
             );
             $this->identityMap->updateMetadata($entity, $metadata);
         }
@@ -247,36 +207,24 @@ class EmEngine
         $this->getStateManager()->scheduleForInsertion($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function remove(object $entity): void
     {
         $this->getStateManager()->scheduleForDeletion($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function detach(object $entity): void
     {
         $this->getStateManager()->detach($entity);
     }
 
     /**
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function flush(): void
     {
         $this->getPersistenceManager()->flush();
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
         $this->identityMap->clear();
@@ -294,9 +242,8 @@ class EmEngine
 
     /**
      * @param class-string $entityName
-     * @param string|null $where
-     * @return int
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function rowCount(string $entityName, ?string $where = null): int
     {
@@ -307,18 +254,17 @@ class EmEngine
         if (is_numeric($where)) {
             $queryBuilder->where('id', $where);
         } elseif (is_string($where)) {
-            $queryBuilder->whereLike('id', '%' . $where . '%');
+            $queryBuilder->whereLike('id', '%'.$where.'%');
         }
 
         $statement = $queryBuilder->getResult();
         $statement->execute();
+
         return $statement->rowCount();
     }
 
     /**
-     * Initializes all components
-     *
-     * @return void
+     * Initializes all components.
      */
     private function initializeComponents(): void
     {
@@ -340,9 +286,7 @@ class EmEngine
     }
 
     /**
-     * Get or create StateManager lazily
-     *
-     * @return StateManagerInterface
+     * Get or create StateManager lazily.
      */
     private function getStateManager(): StateManagerInterface
     {
@@ -359,9 +303,7 @@ class EmEngine
     }
 
     /**
-     * Get or create PersistenceManager lazily
-     *
-     * @return PersistenceManager
+     * Get or create PersistenceManager lazily.
      */
     private function getPersistenceManager(): PersistenceManager
     {
@@ -384,9 +326,7 @@ class EmEngine
     }
 
     /**
-     * Get or create RelationManager lazily
-     *
-     * @return RelationManager
+     * Get or create RelationManager lazily.
      */
     private function getRelationManager(): RelationManager
     {
@@ -398,15 +338,13 @@ class EmEngine
     }
 
     /**
-     * Get or create StateTransitionManager lazily
-     *
-     * @return StateTransitionManager
+     * Get or create StateTransitionManager lazily.
      */
     private function getStateTransitionManager(): StateTransitionManager
     {
         static $instance = null;
 
-        if ($instance === null) {
+        if (null === $instance) {
             $instance = new StateTransitionManager($this->identityMap);
         }
 
@@ -414,15 +352,13 @@ class EmEngine
     }
 
     /**
-     * Get or create StateValidator lazily
-     *
-     * @return StateValidator
+     * Get or create StateValidator lazily.
      */
     private function getStateValidator(): StateValidator
     {
         static $instance = null;
 
-        if ($instance === null) {
+        if (null === $instance) {
             $instance = new StateValidator();
         }
 
@@ -430,15 +366,13 @@ class EmEngine
     }
 
     /**
-     * Get or create InsertionProcessor lazily
-     *
-     * @return InsertionProcessor
+     * Get or create InsertionProcessor lazily.
      */
     private function getInsertionProcessor(): InsertionProcessor
     {
         static $instance = null;
 
-        if ($instance === null) {
+        if (null === $instance) {
             $instance = new InsertionProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
@@ -446,15 +380,13 @@ class EmEngine
     }
 
     /**
-     * Get or create UpdateProcessor lazily
-     *
-     * @return UpdateProcessor
+     * Get or create UpdateProcessor lazily.
      */
     private function getUpdateProcessor(): UpdateProcessor
     {
         static $instance = null;
 
-        if ($instance === null) {
+        if (null === $instance) {
             $instance = new UpdateProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
@@ -462,15 +394,13 @@ class EmEngine
     }
 
     /**
-     * Get or create DeletionProcessor lazily
-     *
-     * @return DeletionProcessor
+     * Get or create DeletionProcessor lazily.
      */
     private function getDeletionProcessor(): DeletionProcessor
     {
         static $instance = null;
 
-        if ($instance === null) {
+        if (null === $instance) {
             $instance = new DeletionProcessor($this->entityManager, $this->entityManager->getMetadataRegistry());
         }
 
@@ -479,10 +409,9 @@ class EmEngine
 
     /**
      * @param array<string, bool|float|int|string|null> $entityData
-     * @param class-string $entityName
-     * @param bool $loadRelations
-     * @return object
-     * @throws ReflectionException
+     * @param class-string                              $entityName
+     *
+     * @throws \ReflectionException
      */
     public function createManagedEntity(array $entityData, string $entityName, bool $loadRelations): object
     {
@@ -503,7 +432,7 @@ class EmEngine
         if ($loadRelations) {
             try {
                 $this->getRelationManager()->loadEntityRelations($entity, $entityData);
-            } catch (Exception) {
+            } catch (\Exception) {
                 // If relation loading fails, log but don't fail the entity creation
                 // This ensures that at least the scalar properties are hydrated
             }
@@ -514,10 +443,11 @@ class EmEngine
 
     /**
      * @param array<array<string, bool|float|int|string|null>> $entitiesData
-     * @param class-string $entityName
-     * @param bool $loadRelations
+     * @param class-string                                     $entityName
+     *
      * @return array<object>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function hydrateEntityList(array $entitiesData, string $entityName, bool $loadRelations): array
     {
@@ -533,7 +463,7 @@ class EmEngine
                 $entityId = $validatedEntityData['id'];
                 if (is_int($entityId) || is_string($entityId)) {
                     $managed = $this->identityMap->get($entityName, $entityId);
-                    if ($managed !== null) {
+                    if (null !== $managed) {
                         $entities[] = $managed;
                         continue;
                     }
@@ -548,45 +478,38 @@ class EmEngine
 
     /**
      * @param class-string $entityName
-     * @return string
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function getTableName(string $entityName): string
     {
         return $this->metadataRegistry->getEntityMetadata($entityName)->tableName;
     }
 
-    /**
-     * @return IdentityMap
-     */
     public function getIdentityMap(): IdentityMap
     {
         return $this->identityMap;
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function hasChanges(object $entity): bool
     {
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata === null) {
+        if (null === $metadata) {
             return false;
         }
 
         $changeSet = $this->changeDetector->computeChangeSet($entity, $metadata->originalData);
+
         return !$changeSet->isEmpty();
     }
 
     /**
-     * @param object $entity
      * @return array<string, array<string, mixed>>
      */
     public function getChanges(object $entity): array
     {
         $changeSet = $this->changeSetManager->getChangeSet($entity);
-        if ($changeSet === null) {
+        if (null === $changeSet) {
             return [];
         }
 
@@ -599,11 +522,9 @@ class EmEngine
     }
 
     /**
-     * Update a managed entity with fresh scalar data from the database, preserving relations
+     * Update a managed entity with fresh scalar data from the database, preserving relations.
      *
-     * @param object $entity
      * @param array<string, string|int|float|bool|null> $dbData
-     * @return void
      */
     private function updateManagedEntityScalarPropertiesOnly(object $entity, array $dbData): void
     {
@@ -623,7 +544,7 @@ class EmEngine
                 }
 
                 $setterMethod = $entityMetadata->getSetter($property);
-                if ($setterMethod !== null && method_exists($entity, $setterMethod)) {
+                if (null !== $setterMethod && method_exists($entity, $setterMethod)) {
                     // Process the value according to its type
                     $value = $this->hydrator->processValue($entityMetadata, $property, $dbData[$column]);
                     $entity->$setterMethod($value);
@@ -632,28 +553,27 @@ class EmEngine
 
             // Update metadata with fresh data
             $metadata = $this->identityMap->getMetadata($entity);
-            if ($metadata !== null) {
+            if (null !== $metadata) {
                 $currentData = $this->changeDetector->extractCurrentData($entity);
                 $newMetadata = new EntityState(
                     $metadata->className,
                     EntityLifecycleState::MANAGED,
                     $currentData,
-                    new DateTimeImmutable()
+                    new \DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             }
-        } catch (Exception) {
+        } catch (\Exception) {
             // If update fails, log but don't fail the operation
         }
     }
 
     /**
-     * Check if a property represents a relation
+     * Check if a property represents a relation.
      *
      * @param class-string $entityClass
-     * @param string $propertyName
-     * @return bool
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function isRelationProperty(string $entityClass, string $propertyName): bool
     {
@@ -661,9 +581,7 @@ class EmEngine
     }
 
     /**
-     * Determine if a string looks like a WHERE clause rather than an ID
-     * @param string $value
-     * @return bool
+     * Determine if a string looks like a WHERE clause rather than an ID.
      */
     private function looksLikeWhereClause(string $value): bool
     {
@@ -696,10 +614,6 @@ class EmEngine
         return false;
     }
 
-    /**
-     * @param object $entity
-     * @return int|string|null
-     */
     private function extractEntityId(object $entity): int|string|null
     {
         $entityClass = $entity::class;
@@ -707,7 +621,7 @@ class EmEngine
 
         foreach (['id', 'uuid', 'identifier'] as $property) {
             $getterMethod = $entityMetadata->getGetter($property);
-            if ($getterMethod !== null && method_exists($entity, $getterMethod)) {
+            if (null !== $getterMethod && method_exists($entity, $getterMethod)) {
                 $id = $entity->$getterMethod();
                 if (is_int($id) || is_string($id)) {
                     return $id;
@@ -718,55 +632,35 @@ class EmEngine
         return null;
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isManaged(object $entity): bool
     {
         return $this->getStateManager()->isManaged($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isNew(object $entity): bool
     {
         return $this->getStateManager()->isNew($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isRemoved(object $entity): bool
     {
         return $this->getStateManager()->isRemoved($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isDetached(object $entity): bool
     {
         return $this->getStateManager()->isDetached($entity);
     }
 
-    /**
-     * @param object $entity
-     * @return object
-     */
     public function merge(object $entity): object
     {
         $entityId = $this->extractEntityId($entity);
 
-        if ($entityId !== null) {
+        if (null !== $entityId) {
             $entityClass = $entity::class;
             $managed = $this->identityMap->get($entityClass, $entityId);
 
-            if ($managed !== null) {
+            if (null !== $managed) {
                 return $managed;
             }
         }
@@ -778,30 +672,28 @@ class EmEngine
     }
 
     /**
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function refresh(object $entity): void
     {
         $entityId = $this->extractEntityId($entity);
-        if ($entityId === null) {
+        if (null === $entityId) {
             return;
         }
 
         $entityClass = $entity::class;
         $freshEntity = $this->find($entityClass, $entityId);
 
-        if ($freshEntity !== null) {
+        if (null !== $freshEntity) {
             // Update the entity's state with fresh data
             $metadata = $this->identityMap->getMetadata($entity);
-            if ($metadata !== null) {
+            if (null !== $metadata) {
                 $currentData = $this->changeDetector->extractCurrentData($freshEntity);
                 $newMetadata = new EntityState(
                     $metadata->className,
                     EntityLifecycleState::MANAGED,
                     $currentData,
-                    new DateTimeImmutable()
+                    new \DateTimeImmutable()
                 );
                 $this->identityMap->updateMetadata($entity, $newMetadata);
             }
@@ -832,24 +724,18 @@ class EmEngine
         return $this->getStateManager()->getScheduledDeletions();
     }
 
-    /**
-     * @param object $entity
-     * @return ChangeSet|null
-     */
     public function getChangeSet(object $entity): ?ChangeSet
     {
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata === null) {
+        if (null === $metadata) {
             return null;
         }
 
         $changeSet = $this->changeDetector->computeChangeSet($entity, $metadata->originalData);
+
         return $changeSet->isEmpty() ? null : $changeSet;
     }
 
-    /**
-     * @return void
-     */
     public function computeChangeSets(): void
     {
         $this->changeSetManager->computeChangeSets();

@@ -4,26 +4,23 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use InvalidArgumentException;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\Scheduler\EntityScheduler;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\EntityStateManager;
-use SplObjectStorage;
 
 /**
- * Class ChangeSetManager
+ * Class ChangeSetManager.
  *
  * Optimised manager for tracking changes in entities
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 final class ChangeSetManager
 {
-    /** @var SplObjectStorage<object, ChangeSet> */
-    private SplObjectStorage $changeSets;
+    /** @var \SplObjectStorage<object, ChangeSet> */
+    private \SplObjectStorage $changeSets;
 
     /** @var array<object> */
     private array $visitedEntities = [];
@@ -34,68 +31,51 @@ final class ChangeSetManager
     private ChangeSetValidator $validator;
     private ChangeSetOperationHandler $operationHandler;
 
-    /**
-     * @param IdentityMap $identityMap
-     * @param EntityRegistry $registry
-     * @param ChangeDetector $changeDetector
-     * @param MetadataRegistry $metadataRegistry
-     */
     public function __construct(
         private readonly IdentityMap $identityMap,
         private readonly EntityRegistry $registry,
         private readonly ChangeDetector $changeDetector,
-        private readonly MetadataRegistry $metadataRegistry
+        private readonly MetadataRegistry $metadataRegistry,
     ) {
-        $this->changeSets = new SplObjectStorage();
+        $this->changeSets = new \SplObjectStorage();
     }
 
-    /**
-     * @return EntityScheduler
-     */
     private function getScheduler(): EntityScheduler
     {
         if (!isset($this->scheduler)) {
             $this->scheduler = new EntityScheduler();
         }
+
         return $this->scheduler;
     }
 
-    /**
-     * @return EntityStateManager
-     */
     private function getStateManager(): EntityStateManager
     {
         if (!isset($this->stateManager)) {
             $this->stateManager = new EntityStateManager($this->identityMap);
         }
+
         return $this->stateManager;
     }
 
-    /**
-     * @return EntityProcessor
-     */
     private function getEntityProcessor(): EntityProcessor
     {
         if (!isset($this->entityProcessor)) {
             $this->entityProcessor = new EntityProcessor($this->changeDetector, $this->identityMap, $this->metadataRegistry);
         }
+
         return $this->entityProcessor;
     }
 
-    /**
-     * @return ChangeSetValidator
-     */
     private function getValidator(): ChangeSetValidator
     {
         if (!isset($this->validator)) {
             $this->validator = new ChangeSetValidator($this->identityMap);
         }
+
         return $this->validator;
     }
 
-    /**
-     * @return ChangeSetOperationHandler
-     */
     private function getOperationHandler(): ChangeSetOperationHandler
     {
         if (!isset($this->operationHandler)) {
@@ -106,15 +86,13 @@ final class ChangeSetManager
                 $this->getValidator()
             );
         }
+
         return $this->operationHandler;
     }
 
-    /**
-     * @return void
-     */
     public function computeChangeSets(): void
     {
-        $this->changeSets = new SplObjectStorage();
+        $this->changeSets = new \SplObjectStorage();
         // Ne pas effacer le scheduler ici - on a besoin des planifications existantes
         $this->visitedEntities = [];
 
@@ -131,10 +109,6 @@ final class ChangeSetManager
         }
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function scheduleInsert(object $entity): void
     {
         $this->getOperationHandler()->handleInsertionScheduling(
@@ -145,19 +119,11 @@ final class ChangeSetManager
         );
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function scheduleUpdate(object $entity): void
     {
         $this->getOperationHandler()->handleUpdateScheduling($entity, $this->getScheduler());
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function scheduleDelete(object $entity): void
     {
         $this->getOperationHandler()->handleDeletionScheduling(
@@ -167,10 +133,6 @@ final class ChangeSetManager
         );
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function detach(object $entity): void
     {
         $this->getOperationHandler()->handleDetachment(
@@ -181,24 +143,21 @@ final class ChangeSetManager
         unset($this->changeSets[$entity]);
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function merge(object $entity): void
     {
         $entityClass = $entity::class;
         $id = $this->getEntityProcessor()->extractEntityId($entity);
 
-        if ($id === null) {
-            throw new InvalidArgumentException('Cannot merge entity without identifier');
+        if (null === $id) {
+            throw new \InvalidArgumentException('Cannot merge entity without identifier');
         }
 
         $managedEntity = $this->identityMap->get($entityClass, $id);
 
-        if ($managedEntity !== null) {
+        if (null !== $managedEntity) {
             $this->getEntityProcessor()->copyEntityData($entity, $managedEntity);
             $this->scheduleUpdate($managedEntity);
+
             return;
         }
 
@@ -232,32 +191,23 @@ final class ChangeSetManager
     }
 
     /**
-     * Get the ChangeSet for a specific entity
-     *
-     * @param object $entity
-     * @return ChangeSet|null
+     * Get the ChangeSet for a specific entity.
      */
     public function getChangeSet(object $entity): ?ChangeSet
     {
         return $this->changeSets[$entity] ?? null;
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function hasChanges(object $entity): bool
     {
         $changeSet = $this->getChangeSet($entity);
-        return $changeSet !== null && !$changeSet->isEmpty();
+
+        return null !== $changeSet && !$changeSet->isEmpty();
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
-        $this->changeSets = new SplObjectStorage();
+        $this->changeSets = new \SplObjectStorage();
         $this->getScheduler()->clear();
         $this->visitedEntities = [];
         $this->registry->clear();
@@ -266,19 +216,14 @@ final class ChangeSetManager
     /**
      * Clears changes that have been processed (e.g., after a flush).
      * This is typically called by PersistenceManager.
-     * @return void
      */
     public function clearProcessedChanges(): void
     {
-        $this->changeSets = new SplObjectStorage();
+        $this->changeSets = new \SplObjectStorage();
         $this->getScheduler()->clear();
         $this->visitedEntities = [];
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function computeEntityChangeSet(object $entity): void
     {
         if (in_array($entity, $this->visitedEntities, true)) {
@@ -288,7 +233,7 @@ final class ChangeSetManager
         $this->visitedEntities[] = $entity;
 
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata === null || (!$metadata->isManaged() && !$metadata->isNew())) {
+        if (null === $metadata || (!$metadata->isManaged() && !$metadata->isNew())) {
             return;
         }
 
@@ -298,8 +243,8 @@ final class ChangeSetManager
             $this->changeSets[$entity] = $changeSet;
             $scheduler = $this->getScheduler();
 
-            if (!$scheduler->isScheduledForInsertion($entity) &&
-                !$scheduler->isScheduledForUpdate($entity)) {
+            if (!$scheduler->isScheduledForInsertion($entity)
+                && !$scheduler->isScheduledForUpdate($entity)) {
                 $scheduler->scheduleForUpdate($entity);
             }
         }

@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Comparator;
 
 /**
- * Compares different types of values for change detection
- * @package MulerTech\Database
+ * Compares different types of values for change detection.
+ *
  * @author Sébastien Muler
  */
 class ValueComparator
 {
     /**
-     * Compare entity references
+     * Compare entity references.
+     *
      * @param array{__entity__: class-string, __id__: mixed, __hash__: int} $value1
      * @param array{__entity__: class-string, __id__: mixed, __hash__: int} $value2
-     * @return bool
      */
     public function compareEntityReferences(array $value1, array $value2): bool
     {
@@ -26,11 +26,11 @@ class ValueComparator
         $id1 = $value1['__id__'];
         $id2 = $value2['__id__'];
 
-        if ($id1 !== null && $id2 !== null) {
+        if (null !== $id1 && null !== $id2) {
             return $id1 === $id2;
         }
 
-        if (($id1 === null) !== ($id2 === null)) {
+        if ((null === $id1) !== (null === $id2)) {
             return false;
         }
 
@@ -38,10 +38,10 @@ class ValueComparator
     }
 
     /**
-     * Compare object references
+     * Compare object references.
+     *
      * @param array{__object__: class-string, __hash__: int} $value1
      * @param array{__object__: class-string, __hash__: int} $value2
-     * @return bool
      */
     public function compareObjectReferences(array $value1, array $value2): bool
     {
@@ -53,7 +53,8 @@ class ValueComparator
     }
 
     /**
-     * Compare collections
+     * Compare collections.
+     *
      * @param array{
      *     __collection__: bool,
      *     __items__: array<int, array{__entity__: class-string, __id__: mixed, __hash__: int}>
@@ -62,7 +63,6 @@ class ValueComparator
      *     __collection__: bool,
      *     __items__: array<int, array{__entity__: class-string, __id__: mixed, __hash__: int}>
      *     } $value2
-     * @return bool
      */
     public function compareCollections(array $value1, array $value2): bool
     {
@@ -72,7 +72,6 @@ class ValueComparator
     /**
      * @param array<int, array{__entity__: class-string, __id__: mixed, __hash__: int}> $items1
      * @param array<int, array{__entity__: class-string, __id__: mixed, __hash__: int}> $items2
-     * @return bool
      */
     private function collectionsAreEqual(array $items1, array $items2): bool
     {
@@ -82,21 +81,21 @@ class ValueComparator
 
         $sort = static function ($classA, $classB) {
             $classCompare = strcmp($classA['__entity__'] ?? '', $classB['__entity__'] ?? '');
-            if ($classCompare !== 0) {
+            if (0 !== $classCompare) {
                 return $classCompare;
             }
 
             $idA = $classA['__id__'];
             $idB = $classB['__id__'];
 
-            if ($idA === null && $idB === null) {
+            if (null === $idA && null === $idB) {
                 return $classA['__hash__'] <=> $classB['__hash__'];
             }
 
-            if ($idA === null) {
+            if (null === $idA) {
                 return -1;
             }
-            if ($idB === null) {
+            if (null === $idB) {
                 return 1;
             }
 

@@ -27,7 +27,7 @@ class MigrationStatementGeneratorTest extends TestCase
         // Create a real MetadataRegistry instance since it's final and cannot be mocked
         $this->metadataRegistry = new MetadataRegistry();
         
-        $this->mockTypeConverter = $this->createMock(SqlTypeConverter::class);
+        $this->mockTypeConverter = $this->createStub(SqlTypeConverter::class);
     }
 
     public function testConstructor(): void

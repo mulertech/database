@@ -21,7 +21,7 @@ class UpdateProcessorTest extends TestCase
     {
         parent::setUp();
         
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
         
         $this->updateProcessor = new UpdateProcessor(
@@ -40,9 +40,9 @@ class UpdateProcessorTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock database and engine
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
@@ -83,8 +83,8 @@ class UpdateProcessorTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock database methods to return entity doesn't exist
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getPdm')
             ->willReturn($mockPdm);
@@ -111,9 +111,9 @@ class UpdateProcessorTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock all necessary components
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
@@ -141,9 +141,9 @@ class UpdateProcessorTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock database to throw exception
-        $mockEngine = $this->createMock(\MulerTech\Database\ORM\EmEngine::class);
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);

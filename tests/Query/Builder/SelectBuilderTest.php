@@ -33,7 +33,7 @@ class SelectBuilderTest extends TestCase
 
     public function testConstructorWithEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $builder = new SelectBuilder($emEngine);
         $this->assertInstanceOf(SelectBuilder::class, $builder);
     }

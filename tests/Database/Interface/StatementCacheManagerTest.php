@@ -23,8 +23,8 @@ final class StatementCacheManagerTest extends TestCase
     protected function setUp(): void
     {
         $this->instanceId = 'test_instance_123';
-        $this->mockPdo = $this->createMock(PDO::class);
-        $this->mockStatement = $this->createMock(PDOStatement::class);
+        $this->mockPdo = $this->createStub(PDO::class);
+        $this->mockStatement = $this->createStub(PDOStatement::class);
         
         $cacheConfig = new CacheConfig(
             maxSize: 50,
@@ -86,7 +86,8 @@ final class StatementCacheManagerTest extends TestCase
         $options = [];
         $cacheKey = $this->cacheManager->generateCacheKey($query, $options);
 
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('getAttribute')
             ->with(PDO::ATTR_CONNECTION_STATUS)
             ->willReturn('active');
@@ -95,7 +96,7 @@ final class StatementCacheManagerTest extends TestCase
         $this->cacheManager->cacheStatement($cacheKey, $this->mockStatement, $query);
 
         // Retrieve the cached statement
-        $cachedStatement = $this->cacheManager->getCachedStatement($cacheKey, $this->mockPdo);
+        $cachedStatement = $this->cacheManager->getCachedStatement($cacheKey, $pdo);
 
         $this->assertSame($this->mockStatement, $cachedStatement);
     }
@@ -110,12 +111,13 @@ final class StatementCacheManagerTest extends TestCase
         $this->cacheManager->cacheStatement($cacheKey, $this->mockStatement, $query);
 
         // Simulate connection lost
-        $this->mockPdo->expects($this->once())
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
             ->method('getAttribute')
             ->with(PDO::ATTR_CONNECTION_STATUS)
             ->willThrowException(new PDOException('Connection lost'));
 
-        $cachedStatement = $this->cacheManager->getCachedStatement($cacheKey, $this->mockPdo);
+        $cachedStatement = $this->cacheManager->getCachedStatement($cacheKey, $pdo);
 
         $this->assertNull($cachedStatement);
     }
@@ -140,16 +142,18 @@ final class StatementCacheManagerTest extends TestCase
         $this->cacheManager->invalidateTableStatements('users');
 
         // Mock PDO for connection status check
-        $this->mockPdo->method('getAttribute')
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
+            ->method('getAttribute')
             ->with(PDO::ATTR_CONNECTION_STATUS)
             ->willReturn('active');
 
         // Users statements should be invalidated
-        $this->assertNull($this->cacheManager->getCachedStatement($cacheKey1, $this->mockPdo));
-        $this->assertNull($this->cacheManager->getCachedStatement($cacheKey2, $this->mockPdo));
+        $this->assertNull($this->cacheManager->getCachedStatement($cacheKey1, $pdo));
+        $this->assertNull($this->cacheManager->getCachedStatement($cacheKey2, $pdo));
 
         // Products statement should still be cached
-        $this->assertSame($this->mockStatement, $this->cacheManager->getCachedStatement($cacheKey3, $this->mockPdo));
+        $this->assertSame($this->mockStatement, $this->cacheManager->getCachedStatement($cacheKey3, $pdo));
     }
 
     public function testInvalidateTableStatementsWithUnknownTable(): void
@@ -163,12 +167,14 @@ final class StatementCacheManagerTest extends TestCase
         // This should not affect any cached statements
         $this->cacheManager->invalidateTableStatements('unknown');
 
-        $this->mockPdo->method('getAttribute')
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->once())
+            ->method('getAttribute')
             ->with(PDO::ATTR_CONNECTION_STATUS)
             ->willReturn('active');
 
         // Statement should still be cached
-        $this->assertSame($this->mockStatement, $this->cacheManager->getCachedStatement($cacheKey, $this->mockPdo));
+        $this->assertSame($this->mockStatement, $this->cacheManager->getCachedStatement($cacheKey, $pdo));
     }
 
     public function testCacheStatementExtractsTableFromInsertQuery(): void

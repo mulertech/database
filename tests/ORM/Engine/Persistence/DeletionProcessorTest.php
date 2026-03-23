@@ -23,7 +23,7 @@ class DeletionProcessorTest extends TestCase
     {
         parent::setUp();
         
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
         
         $this->deletionProcessor = new DeletionProcessor(
@@ -40,7 +40,7 @@ class DeletionProcessorTest extends TestCase
         
         // Mock necessary methods for the deletion process
         $this->entityManager->method('getEmEngine')
-            ->willReturn($this->createMock(EmEngine::class));
+            ->willReturn($this->createStub(EmEngine::class));
         
         $this->deletionProcessor->process($user);
         
@@ -53,7 +53,7 @@ class DeletionProcessorTest extends TestCase
         $user->setUsername('John');
         
         $this->entityManager->method('getEmEngine')
-            ->willReturn($this->createMock(EmEngine::class));
+            ->willReturn($this->createStub(EmEngine::class));
         
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Cannot delete entity');
@@ -67,7 +67,7 @@ class DeletionProcessorTest extends TestCase
         $user->setId(123);
         $user->setUsername('John');
         
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -82,7 +82,7 @@ class DeletionProcessorTest extends TestCase
         $entity->setId(123);
         $entity->setName('Test');
         
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         

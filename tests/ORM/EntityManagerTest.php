@@ -705,8 +705,8 @@ class EntityManagerTest extends TestCase
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'EntityNotMapped'
         );
 
-        // Create a mock database interface that won't be used for this test
-        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
+        // Create a stub database interface that won't be used for this test
+        $mockPdm = $this->createStub(PhpDatabaseInterface::class);
         $em = new EntityManager($mockPdm, $metadataRegistry);
 
         $em->isUnique(EntityWithInvalidColumnMapping::class, 'name', 'test');
@@ -899,10 +899,10 @@ class EntityManagerTest extends TestCase
             dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Files' . DIRECTORY_SEPARATOR . 'Mapping'
         );
         
-        // Create a mock database interface that won't be used for this test
-        $mockPdm = $this->createMock(PhpDatabaseInterface::class);
+        // Create a stub database interface that won't be used for this test
+        $mockPdm = $this->createStub(PhpDatabaseInterface::class);
         $em = new EntityManager($mockPdm, $metadataRegistry);
-        
+
         $em->getRepository(EntityWithoutGetId::class);
     }
 }

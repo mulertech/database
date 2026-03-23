@@ -21,7 +21,7 @@ class UpdateEntityValidatorTest extends TestCase
     {
         parent::setUp();
         
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
         
         $this->validator = new UpdateEntityValidator(
@@ -37,8 +37,8 @@ class UpdateEntityValidatorTest extends TestCase
         $user->setUsername('John');
         
         // Mock database methods
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getPdm')
             ->willReturn($mockPdm);
@@ -104,8 +104,8 @@ class UpdateEntityValidatorTest extends TestCase
         $user->setUsername('John');
         
         // Mock database methods
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getPdm')
             ->willReturn($mockPdm);
@@ -128,8 +128,8 @@ class UpdateEntityValidatorTest extends TestCase
         $user->setUsername('John');
         
         // Mock database methods
-        $mockPdm = $this->createMock(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
-        $mockStatement = $this->createMock(\MulerTech\Database\Database\Interface\Statement::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
         
         $this->entityManager->method('getPdm')
             ->willReturn($mockPdm);
@@ -148,7 +148,7 @@ class UpdateEntityValidatorTest extends TestCase
     public function testEntityExistsInDatabaseWithNullId(): void
     {
         // Create a mock entity that will return null for getId() during entityExistsInDatabase check
-        $mockEntity = $this->createMock(User::class);
+        $mockEntity = $this->createStub(User::class);
         $mockEntity->method('getId')
             ->willReturn(null);
         

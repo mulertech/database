@@ -29,23 +29,24 @@ class EntityOperationProcessorTest extends TestCase
     private InsertionProcessor $insertionProcessor;
     private UpdateProcessor $updateProcessor;
     private DeletionProcessor $deletionProcessor;
+    private MetadataRegistry $metadataRegistry;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->stateManager = $this->createStub(StateManagerInterface::class);
+        $this->eventDispatcher = $this->createStub(EventDispatcher::class);
+        $this->insertionProcessor = $this->createStub(InsertionProcessor::class);
+        $this->updateProcessor = $this->createStub(UpdateProcessor::class);
+        $this->deletionProcessor = $this->createStub(DeletionProcessor::class);
         
-        $this->stateManager = $this->createMock(StateManagerInterface::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcher::class);
-        $this->insertionProcessor = $this->createMock(InsertionProcessor::class);
-        $this->updateProcessor = $this->createMock(UpdateProcessor::class);
-        $this->deletionProcessor = $this->createMock(DeletionProcessor::class);
-        
-        $metadataRegistry = new MetadataRegistry();
-        $this->identityMap = new IdentityMap($metadataRegistry);
+        $this->metadataRegistry = new MetadataRegistry();
+        $this->identityMap = new IdentityMap($this->metadataRegistry);
         $entityRegistry = new EntityRegistry();
-        $this->changeDetector = new ChangeDetector($metadataRegistry);
-        $this->changeSetManager = new ChangeSetManager($this->identityMap, $entityRegistry, $this->changeDetector, $metadataRegistry);
-        
+        $this->changeDetector = new ChangeDetector($this->metadataRegistry);
+        $this->changeSetManager = new ChangeSetManager($this->identityMap, $entityRegistry, $this->changeDetector, $this->metadataRegistry);
+
         $this->operationProcessor = new EntityOperationProcessor(
             $this->stateManager,
             $this->changeSetManager,
@@ -55,7 +56,25 @@ class EntityOperationProcessorTest extends TestCase
             $this->insertionProcessor,
             $this->updateProcessor,
             $this->deletionProcessor,
-            $metadataRegistry
+            $this->metadataRegistry
+        );
+    }
+
+    private function createOperationProcessorWithMocks(
+        EventDispatcher $eventDispatcher,
+        InsertionProcessor $insertionProcessor,
+        DeletionProcessor $deletionProcessor,
+    ): EntityOperationProcessor {
+        return new EntityOperationProcessor(
+            $this->stateManager,
+            $this->changeSetManager,
+            $this->changeDetector,
+            $this->identityMap,
+            $eventDispatcher,
+            $insertionProcessor,
+            $this->updateProcessor,
+            $deletionProcessor,
+            $this->metadataRegistry
         );
     }
 
@@ -63,13 +82,15 @@ class EntityOperationProcessorTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->insertionProcessor->expects($this->once())
+
+        $insertionProcessor = $this->createMock(InsertionProcessor::class);
+        $insertionProcessor->expects($this->once())
             ->method('process')
             ->with($user);
-        
-        $this->operationProcessor->processInsertion($user, 1);
-        
+
+        $processor = $this->createOperationProcessorWithMocks($this->eventDispatcher, $insertionProcessor, $this->deletionProcessor);
+        $processor->processInsertion($user, 1);
+
         $this->assertTrue(true);
     }
 
@@ -92,16 +113,18 @@ class EntityOperationProcessorTest extends TestCase
         $user = new User();
         $user->setId(123);
         $user->setUsername('John');
-        
+
         $this->stateManager->method('getEntityState')
             ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
-        
-        $this->deletionProcessor->expects($this->once())
+
+        $deletionProcessor = $this->createMock(DeletionProcessor::class);
+        $deletionProcessor->expects($this->once())
             ->method('process')
             ->with($user);
-        
-        $this->operationProcessor->processDeletion($user, 1);
-        
+
+        $processor = $this->createOperationProcessorWithMocks($this->eventDispatcher, $this->insertionProcessor, $deletionProcessor);
+        $processor->processDeletion($user, 1);
+
         $this->assertTrue(true);
     }
 
@@ -109,16 +132,19 @@ class EntityOperationProcessorTest extends TestCase
     {
         $user = new User();
         $user->setUsername('John');
-        
-        $this->eventDispatcher->expects($this->atLeastOnce())
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->atLeastOnce())
             ->method('callEntityEvent');
-        
-        $this->insertionProcessor->expects($this->once())
+
+        $insertionProcessor = $this->createMock(InsertionProcessor::class);
+        $insertionProcessor->expects($this->once())
             ->method('process')
             ->with($user);
-        
-        $this->operationProcessor->processInsertion($user, 1);
-        
+
+        $processor = $this->createOperationProcessorWithMocks($eventDispatcher, $insertionProcessor, $this->deletionProcessor);
+        $processor->processInsertion($user, 1);
+
         $this->assertTrue(true);
     }
 
@@ -127,19 +153,22 @@ class EntityOperationProcessorTest extends TestCase
         $user = new User();
         $user->setId(123);
         $user->setUsername('John');
-        
+
         $this->stateManager->method('getEntityState')
             ->willReturn(\MulerTech\Database\ORM\State\EntityLifecycleState::MANAGED);
-        
-        $this->eventDispatcher->expects($this->atLeastOnce())
+
+        $eventDispatcher = $this->createMock(EventDispatcher::class);
+        $eventDispatcher->expects($this->atLeastOnce())
             ->method('callEntityEvent');
-        
-        $this->deletionProcessor->expects($this->once())
+
+        $deletionProcessor = $this->createMock(DeletionProcessor::class);
+        $deletionProcessor->expects($this->once())
             ->method('process')
             ->with($user);
-        
-        $this->operationProcessor->processDeletion($user, 1);
-        
+
+        $processor = $this->createOperationProcessorWithMocks($eventDispatcher, $this->insertionProcessor, $deletionProcessor);
+        $processor->processDeletion($user, 1);
+
         $this->assertTrue(true);
     }
 

@@ -10,20 +10,20 @@ use MulerTech\Database\ORM\ChangeSet;
 use MulerTech\Database\ORM\EntityManagerInterface;
 use MulerTech\Database\ORM\PropertyChange;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
 #[CoversClass(PreUpdateEvent::class)]
 class PreUpdateEventTest extends TestCase
 {
-    private EntityManagerInterface&MockObject $entityManager;
+    private EntityManagerInterface&Stub $entityManager;
     private object $entity;
     private ChangeSet $changeSet;
 
     protected function setUp(): void
     {
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->entity = new stdClass();
         $this->changeSet = new ChangeSet('TestEntity', [
             'name' => new PropertyChange('name', 'oldValue', 'newValue')
@@ -89,8 +89,8 @@ class PreUpdateEventTest extends TestCase
 
     public function testConstructorWithDifferentEntityManagers(): void
     {
-        $entityManager1 = $this->createMock(EntityManagerInterface::class);
-        $entityManager2 = $this->createMock(EntityManagerInterface::class);
+        $entityManager1 = $this->createStub(EntityManagerInterface::class);
+        $entityManager2 = $this->createStub(EntityManagerInterface::class);
         
         $event1 = new PreUpdateEvent($this->entity, $entityManager1, $this->changeSet);
         $event2 = new PreUpdateEvent($this->entity, $entityManager2, $this->changeSet);
@@ -120,7 +120,7 @@ class PreUpdateEventTest extends TestCase
     public function testEventNameIsAlwaysPreUpdate(): void
     {
         $event1 = new PreUpdateEvent($this->entity, $this->entityManager, $this->changeSet);
-        $event2 = new PreUpdateEvent(new stdClass(), $this->createMock(EntityManagerInterface::class), null);
+        $event2 = new PreUpdateEvent(new stdClass(), $this->createStub(EntityManagerInterface::class), null);
         
         $this->assertEquals('preUpdate', $event1->getName());
         $this->assertEquals('preUpdate', $event2->getName());

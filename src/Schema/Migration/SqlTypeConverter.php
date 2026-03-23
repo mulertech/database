@@ -5,20 +5,16 @@ declare(strict_types=1);
 namespace MulerTech\Database\Schema\Migration;
 
 /**
- * Class SqlTypeConverter
+ * Class SqlTypeConverter.
  *
  * Converts SQL types to SchemaBuilder method calls
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SqlTypeConverter
 {
     /**
-     * Convert SQL type definition to SchemaBuilder method call
-     *
-     * @param string $sqlType
-     * @return string
+     * Convert SQL type definition to SchemaBuilder method call.
      */
     public function convertToBuilderMethod(string $sqlType): string
     {
@@ -36,81 +32,65 @@ class SqlTypeConverter
             ?? '->string()'; // Default fallback
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleIntegerTypes(string $sqlType): ?string
     {
         if (preg_match('/^(tiny|small|medium|big)?int(\(\d+\))?\s*(unsigned)?/i', $sqlType, $matches)) {
             $size = strtolower($matches[1] ?? '');
             $unsigned = isset($matches[3]);
 
-            $method = match($size) {
+            $method = match ($size) {
                 'tiny' => '->tinyInt()',
                 'small' => '->smallInt()',
                 'medium' => '->mediumInt()',
                 'big' => '->bigInteger()',
-                default => '->integer()'
+                default => '->integer()',
             };
 
-            return $unsigned ? $method . '->unsigned()' : $method;
+            return $unsigned ? $method.'->unsigned()' : $method;
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleStringTypes(string $sqlType): ?string
     {
         if (preg_match('/^varchar\((\d+)\)/i', $sqlType, $matches)) {
-            return '->string(' . $matches[1] . ')';
+            return '->string('.$matches[1].')';
         }
         if (preg_match('/^char\((\d+)\)/i', $sqlType, $matches)) {
-            return '->char(' . $matches[1] . ')';
+            return '->char('.$matches[1].')';
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleDecimalTypes(string $sqlType): ?string
     {
         if (preg_match('/^decimal\((\d+),(\d+)\)/i', $sqlType, $matches)) {
-            return '->decimal(' . $matches[1] . ', ' . $matches[2] . ')';
+            return '->decimal('.$matches[1].', '.$matches[2].')';
         }
         if (preg_match('/^float\((\d+),(\d+)\)/i', $sqlType, $matches)) {
-            return '->float(' . $matches[1] . ', ' . $matches[2] . ')';
+            return '->float('.$matches[1].', '.$matches[2].')';
         }
-        if (stripos($sqlType, 'double') === 0) {
+        if (0 === stripos($sqlType, 'double')) {
             return '->double()';
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleBinaryTypes(string $sqlType): ?string
     {
         if (preg_match('/^binary\((\d+)\)/i', $sqlType, $matches)) {
-            return '->binary(' . $matches[1] . ')';
+            return '->binary('.$matches[1].')';
         }
         if (preg_match('/^varbinary\((\d+)\)/i', $sqlType, $matches)) {
-            return '->varbinary(' . $matches[1] . ')';
+            return '->varbinary('.$matches[1].')';
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleBlobTypes(string $sqlType): ?string
     {
         $blobTypes = [
@@ -121,17 +101,14 @@ class SqlTypeConverter
         ];
 
         foreach ($blobTypes as $type => $method) {
-            if (stripos($sqlType, $type) === 0) {
+            if (0 === stripos($sqlType, $type)) {
                 return $method;
             }
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleTextTypes(string $sqlType): ?string
     {
         $textTypes = [
@@ -142,17 +119,14 @@ class SqlTypeConverter
         ];
 
         foreach ($textTypes as $type => $method) {
-            if (stripos($sqlType, $type) === 0) {
+            if (0 === stripos($sqlType, $type)) {
                 return $method;
             }
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleDateTimeTypes(string $sqlType): ?string
     {
         $dateTimeTypes = [
@@ -164,59 +138,49 @@ class SqlTypeConverter
         ];
 
         foreach ($dateTimeTypes as $type => $method) {
-            if (stripos($sqlType, $type) === 0) {
+            if (0 === stripos($sqlType, $type)) {
                 return $method;
             }
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleBooleanTypes(string $sqlType): ?string
     {
-        if (stripos($sqlType, 'boolean') === 0 || stripos($sqlType, 'bool') === 0) {
+        if (0 === stripos($sqlType, 'boolean') || 0 === stripos($sqlType, 'bool')) {
             return '->boolean()';
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleJsonTypes(string $sqlType): ?string
     {
-        if (stripos($sqlType, 'json') === 0) {
+        if (0 === stripos($sqlType, 'json')) {
             return '->json()';
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleEnumSetTypes(string $sqlType): ?string
     {
         if (preg_match('/^enum\((.*)\)/i', $sqlType, $matches)) {
             $enumValues = $this->parseEnumSetValues($matches[1]);
-            return '->enum([' . implode(', ', array_map(static fn ($enumValue) => "'" . addslashes($enumValue) . "'", $enumValues)) . '])';
+
+            return '->enum(['.implode(', ', array_map(static fn ($enumValue) => "'".addslashes($enumValue)."'", $enumValues)).'])';
         }
 
         if (preg_match('/^set\((.*)\)/i', $sqlType, $matches)) {
             $setValues = $this->parseEnumSetValues($matches[1]);
-            return '->set([' . implode(', ', array_map(static fn ($setValue) => "'" . addslashes($setValue) . "'", $setValues)) . '])';
+
+            return '->set(['.implode(', ', array_map(static fn ($setValue) => "'".addslashes($setValue)."'", $setValues)).'])';
         }
+
         return null;
     }
 
-    /**
-     * @param string $sqlType
-     * @return string|null
-     */
     private function handleGeometryTypes(string $sqlType): ?string
     {
         // Order matters! More specific types (longer strings) must be checked first
@@ -232,19 +196,21 @@ class SqlTypeConverter
         ];
 
         foreach ($geometryTypes as $type => $method) {
-            if (stripos($sqlType, $type) === 0) {
+            if (0 === stripos($sqlType, $type)) {
                 return $method;
             }
         }
+
         return null;
     }
 
     /**
-     * Parse ENUM/SET values from SQL definition
+     * Parse ENUM/SET values from SQL definition.
      *
      * Simplified approach using token extraction
      *
      * @param string $values Raw ENUM/SET values string like "'value1','value2','val''ue3'"
+     *
      * @return array<string> Array of parsed values
      */
     private function parseEnumSetValues(string $values): array
@@ -266,9 +232,8 @@ class SqlTypeConverter
     }
 
     /**
-     * Extract quoted tokens from the values string
+     * Extract quoted tokens from the values string.
      *
-     * @param string $values
      * @return array<string>
      */
     private function extractQuotedTokens(string $values): array
@@ -286,39 +251,37 @@ class SqlTypeConverter
 
             // Find the quoted token
             $token = $this->extractSingleQuotedToken($values, $position);
-            if ($token !== null) {
+            if (null !== $token) {
                 $tokens[] = $token['value'];
                 $position = $token['endPosition'];
                 continue;
             }
 
-            $position++;
+            ++$position;
         }
 
         return $tokens;
     }
 
     /**
-     * Extract a single quoted token starting at the given position
+     * Extract a single quoted token starting at the given position.
      *
-     * @param string $values
-     * @param int $position
      * @return array{value: string, endPosition: int}|null
      */
     private function extractSingleQuotedToken(string $values, int &$position): ?array
     {
-        if (!isset($values[$position]) || ($values[$position] !== "'" && $values[$position] !== '"')) {
+        if (!isset($values[$position]) || ("'" !== $values[$position] && '"' !== $values[$position])) {
             return null;
         }
 
         $quote = $values[$position];
         $start = $position;
-        $position++; // Move past opening quote
+        ++$position; // Move past opening quote
 
         // Find closing quote, handling escaped quotes
         while ($position < strlen($values)) {
             if ($values[$position] !== $quote) {
-                $position++;
+                ++$position;
                 continue;
             }
 
@@ -327,7 +290,7 @@ class SqlTypeConverter
                 continue;
             }
 
-            $position++; // Move past closing quote
+            ++$position; // Move past closing quote
             break;
         }
 
@@ -338,9 +301,10 @@ class SqlTypeConverter
     }
 
     /**
-     * Clean and unescape a quoted value
+     * Clean and unescape a quoted value.
      *
      * @param string $quotedValue Quoted string like "'value'" or "'val''ue'"
+     *
      * @return string Clean unquoted value
      */
     private function cleanQuotedValue(string $quotedValue): string
@@ -354,6 +318,6 @@ class SqlTypeConverter
         $quote = $quotedValue[0];
 
         // Replace escaped quotes ('' becomes ' or "" becomes ")
-        return str_replace($quote . $quote, $quote, $content);
+        return str_replace($quote.$quote, $quote, $content);
     }
 }

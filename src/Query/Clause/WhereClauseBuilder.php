@@ -13,11 +13,10 @@ use MulerTech\Database\Query\Types\LinkOperator;
 use MulerTech\Database\Query\Types\SqlOperator;
 
 /**
- * Class WhereClauseBuilder
+ * Class WhereClauseBuilder.
  *
  * Unified WHERE clause building functionality
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class WhereClauseBuilder
@@ -29,9 +28,6 @@ class WhereClauseBuilder
      */
     private array $conditions = [];
 
-    /**
-     * @var QueryParameterBag
-     */
     private QueryParameterBag $parameterBag;
 
     /**
@@ -39,153 +35,82 @@ class WhereClauseBuilder
      */
     private array $nestedGroups = [];
 
-    /**
-     * @param QueryParameterBag $parameterBag
-     */
     public function __construct(QueryParameterBag $parameterBag)
     {
         $this->parameterBag = $parameterBag;
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param ComparisonOperator|SqlOperator $operator
-     * @param LinkOperator $link
-     * @return self
-     */
     public function add(
         string $column,
         mixed $value,
         ComparisonOperator|SqlOperator $operator = ComparisonOperator::EQUAL,
-        LinkOperator $link = LinkOperator::AND
+        LinkOperator $link = LinkOperator::AND,
     ): self {
         $condition = $this->buildCondition($column, $value, $operator);
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function equal(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::EQUAL, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function notEqual(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::NOT_EQUAL, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function greaterThan(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::GREATER_THAN, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function lessThan(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::LESS_THAN, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function greaterOrEqual(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::GREATER_THAN_OR_EQUAL, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function notGreaterThan(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::NOT_GREATER_THAN, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function lessOrEqual(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::LESS_THAN_OR_EQUAL, $link);
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param LinkOperator $link
-     * @return self
-     */
     public function notLessThan(string $column, mixed $value, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $value, ComparisonOperator::NOT_LESS_THAN, $link);
     }
 
-    /**
-     * @param string $column
-     * @param string $pattern
-     * @param LinkOperator $link
-     * @return self
-     */
     public function like(string $column, string $pattern, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $pattern, SqlOperator::LIKE, $link);
     }
 
-    /**
-     * @param string $column
-     * @param string $pattern
-     * @param LinkOperator $link
-     * @return self
-     */
     public function notLike(string $column, string $pattern, LinkOperator $link = LinkOperator::AND): self
     {
         return $this->add($column, $pattern, SqlOperator::NOT_LIKE, $link);
     }
 
     /**
-     * @param string $column
      * @param array<int, mixed>|SelectBuilder $values
-     * @param LinkOperator $link
-     * @return self
      */
     public function in(string $column, array|SelectBuilder $values, LinkOperator $link = LinkOperator::AND): self
     {
         if ($values instanceof SelectBuilder) {
-            $condition = $this->formatIdentifier($column) . ' IN (' . $values->toSql() . ')';
+            $condition = $this->formatIdentifier($column).' IN ('.$values->toSql().')';
             $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
             return $this;
         }
 
@@ -193,6 +118,7 @@ class WhereClauseBuilder
             // IN with empty array is always false
             $condition = '1 = 0';
             $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
             return $this;
         }
 
@@ -200,22 +126,21 @@ class WhereClauseBuilder
         foreach ($values as $value) {
             $placeholders[] = $this->parameterBag->add($value);
         }
-        $condition = $this->formatIdentifier($column) . ' IN (' . implode(', ', $placeholders) . ')';
+        $condition = $this->formatIdentifier($column).' IN ('.implode(', ', $placeholders).')';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
         return $this;
     }
 
     /**
-     * @param string $column
      * @param array<int, mixed>|SelectBuilder $values
-     * @param LinkOperator $link
-     * @return self
      */
     public function notIn(string $column, array|SelectBuilder $values, LinkOperator $link = LinkOperator::AND): self
     {
         if ($values instanceof SelectBuilder) {
-            $condition = $this->formatIdentifier($column) . ' NOT IN (' . $values->toSql() . ')';
+            $condition = $this->formatIdentifier($column).' NOT IN ('.$values->toSql().')';
             $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
             return $this;
         }
 
@@ -223,6 +148,7 @@ class WhereClauseBuilder
             // NOT IN with empty array is always true
             $condition = '1 = 1';
             $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
             return $this;
         }
 
@@ -230,76 +156,52 @@ class WhereClauseBuilder
         foreach ($values as $value) {
             $placeholders[] = $this->parameterBag->add($value);
         }
-        $condition = $this->formatIdentifier($column) . ' NOT IN (' . implode(', ', $placeholders) . ')';
+        $condition = $this->formatIdentifier($column).' NOT IN ('.implode(', ', $placeholders).')';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param mixed $start
-     * @param mixed $end
-     * @param LinkOperator $link
-     * @return self
-     */
     public function between(string $column, mixed $start, mixed $end, LinkOperator $link = LinkOperator::AND): self
     {
         $startPlaceholder = $this->parameterBag->add($start);
         $endPlaceholder = $this->parameterBag->add($end);
 
-        $condition = $this->formatIdentifier($column) . ' BETWEEN ' . $startPlaceholder . ' AND ' . $endPlaceholder;
+        $condition = $this->formatIdentifier($column).' BETWEEN '.$startPlaceholder.' AND '.$endPlaceholder;
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
 
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param mixed $start
-     * @param mixed $end
-     * @param LinkOperator $link
-     * @return self
-     */
     public function notBetween(string $column, mixed $start, mixed $end, LinkOperator $link = LinkOperator::AND): self
     {
         $startPlaceholder = $this->parameterBag->add($start);
         $endPlaceholder = $this->parameterBag->add($end);
 
-        $condition = $this->formatIdentifier($column) . ' NOT BETWEEN ' . $startPlaceholder . ' AND ' . $endPlaceholder;
+        $condition = $this->formatIdentifier($column).' NOT BETWEEN '.$startPlaceholder.' AND '.$endPlaceholder;
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
 
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param LinkOperator $link
-     * @return self
-     */
     public function isNull(string $column, LinkOperator $link = LinkOperator::AND): self
     {
-        $condition = $this->formatIdentifier($column) . ' IS NULL';
+        $condition = $this->formatIdentifier($column).' IS NULL';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param LinkOperator $link
-     * @return self
-     */
     public function isNotNull(string $column, LinkOperator $link = LinkOperator::AND): self
     {
-        $condition = $this->formatIdentifier($column) . ' IS NOT NULL';
+        $condition = $this->formatIdentifier($column).' IS NOT NULL';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
         return $this;
     }
 
     /**
-     * @param string $rawCondition
      * @param array<string, mixed> $parameters
-     * @param LinkOperator $link
-     * @return self
      */
     public function raw(string $rawCondition, array $parameters = [], LinkOperator $link = LinkOperator::AND): self
     {
@@ -308,13 +210,12 @@ class WhereClauseBuilder
         }
 
         $this->conditions[] = ['condition' => $rawCondition, 'link' => $link];
+
         return $this;
     }
 
     /**
      * @param callable(WhereClauseBuilder): void $callback
-     * @param LinkOperator $link
-     * @return self
      */
     public function group(callable $callback, LinkOperator $link = LinkOperator::AND): self
     {
@@ -323,27 +224,20 @@ class WhereClauseBuilder
 
         if (!$group->isEmpty()) {
             $this->nestedGroups[] = $group;
-            $this->conditions[] = ['condition' => '(' . $group->toSql() . ')', 'link' => $link];
+            $this->conditions[] = ['condition' => '('.$group->toSql().')', 'link' => $link];
         }
 
         return $this;
     }
 
-    /**
-     * @param SelectBuilder $subQuery
-     * @param LinkOperator $link
-     * @return self
-     */
     public function exists(SelectBuilder $subQuery, LinkOperator $link = LinkOperator::AND): self
     {
-        $condition = 'EXISTS (' . $subQuery->toSql() . ')';
+        $condition = 'EXISTS ('.$subQuery->toSql().')';
         $this->conditions[] = ['condition' => $condition, 'link' => $link];
+
         return $this;
     }
 
-    /**
-     * @return string
-     */
     public function toSql(): string
     {
         if ($this->isEmpty()) {
@@ -352,68 +246,51 @@ class WhereClauseBuilder
 
         $sql = '';
         foreach ($this->conditions as $index => $item) {
-            if ($index === 0) {
+            if (0 === $index) {
                 $sql = $item['condition'];
                 continue;
             }
-            $sql .= ' ' . $item['link']->value . ' ' . $item['condition'];
+            $sql .= ' '.$item['link']->value.' '.$item['condition'];
         }
 
         return $sql;
     }
 
-    /**
-     * @return bool
-     */
     public function isEmpty(): bool
     {
         return empty($this->conditions);
     }
 
-    /**
-     * @return self
-     */
     public function clear(): self
     {
         $this->conditions = [];
         $this->nestedGroups = [];
+
         return $this;
     }
 
-    /**
-     * @param string $column
-     * @param mixed $value
-     * @param ComparisonOperator|SqlOperator $operator
-     * @return string
-     */
     private function buildCondition(string $column, mixed $value, ComparisonOperator|SqlOperator $operator): string
     {
         $formattedColumn = $this->formatIdentifier($column);
 
         if ($value instanceof Raw) {
-            return $formattedColumn . ' ' . $operator->value . ' ' . $value->getValue();
+            return $formattedColumn.' '.$operator->value.' '.$value->getValue();
         }
 
-        if ($value === null && in_array($operator, [ComparisonOperator::EQUAL, ComparisonOperator::NOT_EQUAL], true)) {
-            return $formattedColumn . ($operator === ComparisonOperator::EQUAL ? ' IS NULL' : ' IS NOT NULL');
+        if (null === $value && in_array($operator, [ComparisonOperator::EQUAL, ComparisonOperator::NOT_EQUAL], true)) {
+            return $formattedColumn.(ComparisonOperator::EQUAL === $operator ? ' IS NULL' : ' IS NOT NULL');
         }
 
         $placeholder = $this->parameterBag->add($value);
-        return $formattedColumn . ' ' . $operator->value . ' ' . $placeholder;
+
+        return $formattedColumn.' '.$operator->value.' '.$placeholder;
     }
 
-    /**
-     * @return int
-     */
     public function count(): int
     {
         return count($this->conditions);
     }
 
-    /**
-     * @param WhereClauseBuilder $other
-     * @return self
-     */
     public function merge(WhereClauseBuilder $other): self
     {
         foreach ($other->conditions as $condition) {

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Mapping\Types;
 
 /**
- * Enum ColumnKey
- * @package MulerTech\Database
+ * Enum ColumnKey.
+ *
  * @author Sébastien Muler
  */
 enum ColumnKey: string

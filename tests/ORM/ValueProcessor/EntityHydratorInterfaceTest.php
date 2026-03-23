@@ -14,12 +14,12 @@ class EntityHydratorInterfaceTest extends TestCase
 {
     private EntityHydratorInterface $hydrator;
 
-    protected function setUp(): void
+    private function getHydrator(): EntityHydratorInterface
     {
-        parent::setUp();
-        
-        // Create a mock implementation of the interface
-        $this->hydrator = $this->createMock(EntityHydratorInterface::class);
+        if (!isset($this->hydrator)) {
+            $this->hydrator = $this->createMock(EntityHydratorInterface::class);
+        }
+        return $this->hydrator;
     }
 
     public function testHydrateMethod(): void
@@ -32,11 +32,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $entityName = User::class;
         $expectedEntity = new User();
 
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($expectedEntity);
 
-        $result = $this->hydrator->hydrate($data, $entityName);
+        $result = $this->getHydrator()->hydrate($data, $entityName);
 
         $this->assertSame($expectedEntity, $result);
     }
@@ -47,11 +48,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $entityName = User::class;
         $expectedEntity = new User();
 
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($expectedEntity);
 
-        $result = $this->hydrator->hydrate($data, $entityName);
+        $result = $this->getHydrator()->hydrate($data, $entityName);
 
         $this->assertSame($expectedEntity, $result);
     }
@@ -69,11 +71,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $entityName = User::class;
         $expectedEntity = new User();
 
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($expectedEntity);
 
-        $result = $this->hydrator->hydrate($data, $entityName);
+        $result = $this->getHydrator()->hydrate($data, $entityName);
 
         $this->assertSame($expectedEntity, $result);
     }
@@ -83,24 +86,26 @@ class EntityHydratorInterfaceTest extends TestCase
         $data = ['id' => 1];
         $entityName = 'NonExistentClass';
 
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willThrowException(new ReflectionException('Class not found'));
 
         $this->expectException(ReflectionException::class);
         $this->expectExceptionMessage('Class not found');
 
-        $this->hydrator->hydrate($data, $entityName);
+        $this->getHydrator()->hydrate($data, $entityName);
     }
 
     public function testGetMetadataRegistryMethod(): void
     {
         $expectedRegistry = new MetadataRegistry();
 
-        $this->hydrator->method('getMetadataRegistry')
+        $hydrator = $this->createStub(EntityHydratorInterface::class);
+        $hydrator->method('getMetadataRegistry')
             ->willReturn($expectedRegistry);
 
-        $result = $this->hydrator->getMetadataRegistry();
+        $result = $hydrator->getMetadataRegistry();
 
         $this->assertSame($expectedRegistry, $result);
         $this->assertInstanceOf(MetadataRegistry::class, $result);
@@ -114,20 +119,22 @@ class EntityHydratorInterfaceTest extends TestCase
         $cache = new MetadataRegistry();
 
         // Configure mock to return expected values
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($entity);
-        
-        $this->hydrator->method('getMetadataRegistry')
+
+        $this->getHydrator()->expects($this->once())
+            ->method('getMetadataRegistry')
             ->willReturn($cache);
 
         // Test hydrate method signature and return type
-        $hydrateResult = $this->hydrator->hydrate($data, $entityName);
+        $hydrateResult = $this->getHydrator()->hydrate($data, $entityName);
         $this->assertIsObject($hydrateResult);
         $this->assertInstanceOf(User::class, $hydrateResult);
 
         // Test getMetadataRegistry method signature and return type
-        $cacheResult = $this->hydrator->getMetadataRegistry();
+        $cacheResult = $this->getHydrator()->getMetadataRegistry();
         $this->assertInstanceOf(MetadataRegistry::class, $cacheResult);
     }
 
@@ -143,11 +150,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $entityName = User::class;
         $expectedEntity = new User();
 
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($expectedEntity);
 
-        $result = $this->hydrator->hydrate($data, $entityName);
+        $result = $this->getHydrator()->hydrate($data, $entityName);
 
         $this->assertSame($expectedEntity, $result);
     }
@@ -162,11 +170,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $entityName = User::class;
         $expectedEntity = new User();
 
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($data, $entityName)
             ->willReturn($expectedEntity);
 
-        $result = $this->hydrator->hydrate($data, $entityName);
+        $result = $this->getHydrator()->hydrate($data, $entityName);
 
         $this->assertSame($expectedEntity, $result);
     }
@@ -177,10 +186,11 @@ class EntityHydratorInterfaceTest extends TestCase
         $entityName = User::class;
         $entity = new User();
 
-        $this->hydrator->method('hydrate')
+        $hydrator = $this->createStub(EntityHydratorInterface::class);
+        $hydrator->method('hydrate')
             ->willReturn($entity);
 
-        $result = $this->hydrator->hydrate($data, $entityName);
+        $result = $hydrator->hydrate($data, $entityName);
 
         // Verify the result is an object and of the expected type
         $this->assertIsObject($result);
@@ -194,15 +204,17 @@ class EntityHydratorInterfaceTest extends TestCase
         $testEntity = new User();
         $testCache = new MetadataRegistry();
 
+        $hydrator = $this->createStub(EntityHydratorInterface::class);
+
         // Set up method expectations
-        $this->hydrator->method('hydrate')->willReturn($testEntity);
-        $this->hydrator->method('getMetadataRegistry')->willReturn($testCache);
+        $hydrator->method('hydrate')->willReturn($testEntity);
+        $hydrator->method('getMetadataRegistry')->willReturn($testCache);
 
         // Verify interface contracts
-        $hydrateResult = $this->hydrator->hydrate($testData, $testEntityName);
+        $hydrateResult = $hydrator->hydrate($testData, $testEntityName);
         $this->assertIsObject($hydrateResult);
 
-        $cacheResult = $this->hydrator->getMetadataRegistry();
+        $cacheResult = $hydrator->getMetadataRegistry();
         $this->assertInstanceOf(MetadataRegistry::class, $cacheResult);
 
         // Verify method calls work without exceptions
@@ -215,11 +227,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $userEntity = new User();
 
         // Test with User entity
-        $this->hydrator->method('hydrate')
+        $this->getHydrator()->expects($this->once())
+            ->method('hydrate')
             ->with($userData, User::class)
             ->willReturn($userEntity);
 
-        $result = $this->hydrator->hydrate($userData, User::class);
+        $result = $this->getHydrator()->hydrate($userData, User::class);
         $this->assertInstanceOf(User::class, $result);
     }
 
@@ -228,11 +241,12 @@ class EntityHydratorInterfaceTest extends TestCase
         $entity1 = new User();
         $entity2 = new User();
 
-        $this->hydrator->method('hydrate')
+        $hydrator = $this->createStub(EntityHydratorInterface::class);
+        $hydrator->method('hydrate')
             ->willReturnOnConsecutiveCalls($entity1, $entity2);
 
-        $result1 = $this->hydrator->hydrate(['id' => 1], User::class);
-        $result2 = $this->hydrator->hydrate(['id' => 2], User::class);
+        $result1 = $hydrator->hydrate(['id' => 1], User::class);
+        $result2 = $hydrator->hydrate(['id' => 2], User::class);
 
         $this->assertSame($entity1, $result1);
         $this->assertSame($entity2, $result2);
@@ -243,13 +257,14 @@ class EntityHydratorInterfaceTest extends TestCase
     {
         $cache = new MetadataRegistry();
 
-        $this->hydrator->method('getMetadataRegistry')
+        $hydrator = $this->createStub(EntityHydratorInterface::class);
+        $hydrator->method('getMetadataRegistry')
             ->willReturn($cache);
 
         // Call multiple times to ensure consistency
-        $result1 = $this->hydrator->getMetadataRegistry();
-        $result2 = $this->hydrator->getMetadataRegistry();
-        $result3 = $this->hydrator->getMetadataRegistry();
+        $result1 = $hydrator->getMetadataRegistry();
+        $result2 = $hydrator->getMetadataRegistry();
+        $result3 = $hydrator->getMetadataRegistry();
 
         $this->assertSame($cache, $result1);
         $this->assertSame($cache, $result2);

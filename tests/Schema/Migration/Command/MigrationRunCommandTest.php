@@ -29,8 +29,8 @@ class MigrationRunCommandTest extends TestCase
     public function testExecuteSuccessfulMigration(): void
     {
         // Créer des mocks de migrations
-        $migration1 = $this->createMock(Migration::class);
-        $migration2 = $this->createMock(Migration::class);
+        $migration1 = $this->createStub(Migration::class);
+        $migration2 = $this->createStub(Migration::class);
         
         $pendingMigrations = [
             '20230101000000' => $migration1,
@@ -79,7 +79,7 @@ class MigrationRunCommandTest extends TestCase
     public function testExecuteDryRun(): void
     {
         // Créer un mock de migration
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
         
         $pendingMigrations = [
             '20230101000000' => $migration
@@ -106,7 +106,7 @@ class MigrationRunCommandTest extends TestCase
     public function testExecuteUserCancelled(): void
     {
         // Créer un mock de migration
-        $migration = $this->createMock(Migration::class);
+        $migration = $this->createStub(Migration::class);
         
         $pendingMigrations = [
             '20230101000000' => $migration

@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use Error;
 use Exception;
-use JsonException;
 use MulerTech\Database\Mapping\ColumnMapping;
 use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\Mapping\Types\ColumnType;
 use MulerTech\Database\ORM\Exception\HydrationException;
-use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
 use MulerTech\Database\ORM\ValueProcessor\EntityHydratorInterface;
-use ReflectionException;
+use MulerTech\Database\ORM\ValueProcessor\ValueProcessorManager;
 
 /**
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class EntityHydrator implements EntityHydratorInterface
@@ -25,18 +21,12 @@ class EntityHydrator implements EntityHydratorInterface
     private ValueProcessorManager $valueProcessorManager;
     private ColumnMapping $columnMapping;
 
-    /**
-     * @param MetadataRegistry $metadataRegistry
-     */
     public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
         $this->valueProcessorManager = new ValueProcessorManager();
         $this->columnMapping = new ColumnMapping();
     }
 
-    /**
-     * @return MetadataRegistry
-     */
     public function getMetadataRegistry(): MetadataRegistry
     {
         return $this->metadataRegistry;
@@ -44,10 +34,10 @@ class EntityHydrator implements EntityHydratorInterface
 
     /**
      * @param array<string, bool|float|int|string|null> $data
-     * @param class-string $entityName
-     * @return object
-     * @throws ReflectionException
-     * @throws JsonException
+     * @param class-string                              $entityName
+     *
+     * @throws \ReflectionException
+     * @throws \JsonException
      */
     public function hydrate(array $data, string $entityName): object
     {
@@ -68,15 +58,13 @@ class EntityHydrator implements EntityHydratorInterface
             $processedValue = $this->processValue($metadata, $property, $value);
 
             // Validate nullable constraints - let this exception bubble up directly
-            if ($processedValue === null && !$this->isPropertyNullable($metadata, $property)) {
+            if (null === $processedValue && !$this->isPropertyNullable($metadata, $property)) {
                 throw HydrationException::propertyCannotBeNull($property, $entityName);
             }
 
             $setter = $metadata->getSetter($property);
-            if ($setter === null) {
-                throw new HydrationException(
-                    "No setter defined for property '$property' in entity '$entityName'."
-                );
+            if (null === $setter) {
+                throw new HydrationException("No setter defined for property '$property' in entity '$entityName'.");
             }
 
             $entity->$setter($processedValue);
@@ -86,11 +74,11 @@ class EntityHydrator implements EntityHydratorInterface
     }
 
     /**
-     * Extract data from an entity (reverse of hydration)
+     * Extract data from an entity (reverse of hydration).
      *
-     * @param object $entity
      * @return array<string, mixed>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function extract(object $entity): array
     {
@@ -100,10 +88,8 @@ class EntityHydrator implements EntityHydratorInterface
 
         foreach ($metadata->getPropertiesColumns() as $propertyName => $columnName) {
             $getter = $metadata->getGetter($propertyName);
-            if ($getter === null) {
-                throw new HydrationException(
-                    "No getter defined for property '$propertyName' in entity '$entityClass'."
-                );
+            if (null === $getter) {
+                throw new HydrationException("No getter defined for property '$propertyName' in entity '$entityClass'.");
             }
             $data[$columnName] = $entity->$getter();
         }
@@ -111,22 +97,13 @@ class EntityHydrator implements EntityHydratorInterface
         return $data;
     }
 
-    /**
-     * @param EntityMetadata $metadata
-     * @param string $propertyName
-     * @return ColumnType|null
-     */
     private function getColumnType(EntityMetadata $metadata, string $propertyName): ?ColumnType
     {
         return $metadata->getColumnType($propertyName);
     }
 
     /**
-     * Check if a property represents a relation (OneToOne, ManyToOne, etc.)
-     *
-     * @param EntityMetadata $metadata
-     * @param string $propertyName
-     * @return bool
+     * Check if a property represents a relation (OneToOne, ManyToOne, etc.).
      */
     private function isRelationProperty(EntityMetadata $metadata, string $propertyName): bool
     {
@@ -134,12 +111,9 @@ class EntityHydrator implements EntityHydratorInterface
     }
 
     /**
-     * Check if a property is nullable based on metadata
+     * Check if a property is nullable based on metadata.
      *
-     * @param EntityMetadata $metadata
-     * @param string $propertyName
-     * @return bool
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function isPropertyNullable(EntityMetadata $metadata, string $propertyName): bool
     {
@@ -147,19 +121,15 @@ class EntityHydrator implements EntityHydratorInterface
     }
 
     /**
-     * @param EntityMetadata $metadata
-     * @param string $propertyName
-     * @param bool|float|int|string|null $value
-     * @return mixed
-     * @throws JsonException
-     * @throws ReflectionException
+     * @throws \JsonException
+     * @throws \ReflectionException
      */
     public function processValue(
         EntityMetadata $metadata,
         string $propertyName,
-        bool|float|int|string|null $value
+        bool|float|int|string|null $value,
     ): mixed {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 

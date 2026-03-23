@@ -27,9 +27,9 @@ class UpdateQueryBuilderTest extends TestCase
     {
         parent::setUp();
         
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->metadataRegistry = new MetadataRegistry();
-        $this->validator = $this->createMock(UpdateEntityValidator::class);
+        $this->validator = $this->createStub(UpdateEntityValidator::class);
         
         $this->queryBuilder = new UpdateQueryBuilder(
             $this->entityManager,
@@ -48,7 +48,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -113,7 +113,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['username' => $change];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -142,7 +142,7 @@ class UpdateQueryBuilderTest extends TestCase
         ];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -216,7 +216,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['unit' => $change];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         
@@ -280,7 +280,7 @@ class UpdateQueryBuilderTest extends TestCase
         $changes = ['unit' => $unitChange];
         
         // Mock entity manager
-        $mockEngine = $this->createMock(EmEngine::class);
+        $mockEngine = $this->createStub(EmEngine::class);
         $this->entityManager->method('getEmEngine')
             ->willReturn($mockEngine);
         

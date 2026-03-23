@@ -1,4 +1,4 @@
-name: tests
+name: Tests
 
 on:
   push:
@@ -16,10 +16,10 @@ jobs:
       mysql:
         image: mysql:8
         env:
-          MYSQL_DATABASE: db
           MYSQL_USER: user
           MYSQL_PASSWORD: password
-          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: db
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -27,53 +27,82 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        php: [8.4]
-        phpunit: ['11']
-        stability: [prefer-stable]
+        php: ['8.4', '8.5']
 
-    name: PHP ${{ matrix.php }} - PHPUnit ${{ matrix.phpunit }} - ${{ matrix.stability }}
+    name: PHP ${{ matrix.php }} - Linux
+
+    env:
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: 3306
+      DATABASE_PATH: /db
+      DATABASE_SCHEME: mysql
+      DATABASE_QUERY: serverVersion=8
+      DATABASE_USER: user
+      DATABASE_PASS: password
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           ini-values: error_reporting=E_ALL
-          tools: composer:v2
           coverage: xdebug
 
-      - name: Set PHPUnit
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 5
-          max_attempts: 5
-          command: composer require phpunit/phpunit:^${{ matrix.phpunit }} --dev --no-interaction --no-update
-
       - name: Install dependencies
-        uses: nick-fields/retry@v3
+        uses: ramsey/composer-install@v3
         with:
-          timeout_minutes: 5
-          max_attempts: 5
-          command: composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-progress
+          composer-options: '--prefer-stable'
 
       - name: Execute tests
-        run: vendor/bin/phpunit --display-deprecation
-        env:
-          DATABASE_HOST: 127.0.0.1
-          DATABASE_PORT: "3306"
-          DATABASE_PATH: "/db"
-          DATABASE_SCHEME: "mysql"
-          DATABASE_QUERY: "serverVersion=8"
-          DATABASE_USER: "user"
-          DATABASE_PASS: "password"
-
-      - name: Generate test coverage badge
-        uses: timkrase/phpunit-coverage-badge@v1.2.1
-        if: github.ref == 'refs/heads/main'
+        uses: nick-fields/retry@v3
         with:
-          coverage_badge_path: 'badge-coverage.svg'
-          push_badge: true
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          timeout_minutes: 5
+          max_attempts: 3
+          command: vendor/bin/phpunit --display-deprecation
+
+  windows_tests:
+    runs-on: windows-2022
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ['8.4', '8.5']
+
+    name: PHP ${{ matrix.php }} - Windows
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_mysql
+          coverage: none
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: '--prefer-stable --ignore-platform-req=ext-posix'
+
+      - name: Set PHPUnit
+        shell: bash
+        run: vendor/bin/phpunit --version
+
+      - name: Execute tests
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: vendor/bin/phpunit --no-coverage

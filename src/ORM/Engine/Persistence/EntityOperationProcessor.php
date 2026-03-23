@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\Engine\Persistence;
 
-use DateTimeImmutable;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\ChangeDetector;
 use MulerTech\Database\ORM\ChangeSetManager;
@@ -13,11 +12,10 @@ use MulerTech\Database\ORM\IdentityMap;
 use MulerTech\Database\ORM\Processor\EntityProcessor;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use ReflectionException;
 
 /**
- * Handles entity operations (insert, update, delete) with metadata management
- * @package MulerTech\Database
+ * Handles entity operations (insert, update, delete) with metadata management.
+ *
  * @author Sébastien Muler
  */
 class EntityOperationProcessor
@@ -38,16 +36,14 @@ class EntityOperationProcessor
     }
 
     /**
-     * @param object $entity
-     * @param int $flushDepth
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function processInsertion(object $entity, int $flushDepth): void
     {
         $entityId = $this->extractEntityId($entity);
-        if ($entityId !== null) {
+        if (null !== $entityId) {
             $this->stateManager->manage($entity);
+
             return;
         }
 
@@ -59,16 +55,13 @@ class EntityOperationProcessor
     }
 
     /**
-     * @param object $entity
-     * @param int $flushDepth
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function processUpdate(object $entity, int $flushDepth): void
     {
         $changeSet = $this->changeSetManager->getChangeSet($entity);
 
-        if ($changeSet === null || $changeSet->isEmpty()) {
+        if (null === $changeSet || $changeSet->isEmpty()) {
             return;
         }
 
@@ -79,10 +72,7 @@ class EntityOperationProcessor
     }
 
     /**
-     * @param object $entity
-     * @param int $flushDepth
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function processDeletion(object $entity, int $flushDepth): void
     {
@@ -91,7 +81,7 @@ class EntityOperationProcessor
 
         // Only detach if entity is not already in removed state
         $currentState = $this->stateManager->getEntityState($entity);
-        if ($currentState !== EntityLifecycleState::REMOVED) {
+        if (EntityLifecycleState::REMOVED !== $currentState) {
             $this->stateManager->detach($entity);
         }
 
@@ -99,10 +89,9 @@ class EntityOperationProcessor
     }
 
     /**
-     * Process any pending operations that were scheduled during events
-     * @param int $flushDepth
-     * @return void
-     * @throws ReflectionException
+     * Process any pending operations that were scheduled during events.
+     *
+     * @throws \ReflectionException
      */
     public function processPostEventOperations(int $flushDepth): void
     {
@@ -119,14 +108,10 @@ class EntityOperationProcessor
         }
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     private function updateEntityMetadata(object $entity): void
     {
         $metadata = $this->identityMap->getMetadata($entity);
-        if ($metadata === null) {
+        if (null === $metadata) {
             return;
         }
 
@@ -135,32 +120,26 @@ class EntityOperationProcessor
             $metadata->className,
             EntityLifecycleState::MANAGED,
             $currentData,
-            new DateTimeImmutable()
+            new \DateTimeImmutable()
         );
         $this->identityMap->updateMetadata($entity, $newMetadata);
     }
 
-    /**
-     * @param object $entity
-     * @return string|int|null
-     */
     private function extractEntityId(object $entity): string|int|null
     {
         return $this->getEntityProcessor()->extractEntityId($entity);
     }
 
-    /**
-     * @return EntityProcessor
-     */
     private function getEntityProcessor(): EntityProcessor
     {
-        if ($this->entityProcessor === null) {
+        if (null === $this->entityProcessor) {
             $this->entityProcessor = new EntityProcessor(
                 $this->changeDetector,
                 $this->identityMap,
                 $this->metadataRegistry
             );
         }
+
         return $this->entityProcessor;
     }
 }

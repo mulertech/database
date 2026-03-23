@@ -7,12 +7,10 @@ namespace MulerTech\Database\ORM\Engine\Persistence;
 use MulerTech\Database\ORM\ChangeSetManager;
 use MulerTech\Database\ORM\Engine\Relations\RelationManager;
 use MulerTech\Database\ORM\State\StateManagerInterface;
-use ReflectionException;
-use RuntimeException;
 
 /**
- * Handles the complex flush logic for persistence operations
- * @package MulerTech\Database
+ * Handles the complex flush logic for persistence operations.
+ *
  * @author Sébastien Muler
  */
 final class FlushHandler
@@ -22,11 +20,6 @@ final class FlushHandler
     private int $flushDepth = 0;
     private bool $hasPostEventChanges = false;
 
-    /**
-     * @param StateManagerInterface $stateManager
-     * @param ChangeSetManager $changeSetManager
-     * @param RelationManager $relationManager
-     */
     public function __construct(
         private readonly StateManagerInterface $stateManager,
         private readonly ChangeSetManager $changeSetManager,
@@ -35,21 +28,17 @@ final class FlushHandler
     }
 
     /**
-     * @param callable $insertionProcessor
-     * @param callable $updateProcessor
-     * @param callable $deletionProcessor
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function doFlush(
         callable $insertionProcessor,
         callable $updateProcessor,
-        callable $deletionProcessor
+        callable $deletionProcessor,
     ): void {
-        $this->flushDepth++;
+        ++$this->flushDepth;
 
         if ($this->flushDepth > self::MAX_FLUSH_DEPTH) {
-            throw new RuntimeException('Maximum flush depth reached. Possible circular dependency.');
+            throw new \RuntimeException('Maximum flush depth reached. Possible circular dependency.');
         }
 
         $this->prepareFlush();
@@ -58,8 +47,7 @@ final class FlushHandler
     }
 
     /**
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function prepareFlush(): void
     {
@@ -69,16 +57,12 @@ final class FlushHandler
     }
 
     /**
-     * @param callable $insertionProcessor
-     * @param callable $updateProcessor
-     * @param callable $deletionProcessor
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function processOperations(
         callable $insertionProcessor,
         callable $updateProcessor,
-        callable $deletionProcessor
+        callable $deletionProcessor,
     ): void {
         $insertions = $this->changeSetManager->getScheduledInsertions();
         $deletions = $this->getAllDeletions();
@@ -121,10 +105,7 @@ final class FlushHandler
     }
 
     /**
-     * @param callable $insertionProcessor
-     * @param callable $deletionProcessor
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function processAdditionalOperations(callable $insertionProcessor, callable $deletionProcessor): void
     {
@@ -152,9 +133,6 @@ final class FlushHandler
         }
     }
 
-    /**
-     * @return void
-     */
     private function finalizeFlush(): void
     {
         $this->changeSetManager->clearProcessedChanges();
@@ -166,26 +144,17 @@ final class FlushHandler
         }
     }
 
-    /**
-     * @return void
-     */
     public function markPostEventChanges(): void
     {
         $this->hasPostEventChanges = true;
     }
 
-    /**
-     * @return void
-     */
     public function reset(): void
     {
         $this->flushDepth = 0;
         $this->hasPostEventChanges = false;
     }
 
-    /**
-     * @return int
-     */
     public function getFlushDepth(): int
     {
         return $this->flushDepth;

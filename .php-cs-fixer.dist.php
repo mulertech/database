@@ -1,17 +1,8 @@
 <?php
 
-$finder = (new PhpCsFixer\Finder())
-    ->in(__DIR__ . '/src');
+$finder = PhpCsFixer\Finder::create()->in(['src', 'tests']);
 
 return (new PhpCsFixer\Config())
-    ->setRules(
-        [
-            '@PSR12' => true,
-            '@PHP84Migration' => true,
-            'array_syntax' => ['syntax' => 'short'],
-            'strict_param' => true,
-            'declare_strict_types' => true,
-        ]
-    )
+    ->setRules(['@Symfony' => true])
     ->setRiskyAllowed(true)
     ->setFinder($finder);

@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use DateTimeImmutable;
 use WeakMap;
 
 /**
- * Class EntityRegistry
- * @package MulerTech\Database
+ * Class EntityRegistry.
+ *
  * @author Sébastien Muler
  */
 final class EntityRegistry
 {
-    /** @var WeakMap<object, array{
-     *     registeredAt: DateTimeImmutable,
-     *     lastAccessed: DateTimeImmutable,
+    /** @var \WeakMap<object, array{
+     *     registeredAt: \DateTimeImmutable,
+     *     lastAccessed: \DateTimeImmutable,
      *     accessCount: int
      * }>
      */
-    private WeakMap $registry;
+    private \WeakMap $registry;
 
     /** @var array<class-string, int> */
     private array $entityCountByClass = [];
@@ -28,41 +27,33 @@ final class EntityRegistry
     /** @var array<class-string, array<string, int>> */
     private array $entityStats = [];
 
-    /** @var int */
     private int $totalEntitiesRegistered = 0;
 
-    /** @var int */
     private int $totalEntitiesUnregistered = 0;
 
-    /** @var bool */
     private bool $enableGarbageCollection = true;
 
-    /** @var int */
     private int $gcInterval = 100; // Run GC every 100 operations
 
-    /** @var int */
     private int $operationCount = 0;
 
     public function __construct()
     {
-        $this->registry = new WeakMap();
+        $this->registry = new \WeakMap();
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function register(object $entity): void
     {
         $entityClass = $entity::class;
-        $now = new DateTimeImmutable();
+        $now = new \DateTimeImmutable();
 
         if (isset($this->registry[$entity])) {
             // Update access time
             $data = $this->registry[$entity];
             $data['lastAccessed'] = $now;
-            $data['accessCount']++;
+            ++$data['accessCount'];
             $this->registry[$entity] = $data;
+
             return;
         }
 
@@ -75,22 +66,18 @@ final class EntityRegistry
 
         // Update counters
         $this->entityCountByClass[$entityClass] = ($this->entityCountByClass[$entityClass] ?? 0) + 1;
-        $this->totalEntitiesRegistered++;
+        ++$this->totalEntitiesRegistered;
 
         // Update stats
         $this->updateStats($entityClass, 'registered');
 
         // Periodic garbage collection
-        $this->operationCount++;
-        if ($this->enableGarbageCollection && $this->operationCount % $this->gcInterval === 0) {
+        ++$this->operationCount;
+        if ($this->enableGarbageCollection && 0 === $this->operationCount % $this->gcInterval) {
             $this->runGarbageCollection();
         }
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function unregister(object $entity): void
     {
         if (!isset($this->registry[$entity])) {
@@ -104,32 +91,26 @@ final class EntityRegistry
 
         // Update counters
         if (isset($this->entityCountByClass[$entityClass])) {
-            $this->entityCountByClass[$entityClass]--;
+            --$this->entityCountByClass[$entityClass];
             if ($this->entityCountByClass[$entityClass] <= 0) {
                 unset($this->entityCountByClass[$entityClass]);
             }
         }
 
-        $this->totalEntitiesUnregistered++;
+        ++$this->totalEntitiesUnregistered;
 
         // Update stats
         $this->updateStats($entityClass, 'unregistered');
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
-        $this->registry = new WeakMap();
+        $this->registry = new \WeakMap();
         $this->entityCountByClass = [];
         $this->entityStats = [];
         $this->operationCount = 0;
     }
 
-    /**
-     * @return void
-     */
     private function runGarbageCollection(): void
     {
         gc_collect_cycles();
@@ -139,8 +120,6 @@ final class EntityRegistry
 
     /**
      * @param class-string $entityClass
-     * @param string $operation
-     * @return void
      */
     private function updateStats(string $entityClass, string $operation): void
     {
@@ -158,10 +137,6 @@ final class EntityRegistry
         $this->entityStats[$entityClass]['lastUpdated'] = time();
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isRegistered(object $entity): bool
     {
         return isset($this->registry[$entity]);
@@ -176,11 +151,13 @@ final class EntityRegistry
         foreach ($this->registry as $entity => $data) {
             $entities[] = $entity;
         }
+
         return $entities;
     }
 
     /**
      * @param class-string $className
+     *
      * @return array<object>
      */
     public function getRegisteredEntitiesByClass(string $className): array
@@ -191,6 +168,7 @@ final class EntityRegistry
                 $entities[] = $entity;
             }
         }
+
         return $entities;
     }
 }

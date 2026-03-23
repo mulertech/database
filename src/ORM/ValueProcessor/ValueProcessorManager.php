@@ -4,75 +4,57 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM\ValueProcessor;
 
-use DateMalformedStringException;
-use JsonException;
 use MulerTech\Database\Mapping\EntityMetadata;
 use MulerTech\Database\Mapping\Types\ColumnType;
 
 /**
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class ValueProcessorManager
 {
-    /**
-     * @var ColumnTypeValueProcessor|null
-     */
     private ?ColumnTypeValueProcessor $columnTypeProcessor = null;
 
-    /**
-     * @var PhpTypeValueProcessor|null
-     */
     private ?PhpTypeValueProcessor $phpTypeProcessor = null;
 
-    /**
-     * @return ColumnTypeValueProcessor
-     */
     public function getColumnTypeProcessor(): ColumnTypeValueProcessor
     {
-        if ($this->columnTypeProcessor === null) {
+        if (null === $this->columnTypeProcessor) {
             $this->columnTypeProcessor = new ColumnTypeValueProcessor();
         }
+
         return $this->columnTypeProcessor;
     }
 
-    /**
-     * @return PhpTypeValueProcessor
-     */
     public function getPhpTypeProcessor(): PhpTypeValueProcessor
     {
-        if ($this->phpTypeProcessor === null) {
+        if (null === $this->phpTypeProcessor) {
             $this->phpTypeProcessor = new PhpTypeValueProcessor();
         }
+
         return $this->phpTypeProcessor;
     }
 
     /**
-     * @param mixed $value
-     * @param ColumnType|null $columnType
-     * @param EntityMetadata $metadata
-     * @param string $propertyName
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     public function processValue(
         mixed $value,
         ?ColumnType $columnType,
         EntityMetadata $metadata,
-        string $propertyName
+        string $propertyName,
     ): mixed {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 
         // Use ColumnType directly if provided
-        if ($columnType !== null) {
+        if (null !== $columnType) {
             return new ColumnTypeValueProcessor($columnType)->process($value);
         }
 
         // Fallback: try to get ColumnType from metadata
         $metadataColumnType = $metadata->getColumnType($propertyName);
-        if ($metadataColumnType !== null) {
+        if (null !== $metadataColumnType) {
             return new ColumnTypeValueProcessor($metadataColumnType)->process($value);
         }
 
@@ -81,10 +63,7 @@ class ValueProcessorManager
     }
 
     /**
-     * @param mixed $value
-     * @param string $type
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     public function convertToColumnValue(mixed $value, string $type): mixed
     {
@@ -92,20 +71,13 @@ class ValueProcessorManager
     }
 
     /**
-     * @param mixed $value
-     * @param string $phpType
-     * @return mixed
-     * @throws JsonException|DateMalformedStringException
+     * @throws \JsonException|\DateMalformedStringException
      */
     public function convertToPhpValue(mixed $value, string $phpType): mixed
     {
         return $this->getPhpTypeProcessor()->convertToPhpValue($value, $phpType);
     }
 
-    /**
-     * @param string $type
-     * @return bool
-     */
     public function isValidType(string $type): bool
     {
         $columnProcessor = new ColumnTypeValueProcessor();
@@ -128,23 +100,14 @@ class ValueProcessorManager
         );
     }
 
-    /**
-     * @param string $type
-     * @return string
-     */
     public function normalizeType(string $type): string
     {
         return new PhpTypeValueProcessor()->normalizeType($type);
     }
 
-    /**
-     * @param mixed $value
-     * @param string $expectedType
-     * @return bool
-     */
     public function validateValue(mixed $value, string $expectedType): bool
     {
-        if ($value === null) {
+        if (null === $value) {
             return true;
         }
 
@@ -161,23 +124,14 @@ class ValueProcessorManager
         };
     }
 
-    /**
-     * @param string $type
-     * @return mixed
-     */
     public function getDefaultValue(string $type): mixed
     {
         return new PhpTypeValueProcessor()->getDefaultValue($type);
     }
 
-    /**
-     * @param mixed $from
-     * @param string $to
-     * @return bool
-     */
     public function canConvert(mixed $from, string $to): bool
     {
-        if ($from === null) {
+        if (null === $from) {
             return true;
         }
 
@@ -202,9 +156,7 @@ class ValueProcessorManager
     }
 
     /**
-     * @param mixed $value
-     * @return mixed
-     * @throws JsonException
+     * @throws \JsonException
      */
     private function processBasicType(mixed $value): mixed
     {
@@ -212,6 +164,7 @@ class ValueProcessorManager
             // Convert objects to arrays with entity information
             $result = (array) $value;
             $result['__entity__'] = get_class($value);
+
             return $result;
         }
 
@@ -221,6 +174,7 @@ class ValueProcessorManager
             foreach ($value as $key => $item) {
                 $result[$key] = $this->processBasicType($item);
             }
+
             return $result;
         }
 

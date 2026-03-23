@@ -4,28 +4,23 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\Mapping\Attributes;
 
-use Attribute;
-
 /**
- * Class MtManyToMany
- * @package MulerTech\Database
+ * Class MtManyToMany.
  */
-#[Attribute(Attribute::TARGET_PROPERTY)]
+#[\Attribute(\Attribute::TARGET_PROPERTY)]
 class MtManyToMany
 {
     /**
-     * @param class-string|null $entity Entity class name (this will be automatically set by the ORM)
+     * @param class-string|null $entity       Entity class name (this will be automatically set by the ORM)
      * @param class-string|null $targetEntity Target entity class name
-     * @param class-string|null $mappedBy Pivot Entity
-     * @param string|null $joinProperty
-     * @param string|null $inverseJoinProperty
+     * @param class-string|null $mappedBy     Pivot Entity
      */
     public function __construct(
-        public string|null $entity = null,
-        public string|null $targetEntity = null,
-        public string|null $mappedBy = null,
-        public string|null $joinProperty = null,
-        public string|null $inverseJoinProperty = null,
+        public ?string $entity = null,
+        public ?string $targetEntity = null,
+        public ?string $mappedBy = null,
+        public ?string $joinProperty = null,
+        public ?string $inverseJoinProperty = null,
     ) {
     }
 }

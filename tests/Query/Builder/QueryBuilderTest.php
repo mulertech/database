@@ -33,7 +33,7 @@ class QueryBuilderTest extends TestCase
 
     public function testConstructorWithEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $qb = new QueryBuilder($emEngine);
         $this->assertInstanceOf(QueryBuilder::class, $qb);
     }
@@ -125,7 +125,7 @@ class QueryBuilderTest extends TestCase
 
     public function testWithMockedEmEngine(): void
     {
-        $emEngine = $this->createMock(EmEngine::class);
+        $emEngine = $this->createStub(EmEngine::class);
         $qb = new QueryBuilder($emEngine);
 
         $select = $qb->select();

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\ORM\Scheduler;
 
 /**
- * Manages entity scheduling for database operations
- * @package MulerTech\Database
+ * Manages entity scheduling for database operations.
+ *
  * @author Sébastien Muler
  */
 class EntityScheduler
@@ -20,10 +20,6 @@ class EntityScheduler
     /** @var array<object> */
     private array $scheduledDeletions = [];
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function scheduleForInsertion(object $entity): void
     {
         if (!in_array($entity, $this->scheduledInsertions, true)) {
@@ -31,10 +27,6 @@ class EntityScheduler
         }
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function scheduleForUpdate(object $entity): void
     {
         if (!in_array($entity, $this->scheduledUpdates, true)) {
@@ -42,10 +34,6 @@ class EntityScheduler
         }
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function scheduleForDeletion(object $entity): void
     {
         if (!in_array($entity, $this->scheduledDeletions, true)) {
@@ -53,41 +41,24 @@ class EntityScheduler
         }
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isScheduledForInsertion(object $entity): bool
     {
         return in_array($entity, $this->scheduledInsertions, true);
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isScheduledForUpdate(object $entity): bool
     {
         return in_array($entity, $this->scheduledUpdates, true);
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isScheduledForDeletion(object $entity): bool
     {
         return in_array($entity, $this->scheduledDeletions, true);
     }
 
-    /**
-     * @param object $entity
-     * @param string $scheduleType
-     * @return void
-     */
     public function removeFromSchedule(object $entity, string $scheduleType): void
     {
-        $property = 'scheduled' . ucfirst($scheduleType);
+        $property = 'scheduled'.ucfirst($scheduleType);
 
         if (!property_exists($this, $property)) {
             return;
@@ -96,16 +67,12 @@ class EntityScheduler
         $schedule = &$this->$property;
         $key = array_search($entity, $schedule, true);
 
-        if ($key !== false) {
+        if (false !== $key) {
             unset($schedule[$key]);
             $schedule = array_values($schedule);
         }
     }
 
-    /**
-     * @param object $entity
-     * @return void
-     */
     public function removeFromAllSchedules(object $entity): void
     {
         $this->removeFromSchedule($entity, 'insertions');
@@ -137,19 +104,13 @@ class EntityScheduler
         return $this->scheduledDeletions;
     }
 
-    /**
-     * @return bool
-     */
     public function hasPendingSchedules(): bool
     {
-        return !empty($this->scheduledInsertions) ||
-               !empty($this->scheduledUpdates) ||
-               !empty($this->scheduledDeletions);
+        return !empty($this->scheduledInsertions)
+               || !empty($this->scheduledUpdates)
+               || !empty($this->scheduledDeletions);
     }
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
         $this->scheduledInsertions = [];

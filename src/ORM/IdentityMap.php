@@ -4,46 +4,39 @@ declare(strict_types=1);
 
 namespace MulerTech\Database\ORM;
 
-use DateTimeImmutable;
-use InvalidArgumentException;
 use MulerTech\Database\Mapping\MetadataRegistry;
 use MulerTech\Database\ORM\State\EntityLifecycleState;
-use ReflectionException;
-use WeakMap;
-use WeakReference;
 
 /**
- * Class IdentityMap
- * @package MulerTech\Database
+ * Class IdentityMap.
+ *
  * @author Sébastien Muler
  */
 final class IdentityMap
 {
     /**
-     * @var array<class-string, array<int|string, WeakReference<object>>>
+     * @var array<class-string, array<int|string, \WeakReference<object>>>
      */
     private array $entities = [];
 
     /**
-     * @var WeakMap<object, EntityState>
+     * @var \WeakMap<object, EntityState>
      */
-    private WeakMap $metadata;
+    private \WeakMap $metadata;
 
     /**
-     * @var WeakMap<object, int|string|null>
+     * @var \WeakMap<object, int|string|null>
      */
-    private WeakMap $entityIds;
+    private \WeakMap $entityIds;
 
     public function __construct(private readonly MetadataRegistry $metadataRegistry)
     {
-        $this->metadata = new WeakMap();
-        $this->entityIds = new WeakMap();
+        $this->metadata = new \WeakMap();
+        $this->entityIds = new \WeakMap();
     }
 
     /**
      * @param class-string $entityClass
-     * @param int|string $id
-     * @return bool
      */
     public function contains(string $entityClass, int|string $id): bool
     {
@@ -52,8 +45,9 @@ final class IdentityMap
         }
 
         $entity = $this->entities[$entityClass][$id]->get();
-        if ($entity === null) {
+        if (null === $entity) {
             unset($this->entities[$entityClass][$id]);
+
             return false;
         }
 
@@ -62,8 +56,6 @@ final class IdentityMap
 
     /**
      * @param class-string $entityClass
-     * @param int|string $id
-     * @return object|null
      */
     public function get(string $entityClass, int|string $id): ?object
     {
@@ -72,8 +64,9 @@ final class IdentityMap
         }
 
         $entity = $this->entities[$entityClass][$id]->get();
-        if ($entity === null) {
+        if (null === $entity) {
             unset($this->entities[$entityClass][$id]);
+
             return null;
         }
 
@@ -81,22 +74,18 @@ final class IdentityMap
     }
 
     /**
-     * @param object $entity
-     * @param int|string|null $id
-     * @param EntityState|null $entityState
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function add(object $entity, int|string|null $id = null, ?EntityState $entityState = null): void
     {
         $entityClass = $entity::class;
 
         // If ID is explicitly provided, use it; otherwise extract from entity
-        if ($id === null) {
+        if (null === $id) {
             $id = $this->extractEntityId($entity);
         }
 
-        if ($id !== null) {
+        if (null !== $id) {
             $this->entities[$entityClass] ??= [];
             $this->entities[$entityClass][$id] = $this->createWeakReference($entity);
         }
@@ -105,8 +94,9 @@ final class IdentityMap
         $this->entityIds[$entity] = $id;
 
         // If EntityState is explicitly provided, use it; otherwise create automatically
-        if ($entityState !== null) {
+        if (null !== $entityState) {
             $this->metadata[$entity] = $entityState;
+
             return;
         }
 
@@ -114,9 +104,7 @@ final class IdentityMap
     }
 
     /**
-     * @param object $entity
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function remove(object $entity): void
     {
@@ -125,7 +113,7 @@ final class IdentityMap
         // Try to get the stored ID first, fallback to extraction
         $id = $this->entityIds[$entity] ?? $this->extractEntityId($entity);
 
-        if ($id !== null && isset($this->entities[$entityClass][$id])) {
+        if (null !== $id && isset($this->entities[$entityClass][$id])) {
             unset($this->entities[$entityClass][$id]);
         }
 
@@ -134,22 +122,23 @@ final class IdentityMap
 
     /**
      * @param class-string|null $entityClass
-     * @return void
      */
     public function clear(?string $entityClass = null): void
     {
-        if ($entityClass !== null) {
+        if (null !== $entityClass) {
             unset($this->entities[$entityClass]);
+
             return;
         }
 
         $this->entities = [];
-        $this->metadata = new WeakMap();
-        $this->entityIds = new WeakMap();
+        $this->metadata = new \WeakMap();
+        $this->entityIds = new \WeakMap();
     }
 
     /**
      * @param class-string $entityClass
+     *
      * @return array<object>
      */
     public function getByClass(string $entityClass): array
@@ -161,7 +150,7 @@ final class IdentityMap
         $entities = [];
         foreach ($this->entities[$entityClass] as $id => $weakRef) {
             $entity = $weakRef->get();
-            if ($entity !== null) {
+            if (null !== $entity) {
                 $entities[] = $entity;
 
                 continue;
@@ -190,7 +179,6 @@ final class IdentityMap
     }
 
     /**
-     * @param EntityLifecycleState $state
      * @return array<object>
      */
     public function getEntitiesByState(EntityLifecycleState $state): array
@@ -206,56 +194,37 @@ final class IdentityMap
         return $entities;
     }
 
-    /**
-     * @param object $entity
-     * @return EntityState|null
-     */
     public function getMetadata(object $entity): ?EntityState
     {
         return $this->metadata[$entity] ?? null;
     }
 
-    /**
-     * @param object $entity
-     * @param EntityState $newMetadata
-     * @return void
-     */
     public function updateMetadata(object $entity, EntityState $newMetadata): void
     {
         if (!isset($this->metadata[$entity])) {
-            throw new InvalidArgumentException('Entity is not managed by this IdentityMap');
+            throw new \InvalidArgumentException('Entity is not managed by this IdentityMap');
         }
 
         $this->metadata[$entity] = $newMetadata;
     }
 
-    /**
-     * @param object $entity
-     * @return bool
-     */
     public function isManaged(object $entity): bool
     {
         $metadata = $this->getMetadata($entity);
-        return $metadata !== null && $metadata->isManaged();
+
+        return null !== $metadata && $metadata->isManaged();
     }
 
-    /**
-     * @param object $entity
-     * @return EntityLifecycleState|null
-     */
     public function getEntityState(object $entity): ?EntityLifecycleState
     {
         return $this->getMetadata($entity)?->state;
     }
 
-    /**
-     * @return void
-     */
     public function cleanup(): void
     {
         foreach ($this->entities as $entityClass => $classEntities) {
             foreach ($classEntities as $id => $weakRef) {
-                if ($weakRef->get() === null) {
+                if (null === $weakRef->get()) {
                     unset($this->entities[$entityClass][$id]);
                 }
             }
@@ -266,31 +235,26 @@ final class IdentityMap
     }
 
     /**
-     * @param object $entity
-     * @param int|string|null $id
-     * @return void
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function storeMetadata(object $entity, int|string|null $id): void
     {
         $entityClass = $entity::class;
-        $state = $id === null ? EntityLifecycleState::NEW : EntityLifecycleState::MANAGED;
+        $state = null === $id ? EntityLifecycleState::NEW : EntityLifecycleState::MANAGED;
         $originalData = $this->extractEntityData($entity);
 
         $metadata = new EntityState(
             $entityClass,
             $state,
             $originalData,
-            new DateTimeImmutable()
+            new \DateTimeImmutable()
         );
 
         $this->metadata[$entity] = $metadata;
     }
 
     /**
-     * @param object $entity
-     * @return int|string|null
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function extractEntityId(object $entity): int|string|null
     {
@@ -306,7 +270,7 @@ final class IdentityMap
         // Check common ID properties using metadata
         foreach (['id', 'uuid', 'identifier'] as $property) {
             $getter = $metadata->getGetter($property);
-            if ($getter !== null && method_exists($entity, $getter)) {
+            if (null !== $getter && method_exists($entity, $getter)) {
                 $value = $entity->$getter();
                 if (is_int($value) || is_string($value)) {
                     return $value;
@@ -318,9 +282,9 @@ final class IdentityMap
     }
 
     /**
-     * @param object $entity
      * @return array<string, mixed>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     private function extractEntityData(object $entity): array
     {
@@ -340,11 +304,10 @@ final class IdentityMap
     }
 
     /**
-     * @param object $entity
-     * @return WeakReference<object>
+     * @return \WeakReference<object>
      */
-    private function createWeakReference(object $entity): WeakReference
+    private function createWeakReference(object $entity): \WeakReference
     {
-        return WeakReference::create($entity);
+        return \WeakReference::create($entity);
     }
 }

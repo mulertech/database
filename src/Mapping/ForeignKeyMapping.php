@@ -7,23 +7,23 @@ namespace MulerTech\Database\Mapping;
 use MulerTech\Database\Mapping\Attributes\MtFk;
 use MulerTech\Database\Mapping\Types\FkRule;
 use MulerTech\FileManipulation\FileType\Php;
-use ReflectionException;
 
 /**
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 readonly class ForeignKeyMapping
 {
     public function __construct(
-        private EntityProcessor $entityProcessor
+        private EntityProcessor $entityProcessor,
     ) {
     }
 
     /**
      * @param class-string $entityName
+     *
      * @return array<string, MtFk>
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getMtFk(string $entityName): array
     {
@@ -35,9 +35,8 @@ readonly class ForeignKeyMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return MtFk|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getForeignKey(string $entityName, string $property): ?MtFk
     {
@@ -46,9 +45,8 @@ readonly class ForeignKeyMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getConstraintName(string $entityName, string $property): ?string
     {
@@ -60,7 +58,7 @@ readonly class ForeignKeyMapping
 
         $mtFk = $this->getForeignKey($entityName, $property);
 
-        if ($mtFk === null || $mtFk->referencedTable === null) {
+        if (null === $mtFk || null === $mtFk->referencedTable) {
             return null;
         }
 
@@ -73,7 +71,7 @@ readonly class ForeignKeyMapping
         }
 
         return sprintf(
-            "fk_%s_%s_%s",
+            'fk_%s_%s_%s',
             strtolower($table),
             strtolower($column),
             strtolower($referencedTable)
@@ -82,15 +80,14 @@ readonly class ForeignKeyMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getReferencedTable(string $entityName, string $property): ?string
     {
         $mtFk = $this->getForeignKey($entityName, $property);
 
-        if ($mtFk === null || $mtFk->referencedTable === null) {
+        if (null === $mtFk || null === $mtFk->referencedTable) {
             return null;
         }
 
@@ -99,15 +96,14 @@ readonly class ForeignKeyMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return string|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getReferencedColumn(string $entityName, string $property): ?string
     {
         $mtFk = $this->getForeignKey($entityName, $property);
 
-        if ($mtFk === null || $mtFk->referencedTable === null) {
+        if (null === $mtFk || null === $mtFk->referencedTable) {
             return null;
         }
 
@@ -116,15 +112,14 @@ readonly class ForeignKeyMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return FkRule|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getDeleteRule(string $entityName, string $property): ?FkRule
     {
         $mtFk = $this->getForeignKey($entityName, $property);
 
-        if ($mtFk === null || $mtFk->referencedTable === null) {
+        if (null === $mtFk || null === $mtFk->referencedTable) {
             return null;
         }
 
@@ -133,15 +128,14 @@ readonly class ForeignKeyMapping
 
     /**
      * @param class-string $entityName
-     * @param string $property
-     * @return FkRule|null
-     * @throws ReflectionException
+     *
+     * @throws \ReflectionException
      */
     public function getUpdateRule(string $entityName, string $property): ?FkRule
     {
         $mtFk = $this->getForeignKey($entityName, $property);
 
-        if ($mtFk === null || $mtFk->referencedTable === null) {
+        if (null === $mtFk || null === $mtFk->referencedTable) {
             return null;
         }
 

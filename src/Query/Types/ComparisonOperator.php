@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace MulerTech\Database\Query\Types;
 
 /**
- * Comparison operators for SQL queries
+ * Comparison operators for SQL queries.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 enum ComparisonOperator: string

@@ -7,9 +7,8 @@ namespace MulerTech\Database\Database;
 use MulerTech\Database\Database\Interface\DriverInterface;
 
 /**
- * Class SQLiteDriver
+ * Class SQLiteDriver.
  *
- * @package MulerTech\Database
  * @author Sébastien Muler
  */
 class SQLiteDriver implements DriverInterface
@@ -21,17 +20,16 @@ class SQLiteDriver implements DriverInterface
      *     path?: string,
      *     mode?: string
      * } $dsnOptions
-     * @return string
      */
     public function generateDsn(array $dsnOptions): string
     {
         $path = $dsnOptions['path'] ?? ':memory:';
 
         // Handle special cases for SQLite paths
-        if ($path === ':memory:') {
+        if (':memory:' === $path) {
             return 'sqlite::memory:';
         }
 
-        return 'sqlite:' . $path;
+        return 'sqlite:'.$path;
     }
 }
