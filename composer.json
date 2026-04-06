@@ -2,7 +2,13 @@
   "name": "mulertech/database",
   "description": "This package manage database and is composed by orm and dbal components",
   "type": "library",
-  "keywords": ["php", "database", "orm", "dbal", "pdo"],
+  "keywords": [
+    "php",
+    "database",
+    "orm",
+    "dbal",
+    "pdo"
+  ],
   "minimum-stability": "stable",
   "license": "MIT",
   "authors": [
@@ -21,8 +27,7 @@
     "ext-pdo": "*",
     "ext-iconv": "*",
     "ext-zlib": "*"
-  }
-  ,
+  },
   "require-dev": {
     "ext-posix": "*",
     "friendsofphp/php-cs-fixer": "^3",
@@ -37,8 +42,11 @@
     }
   },
   "autoload-dev": {
-      "psr-4": {
-        "MulerTech\\Database\\Tests\\": "./tests"
-      }
+    "psr-4": {
+      "MulerTech\\Database\\Tests\\": "./tests"
+    }
+  },
+  "config": {
+    "sort-packages": true
   }
 }
