@@ -448,7 +448,7 @@ class EntityProcessor
      */
     public function getTables(): array
     {
-        return $this->tables ?? [];
+        return $this->tables;
     }
 
     /**
@@ -456,7 +456,7 @@ class EntityProcessor
      */
     public function getColumnsMapping(): array
     {
-        return $this->columns ?? [];
+        return $this->columns;
     }
 
     /**
