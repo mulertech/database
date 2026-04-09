@@ -19,6 +19,7 @@ use MulerTech\Database\Tests\Files\Migrations\Migration202501010001;
 use MulerTech\Database\Tests\Files\Migrations\Migration202501010002;
 use MulerTech\Database\Tests\Files\Migrations\Migration202501010003;
 use MulerTech\Database\Tests\Files\Migrations\Migration202501010004;
+use MulerTech\Database\Tests\Files\Migrations\Migration202506011200;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
@@ -251,6 +252,44 @@ class TestMigration202401011200 extends MulerTech\Database\Schema\Migration\Migr
     /**
      * Helper method to check if a table exists
      */
+    /**
+     * @throws ReflectionException
+     */
+    public function testExecuteMigrationThrowsOnUpFailure(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        $failingMigration = new Migration202506011200($this->realEntityManager);
+        $manager->registerMigration($failingMigration);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('failed:');
+
+        $manager->executeMigration($failingMigration);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testRollbackThrowsOnDownFailure(): void
+    {
+        $manager = new MigrationManager($this->realEntityManager);
+        $failingMigration = new Migration202506011200($this->realEntityManager);
+        $manager->registerMigration($failingMigration);
+
+        // Set up state as if migration was already executed
+        $reflection = new ReflectionClass($manager);
+        $executedProp = $reflection->getProperty('executedMigrations');
+        $executedProp->setValue($manager, [$failingMigration->getVersion()]);
+
+        $migrationsProp = $reflection->getProperty('migrations');
+        $migrationsProp->setValue($manager, [$failingMigration->getVersion() => $failingMigration]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('rollback');
+
+        $manager->rollback();
+    }
+
     private function migrationHistoryTableExists(): bool
     {
         try {

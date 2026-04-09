@@ -620,4 +620,50 @@ class ColumnTypeValueProcessorTest extends TestCase
             self::assertEquals($expected, $this->processor->normalizeType($alias));
         }
     }
+
+    public function testConvertToIntWithArrayValue(): void
+    {
+        $result = $this->processor->convertToColumnValue([], 'int');
+        self::assertSame(0, $result);
+    }
+
+    public function testConvertToBoolWithArrayValue(): void
+    {
+        $result = $this->processor->convertToColumnValue([], 'bool');
+        self::assertIsBool($result);
+    }
+
+    public function testConvertToJsonStringWithIntValue(): void
+    {
+        $result = $this->processor->convertToColumnValue(42, 'json');
+        self::assertSame('42', $result);
+    }
+
+    public function testConvertToJsonStringWithBoolValue(): void
+    {
+        $result = $this->processor->convertToColumnValue(true, 'json');
+        self::assertSame('true', $result);
+    }
+
+    public function testProcessJsonColumnTypeWithObjectValue(): void
+    {
+        $jsonProcessor = new ColumnTypeValueProcessor(\MulerTech\Database\Mapping\Types\ColumnType::JSON);
+        $result = $jsonProcessor->process(new \stdClass());
+        self::assertIsArray($result);
+    }
+
+    public function testProcessJsonColumnTypeWithCircularReferenceObject(): void
+    {
+        $jsonProcessor = new ColumnTypeValueProcessor(\MulerTech\Database\Mapping\Types\ColumnType::JSON);
+
+        // Create circular reference - json_encode returns false
+        $a = new \stdClass();
+        $b = new \stdClass();
+        $a->b = $b;
+        $b->a = $a;
+
+        $result = $jsonProcessor->process($a);
+        self::assertIsArray($result);
+        self::assertEmpty($result);
+    }
 }

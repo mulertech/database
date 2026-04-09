@@ -445,4 +445,27 @@ class MigrationCodeGeneratorTest extends TestCase
         // Should not contain the invalid FK
         $this->assertStringNotContainsString('invalid_fk', $result);
     }
+
+    public function testGenerateDownCodeSkipsColumnWithNoRestorableChanges(): void
+    {
+        $diff = $this->createStub(SchemaDifference::class);
+        $diff->method('getTablesToCreate')->willReturn([]);
+        $diff->method('getTablesToDrop')->willReturn([]);
+        $diff->method('getColumnsToAdd')->willReturn([]);
+        $diff->method('getColumnsToDrop')->willReturn([]);
+        $diff->method('getColumnsToModify')->willReturn([
+            'test_table' => [
+                'test_column' => [
+                    // Only EXTRA change - shouldRestoreColumn returns false
+                    'EXTRA' => ['from' => '', 'to' => 'auto_increment'],
+                ],
+            ],
+        ]);
+        $diff->method('getForeignKeysToAdd')->willReturn([]);
+        $diff->method('getForeignKeysToDrop')->willReturn([]);
+
+        $result = $this->generator->generateDownCode($diff);
+        $this->assertIsString($result);
+        $this->assertStringNotContainsString('test_column', $result);
+    }
 }

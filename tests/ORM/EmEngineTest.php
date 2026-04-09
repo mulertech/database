@@ -766,4 +766,14 @@ class EmEngineTest extends TestCase
         // Should return null when entity has no metadata
         self::assertNull($result);
     }
+
+    public function testLooksLikeWhereClauseReturnsFalseForNonSqlString(): void
+    {
+        $reflection = new \ReflectionClass($this->emEngine);
+        $method = $reflection->getMethod('looksLikeWhereClause');
+
+        // A string with a space (not just \w chars) but no SQL patterns
+        $result = $method->invoke($this->emEngine, 'hello world');
+        self::assertFalse($result);
+    }
 }

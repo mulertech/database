@@ -321,4 +321,23 @@ class DependencyManagerTest extends TestCase
         self::assertLessThan($user2Position, $unitPosition);
         self::assertCount(3, $ordered);
     }
+
+    public function testOrderByDependenciesWithMissingDependencyEntity(): void
+    {
+        $user = new User();
+        $unit = new Unit();
+
+        // Register user depends on unit
+        $this->dependencyManager->addInsertionDependency($user, $unit);
+
+        // Only pass user in the entities array, NOT unit
+        $userOid = spl_object_id($user);
+        $entities = [$userOid => $user];
+
+        $ordered = $this->dependencyManager->orderByDependencies($entities);
+
+        // Should still work - unit dependency oid not in entities triggers early return
+        self::assertCount(1, $ordered);
+        self::assertSame($user, $ordered[$userOid]);
+    }
 }

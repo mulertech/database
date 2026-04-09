@@ -253,4 +253,55 @@ class ManyToManyProcessorTest extends TestCase
         $this->assertIsArray($operations);
         $this->assertEmpty($operations);
     }
+
+    public function testProcessPropertyCallWithNoGetterReturnsEarly(): void
+    {
+        $manyToMany = new MtManyToMany(
+            mappedBy: \MulerTech\Database\Tests\Files\Entity\GroupUser::class,
+        );
+
+        $user = new User();
+        $user->setId(1);
+
+        $reflection = new ReflectionClass($this->processor);
+        $method = $reflection->getMethod('processProperty');
+
+        // Signature: (object $entity, string $property, MtManyToMany $manyToMany, int $entityId)
+        $method->invoke($this->processor, $user, 'nonExistentProperty', $manyToMany, 1);
+
+        $operations = $this->processor->getOperations();
+        $this->assertEmpty($operations);
+    }
+
+    public function testGetPropertyValueWithUninitializedPropertyRethrows(): void
+    {
+        $reflection = new ReflectionClass($this->processor);
+        $method = $reflection->getMethod('getPropertyValue');
+
+        $entity = new \MulerTech\Database\Tests\Files\Mapping\EntityWithUninitializedProperty();
+
+        // The Error message contains 'initialization' not 'uninitialized',
+        // so the catch block re-throws it (line 209)
+        $this->expectException(\Error::class);
+        $method->invoke($this->processor, $entity, 'items');
+    }
+
+    public function testProcessPropertyWithNullPropertyValue(): void
+    {
+        $manyToMany = new MtManyToMany(
+            mappedBy: \MulerTech\Database\Tests\Files\Entity\GroupUser::class,
+        );
+
+        $user = new User();
+        $user->setId(1);
+
+        $reflection = new ReflectionClass($this->processor);
+        $method = $reflection->getMethod('processProperty');
+
+        // 'manager' property getter returns null
+        $method->invoke($this->processor, $user, 'manager', $manyToMany, 1);
+
+        $operations = $this->processor->getOperations();
+        $this->assertEmpty($operations);
+    }
 }

@@ -335,4 +335,82 @@ class AbstractQueryBuilderTest extends TestCase
         $this->assertStringContainsString('`name` =', $result);
         $this->assertStringContainsString('`updated_at` = NOW()', $result);
     }
+
+    public function testAbstractValidateTableNameEmpty(): void
+    {
+        // Test AbstractQueryBuilder's own validateTableName (not the ValidationTrait version)
+        $builder = new class extends AbstractQueryBuilder {
+            public function getQueryType(): string { return 'TEST'; }
+            protected function buildSql(): string { return 'SELECT 1'; }
+            public function callValidateTableName(string $table): void { $this->validateTableName($table); }
+            public function callValidateColumnName(string $column): void { $this->validateColumnName($column); }
+        };
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Table name cannot be empty');
+        $builder->callValidateTableName('');
+    }
+
+    public function testAbstractValidateTableNameInvalid(): void
+    {
+        $builder = new class extends AbstractQueryBuilder {
+            public function getQueryType(): string { return 'TEST'; }
+            protected function buildSql(): string { return 'SELECT 1'; }
+            public function callValidateTableName(string $table): void { $this->validateTableName($table); }
+        };
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid table name format');
+        $builder->callValidateTableName('invalid-table');
+    }
+
+    public function testAbstractValidateColumnNameEmpty(): void
+    {
+        $builder = new class extends AbstractQueryBuilder {
+            public function getQueryType(): string { return 'TEST'; }
+            protected function buildSql(): string { return 'SELECT 1'; }
+            public function callValidateColumnName(string $column): void { $this->validateColumnName($column); }
+        };
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Column name cannot be empty');
+        $builder->callValidateColumnName('');
+    }
+
+    public function testAbstractValidateColumnNameInvalid(): void
+    {
+        $builder = new class extends AbstractQueryBuilder {
+            public function getQueryType(): string { return 'TEST'; }
+            protected function buildSql(): string { return 'SELECT 1'; }
+            public function callValidateColumnName(string $column): void { $this->validateColumnName($column); }
+        };
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid column name format');
+        $builder->callValidateColumnName('invalid-column');
+    }
+
+    public function testAbstractValidateTableNameValid(): void
+    {
+        $builder = new class extends AbstractQueryBuilder {
+            public function getQueryType(): string { return 'TEST'; }
+            protected function buildSql(): string { return 'SELECT 1'; }
+            public function callValidateTableName(string $table): void { $this->validateTableName($table); }
+        };
+
+        $builder->callValidateTableName('valid_table');
+        $this->addToAssertionCount(1);
+    }
+
+    public function testAbstractValidateColumnNameValid(): void
+    {
+        $builder = new class extends AbstractQueryBuilder {
+            public function getQueryType(): string { return 'TEST'; }
+            protected function buildSql(): string { return 'SELECT 1'; }
+            public function callValidateColumnName(string $column): void { $this->validateColumnName($column); }
+        };
+
+        $builder->callValidateColumnName('valid_column');
+        $this->addToAssertionCount(1);
+    }
 }

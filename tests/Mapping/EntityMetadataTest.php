@@ -535,4 +535,18 @@ class EntityMetadataTest extends TestCase
         $this->assertEquals('isActive', $mapping['active']);
         $this->assertArrayNotHasKey('untypedProperty', $mapping); // No getter for this property
     }
+
+    public function testGetRequiredGetterThrowsOnMissingProperty(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No getter found for property');
+        $this->metadata->getRequiredGetter('nonExistentProperty');
+    }
+
+    public function testGetRequiredSetterThrowsOnMissingProperty(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No setter found for property');
+        $this->metadata->getRequiredSetter('nonExistentProperty');
+    }
 }

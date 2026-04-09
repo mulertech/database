@@ -283,4 +283,23 @@ class EntityRelationLoaderTest extends TestCase
         $method->invoke($this->relationLoader, User::class, 'nonExistentProperty');
     }
 
+    public function testLoadOneToManyWithEntityWithoutId(): void
+    {
+        // Use an entity without getId() method
+        $entity = new \MulerTech\Database\Tests\Files\Mapping\EntityWithoutGetId();
+
+        $reflection = new \ReflectionClass($this->relationLoader);
+        $method = $reflection->getMethod('loadOneToMany');
+
+        $oneToMany = [
+            'targetEntity' => User::class,
+            'mappedBy' => 'user',
+        ];
+
+        // 'name' property won't have a setter that accepts DatabaseCollection, so use a non-existent setter
+        // The method will try to set the relation value but may fail silently
+        $result = $method->invoke($this->relationLoader, $entity, $oneToMany, 'nonExistentRelation');
+        $this->assertInstanceOf(\MulerTech\Database\ORM\DatabaseCollection::class, $result);
+        $this->assertCount(0, $result);
+    }
 }

@@ -828,4 +828,70 @@ class PhpTypeValueProcessorTest extends TestCase
         $result = $method->invoke($processor, null);
         self::assertInstanceOf(\DateTimeImmutable::class, $result);
     }
+
+    public function testProcessDateTimeWithNullValueViaReflection(): void
+    {
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor('DateTime');
+        $method = new \ReflectionMethod($processor, 'processDateTime');
+
+        // null triggers the 'now' branch
+        $result = $method->invoke($processor, null);
+        self::assertInstanceOf(\DateTime::class, $result);
+    }
+
+    public function testProcessDateTimeWithIntValueViaReflection(): void
+    {
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor('DateTime');
+        $method = new \ReflectionMethod($processor, 'processDateTime');
+
+        // int triggers the scalar branch
+        $result = $method->invoke($processor, 20230101);
+        self::assertInstanceOf(\DateTime::class, $result);
+    }
+
+    public function testProcessDateTimeWithArrayThrowsTypeError(): void
+    {
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor('DateTime');
+        $method = new \ReflectionMethod($processor, 'processDateTime');
+
+        $this->expectException(\TypeError::class);
+        $method->invoke($processor, []);
+    }
+
+    public function testProcessDateTimeImmutableWithIntValueViaReflection(): void
+    {
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor('DateTimeImmutable');
+        $method = new \ReflectionMethod($processor, 'processDateTimeImmutable');
+
+        $result = $method->invoke($processor, 20230101);
+        self::assertInstanceOf(\DateTimeImmutable::class, $result);
+    }
+
+    public function testProcessDateTimeImmutableWithArrayThrowsTypeError(): void
+    {
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor('DateTimeImmutable');
+        $method = new \ReflectionMethod($processor, 'processDateTimeImmutable');
+
+        $this->expectException(\TypeError::class);
+        $method->invoke($processor, []);
+    }
+
+    public function testProcessDateTimeImmutableWithInvalidDateString(): void
+    {
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor('DateTimeImmutable');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid date format');
+        $processor->process('not-a-valid-date-format-at-all');
+    }
+
+    public function testProcessCustomClassWithConstructorException(): void
+    {
+        $className = \MulerTech\Database\Tests\Files\Mapping\EntityWithThrowingConstructor::class;
+        $processor = new \MulerTech\Database\ORM\ValueProcessor\PhpTypeValueProcessor($className);
+        $method = new \ReflectionMethod($processor, 'processCustomClass');
+
+        // Constructor throws RuntimeException (extends Exception), caught by catch(\Exception)
+        $result = $method->invoke($processor, 'some_string');
+        self::assertInstanceOf(\stdClass::class, $result);
+    }
 }

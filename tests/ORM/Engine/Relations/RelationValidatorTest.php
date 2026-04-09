@@ -338,7 +338,31 @@ class RelationValidatorTest extends TestCase
         
         // This should trigger the echo for no type hint (assumes it accepts null)
         $result = $this->validator->setterAcceptsNull($entity, 'setUntypedParam');
-        
+
         $this->assertTrue($result);
+    }
+
+    public function testValidateMappedByWithInvalidClassString(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid mappedBy value');
+
+        $this->validator->validateMappedBy(
+            ['mappedBy' => 'NonExistentClassName'],
+            User::class,
+            'groups'
+        );
+    }
+
+    public function testValidateMappedByWithNonStringValue(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid mappedBy value');
+
+        $this->validator->validateMappedBy(
+            ['mappedBy' => 123],
+            User::class,
+            'groups'
+        );
     }
 }

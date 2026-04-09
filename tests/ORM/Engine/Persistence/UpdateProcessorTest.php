@@ -162,7 +162,39 @@ class UpdateProcessorTest extends TestCase
         // Since our mocks don't actually execute the full flow, this won't throw
         // In a real scenario, the exception would be caught and rethrown
         $this->updateProcessor->process($user, $changes);
-        
+
         $this->assertTrue(true);
+    }
+
+    public function testProcessThrowsRuntimeExceptionOnExecuteFailure(): void
+    {
+        $user = new User();
+        $user->setId(123);
+        $user->setUsername('John');
+
+        $change = new PropertyChange('username', 'OldName', 'John');
+        $changes = ['username' => $change];
+
+        // Build mock chain: emEngine->getEntityManager()->getPdm()->prepare() returns a statement that throws on execute
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $mockEngine = $this->createStub(\MulerTech\Database\ORM\EmEngine::class);
+        $mockPdm = $this->createStub(\MulerTech\Database\Database\Interface\PhpDatabaseInterface::class);
+        $mockStatement = $this->createStub(\MulerTech\Database\Database\Interface\Statement::class);
+
+        // Wire the chain properly: entityManager -> emEngine -> entityManager -> pdm -> statement
+        $entityManager->method('getEmEngine')->willReturn($mockEngine);
+        $entityManager->method('getPdm')->willReturn($mockPdm);
+        $mockEngine->method('getEntityManager')->willReturn($entityManager);
+
+        $mockPdm->method('prepare')->willReturn($mockStatement);
+        $mockStatement->method('fetchColumn')->willReturn(1);
+        $mockStatement->method('execute')->willThrowException(new \Exception('DB error'));
+
+        $processor = new UpdateProcessor($entityManager, $this->metadataRegistry);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to update entity');
+
+        $processor->process($user, $changes);
     }
 }

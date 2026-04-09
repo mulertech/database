@@ -588,4 +588,28 @@ final class ResultSetCacheTest extends BaseCacheTest
             $this->assertNull($result, 'Closed resources should trigger final return null');
         }
     }
+
+    public function testHandleCompressionWithCorruptedData(): void
+    {
+        $cache = $this->createCacheInstance();
+
+        // Inject corrupted compressed data directly into the inner mock cache
+        $this->mockCache->set('corrupted_key', ['compressed' => true, 'data' => 'not valid compressed data!@#$%']);
+
+        // get() will call decompress -> handleCompression, which catches the Throwable
+        $result = $cache->get('corrupted_key');
+        $this->assertNull($result);
+    }
+
+    public function testDeserializeAndValidateWithInvalidSerializedData(): void
+    {
+        $cache = $this->createCacheInstance();
+
+        // Inject data that is NOT compressed but has invalid serialized content
+        // This will pass handleCompression (not compressed) and fail at deserializeAndValidate
+        $this->mockCache->set('bad_serial_key', ['compressed' => false, 'data' => 'O:26:"NonExistentClassForTesting":0:{}']);
+
+        $result = $cache->get('bad_serial_key');
+        $this->assertNull($result);
+    }
 }

@@ -163,8 +163,24 @@ class FlushHandlerTest extends TestCase
     public function testMarkPostEventChanges(): void
     {
         $this->flushHandler->markPostEventChanges();
-        
+
         // Test passes if no exception is thrown
         $this->assertTrue(true);
+    }
+
+    public function testFlushThrowsOnMaxDepthExceeded(): void
+    {
+        $reflection = new \ReflectionClass($this->flushHandler);
+        $flushDepthProp = $reflection->getProperty('flushDepth');
+        $flushDepthProp->setValue($this->flushHandler, 10);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Maximum flush depth reached');
+
+        $this->flushHandler->doFlush(
+            fn () => null,
+            fn () => null,
+            fn () => null,
+        );
     }
 }

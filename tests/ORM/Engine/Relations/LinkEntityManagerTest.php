@@ -205,4 +205,67 @@ class LinkEntityManagerTest extends TestCase
         // Verify that the entity was removed from the collection
         $this->assertCount(0, $user1->getGroups());
     }
+
+    public function testSetJoinPropertiesWithNullJoinProperty(): void
+    {
+        $manyToMany = new MtManyToMany(
+            mappedBy: \MulerTech\Database\Tests\Files\Entity\GroupUser::class,
+            joinProperty: null,
+            inverseJoinProperty: null,
+        );
+
+        $reflection = new ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('setJoinProperties');
+
+        $user = new User();
+        $group = new \MulerTech\Database\Tests\Files\Entity\Group();
+        $linkEntity = new \MulerTech\Database\Tests\Files\Entity\GroupUser();
+
+        $method->invoke($this->linkEntityManager, $linkEntity, $manyToMany, $user, $group);
+        $this->assertTrue(true);
+    }
+
+    public function testRemoveFromEntityCollectionWhenMappingNotFound(): void
+    {
+        $manyToMany = new MtManyToMany(
+            mappedBy: \MulerTech\Database\Tests\Files\Entity\GroupUser::class,
+        );
+
+        $reflection = new ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('removeFromEntityCollection');
+
+        $entity = new \MulerTech\Database\Tests\Files\Mapping\EntityWithGetIdentifier();
+        $relatedEntity = new User();
+
+        $method->invoke($this->linkEntityManager, $entity, $relatedEntity, $manyToMany);
+        $this->assertTrue(true);
+    }
+
+    public function testRemoveFromCollectionPropertyWithUninitializedPropertyRethrows(): void
+    {
+        $reflection = new ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('removeFromCollectionProperty');
+
+        $entity = new \MulerTech\Database\Tests\Files\Mapping\EntityWithUninitializedProperty();
+        $relatedEntity = new User();
+
+        // The Error message contains 'initialization' not 'uninitialized',
+        // so the catch block re-throws it (line 223)
+        $this->expectException(\Error::class);
+        $method->invoke($this->linkEntityManager, $entity, 'items', $relatedEntity);
+    }
+
+    public function testRemoveFromCollectionPropertyWithNonCollectionValue(): void
+    {
+        $reflection = new ReflectionClass($this->linkEntityManager);
+        $method = $reflection->getMethod('removeFromCollectionProperty');
+
+        $user = new User();
+        $user->setUsername('test');
+        $relatedEntity = new User();
+
+        // 'username' property getter returns a string, not a Collection
+        $method->invoke($this->linkEntityManager, $user, 'username', $relatedEntity);
+        $this->assertTrue(true);
+    }
 }

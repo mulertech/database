@@ -523,4 +523,14 @@ class IdentityMapTest extends TestCase
         // but the method should handle dead references gracefully
         self::assertIsBool($result);
     }
+
+    public function testExtractEntityIdViaMetadataGetter(): void
+    {
+        $entity = new \MulerTech\Database\Tests\Files\Mapping\EntityWithGetIdentifier();
+
+        $this->identityMap->add($entity);
+
+        $metadata = $this->identityMap->getMetadata($entity);
+        self::assertNotNull($metadata);
+    }
 }

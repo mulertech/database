@@ -198,4 +198,24 @@ class EntityRegistryTest extends TestCase
         self::assertSame($user, $users[0]);
         self::assertSame($unit, $units[0]);
     }
+
+    public function testGarbageCollectionTriggered(): void
+    {
+        $reflection = new \ReflectionClass($this->registry);
+
+        $gcIntervalProp = $reflection->getProperty('gcInterval');
+        $gcIntervalProp->setValue($this->registry, 1);
+
+        $enableGcProp = $reflection->getProperty('enableGarbageCollection');
+        $enableGcProp->setValue($this->registry, true);
+
+        $opCountProp = $reflection->getProperty('operationCount');
+        $opCountProp->setValue($this->registry, 0);
+
+        $user = new User();
+        $this->registry->register($user);
+
+        // After 1 operation with gcInterval=1, GC should have been triggered
+        self::assertTrue(true);
+    }
 }

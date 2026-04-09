@@ -286,4 +286,44 @@ class SqlTypeConverterTest extends TestCase
         $this->assertEquals("->set(['create', 'read', 'update', 'delete'])", 
             $this->converter->convertToBuilderMethod("set('create','read','update','delete')"));
     }
+
+    public function testEnumWithTrailingWhitespaceAndComma(): void
+    {
+        $result = $this->converter->convertToBuilderMethod("enum('a','b', )");
+        $this->assertStringContainsString('enum', $result);
+        $this->assertStringContainsString("'a'", $result);
+        $this->assertStringContainsString("'b'", $result);
+    }
+
+    public function testEnumWithUnquotedValue(): void
+    {
+        $result = $this->converter->convertToBuilderMethod("enum(a,'b')");
+        $this->assertStringContainsString('enum', $result);
+        $this->assertStringContainsString("'b'", $result);
+    }
+
+    public function testEnumWithSingleCharValue(): void
+    {
+        $result = $this->converter->convertToBuilderMethod("enum('a')");
+        $this->assertStringContainsString('enum', $result);
+    }
+
+    public function testSetWithTrailingComma(): void
+    {
+        $result = $this->converter->convertToBuilderMethod("set('x', )");
+        $this->assertStringContainsString('set', $result);
+    }
+
+    public function testCleanQuotedValueWithShortString(): void
+    {
+        $reflection = new \ReflectionClass($this->converter);
+        $method = $reflection->getMethod('cleanQuotedValue');
+
+        // String shorter than 2 chars returns as-is
+        $result = $method->invoke($this->converter, 'x');
+        $this->assertSame('x', $result);
+
+        $result = $method->invoke($this->converter, '');
+        $this->assertSame('', $result);
+    }
 }
