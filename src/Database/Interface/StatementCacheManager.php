@@ -44,7 +44,7 @@ class StatementCacheManager
                 return $cachedStatement;
             } catch (\PDOException) {
                 // Connection lost, invalidate cache
-                $this->statementCache?->delete($cacheKey);
+                $this->statementCache->delete($cacheKey);
 
                 return null;
             }

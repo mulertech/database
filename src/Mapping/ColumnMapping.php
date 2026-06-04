@@ -63,7 +63,7 @@ class ColumnMapping
         return $mtColumn->columnType->toSqlDefinition(
             $mtColumn->length,
             $mtColumn->scale,
-            $mtColumn->isUnsigned ?? false,
+            $mtColumn->isUnsigned,
             $mtColumn->choices
         );
     }

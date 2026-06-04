@@ -21,9 +21,9 @@
     "php": "^8.4",
     "mulertech/collections": "^1",
     "mulertech/event-manager": "^1",
-    "mulertech/file-manipulation": "^1",
+    "mulertech/file-manipulation": "^2",
     "mulertech/mterm": "^1",
-    "symfony/yaml": "^7",
+    "symfony/yaml": "^8.1",
     "ext-pdo": "*",
     "ext-iconv": "*",
     "ext-zlib": "*"
@@ -31,7 +31,7 @@
   "require-dev": {
     "ext-posix": "*",
     "friendsofphp/php-cs-fixer": "^3",
-    "mulertech/docker-dev": "^3.2",
+    "mulertech/docker-dev": "^3.3",
     "phpstan/phpstan": "^2",
     "phpunit/phpunit": "^12||^13",
     "roave/security-advisories": "dev-latest"
