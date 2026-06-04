@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.0 - 2026-06-04
+
+Upgrade to Symfony 8: bump symfony/yaml to ^8.1 and mulertech/file-manipulation to ^2. Drops support for Symfony 7 (patched against CVE-2026-45133/45304/45305). Minor PHPStan type cleanups. No public API changes.
+
 ## v1.0.0 - 2025-08-14
 
 ### Added
@@ -48,36 +52,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Schema Management
 
 - **Database migration system** with version control
+  
 - **Automatic migration generation** from entity definitions
+  
 - **Schema comparison tools** for detecting database drift
+  
 - **Migration rollback support** with down() methods
+  
 - **CLI commands** via MTerm framework integration
+  
   - `migration:generate` - Generate migrations from entity changes
   - `migration:run` - Execute pending migrations
   - `migration:rollback` - Rollback last migration
   
 - **Migration history tracking** with execution time monitoring
+  
 
 #### Event System
 
 - **Comprehensive entity lifecycle events**:
+  
   - `PrePersist` / `PostPersist` - Before/after entity creation
   - `PreUpdate` / `PostUpdate` - Before/after entity modification
   - `PreRemove` / `PostRemove` - Before/after entity deletion
   - `PreFlush` / `PostFlush` - Before/after batch operations
   
 - **Event listener registration** and priority-based execution
+  
 - **Change set access** in update events for audit trails
+  
 
 #### Caching System
 
 - **Multi-level caching architecture**:
+  
   - Metadata caching for entity definitions
   - Query result caching for performance
   - Identity map caching for object consistency
   
 - **Cache invalidation strategies** with automatic cleanup
+  
 - **Configurable cache backends** and TTL settings
+  
 
 #### Repository Pattern
 
