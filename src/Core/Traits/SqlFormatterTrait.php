@@ -119,15 +119,18 @@ trait SqlFormatterTrait
         return $formatted;
     }
 
+    /**
+     * @throws \InvalidArgumentException when the value has no SQL literal representation
+     */
     protected function formatValue(mixed $value): string
     {
         return match (true) {
             is_null($value) => 'NULL',
             is_bool($value) => $value ? '1' : '0',
+            is_float($value) && !is_finite($value) => throw new \InvalidArgumentException(sprintf('Cannot format the non-finite float %s as an SQL literal: only finite numbers are accepted.', $value)),
             is_numeric($value) => (string) $value,
             is_string($value) => $this->quoteString($value),
-            is_scalar($value) => $this->quoteString((string) $value),
-            default => $this->quoteString(''),
+            default => throw new \InvalidArgumentException(sprintf('Cannot format a value of type "%s" as an SQL literal: accepted types are null, bool, int, float and string.', get_debug_type($value))),
         };
     }
 

@@ -322,18 +322,36 @@ final class SqlFormatterTraitTest extends TestCase
         $this->assertEquals("'It''s a ''test'''", $result);
     }
 
-    public function testFormatValueArray(): void
+    public function testFormatValueArrayThrows(): void
     {
-        $result = $this->formatter->callFormatValue(['array', 'value']);
-        
-        $this->assertEquals("''", $result);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot format a value of type "array" as an SQL literal: accepted types are null, bool, int, float and string.');
+
+        $this->formatter->callFormatValue(['array', 'value']);
     }
 
-    public function testFormatValueObject(): void
+    public function testFormatValueObjectThrows(): void
     {
-        $result = $this->formatter->callFormatValue(new \stdClass());
-        
-        $this->assertEquals("''", $result);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot format a value of type "stdClass" as an SQL literal');
+
+        $this->formatter->callFormatValue(new \stdClass());
+    }
+
+    public function testFormatValueNanThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot format the non-finite float NAN as an SQL literal: only finite numbers are accepted.');
+
+        $this->formatter->callFormatValue(NAN);
+    }
+
+    public function testFormatValueInfinityThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot format the non-finite float -INF as an SQL literal');
+
+        $this->formatter->callFormatValue(-INF);
     }
 
     public function testQuoteStringSimple(): void
@@ -510,24 +528,30 @@ final class SqlFormatterTraitTest extends TestCase
         $this->assertEquals('`COLUMN`', $this->formatter->callFormatIdentifier('COLUMN'));
     }
 
-    public function testResourceHandling(): void
+    public function testResourceHandlingThrows(): void
     {
         $resource = fopen('php://memory', 'r');
-        $result = $this->formatter->callFormatValue($resource);
-        fclose($resource);
-        
-        $this->assertEquals("''", $result);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot format a value of type "resource (stream)" as an SQL literal');
+
+        try {
+            $this->formatter->callFormatValue($resource);
+        } finally {
+            fclose($resource);
+        }
     }
 
-    public function testCallableHandling(): void
+    public function testCallableHandlingThrows(): void
     {
         $callable = function () {
             return 'test';
         };
-        
-        $result = $this->formatter->callFormatValue($callable);
-        
-        $this->assertEquals("''", $result);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot format a value of type "Closure" as an SQL literal');
+
+        $this->formatter->callFormatValue($callable);
     }
 }
 
