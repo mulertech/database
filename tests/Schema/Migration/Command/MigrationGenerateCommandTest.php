@@ -63,7 +63,7 @@ class MigrationGenerateCommandTest extends TestCase
 
     public function testExecuteSuccessfulMigrationGeneration(): void
     {
-        // Créer un mock frais pour isoler ce test
+        // Fresh terminal stub, isolated to this test
         $terminal = $this->createStub(Terminal::class);
 
         $migrationGenerateCommand = new MigrationGenerateCommand(
@@ -72,7 +72,7 @@ class MigrationGenerateCommandTest extends TestCase
             $this->migrationsDirectory
         );
 
-        // Ne pas spécifier un nombre exact d'appels pour éviter les erreurs
+        // No exact call count, so the test does not depend on how many lines are written
         $terminal->method('writeLine');
 
         $this->assertEquals(0, $migrationGenerateCommand->execute(['202302151000']));
@@ -87,23 +87,23 @@ class MigrationGenerateCommandTest extends TestCase
      */
     public function testExecuteNoChangesDetected(): void
     {
-        // Créer un mock frais pour isoler ce test
+        // Fresh terminal stub, isolated to this test
         $terminal = $this->createStub(Terminal::class);
 
-        // Créer un mock pour SchemaComparer qui indique qu'il n'y a pas de différences
+        // SchemaComparer stub reporting no differences
         $schemaComparer = $this->createStub(SchemaComparer::class);
         $schemaComparer->method('compare')->willReturn(
             new SchemaDifference([], [], [], [], [], [], [], [])
         );
 
-        // Créer un stub pour MigrationGenerator qui utilise notre SchemaComparer mocké
+        // MigrationGenerator mock built on the stubbed SchemaComparer
         $migrationGenerator = $this->getMockBuilder(MigrationGenerator::class)
             ->setConstructorArgs([$schemaComparer, $this->entityManager->getMetadataRegistry(), $this->migrationsDirectory])
             ->disableOriginalConstructor()
             ->getMock();
         $migrationGenerator->expects($this->once())->method('generateMigration')->willReturn(null);
 
-        // Utiliser la reflexion pour injecter notre mock dans la commande
+        // Anonymous subclass injecting the mock into the command
         $command = new class($terminal, $this->entityManager, $this->migrationsDirectory, $migrationGenerator) extends MigrationGenerateCommand {
             private MigrationGenerator $mockedMigrationGenerator;
 
@@ -119,7 +119,7 @@ class MigrationGenerateCommandTest extends TestCase
             }
         };
 
-        // Vérifier que le message "No schema changes detected" est affiché
+        // Check that the "No schema changes detected" message is displayed
         $noChangesMessageShown = false;
         $terminal->method('writeLine')
             ->willReturnCallback(function ($message, $color = null) use (&$noChangesMessageShown) {
@@ -129,16 +129,16 @@ class MigrationGenerateCommandTest extends TestCase
             });
 
         $this->assertEquals(0, $command->execute());
-        $this->assertTrue($noChangesMessageShown, "Le message 'No schema changes detected' n'a pas été affiché");
+        $this->assertTrue($noChangesMessageShown, "The 'No schema changes detected' message was not displayed");
         $this->assertEmpty(glob($this->migrationsDirectory . '/*'));
     }
 
     public function testExecuteWithError(): void
     {
-        // Créer un mock frais pour isoler ce test
+        // Fresh terminal stub, isolated to this test
         $terminal = $this->createStub(Terminal::class);
 
-        // Créer un répertoire de migrations inexistant pour provoquer une erreur
+        // Non-existent migrations directory, to trigger an error
         $invalidDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'invalid_migrations_dir';
         if (is_dir($invalidDir)) {
             rmdir($invalidDir);
@@ -150,7 +150,7 @@ class MigrationGenerateCommandTest extends TestCase
             $invalidDir
         );
 
-        // Vérifier que le message d'erreur est affiché
+        // Check that the error message is displayed
         $errorMessageShown = false;
         $terminal->method('writeLine')
             ->willReturnCallback(function ($message, $color = null) use (&$errorMessageShown) {
@@ -160,7 +160,7 @@ class MigrationGenerateCommandTest extends TestCase
             });
 
         $this->assertEquals(1, $command->execute());
-        $this->assertTrue($errorMessageShown, "Le message d'erreur n'a pas été affiché");
+        $this->assertTrue($errorMessageShown, "The error message was not displayed");
     }
 
     /**
@@ -168,7 +168,7 @@ class MigrationGenerateCommandTest extends TestCase
      */
     public function testExecuteWithInvalidDateFormat(): void
     {
-        // Créer un mock frais pour isoler ce test
+        // Fresh terminal stub, isolated to this test
         $terminal = $this->createStub(Terminal::class);
 
         $command = new MigrationGenerateCommand(
@@ -177,7 +177,7 @@ class MigrationGenerateCommandTest extends TestCase
             $this->migrationsDirectory
         );
 
-        // Vérifier que le message d'erreur est affiché avec le bon format
+        // Check that the error message is displayed in red
         $errorMessageShown = false;
         $terminal->method('writeLine')
             ->willReturnCallback(function ($message, $color = null) use (&$errorMessageShown) {
@@ -186,13 +186,13 @@ class MigrationGenerateCommandTest extends TestCase
                 }
             });
 
-        // Exécuter avec un format de date invalide
+        // Run with an invalid date format
         $this->assertEquals(1, $command->execute(['invalid-date-format']));
-        $this->assertTrue($errorMessageShown, "Le message d'erreur n'a pas été affiché");
+        $this->assertTrue($errorMessageShown, "The error message was not displayed");
     }
 
     /**
-     * Test que la commande a bien un nom et une description
+     * The command declares a name and a description
      */
     public function testCommandHasNameAndDescription(): void
     {
@@ -216,7 +216,7 @@ class MigrationGenerateCommandTest extends TestCase
      */
     public function testExecuteWithoutProvidedDate(): void
     {
-        // Créer un mock frais pour isoler ce test
+        // Fresh terminal stub, isolated to this test
         $terminal = $this->createStub(Terminal::class);
 
         $command = new MigrationGenerateCommand(
@@ -225,34 +225,34 @@ class MigrationGenerateCommandTest extends TestCase
             $this->migrationsDirectory
         );
 
-        // Ne pas spécifier d'attente exacte sur le nombre d'appels
+        // No exact expectation on the number of calls
         $terminal->method('writeLine');
 
         $this->assertEquals(0, $command->execute());
 
-        // Vérifier qu'un fichier de migration a été créé (le nom contient la date actuelle)
+        // Check that a migration file was created (its name contains the current date)
         $files = glob($this->migrationsDirectory . '/*');
         $this->assertNotEmpty($files, 'A migration file should be created');
         $this->assertMatchesRegularExpression('/Migration\d{12}\.php/', basename($files[0]));
     }
 
     /**
-     * Test avec une exception lors de la génération de migration
+     * An exception thrown while generating the migration
      * @throws Exception
      */
     public function testExecuteWithRuntimeExceptionFromGenerator(): void
     {
-        // Créer un mock frais pour isoler ce test
+        // Fresh terminal stub, isolated to this test
         $terminal = $this->createStub(Terminal::class);
 
-        // Créer un mock de MigrationGenerator qui lance une exception
+        // MigrationGenerator mock that throws an exception
         $migrationGenerator = $this->getMockBuilder(MigrationGenerator::class)
             ->disableOriginalConstructor()
             ->getMock();
         $migrationGenerator->expects($this->once())->method('generateMigration')
             ->willThrowException(new RuntimeException('Test exception'));
 
-        // Utiliser la reflexion pour injecter notre mock dans la commande
+        // Anonymous subclass injecting the mock into the command
         $command = new class($terminal, $this->entityManager, $this->migrationsDirectory, $migrationGenerator) extends MigrationGenerateCommand {
             private MigrationGenerator $mockedGenerator;
 
@@ -268,7 +268,7 @@ class MigrationGenerateCommandTest extends TestCase
             }
         };
 
-        // Vérifier que le message d'erreur spécifique est affiché
+        // Check that the specific error message is displayed
         $errorMessageShown = false;
         $terminal->method('writeLine')
             ->willReturnCallback(function ($message, $color = null) use (&$errorMessageShown) {
@@ -278,15 +278,15 @@ class MigrationGenerateCommandTest extends TestCase
             });
 
         $this->assertEquals(1, $command->execute());
-        $this->assertTrue($errorMessageShown, "Le message d'erreur attendu n'a pas été affiché");
+        $this->assertTrue($errorMessageShown, "The expected error message was not displayed");
     }
 
     /**
-     * Test pour vérifier le comportement lorsque MigrationGenerator est créé dans execute()
+     * Behaviour when MigrationGenerator is created inside execute()
      */
     public function testCreateMigrationGenerator(): void
     {
-        // On teste la méthode createMigrationGenerator en la rendant publique
+        // Expose createMigrationGenerator publicly to test it
         $command = new class($this->terminal, $this->entityManager, $this->migrationsDirectory) extends MigrationGenerateCommand {
             public function exposedCreateMigrationGenerator($schemaComparer, $migrationsDirectory): MigrationGenerator
             {

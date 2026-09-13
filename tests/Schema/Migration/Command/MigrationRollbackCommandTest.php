@@ -166,7 +166,7 @@ class MigrationRollbackCommandTest extends TestCase
     {
         $this->migrationManager->expects($this->once())
             ->method('getMigrations')
-            ->will($this->throwException(new Exception('Une erreur est survenue')));
+            ->will($this->throwException(new Exception('An error occurred')));
             
         $this->terminal->expects($this->exactly(2))
             ->method('writeLine');

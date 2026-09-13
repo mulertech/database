@@ -182,7 +182,7 @@ class SelectBuilder extends AbstractQueryBuilder
     {
         $selectClause = $this->distinct ? 'SELECT DISTINCT ' : 'SELECT ';
         $selectClause .= !empty($this->select)
-            ? implode(', ', $this->select)  // Les colonnes sont déjà formatées dans select()
+            ? implode(', ', $this->select)  // Columns are already formatted in select()
             : '*';
 
         return $selectClause;

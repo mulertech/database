@@ -142,7 +142,7 @@ class ValueProcessorTest extends TestCase
         self::assertEquals('scalar', $this->processor->getValueType(42));
         self::assertEquals('scalar', $this->processor->getValueType(3.14));
         self::assertEquals('scalar', $this->processor->getValueType(true));
-        // null n'est pas considéré comme scalaire par is_scalar(), donc il retourne 'other'
+        // is_scalar() does not consider null a scalar, so it returns 'other'
         self::assertEquals('other', $this->processor->getValueType(null));
     }
 
@@ -205,10 +205,10 @@ class ValueProcessorTest extends TestCase
         
         $result = $this->processor->processValue($complexValue);
         
-        // Pour les tableaux complexes, seuls les objets Entity sont traités
+        // In complex arrays, only Entity objects are processed
         self::assertIsArray($result);
         self::assertEquals('string', $result['simple']);
-        self::assertEquals($user, $result['entity']); // L'entité reste intacte car elle est dans un tableau
+        self::assertEquals($user, $result['entity']); // The entity stays intact because it is inside an array
         self::assertIsArray($result['nested']);
         self::assertEquals('value', $result['nested']['level2']);
     }
@@ -243,7 +243,7 @@ class ValueProcessorTest extends TestCase
         
         $result = $this->processor->processValue($object);
 
-        // Un objet sans méthode getId sera traité comme un objet générique
+        // An object without a getId method is processed as a generic object
         self::assertIsArray($result);
         self::assertArrayHasKey('__object__', $result);
         self::assertEquals(\stdClass::class, $result['__object__']);

@@ -295,10 +295,10 @@ class EntitySchedulerTest extends TestCase
 
         $this->scheduler->scheduleForInsertion($user);
 
-        // Test avec un type de schedule invalide
+        // Invalid schedule type
         $this->scheduler->removeFromSchedule($user, 'invalid');
 
-        // L'entité doit toujours être présente car le type est invalide
+        // The entity is still scheduled because the type is invalid
         self::assertTrue($this->scheduler->isScheduledForInsertion($user));
     }
 }

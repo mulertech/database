@@ -93,7 +93,7 @@ final class ChangeSetManager
     public function computeChangeSets(): void
     {
         $this->changeSets = new \SplObjectStorage();
-        // Ne pas effacer le scheduler ici - on a besoin des planifications existantes
+        // Do not clear the scheduler here: the existing schedules are still needed
         $this->visitedEntities = [];
 
         // Process all managed entities

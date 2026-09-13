@@ -169,12 +169,12 @@ class MigrationManager
         foreach ($files as $file) {
             $className = pathinfo($file, PATHINFO_FILENAME);
 
-            // Inclure le fichier s'il n'est pas déjà chargé
+            // Include the file unless the class is already loaded
             if (!class_exists($className)) {
                 require_once $file;
             }
 
-            // Instancier la migration
+            // Instantiate the migration
             if (class_exists($className)) {
                 $migration = new $className($this->entityManager);
 

@@ -117,7 +117,7 @@ class EntityProcessorTest extends TestCase
 
     public function testExtractEntityIdWithStringId(): void
     {
-        // Puisque User::setId() n'accepte que des int, on teste avec un int
+        // User::setId() only accepts int, so the test uses an int
         $user = new User();
         $user->setId(999);
 
@@ -138,7 +138,7 @@ class EntityProcessorTest extends TestCase
 
         $this->processor->copyEntityData($sourceUser, $targetUser);
 
-        // L'ID ne doit pas être copié
+        // The ID must not be copied
         self::assertEquals(200, $targetUser->getId());
         self::assertEquals('John', $targetUser->getUsername());
     }

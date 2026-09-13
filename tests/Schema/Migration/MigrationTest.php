@@ -47,7 +47,7 @@ class MigrationTest extends TestCase
         if (!is_dir($this->migrationsDirectory)) {
             mkdir($this->migrationsDirectory, 0777, true);
         }
-        // Utilisation des vraies classes pour comparer et mapping
+        // Real comparer and mapping classes
         $this->schemaComparer = new SchemaComparer(
             new InformationSchema($this->entityManager->getEmEngine()),
             $this->entityManager->getMetadataRegistry(),
@@ -357,7 +357,7 @@ class MigrationTest extends TestCase
      */
     public function testValidationThrowsExceptionForEntityWithNoColumns(): void
     {
-        // Utilisation d'un mock pour SchemaComparer car on veut contrôler la sortie de compare()
+        // SchemaComparer is mocked to control the output of compare()
         $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['compare'])
@@ -381,7 +381,7 @@ class MigrationTest extends TestCase
      */
     public function testGenerateMigrationWithDefaultValues(): void
     {
-        // Utilisation d'un mock pour SchemaComparer car on veut contrôler la sortie de compare()
+        // SchemaComparer is mocked to control the output of compare()
         $schemaComparer = $this->getMockBuilder(SchemaComparer::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['compare'])

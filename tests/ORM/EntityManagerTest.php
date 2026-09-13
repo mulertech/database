@@ -106,7 +106,7 @@ class EntityManagerTest extends TestCase
         self::assertInstanceOf(UserRepository::class, $repository);
         self::assertEquals(User::class, $repository->getEntityName());
 
-        // Sous-classe anonyme pour exposer createQueryBuilder
+        // Anonymous subclass exposing createQueryBuilder
         $publicRepository = new class($em) extends UserRepository {
             public function publicCreateQueryBuilder()
             {
@@ -174,7 +174,7 @@ class EntityManagerTest extends TestCase
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
         
-        // Créer les entités avec des relations parent-enfant
+        // Create entities with parent-child relations
         $group1 = new Group();
         $group1->setName('Group1');
         $group2 = new Group();
@@ -184,34 +184,34 @@ class EntityManagerTest extends TestCase
         $group3->setName('Group3');
         $group3->setParent($group1);
         
-        // Ne pas utiliser addChild() manuellement - laisser la persistance gérer les relations
+        // Do not call addChild() manually: persistence handles the relations
         $em->persist($group1);
         $em->persist($group2);
         $em->persist($group3);
         $em->flush();
         
-        // Vérifier que les données sont correctement en base
+        // Check that the data is correctly stored in the database
         $pdo = $this->entityManager->getPdm();
         $stmt = $pdo->prepare('SELECT COUNT(*) as count FROM groups_test WHERE parent_id = ?');
         $stmt->execute([$group1->getId()]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         self::assertEquals(2, $result['count'], 'Should have 2 children in database');
         
-        // Clear l'entity manager pour forcer le rechargement depuis la base
+        // Clear the entity manager to force a reload from the database
         $em->getEmEngine()->clear();
         
-        // Test 1: Vérifier que les relations OneToMany sont chargées automatiquement depuis la base
+        // Test 1: OneToMany relations are loaded automatically from the database
         $reloadedGroup1 = $em->find(Group::class, 'name=\'Group1\'');
         self::assertNotNull($reloadedGroup1, 'Group1 should be found after clear');
         self::assertInstanceOf(Group::class, $reloadedGroup1);
         self::assertEquals('Group1', $reloadedGroup1->getName());
         
-        // IMPORTANT: Ce test devrait échouer si OneToManyProcessor::processProperty() n'est pas implémenté
+        // IMPORTANT: this test fails if OneToManyProcessor::processProperty() is not implemented
         $children = $reloadedGroup1->getChildren();
         self::assertNotNull($children, 'Children collection should not be null');
         self::assertEquals(2, $children->count(), 'Group1 should have 2 children loaded from database');
         
-        // Vérifier que les enfants sont les bonnes entités
+        // Check that the children are the expected entities
         $childNames = [];
         foreach ($children as $child) {
             $childNames[] = $child->getName();
@@ -219,12 +219,12 @@ class EntityManagerTest extends TestCase
         self::assertContains('Group2', $childNames, 'Group2 should be in children');
         self::assertContains('Group3', $childNames, 'Group3 should be in children');
         
-        // Test 2: Vérifier la relation ManyToOne dans l'autre sens
+        // Test 2: ManyToOne relation in the opposite direction
         $reloadedGroup3 = $em->find(Group::class, 'name=\'Group3\'');
         self::assertNotNull($reloadedGroup3, 'Group3 should be found');
         self::assertEquals('Group1', $reloadedGroup3->getParent()->getName());
         
-        // Test 3: Tester la modification des relations et la synchronisation
+        // Test 3: modifying relations keeps them synchronised
         $reloadedGroup3->setParent(null);
         
         // Check if entity manager detects the change
@@ -233,25 +233,25 @@ class EntityManagerTest extends TestCase
         $em->persist($reloadedGroup3);
         $em->flush();
         
-        // Vérifier en base que parent_id est null
+        // Check in the database that parent_id is null
         $stmt = $pdo->prepare('SELECT parent_id FROM groups_test WHERE name = ?');
         $stmt->execute(['Group3']);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         self::assertNull($result['parent_id'], 'Group3 parent_id should be null in database');
         
-        // Clear et recharger pour vérifier la synchronisation
+        // Clear and reload to check synchronisation
         $em->getEmEngine()->clear();
         
         $finalGroup1 = $em->find(Group::class, 'name=\'Group1\'');
         $finalGroup3 = $em->find(Group::class, 'name=\'Group3\'');
         
-        // Group1 ne devrait plus avoir que 1 enfant
+        // Group1 should have only 1 child left
         self::assertEquals(1, $finalGroup1->getChildren()->count(), 'Group1 should now have only 1 child');
         
-        // Group3 ne devrait plus avoir de parent
+        // Group3 should no longer have a parent
         self::assertNull($finalGroup3->getParent(), 'Group3 should have no parent after update');
         
-        // Test 4: Vérifier que l'enfant restant est Group2
+        // Test 4: the remaining child is Group2
         $remainingChild = $finalGroup1->getChildren()->reset();
         self::assertEquals('Group2', $remainingChild->getName(), 'Remaining child should be Group2');
     }
@@ -303,14 +303,14 @@ class EntityManagerTest extends TestCase
         $em->persist($user1);
         $em->flush();
         
-        // Vérifier que la table pivot contient bien les données
+        // Check that the pivot table holds the data
         $pdo = $this->entityManager->getPdm();
         $statement = $pdo->prepare('SELECT * FROM link_user_group_test');
         $statement->execute();
         $pivotData = $statement->fetchAll(\PDO::FETCH_ASSOC);
-        
-        self::assertNotEmpty($pivotData, 'La table pivot devrait contenir des données');
-        self::assertEquals(1, count($pivotData), 'La table pivot devrait contenir exactement 1 enregistrement');
+
+        self::assertNotEmpty($pivotData, 'The pivot table should contain data');
+        self::assertEquals(1, count($pivotData), 'The pivot table should contain exactly 1 row');
         self::assertEquals($user1->getId(), $pivotData[0]['user_id']);
         self::assertEquals($group1->getId(), $pivotData[0]['group_id']);
         
@@ -792,32 +792,32 @@ class EntityManagerTest extends TestCase
         $this->createLinkUserGroupTestTable();
         $em = $this->entityManager;
         
-        // Créer un parent et ses enfants directement en base
+        // Create a parent and its children directly in the database
         $pdo = $this->entityManager->getPdm();
         
-        // Insérer le parent
+        // Insert the parent
         $stmt = $pdo->prepare('INSERT INTO groups_test (id, name) VALUES (?, ?)');
         $stmt->execute([1, 'ParentGroup']);
         
-        // Insérer les enfants avec référence au parent
+        // Insert the children referencing the parent
         $stmt = $pdo->prepare('INSERT INTO groups_test (id, name, parent_id) VALUES (?, ?, ?)');
         $stmt->execute([2, 'Child1', 1]);
         $stmt->execute([3, 'Child2', 1]);
         
-        // Vérifier que les données sont bien en base
+        // Check that the data is in the database
         $stmt = $pdo->prepare('SELECT COUNT(*) as count FROM groups_test WHERE parent_id = 1');
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         self::assertEquals(2, $result['count'], 'Should have 2 children in database');
         
-        // Charger le parent via l'EntityManager
+        // Load the parent through the EntityManager
         $parentGroup = $em->find(Group::class, 1);
         self::assertNotNull($parentGroup, 'Parent group should be found');
         self::assertEquals('ParentGroup', $parentGroup->getName());
         
-        // CRITICAL TEST: Vérifier que les enfants sont automatiquement chargés
-        // Si OneToManyProcessor::processProperty() n'est pas implémenté, 
-        // cette assertion devrait échouer car la collection sera vide
+        // CRITICAL TEST: children are loaded automatically
+        // If OneToManyProcessor::processProperty() is not implemented, 
+        // this assertion fails because the collection is empty
         $children = $parentGroup->getChildren();
         self::assertNotNull($children, 'Children collection should not be null');
         self::assertEquals(2, $children->count(), 
@@ -825,7 +825,7 @@ class EntityManagerTest extends TestCase
             'If this fails, OneToManyProcessor::processProperty() is not properly implemented.'
         );
         
-        // Vérifier les noms des enfants
+        // Check the children's names
         $childNames = [];
         foreach ($children as $child) {
             $childNames[] = $child->getName();

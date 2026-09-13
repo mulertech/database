@@ -28,7 +28,7 @@ class MigrationRunCommandTest extends TestCase
 
     public function testExecuteSuccessfulMigration(): void
     {
-        // Créer des mocks de migrations
+        // Migration stubs
         $migration1 = $this->createStub(Migration::class);
         $migration2 = $this->createStub(Migration::class);
         
@@ -37,7 +37,7 @@ class MigrationRunCommandTest extends TestCase
             '20230102000000' => $migration2
         ];
         
-        // Configurer le MigrationManager
+        // Configure the MigrationManager
         $this->migrationManager->expects($this->once())
             ->method('getPendingMigrations')
             ->willReturn($pendingMigrations);
@@ -46,7 +46,7 @@ class MigrationRunCommandTest extends TestCase
             ->method('migrate')
             ->willReturn(2); // 2 migrations executed
             
-        // Configurer les attentes pour le terminal
+        // Configure the terminal expectations
         $this->terminal->expects($this->exactly(5))
             ->method('writeLine');
             
@@ -62,12 +62,12 @@ class MigrationRunCommandTest extends TestCase
     
     public function testExecuteNoPendingMigrations(): void
     {
-        // Configurer le MigrationManager
+        // Configure the MigrationManager
         $this->migrationManager->expects($this->once())
             ->method('getPendingMigrations')
             ->willReturn([]);
             
-        // Configurer les attentes pour le terminal
+        // Configure the terminal expectations
         $this->terminal->expects($this->exactly(2))
             ->method('writeLine');
             
@@ -78,23 +78,23 @@ class MigrationRunCommandTest extends TestCase
     
     public function testExecuteDryRun(): void
     {
-        // Créer un mock de migration
+        // Migration stub
         $migration = $this->createStub(Migration::class);
         
         $pendingMigrations = [
             '20230101000000' => $migration
         ];
         
-        // Configurer le MigrationManager
+        // Configure the MigrationManager
         $this->migrationManager->expects($this->once())
             ->method('getPendingMigrations')
             ->willReturn($pendingMigrations);
             
-        // Pas d'appel à migrate() en mode dry-run
+        // migrate() is not called in dry-run mode
         $this->migrationManager->expects($this->never())
             ->method('migrate');
             
-        // Configurer les attentes pour le terminal
+        // Configure the terminal expectations
         $this->terminal->expects($this->atLeastOnce())
             ->method('writeLine');
             
@@ -105,23 +105,23 @@ class MigrationRunCommandTest extends TestCase
     
     public function testExecuteUserCancelled(): void
     {
-        // Créer un mock de migration
+        // Migration stub
         $migration = $this->createStub(Migration::class);
         
         $pendingMigrations = [
             '20230101000000' => $migration
         ];
         
-        // Configurer le MigrationManager
+        // Configure the MigrationManager
         $this->migrationManager->expects($this->once())
             ->method('getPendingMigrations')
             ->willReturn($pendingMigrations);
             
-        // Pas d'appel à migrate() quand l'utilisateur annule
+        // migrate() is not called when the user cancels
         $this->migrationManager->expects($this->never())
             ->method('migrate');
             
-        // Configurer les attentes pour le terminal
+        // Configure the terminal expectations
         $this->terminal->expects($this->atLeastOnce())
             ->method('writeLine');
             
@@ -137,12 +137,12 @@ class MigrationRunCommandTest extends TestCase
     
     public function testExecuteWithError(): void
     {
-        // Configurer le MigrationManager pour lancer une exception
+        // Configure the MigrationManager to throw an exception
         $this->migrationManager->expects($this->once())
             ->method('getPendingMigrations')
-            ->will($this->throwException(new Exception('Une erreur est survenue')));
+            ->will($this->throwException(new Exception('An error occurred')));
             
-        // Configurer les attentes pour le terminal
+        // Configure the terminal expectations
         $this->terminal->expects($this->exactly(2))
             ->method('writeLine');
             
